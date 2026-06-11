@@ -216,3 +216,6 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Local design source material — do not commit (clean-room: keep out of the tree)
+starting_materials/
