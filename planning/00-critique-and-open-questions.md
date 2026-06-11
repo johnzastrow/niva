@@ -122,11 +122,73 @@ that share a small core.
 | 4 | Usage contexts | **All four**: marimo-qgis notebooks, QGIS Python Console, standalone scripts, terminal CLI/batch |
 
 Implications carried into the planning docs:
-- Deferring pipelines removes the hardest v1 problem (temp-output chaining lifecycle);
-  each op simply produces one output and returns it.
-- "Both backends" means a clean `Backend` abstraction is now load-bearing from day one.
-- Library-first + CLI-needed means the CLI is generated from the same per-operation
-  parameter specs, so the two surfaces never drift.
-- Items still proposed (not yet ratified) in the docs below: MVP operation set (03),
-  return-type/`Layer` model (02), SQL/PostGIS → v2 (04), distribution model (02).
+- "Both backends" means a clean `Backend` abstraction is load-bearing from day one.
+- The CLI/library are generated from the same per-operation specs, so they never drift.
+
+## 7. Resolved direction (2026-06-11, supersedes parts of §6)
+
+After clarifying **target audience and use cases**, the project was re-centered. These
+refinements override the earlier form-factor/pipeline answers where they conflict:
+
+| Topic | Earlier answer | **Resolved direction** |
+| :-- | :-- | :-- |
+| Primary face | Library-first | **Text-pipeline grammar first** — for *non-programmers*; the syntax must not read like Python. The Python library is the engine + power-user escape hatch underneath. |
+| Pipelines/chaining | Deferred to v2 | **v1 core** — chaining is the product. The pipe `\|` is the chain (each stage's output feeds the next stage's input). |
+| Flow string DSL | "Dropped" | **Re-embraced, redesigned** — the original critique stands against the *programmer-ish, quoting-heavy* draft; the new grammar is brief, pipe-chained, newline-optional, and non-programmer-first. |
+| Audience | (assumed: the author) | **Non-programmers (primary)** + QGIS power users + automation developers; **public OSS / PyPI**; assume **minimal coders**. |
+| Use cases | (broad) | Interactive exploration · reproducible batch pipelines (saved `.niva` scripts, run headless) · teaching/readable scripts · embedded in marimo cells. |
+
+**Grammar (settled):** `verb [positional] [flag]* [key=value]*`, stages joined by `|`;
+whitespace/newlines around `|` are insignificant; only `save` writes to disk. Example:
+`load roads.gpkg | buffer 100 dissolve | clip city.gpkg | save out.gpkg`.
+
+```mermaid
+flowchart TD
+    NP["Non-programmer writes a text pipeline"] --> GR["niva grammar (pipe-chained)"]
+    GR --> ENG["niva engine + verb registry"]
+    ENG --> BK["backends — PyQGIS · qgis_process"]
+    BK --> QG["QGIS Processing → GDAL · GEOS · PROJ"]
+    ENG -. "escape hatch" .-> PWR["power users — niva Python API · raw PyQGIS"]
+```
+
+The docs below (01–05) are written to this resolved direction.
+
+## 8. Open clarifying questions (for the next session)
+
+Captured so work can resume cleanly. Grouped by area; the grammar ones block the most.
+
+### Grammar & verbs
+- **`load` required?** Must every flow begin with `load <path>`, or can the first stage
+  be an op that takes a path directly (`buffer roads.gpkg 100 | …`)?
+- **Positional conventions** — confirm the primary-arg mapping per verb (buffer→distance,
+  clip/intersect/union/difference/select→overlay, dissolve→field, reproject→target_crs,
+  filter→expression, calc→field+expr, merge→extra inputs). See `03 §2`.
+- **Multi-positional verbs** — is `calc area_m2 "$area"` (two positionals) acceptable, or
+  prefer a named form like `calc field=area_m2 expr=$area`?
+- **Distance units** — bare value = layer CRS units, or support suffixes
+  (`buffer 100m`, `buffer 0.5km`)? Auto-handle metric buffers on geographic CRS?
+- **`filter` scope** — how far does the simplified expression go in v1
+  (`=`, `<>`, `<`, `>`, `and`/`or`)? Include `IN` / `LIKE` / NULL handling now or later?
+  Confirm the raw `expr="…"` fallback. See `03 §3`.
+- **CRS defaults** — inherit input CRS? warn/error on mixed-CRS inputs?
+
+### Files, output, UX
+- **`.niva` files** — multiple flows separated by blank lines (proposed) or `;`?
+  `#` comments (proposed)?
+- **`save`** — default format/extension (GeoPackage?), overwrite behavior, layer naming.
+- **`add`** — default layer name and styling when loading into the live project.
+- **Error UX for non-programmers** — how friendly should parse/runtime errors be (name the
+  failing stage, suggest a fix)? The audience is minimal coders, so this matters.
+- **marimo display** — what should `niva.flow(...)` return/show in a cell (a `Result`
+  summary, a feature count, a map preview)?
+
+### Engine & packaging
+- **Ratify the `Layer`/`Result` model** (`02 §3`) — load-bearing; everything builds on it.
+- **Confirm the v1 verb set** (13) — anything must-have missing (centroids, simplify,
+  singlepart, extract-by-attribute = `filter`)?
+- **Backend auto-selection rules** (`02 §4`) — acceptable as drafted?
+- **Targets** — minimum QGIS version, supported Python versions, and license (confirm the
+  repo's existing `LICENSE`).
+- **PyPI name `niva`** — verify availability before publishing (action item, not a
+  question). Fallbacks in `05 §4`.
 

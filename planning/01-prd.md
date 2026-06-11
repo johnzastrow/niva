@@ -1,126 +1,153 @@
 # Niva — Product Requirements (v1)
 
-_A concise, high-level Python grammar over PyQGIS / QGIS Processing._
+_A concise **text-pipeline grammar** for geoprocessing, built for non-programmers,
+running on PyQGIS / QGIS Processing._
 _Status: draft for review. Decisions tracked in `00-…`._
 
-> **Clean-room design.** niva's API is derived from QGIS Processing's own model and
-> idiomatic Python — not from any proprietary GIS scripting API. No external API is
-> referenced, reproduced, or used as a template. The goal is a coherent grammar that
-> stands on QGIS's own terms.
+> **Clean-room design.** niva's grammar and API are derived from QGIS Processing's own
+> model and plain readability — not from any proprietary GIS scripting language. No
+> external API is referenced, reproduced, or used as a template.
 
 ## 1. Problem
 
-PyQGIS Processing is powerful but verbose for everyday geoprocessing. To buffer a
-layer you must initialize a `QgsApplication`, know the exact algorithm ID
-(`native:buffer`), build an `ALL_CAPS` parameter dict, manage `TEMPORARY_OUTPUT`,
-and dig the result out of an output dictionary. For interactive and scripting work
-this boilerplate dominates the actual intent. niva's job is to provide a **concise
-grammar** for the common cases while staying fully interoperable with raw PyQGIS for
-everything else.
+Geoprocessing automation in QGIS today means writing PyQGIS: initialize a
+`QgsApplication`, know algorithm IDs like `native:buffer`, build `ALL_CAPS` parameter
+dicts, manage `TEMPORARY_OUTPUT`, and thread one tool's output into the next. That is a
+**programming task**, which puts everyday automation out of reach for the analysts and
+GUI-first users who most need it — and is tedious even for those who can.
 
-**Before (raw PyQGIS):**
-```python
-from qgis.core import QgsApplication
-import processing
-from processing.core.Processing import Processing
-QgsApplication.setPrefixPath("/usr", True)
-qgs = QgsApplication([], False); qgs.initQgis(); Processing.initialize()
-res = processing.run("native:buffer", {
-    "INPUT": "roads.gpkg", "DISTANCE": 100, "DISSOLVE": True,
-    "SEGMENTS": 5, "END_CAP_STYLE": 0, "JOIN_STYLE": 0, "MITER_LIMIT": 2,
-    "OUTPUT": "roads_buf.gpkg",
-})
-out = res["OUTPUT"]
+niva's answer is a **short, readable text grammar** where a whole pipeline is one line
+a non-programmer can write and read:
+
+```
+load roads.gpkg | buffer 100 dissolve | clip city.gpkg | save roads_local.gpkg
 ```
 
-**After (niva):**
+**The same work in raw PyQGIS:**
 ```python
-import niva
-out = niva.buffer("roads.gpkg", distance=100, dissolve=True, output="roads_buf.gpkg")
+from qgis.core import QgsApplication; import processing
+# … app init, Processing.initialize() …
+b = processing.run("native:buffer", {"INPUT":"roads.gpkg","DISTANCE":100,
+     "DISSOLVE":True,"OUTPUT":"TEMPORARY_OUTPUT"})
+c = processing.run("native:clip", {"INPUT":b["OUTPUT"],"OVERLAY":"city.gpkg",
+     "OUTPUT":"roads_local.gpkg"})
 ```
+
+## 1a. Where niva sits
+
+```mermaid
+flowchart TD
+    U["Analyst / non-programmer<br/>writes a text pipeline"] --> G["niva grammar<br/>load | buffer | clip | save"]
+    G --> PARSE["niva parser → stages"]
+    PARSE --> ENG["niva engine<br/>(verbs → algorithm ids, chains output→input)"]
+    ENG --> P["PyQGIS / QGIS Processing"]
+    P --> GD["GDAL · GEOS · PROJ · providers (the real work)"]
+    ENG -. "escape hatch for power users" .-> PY["niva Python API · raw PyQGIS · GeoPandas · SQL"]
+    PY --> P
+```
+
+The text grammar is the face; the Python engine underneath does the work and stays open
+as an escape hatch for power users and for interop.
 
 ## 2. Value proposition / the wedge
 
-niva removes five specific PyQGIS pains, in order of impact:
+niva makes geoprocessing automation **writable without programming**:
 
-1. **Environment boilerplate** — one import; niva initializes QGIS/Processing lazily
-   and correctly whether run inside QGIS or standalone on QGIS's Python.
-2. **Algorithm-ID knowledge** — friendly verbs (`buffer`) resolve to `native:*` IDs
-   via an alias registry, with `niva.find("buffer")` discovery.
-3. **Parameter ergonomics** — Pythonic lowercase kwargs with sane defaults instead
-   of full `ALL_CAPS` dicts; you only pass what you mean.
-4. **Result handling** — operations return a consistent, useful result object (the
-   output, plus feature count / CRS / elapsed), not a raw dict you must unpack.
-5. **One mental model across contexts** — the same call works in a notebook, the
-   QGIS console, a standalone script, and (via a thin CLI) the terminal.
+1. **No code ceremony** — no app init, no imports, no `ALL_CAPS` dicts. One line.
+2. **Chaining is the syntax** — the pipe `|` threads each step's output into the next;
+   intermediates are invisible; only `save` writes a file.
+3. **Readable by humans** — pipelines are legible to someone who has never written
+   Python, which makes them teachable, reviewable, and shareable.
+4. **Runs everywhere unchanged** — the same pipeline string runs headless from a saved
+   `.niva` file, from the terminal, and inside a marimo notebook cell.
+5. **Never a dead end** — power users drop into the niva Python API or raw
+   PyQGIS/GeoPandas/SQL for anything the grammar doesn't cover, then come back.
 
-**Not the wedge (explicitly):** niva is not a new geometry engine, not a GeoPandas
-replacement, and not a faster runtime — the heavy lifting stays in GDAL/GEOS/PROJ via
-QGIS. niva is an *ergonomics and orchestration* layer.
+**Not the wedge:** niva is not a new geometry engine, not a GeoPandas replacement, not a
+faster runtime — heavy lifting stays in GDAL/GEOS/PROJ via QGIS. niva is an
+*accessibility and orchestration* layer.
 
-## 2a. Design principles (the spine of the project)
+## 2a. Design principles (the spine)
 
-1. **Grammar first.** The product is a small, consistent *grammar* — verbs
-   (`buffer`, `clip`, `dissolve`), nouns (layers), and modifiers (kwargs) — that reads
-   the same everywhere. Consistency and predictability beat breadth or cleverness.
-2. **Chaining is the destination, designed-in from day one.** v1 ships only direct
-   one-shot calls, but every v1 decision (return types, the `Layer` model, how output
-   defaults work) is made so that fluent chaining (`x.buffer().clip().dissolve()`) and
-   declarative flows drop in for v2 **without changing the v1 surface**. We are not
-   building chaining yet; we are refusing to paint ourselves out of it.
-3. **Interoperable, never a walled garden.** niva is a façade, not a cage. Every niva
-   value exposes the underlying standard objects — a `QgsVectorLayer` and/or a file
-   path/URI — so a user can drop into raw PyQGIS, GeoPandas, Shapely, or SQL the moment
-   they need more flexibility or granularity, then hand the result back to niva. niva
-   covers the common 90%; the other 10% must remain one attribute access away.
-4. **Thin and honest.** niva adds ergonomics and orchestration, not a new engine. It
-   never hides what QGIS algorithm ran or what parameters were sent (`--dry-run`,
-   `result.algorithm`, `result.params`).
+1. **Non-programmer syntax, first and always.** If a stage reads like code, it's wrong.
+   Brevity by default; `key=value` only when a parameter is actually needed.
+2. **The grammar is the product.** A small, consistent set of verbs + a single chaining
+   rule. Consistency and predictability beat breadth or cleverness.
+3. **The pipe is the chain.** `|` separates *and* connects; output→input is automatic;
+   newlines around `|` are insignificant, so a flow can be one line or wrapped.
+4. **Interoperable, never a cage.** Every niva value exposes the underlying layer/path so
+   a user can drop into raw PyQGIS / GeoPandas / SQL and hand the result back.
+5. **Thin and honest.** niva never hides which algorithm ran or what parameters were
+   sent (`--dry-run`, `describe`).
 
 ## 3. Who it's for
 
-- **Primary:** the author — a PostGIS/QGIS power user who wants concise, high-level
-  scripting in marimo notebooks, the QGIS console, and standalone scripts.
-- **Secondary:** QGIS Python users who want a friendlier Processing façade and a
-  small CLI for batch/automation.
+```mermaid
+flowchart LR
+    subgraph Primary
+      A["Analysts / GUI-first users<br/>moving into automation"]
+    end
+    subgraph Also
+      B["QGIS Python power users<br/>(want brevity + escape hatch)"]
+      C["Developers building<br/>headless GIS automation"]
+    end
+    A --> N((niva))
+    B --> N
+    C --> N
+```
 
-## 4. Goals (v1)
+- **Primary:** analysts and GUI-first QGIS users who want to automate geoprocessing
+  **without learning to program**. The grammar is designed for them.
+- **Also served:** QGIS Python power users who want the brevity (with the Python escape
+  hatch), and developers embedding niva pipelines in headless automation.
+- **Distribution:** **public open-source on PyPI** — so docs, versioning, and a
+  contribution path matter.
 
-- A **library** (`import niva`) exposing ~10–12 common vector operations as concise
-  functions with good defaults (see `03-mvp-scope.md`).
-- A universal **`niva.run(alg_id, **params)`** escape hatch so full Processing
-  coverage is never blocked.
-- **Two backends** behind one API: in-process PyQGIS (interactive) and `qgis_process`
-  (headless), with automatic selection and an explicit override.
-- A consistent **result/`Layer` model** (see `02-architecture.md`).
-- A **thin CLI** (`niva ...`) generated from the same operation specs, for terminal
-  and batch use.
-- **Discovery**: `niva.find()` / `niva inspect` to list and describe algorithms.
-- **Runs on QGIS's own Python** (the marimo-qgis model), installable via pip into
-  that interpreter; tested headlessly in CI.
+## 4. Primary use cases
 
-## 5. Non-goals (v1 — deferred, see roadmap)
+| Use case | What it looks like |
+| :-- | :-- |
+| **Interactive exploration** | Quick one-line pipelines in a marimo cell or QGIS console while exploring data. |
+| **Reproducible batch pipelines** | Saved `.niva` script files run headless (CI, scheduled jobs, repeatable analysis). |
+| **Teaching / readable scripts** | Legible pipelines used to share, document, or learn geoprocessing without Python. |
 
-- **Chaining / pipelines** (`niva.chain(...)`, `flow exec`, YAML flows) → v2.
-- **SQL / PostGIS live layers** (`niva sql ...`) → v2.
-- **Raster operations** beyond maybe a token few → v1.1.
-- **QGIS plugin / Processing-Toolbox packaging** of niva itself → later.
-- **A bespoke flow string DSL** → likely dropped entirely in favor of v2 YAML + chain.
+## 5. Goals (v1)
 
-## 6. Success criteria for v1
+- A **text grammar + parser + executor** implementing `verb [positional] [flag]*
+  [key=value]*` stages chained by `|` (see `03-mvp-scope.md`).
+- A **runner** for all contexts: `niva run flow.niva` (headless), `niva "…"` (terminal),
+  `niva.flow("…")` (marimo/console).
+- A core **verb set** (~13 vector operations + `load`/`save`/`add`/`run`/`find`/
+  `describe`) with brief positional defaults.
+- **Two execution backends** behind one engine: in-process PyQGIS (interactive) and
+  `qgis_process` (headless), auto-selected.
+- A **Python API** underneath (the engine) usable directly as the power-user escape
+  hatch, with a consistent `Layer`/`Result` model (see `02-architecture.md`).
+- **Interop** guarantees and **discovery** (`find`/`describe`).
+- Runs on **QGIS's own Python**; `pip`-installable; headless CI.
 
-- A user can do the top ~12 vector ops in one readable line each, in all four usage
-  contexts, against GeoPackage/PostGIS/shapefile inputs.
-- `niva.run(...)` reaches any Processing algorithm not yet aliased.
-- The same script runs in-process (console/notebook) and headless (`qgis_process`)
-  by changing only the backend selector (or nothing, via auto-detect).
-- Green headless CI on QGIS's Python with a small fixture dataset.
+## 6. Non-goals (v1 — see roadmap)
 
-## 7. Key risks (carried from the critique)
+- Control flow in the grammar (variables, branching, loops, conditionals) → later.
+- SQL / PostGIS sources and sinks → v2.
+- Raster operations → v1.1.
+- A GUI / QGIS-plugin front end for the grammar → later.
 
-- **Output/layer lifecycle** is the core design risk even without chaining — nailing
-  the return-type contract (`02`) is the make-or-break ergonomics decision.
-- **Dual-backend drift** — param/result handling must be normalized so behavior is
-  identical across backends; this is the main engineering cost of the "both" decision.
-- **Testing in a QGIS env** — must be solved early or it blocks confidence.
-- **PyPI name `niva`** — availability to be verified before publishing.
+## 7. Success criteria (v1)
+
+- A non-programmer can express the common geoprocessing tasks as one readable pipeline
+  and run it from a file, the terminal, and a marimo cell — unchanged.
+- The 13 core verbs work via both backends with equivalent results.
+- `run`/`find`/`describe` and the Python escape hatch cover everything the grammar
+  doesn't.
+- Green headless CI on QGIS's Python; published to PyPI.
+
+## 8. Key risks
+
+- **Grammar ergonomics** — the syntax must stay genuinely non-programmer-friendly across
+  real tasks (multi-input ops, expressions/filters, CRS). The filter/expression case is
+  the hardest to keep un-code-like; needs deliberate design (`03`).
+- **Output/layer lifecycle across a chain** — temp handoff, `save`/`add` semantics, CRS
+  propagation (`02 §2`).
+- **Dual-backend parity** — identical behavior across PyQGIS and `qgis_process`.
+- **Name `niva` on PyPI** — verify before publishing.

@@ -1,189 +1,245 @@
 # Niva — Architecture & Technical Design (v1)
 
-_Status: draft for review. Resolves the return-type model and the dual-backend
-abstraction that the starting materials left open._
+_Status: draft for review. Built around the text-pipeline grammar as the primary
+surface, with the Python engine underneath._
 
 ## 1. Layering
 
+```mermaid
+flowchart TD
+    subgraph Surfaces
+      CLI["CLI / runner<br/>niva run flow.niva · niva '…'"]
+      API["Python API (facade)<br/>niva.flow('…') · niva.buffer(…) · niva.run(…)"]
+    end
+    subgraph Grammar["grammar/  (the text pipeline)"]
+      LEX[lexer] --> PAR[parser] --> RUN[runner]
+    end
+    subgraph Core["core/"]
+      REG[registry: verb → alg id + specs]
+      ENG[engine.run]
+      LAYER[Layer] 
+      RES[Result / OpError]
+      QENV[qgis_env]
+    end
+    subgraph Backends["backends/"]
+      SEL[select] --> BASE[Backend ABC]
+      BASE --> PQ[PyqgisBackend]
+      BASE --> QP[QgisProcessBackend]
+    end
+    CLI --> RUN
+    API --> RUN
+    API --> ENG
+    RUN --> REG
+    RUN --> ENG
+    ENG --> SEL
+    ENG --> RES
+    RES --> LAYER
 ```
-niva (public API)            import niva; niva.buffer(...), niva.run(...), niva.find(...)
-  └─ core/
-       ops.py                operation definitions (specs) + generated functions
-       registry.py           friendly-name -> algorithm-id aliases + param specs
-       engine.py             run(alg_id, params, backend) -> Result
-       layer.py              Layer wrapper (the input/output contract)
-       result.py             Result / OpError types
-       qgis_env.py           interpreter + QGIS init (shared w/ marimo-qgis idea)
-       logging.py            structured logging, --timing
-  └─ backends/
-       base.py               Backend ABC: run_algorithm(alg_id, params) -> RawResult
-       pyqgis_backend.py     in-process processing.run(...)
-       qgis_process_backend.py   subprocess qgis_process + JSON
-       select.py             auto-selection (in-QGIS? -> pyqgis, else qgis_process)
-  └─ cli/
-       main.py               argparse app generated from op specs
-       emit.py               human vs --json output, exit codes
+
+Package layout:
+
+```text
+niva/
+  grammar/   lexer.py · parser.py · runner.py        # the text pipeline
+  core/      registry.py · engine.py · layer.py · result.py · qgis_env.py · logging.py
+  backends/  base.py · pyqgis_backend.py · qgis_process_backend.py · select.py
+  api.py     # niva.flow(...), niva.buffer(...), niva.run(...), niva.find/describe
+  cli/       main.py · emit.py
+pyproject.toml
 ```
 
-Deferred to v2 (directories reserved, empty in v1): `flows/`, `sql/`.
+Reserved/empty in v1 (future): `grammar/` control-flow, `sql/`.
 
-## 2. The return-type contract (the central decision)
+## 2. The text pipeline: lex → parse → run
 
-Every operation returns a **`Result`**; its `.output` is a **`Layer`**.
+```mermaid
+flowchart LR
+    T["'load roads.gpkg | buffer 100 dissolve | clip city.gpkg | save out.gpkg'"]
+    T --> L[lexer]
+    L --> P[parser]
+    P --> S["Stage[]<br/>verb · positional · flags · key=value"]
+    S --> R[runner]
+    R -->|per stage| E[engine.run]
+    E --> O["chained output → next input"]
+    R --> F["final: save → disk · add → project"]
+```
+
+A **flow** is one or more **stages** separated by `|`; whitespace and newlines around `|`
+are insignificant. Each stage:
 
 ```python
 @dataclass
-class Result:
-    ok: bool
-    output: "Layer | None"     # primary output as a Layer
-    outputs: dict[str, Any]    # all raw outputs by Processing key
-    algorithm: str             # resolved alg id, e.g. "native:buffer"
-    params: dict[str, Any]     # resolved params actually sent
-    elapsed: float | None
-    backend: str               # "pyqgis" | "qgis_process"
-    message: str = ""
-    def __fspath__(self): ...   # so a Result can be used where a path is expected
-    def load(self, name=None): ...  # add to the current QGIS project (in-process)
+class Stage:
+    verb: str                 # load, buffer, clip, save, …
+    positional: list[str]     # bare values: ["100"] or ["city.gpkg"]
+    flags: set[str]           # bare keywords: {"dissolve"}
+    params: dict[str, str]    # key=value: {"segments": "16"}
+    raw: str
 ```
 
-`Layer` is a thin, dual-natured handle so niva is ergonomic in every context:
+Parsing rules (kept deliberately simple so the syntax stays non-code-like):
+- split on `|` → stages; tokenize each stage with quote-awareness.
+- token 0 = verb; bare `word` = flag; `key=value` = param; everything else = positional.
+- the registry's per-verb spec maps positionals/flags/params → Processing parameters,
+  so `buffer 100 dissolve` becomes `{DISTANCE:100, DISSOLVE:true, INPUT:<prev>}`.
 
-```python
-class Layer:
-    """Wraps EITHER an on-disk source (path/URI/PostGIS) OR a live QgsVectorLayer.
-    Accepted as input anywhere; produced as output everywhere."""
-    @classmethod
-    def coerce(cls, value) -> "Layer": ...  # str path | QgsMapLayer | Layer | Result
-    @property
-    def source(self) -> str: ...            # path/URI usable by both backends
-    def as_qgs(self) -> "QgsVectorLayer": ... # materialize a live layer (in-process)
-    feature_count, crs, geometry_type, fields   # lazy metadata
+## 2a. Chain execution (the pipe is the chain)
+
+```mermaid
+sequenceDiagram
+    participant R as runner
+    participant E as engine + backend
+    Note over R: current = ∅
+    R->>E: load roads.gpkg
+    E-->>R: current = Layer(roads)
+    R->>E: buffer (DISTANCE=100, DISSOLVE=true, INPUT=current)
+    E-->>R: current = Layer(buffered, temp)
+    R->>E: clip (INPUT=current, OVERLAY=city.gpkg)
+    E-->>R: current = Layer(clipped, temp)
+    R->>R: save → materialize current to out.gpkg
 ```
 
-**Why this works for v1 with pipelines deferred:** each op takes inputs (coerced via
-`Layer.coerce`) and an optional `output`. If `output` is omitted it defaults to a
-managed temporary (`TEMPORARY_OUTPUT` in-process; a temp file for `qgis_process`),
-surfaced as `result.output`. Because `Result.__fspath__` returns the output path,
-you can still hand a result to the next call manually — which gives 80% of chaining's
-value without building a chain engine yet. Formal chaining lands in v2 on top of this
-exact contract, so nothing here gets thrown away.
+The runner keeps a single `current` layer; each non-sink stage runs its algorithm with
+`INPUT = current` (unless the stage gives its own input) and replaces `current` with the
+result. **Sinks** (`save`, `add`) consume `current`: `save` writes to disk, `add` loads
+into the live QGIS project. Intermediate outputs are managed temporaries
+(`TEMPORARY_OUTPUT` in-process; temp files for `qgis_process`) and cleaned up.
 
-## 2a. Interoperability (escape hatches are first-class)
+## 3. Return-type contract (`Layer` / `Result`)
 
-The grammar must never trap the user. Each level exposes the one below:
+Every op produces a `Result`; its `.output` is a `Layer`. This is what makes both the
+chain and the power-user escape hatch work.
+
+```mermaid
+classDiagram
+    class Result {
+      +bool ok
+      +Layer output
+      +dict outputs
+      +str algorithm
+      +dict params
+      +float elapsed
+      +str backend
+      +__fspath__()
+      +load(name)
+    }
+    class Layer {
+      +source : str
+      +as_qgs() QgsVectorLayer
+      +feature_count
+      +crs
+      +geometry_type
+      +coerce(value)$ Layer
+    }
+    class OpError {
+      +str algorithm
+      +dict params
+      +str backend
+      +str message
+    }
+    Result --> Layer : output
+    Result ..> OpError : raises on failure
+```
+
+`Layer` is dual-natured — it wraps **either** an on-disk source (path/URI/PostGIS)
+**or** a live `QgsVectorLayer` — so it is accepted as input everywhere and produced as
+output everywhere. `Layer.coerce()` accepts a path, a `QgsMapLayer`, a `Result`, or
+another `Layer`.
+
+## 3a. Interoperability (escape hatches are first-class)
+
+The grammar must never trap the user; each level exposes the one below.
 
 | niva value | drop down to … | how |
 | :-- | :-- | :-- |
-| `Result` | the raw Processing outputs | `result.outputs` (dict), `result.algorithm`, `result.params` |
+| `Result` | raw Processing outputs / what ran | `result.outputs`, `result.algorithm`, `result.params` |
 | `Result` / `Layer` | a file path/URI | `os.fspath(result)`, `layer.source` |
 | `Layer` | a live `QgsVectorLayer` | `layer.as_qgs()` |
-| `Layer` | GeoPandas / Shapely / SQL | via `.source` (path/URI) → `gpd.read_file(...)`, etc. |
-| any op | a not-yet-aliased algorithm | `niva.run("provider:alg", **params)` |
+| `Layer` | GeoPandas / Shapely / SQL | `layer.source` → `gpd.read_file(...)`, etc. |
+| any op | a not-yet-aliased algorithm | grammar `run provider:alg key=value` or `niva.run(...)` |
 
-Conversely, niva **accepts** what those layers produce: `Layer.coerce()` takes a path,
-a `QgsMapLayer`, a `Result`, or another `Layer`. So a user can interleave niva and raw
-PyQGIS/GeoPandas freely:
+## 4. Backend abstraction (the cost of "both backends")
 
-```python
-buf = niva.buffer("roads.gpkg", distance=100)      # niva grammar
-gdf = geopandas.read_file(buf.source)              # drop into GeoPandas
-gdf["len"] = gdf.length
-niva.dissolve(gdf.to_file("tmp.gpkg") or "tmp.gpkg", field="zone")  # back into niva
+```mermaid
+flowchart TD
+    A["engine.run(alg, params)"] --> B{explicit backend?}
+    B -- yes --> U[use it]
+    B -- no --> C{inside running QGIS<br/>or app initialized?}
+    C -- yes --> P[PyqgisBackend]
+    C -- no --> D{qgis_process on PATH?}
+    D -- yes --> Q[QgisProcessBackend]
+    D -- no --> ERR["OpError: no backend (exit 3)"]
 ```
-
-This is what "concise grammar, interwoven with PyQGIS/other libraries when more
-granularity is needed" means concretely, and it is a v1 requirement, not a v2 nicety.
-
-## 3. Backend abstraction (the cost of "both backends")
 
 ```python
 class Backend(ABC):
     name: str
-    @abstractmethod
     def available(self) -> bool: ...
-    @abstractmethod
     def run_algorithm(self, alg_id: str, params: dict) -> RawResult: ...
-    @abstractmethod
     def list_algorithms(self) -> list[AlgInfo]: ...
-    @abstractmethod
     def describe(self, alg_id: str) -> AlgInfo: ...
 ```
 
-- **PyqgisBackend** — calls `processing.run(alg_id, params)` in-process. Requires a
-  live/initialized QGIS app (we are inside QGIS, or we `qgis_env.ensure_app()` on
-  QGIS's Python). Outputs are real `QgsVectorLayer`s or paths.
-- **QgisProcessBackend** — shells out to `qgis_process run <alg> --json` with a JSON
-  parameter payload, parses the JSON result. No live session needed; ideal for
-  CLI/batch/CI.
+- **PyqgisBackend** — `processing.run(...)` in-process; outputs are live layers/paths.
+- **QgisProcessBackend** — shells `qgis_process run <alg> --json`; parses JSON outputs.
+- **Normalization is the key task:** both return a `RawResult` of identical shape so
+  `engine.run()` builds the same `Result` regardless of backend. Each backend owns a
+  `_serialize(params)` (live layer/path vs path/URI string).
+- **Override:** `niva.use_backend(...)`, env `NIVA_BACKEND`, CLI `--backend`.
 
-**Normalization is the key engineering task:** both backends must return a `RawResult`
-with the same shape (`{outputs, ok, message, elapsed}`) so `engine.run()` builds an
-identical `Result` regardless of backend. Param serialization differs (Python objects
-vs JSON), so each backend owns a `_serialize(params)` that converts a `Layer` to the
-right form (live layer/path for pyqgis; path/URI string for qgis_process).
+## 5. One spec per verb (drives grammar, API, CLI, help)
 
-**Selection** (`backends/select.py`): default = auto.
-- Inside a running QGIS (iface present) or an initialized in-process app → `pyqgis`.
-- Otherwise, if `qgis_process` is on PATH → `qgis_process`.
-- Override: `niva.use_backend("pyqgis"|"qgis_process")`, env `NIVA_BACKEND`, or per-call
-  `backend=` kwarg / CLI `--backend`.
-
-## 4. Operation specs (one source of truth for lib + CLI)
-
-Each operation is declared once as a spec; both the Python function and the CLI
-subcommand are generated from it, so they never drift.
+A verb is declared once; the grammar binding, the Python function, the CLI subcommand,
+and `describe` output all derive from it — so they never drift.
 
 ```python
-OPS = [
-  Op("buffer", "native:buffer",
-     params=[
-        P("input",   required=True,  to="INPUT",    kind="layer"),
-        P("distance",required=True,  to="DISTANCE", kind="float"),
-        P("dissolve",default=False,  to="DISSOLVE", kind="bool"),
-        P("segments",default=5,      to="SEGMENTS", kind="int"),
-        P("output",  default=None,   to="OUTPUT",   kind="sink"),
-     ],
-     summary="Buffer features by a distance."),
-  # clip, intersection, dissolve, reproject, ...
-]
+Verb("buffer", "native:buffer",
+     positional=[("distance", "DISTANCE", float)],     # bare value → DISTANCE
+     flags={"dissolve": "DISSOLVE"},                    # bare word → DISSOLVE=true
+     params=[("segments","SEGMENTS",int), ("end_cap","END_CAP_STYLE",str)],
+     input_param="INPUT", output_param="OUTPUT",
+     summary="Buffer features by a distance.")
 ```
 
-`niva.buffer(...)` is generated from this; `niva vector buffer ...` is the same spec
-fed to argparse. Adding an op = adding a spec.
+## 6. Errors & exit codes
 
-## 5. Errors & exit codes
+- Python raises `niva.OpError`; `Result.ok` also set. Grammar/parse problems raise
+  `niva.FlowError` with the offending stage.
+- CLI exit codes: `0` ok · `1` runtime · `2` usage/parse · `3` missing QGIS/dep ·
+  (`4` reserved for SQL/connection in v2). Logs/timing → stderr; data/`--json` → stdout.
 
-- Library raises `niva.OpError` (with alg id, params, backend, underlying message) on
-  failure; `Result.ok` is also set for callers who prefer checking.
-- CLI maps to exit codes (from the materials, retained): `0` ok, `1` runtime failure,
-  `2` usage error, `3` missing QGIS/dependency, `4` connection/SQL (reserved for v2).
-- Logs/timing → stderr; data/`--json` → stdout.
+## 7. Runtime & distribution
 
-## 6. Runtime & distribution
+- **Runs on QGIS's own Python** (the marimo-qgis model). `qgis_env` locates the
+  interpreter, initializes a headless app when needed, and finds `qgis_process`.
+- **Packaging:** standard `pyproject.toml`; `pip install` into QGIS's Python; console
+  entry point `niva = "niva.cli.main:main"`.
+- **marimo embedding:** a cell calls `niva.flow("load … | … | save …")`; the notebook
+  already runs on QGIS's Python (see marimo-qgis).
+- **PyPI name `niva`** — verify before publishing (fallbacks in `05`).
 
-- **Runs on QGIS's own Python** — the exact constraint solved in marimo-qgis. niva
-  reuses that interpreter-detection idea (`qgis_env.py` ~ `runtime.qgis_python()`),
-  so it can also locate `qgis_process` and initialize a standalone app.
-- **Packaging:** a normal `pyproject.toml` package, `pip install`ed into QGIS's
-  Python (e.g. OSGeo4W Python on Windows, system python3 on Linux). No vendored QGIS.
-- **Entry point:** `niva = "niva.cli.main:main"` console script.
-- **PyPI name `niva`** — verify availability before publishing; fallback names noted
-  in the naming docs (`pyniva`, `nivagis`, etc.).
+## 8. Testing / CI
 
-## 7. Testing / CI
+```mermaid
+flowchart LR
+    subgraph "no QGIS needed"
+      G[grammar: lex/parse tests]
+      RG[registry/spec tests]
+    end
+    subgraph "QGIS Python"
+      PAR[backend-parity: pyqgis ≡ qgis_process]
+      FLOW[end-to-end flow tests on fixtures]
+    end
+    G & RG & PAR & FLOW --> CI[headless CI on QGIS container]
+```
 
-- Tests run on QGIS's Python (headless). Prefer the **`qgis_process` backend** for
-  most CI tests (no app init), plus a small in-process suite.
-- **Fixtures:** tiny GeoPackages committed under `tests/data/` (a few features each).
-- **Layers of tests:** (a) registry/spec + param-mapping unit tests (no QGIS),
-  (b) backend-parity tests asserting pyqgis and qgis_process give equivalent outputs
-  for the same op, (c) CLI arg-parsing/exit-code tests.
-- CI mirrors marimo-qgis: invoke via QGIS's interpreter (`python-qgis.bat` on Windows
-  / system python3 on Linux); a GitHub Actions job using a QGIS container on Linux.
+- Grammar lex/parse and registry tests need **no QGIS** (fast, pure-Python).
+- **Backend-parity** tests assert both backends give equivalent outputs per verb.
+- **End-to-end** flow tests run small pipelines on tiny fixture GeoPackages
+  (`tests/data/`). CI invokes via QGIS's interpreter, mirroring marimo-qgis.
 
-## 8. Relationship to marimo-qgis
+## 9. Relationship to marimo-qgis
 
 niva is the natural geoprocessing layer inside marimo-qgis notebooks. Shared concepts
-(QGIS-Python detection, headless init) could become a tiny common module, but to avoid
-premature coupling, v1 keeps niva self-contained and simply *reimplements the small
-detection helper*, revisiting extraction once both are stable.
+(QGIS-Python detection, headless init) may later extract into a tiny common module; v1
+keeps niva self-contained to avoid premature coupling.
