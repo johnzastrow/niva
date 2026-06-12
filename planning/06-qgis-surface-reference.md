@@ -239,10 +239,19 @@ closer to the data than round-tripping through Processing.
   **grids** (`SquareGrid`/`HexagonalGrid`/`TriangularGrid`, 8 fns), **topology**
   TopoGeo/TopoNet (62 fns), **routing/network** (7), **GeoPackage** compat
   (24 `gpkg*`), format converters (`AsKml`/`AsGeoJSON`/`AsEWKB`/`AsTWKB`),
-  **RasterLite2** (RL2), KNN, geodesic, and metadata/catalog functions.
+  **RasterLite2** (RL2), KNN, geodesic, and metadata/catalog functions. The
+  [SpatiaLite topics][sl-topics] cookbook organizes these (Topology — ISO, 8
+  tutorials; tessellations; DE-9IM relationship matrices; spatial indexing).
+- **Virtual Tables** ([topics][sl-topics]) — a distinctive SpatiaLite capability:
+  external sources are attached as SQL-queryable tables — `VirtualShape`
+  (shapefiles), `VirtualText` (CSV), `VirtualXL` (Excel), `VirtualOGR` (any OGR
+  source), `VirtualPostgres` (PostGIS), plus algorithmic ones `VirtualRouting`
+  (SQL routing), `VirtualKNN` (nearest-neighbour). This lets `ST_*` SQL run over
+  files that have no SQL engine of their own — relevant to niva's `sql` verb (§5.3).
 - Core coverage mirrors Processing's vector geometry/overlay groups:
 
 [sl-ref]: https://www.gaia-gis.it/gaia-sins/spatialite-sql-5.1.0.html
+[sl-topics]: https://www.gaia-gis.it/gaia-sins/spatialite_topics.html
 
 | ~Count | `ST_*` family | Examples |
 |-------:|---------------|----------|
@@ -382,8 +391,11 @@ Read-only / non-SQL providers present: `wms`, `wcs`, `wfs`, `arcgis*`,
    SpatiaLite-flavoured SQL **across already-loaded QGIS layers** regardless of
    their source, e.g. join a shapefile to a CSV to a PostGIS table in one query.
 
-niva's `sql` verb should make the dialect/engine explicit or inferable, because
-the same `ST_*` call behaves differently across them.
+Two engines deliver that last "SQL across heterogeneous sources" trick: QGIS
+virtual layers (above) and **SpatiaLite Virtual Tables** (`VirtualShape`/`Text`/
+`OGR`/`Postgres`, §4.1) — both let `ST_*` SQL reach files with no native SQL
+engine. niva's `sql` verb should make the dialect/engine explicit or inferable,
+because the same `ST_*` call behaves differently across them.
 
 ### 5.4 SQL-execution algorithms (inventory)
 
@@ -515,3 +527,16 @@ All figures came from the live QGIS install via PyQGIS:
 `osgeo.ogr`/`gdal` (drivers), and `PRAGMA function_list` on a `mod_spatialite`
 connection (SpatiaLite `ST_*`). The full machine-readable inventories are in
 [`reference/`](reference/). Re-run against any QGIS to regenerate for that build.
+
+### Official references (cross-checked)
+
+- QGIS Processing framework — <https://docs.qgis.org/3.44/en/docs/user_manual/processing/index.html>
+  (algorithms/providers/parameters model, `processing.run`, Modeler, batch)
+- QGIS expression functions — the QGIS user manual "Expressions" chapter
+- SpatiaLite 5.1.0 SQL functions — <https://www.gaia-gis.it/gaia-sins/spatialite-sql-5.1.0.html>
+- SpatiaLite topics (cookbook, topology, Virtual Tables) — <https://www.gaia-gis.it/gaia-sins/spatialite_topics.html>
+- PostGIS function reference — <https://postgis.net/docs/reference.html>
+- GDAL/OGR drivers — <https://gdal.org/drivers/>
+
+The counts/signatures above are this build's; the references are the
+version-independent source of truth for what each surface can do.

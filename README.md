@@ -59,6 +59,7 @@ The thinking lives in [`planning/`](planning/):
 | `04-roadmap.md` | phased direction |
 | `05-concepts-captured.md` | concepts gathered from the exploration |
 | `06-qgis-surface-reference.md` | **reference**: the full QGIS capability surface niva could reach — 769 Processing algorithms, 406 expression functions, SpatiaLite/PostGIS spatial SQL, SQL drivers, the version stack — with before/after niva examples (machine-readable inventories in `planning/reference/`) |
+| `07-alias-registry-design.md` | the **alias registry** — how niva maps friendly verbs onto QGIS algorithms: entry schema, grammar→parameter binding, type coercion, enum vocab, the raw `run` escape hatch, and validation against the live registry |
 
 Notable undecided questions: library vs CLI as the *primary* surface; whether the
 text DSL earns its keep next to a Python chain + YAML; and the output/layer

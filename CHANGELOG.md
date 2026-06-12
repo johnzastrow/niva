@@ -23,7 +23,15 @@ once it has releases.
   official SpatiaLite 5.1.0 and PostGIS function references — ~300+ documented
   spatial functions each, under OGC `ST_` plus legacy/extension names), the
   SQL-capable data providers and OGR/GDAL drivers, and the full version stack —
-  with current signatures/access and before/after niva examples.
+  with current signatures/access and before/after niva examples. Cross-checked
+  against the QGIS Processing manual (framework model, Modeler/batch) and the
+  SpatiaLite topics cookbook (Virtual Tables for SQL across heterogeneous
+  sources).
+- **Alias registry design** (`planning/07-alias-registry-design.md`): how niva
+  maps friendly verbs onto QGIS algorithms — the declarative entry schema,
+  grammar→parameter binding, type coercion, enum vocabularies, the raw `run`
+  escape hatch for full coverage, generation/validation against the live
+  registry, and worked examples.
 - **Brand assets** (`logos/`): the niva mark (`logo.svg` / `logo.png`) and
   wordmark (`logo_text.svg` / `logo_text.png`); earlier logo explorations
   archived under `logos/OLD/`.
