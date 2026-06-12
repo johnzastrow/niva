@@ -144,9 +144,10 @@ flowchart LR
   **`assess`** verb (structure, validity, duplicates, nulls, existing lineage).
 - A **Python API** underneath (the engine) as the power-user escape hatch, with
   `Layer`/`Result` and first-class interop.
-- **Two execution backends** behind one engine — in-process PyQGIS and
-  `qgis_process`, auto-selected. *(Single-backend-first is the one unsettled call;
-  `00-§3.3`.)*
+- A **single in-process PyQGIS backend** — runs both interactively (live QGIS)
+  and **headless** (niva initializes a headless `QgsApplication`), covering every
+  context. The `Backend` ABC keeps `qgis_process` as a v0.2 addition (decided,
+  `00-§3.3`).
 - Runs on **QGIS's own Python**; `pip`-installable; headless CI on a QGIS-version
   matrix.
 
@@ -160,6 +161,8 @@ flowchart LR
   operation log + `assess` are in v1.)*
 - **Grammar control-flow** (variables, branching, loops) and **parameterized
   `call`** (macros) → v2.
+- **The `qgis_process` (headless-batch) backend** and backend auto-selection → v0.2.
+  v1 is PyQGIS-only (`00-§3.3`).
 - **GRASS/SAGA curated verbs** — reachable via `run` from v0.1; aliasing the most-
   used is a later, case-by-case call.
 - **Rendering, layouts, symbology composition** → v2.x. *(Exporting an existing
@@ -170,8 +173,9 @@ flowchart LR
 - A non-programmer can express the common geoprocessing **and data-assessment**
   tasks as one readable pipeline and run it from a file, the terminal, and a
   marimo cell — unchanged.
-- The **~40 curated verbs** work via both backends with equivalent results; every
-  alias passes the registry linter against the installed QGIS.
+- The **~40 curated verbs** run on the PyQGIS backend (interactive and headless)
+  with equivalent results; every alias passes the registry linter against the
+  installed QGIS.
 - `sql "SELECT …"` returns a usable layer from a file and from an `@connection`.
 - `assess` produces a quality report; the run journal records every operation.
 - `run`/`find`/`describe` and the Python escape hatch cover everything the grammar
@@ -186,8 +190,8 @@ flowchart LR
 - **Output/layer lifecycle across surfaces** — temp handoff and materialization as
   a handle crosses Processing ↔ SQL ↔ expressions; CRS/schema propagation
   (`02-§3`).
-- **Dual-backend parity** — identical behavior across PyQGIS and `qgis_process`;
-  also the open question of whether to ship one backend first (`00-§3.3`).
+- **In-process startup cost** — PyQGIS/Processing init on each headless run;
+  mitigated later by a service mode / the `qgis_process` backend (v0.2+).
 - **Registry drift** — aliases/enums must stay valid across QGIS versions; the
   linter + CI matrix mitigate (`07-§9`).
 - **Provenance scope creep** — lineage/assessment are differentiators but must

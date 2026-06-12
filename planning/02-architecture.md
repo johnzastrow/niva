@@ -23,8 +23,8 @@ flowchart TD
     end
     subgraph Backends["backends/"]
       SEL[select] --> BASE[Backend ABC]
-      BASE --> PQ[PyqgisBackend]
-      BASE --> QP[QgisProcessBackend]
+      BASE --> PQ[PyqgisBackend · v1]
+      BASE -.-> QP[QgisProcessBackend · v0.2]
     end
     CLI --> RUN
     API --> RUN
@@ -42,7 +42,7 @@ Package layout:
 niva/
   grammar/   lexer.py · parser.py · runner.py        # the text pipeline
   core/      registry.py · engine.py · layer.py · result.py · qgis_env.py · logging.py
-  backends/  base.py · pyqgis_backend.py · qgis_process_backend.py · select.py
+  backends/  base.py · pyqgis_backend.py        # v1; qgis_process_backend.py + select.py → v0.2
   api.py     # niva.flow(...), niva.buffer(...), niva.run(...), niva.find/describe
   cli/       main.py · emit.py
 pyproject.toml
@@ -231,18 +231,14 @@ The handle never traps the user; each level exposes the one below:
 `Layer.coerce()` accepts a path, a `QgsMapLayer`, a `Result`, a `(conn, table)`
 ref, or another `Layer` — so any of these can be fed into a flow as input.
 
-## 4. Backend abstraction (the cost of "both backends")
+## 4. Backend abstraction (one backend in v1)
 
-```mermaid
-flowchart TD
-    A["engine.run(alg, params)"] --> B{explicit backend?}
-    B -- yes --> U[use it]
-    B -- no --> C{inside running QGIS<br/>or app initialized?}
-    C -- yes --> P[PyqgisBackend]
-    C -- no --> D{qgis_process on PATH?}
-    D -- yes --> Q[QgisProcessBackend]
-    D -- no --> ERR["OpError: no backend (exit 3)"]
-```
+**Decided (`00-§3.3`): v1 ships a single backend — in-process PyQGIS.** It runs
+both interactively (a live QGIS session) and **headless** (`qgis_env` initializes
+a headless `QgsApplication`, the marimo-qgis model), so one backend covers every
+context with no normalization/parity cost. The `Backend` ABC exists from day one
+purely as the **extension seam** so `qgis_process` can drop in later (v0.2) without
+touching the engine.
 
 ```python
 class Backend(ABC):
@@ -253,12 +249,13 @@ class Backend(ABC):
     def describe(self, alg_id: str) -> AlgInfo: ...
 ```
 
-- **PyqgisBackend** — `processing.run(...)` in-process; outputs are live layers/paths.
-- **QgisProcessBackend** — shells `qgis_process run <alg> --json`; parses JSON outputs.
-- **Normalization is the key task:** both return a `RawResult` of identical shape so
-  `engine.run()` builds the same `Result` regardless of backend. Each backend owns a
-  `_serialize(params)` (live layer/path vs path/URI string).
-- **Override:** `niva.use_backend(...)`, env `NIVA_BACKEND`, CLI `--backend`.
+- **PyqgisBackend (v1)** — `processing.run(...)` in-process; outputs are live
+  layers/paths; integrates with a live project (`add`, `as_qgs()`).
+- **QgisProcessBackend (v0.2)** — will shell `qgis_process run <alg> --json` for
+  process isolation / no-Python batch. It returns the same `RawResult` shape, so
+  `engine.run()` builds an identical `Result` — the normalization the ABC is for.
+- **Selection/override (v0.2, when a 2nd backend exists):** `niva.use_backend(...)`,
+  env `NIVA_BACKEND`, CLI `--backend`. In v1 there is nothing to select.
 
 ## 5. One spec per verb (drives grammar, API, CLI, help)
 
@@ -300,14 +297,15 @@ flowchart LR
       RG[registry/spec tests]
     end
     subgraph "QGIS Python"
-      PAR[backend-parity: pyqgis ≡ qgis_process]
+      LINT[registry linter vs installed QGIS]
       FLOW[end-to-end flow tests on fixtures]
     end
-    G & RG & PAR & FLOW --> CI[headless CI on QGIS container]
+    G & RG & LINT & FLOW --> CI[headless CI on QGIS container]
 ```
 
 - Grammar lex/parse and registry tests need **no QGIS** (fast, pure-Python).
-- **Backend-parity** tests assert both backends give equivalent outputs per verb.
+- The **registry linter** validates every alias against the installed QGIS
+  (`07-§9`). (Backend-parity tests arrive with the `qgis_process` backend in v0.2.)
 - **End-to-end** flow tests run small pipelines on tiny fixture GeoPackages
   (`tests/data/`). CI invokes via QGIS's interpreter, mirroring marimo-qgis.
 

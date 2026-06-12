@@ -224,11 +224,14 @@ called file (parameterized macros) is a later extension — see `04-roadmap.md`
 (v0.2 plain `call`; v2.0 parameterized) and `00 §8`. v1 keeps calls parameterless
 so the grammar stays non-code-like.
 
-## 5. Backends (both, in v1)
+## 5. Backend (PyQGIS-only in v1)
 
-- In-process **PyQGIS** (default when inside QGIS / a live session) and headless
-  **`qgis_process`** (default otherwise), auto-selected; override via `--backend` /
-  `NIVA_BACKEND` / `niva.use_backend(...)`. See `02 §4`.
+- A **single in-process PyQGIS** backend (`processing.run`). It runs both
+  **interactively** (a live QGIS session — enables `add`, `as_qgs()`) and
+  **headless** (niva initializes a headless `QgsApplication`), so one backend
+  covers every context. Decided in `00-§3.3`; see `02-§4`.
+- The `qgis_process` backend (+ auto-selection / `--backend`) is **v0.2** — the
+  `Backend` ABC is the seam it slots into.
 
 ## 6. Explicitly OUT of v1 (see roadmap)
 
@@ -250,9 +253,9 @@ so the grammar stays non-code-like.
 
 - The grammar (lex/parse/run) executes single- and multi-stage flows; `|` chaining
   threads output→input; `save`/`add` materialize.
-- The **~40 curated verbs** (§2: 9 built-in + Tier 1 + Tier 2) work via **both**
-  backends with equivalent results (backend-parity tests on fixtures), and every
-  alias passes the registry linter against the installed QGIS (`07-§9`).
+- The **~40 curated verbs** (§2: 9 built-in + Tier 1 + Tier 2) run on the PyQGIS
+  backend (interactively and headless) with equivalent results on fixtures, and
+  every alias passes the registry linter against the installed QGIS (`07-§9`).
 - `sql "SELECT …"` read passthrough returns a usable layer from a file (OGR
   `SQLITE` dialect) and from an `@connection`.
 - The **same flow string** runs headless (`niva run`), inline (`niva "…"`), and in a

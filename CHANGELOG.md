@@ -12,6 +12,13 @@ once it has releases.
 
 ## [Unreleased]
 
+### Changed
+- **Backend decision pinned: PyQGIS-only for v1** (ratifies `00-§3.3`). The
+  in-process backend runs both interactively and headless (a headless
+  `QgsApplication`), so one backend covers every context with no
+  normalization/parity cost. The `Backend` ABC stays as the extension seam;
+  `qgis_process` + auto-selection move to v0.2. Updated across docs 00–05.
+
 ### Added
 - **PRD reworked** (`planning/01-prd.md`) as the capstone summary of everything
   decided: the procedural grammar + `call`, the one-grammar-every-surface value

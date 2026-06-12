@@ -12,7 +12,7 @@ mindmap
       Tier-1 verbs + built-ins
       load / save / add
       sql read passthrough
-      both backends
+      PyQGIS backend (interactive + headless)
       layer handle contract
       alias registry + linter
       runner — headless · terminal · marimo
@@ -48,7 +48,8 @@ mindmap
 | Built-ins + Tier-1 verbs (the ~40-verb curated set) | **v0.1 (Tier 1) / v0.2 (Tier 2)** | 03 §2 |
 | `run` escape hatch · `find` · `describe` | **v0.1** | 03 §2, 07 §8 |
 | **`call <file.niva>`** — procedural file composition; a `.niva` runs top-to-bottom and a `call` may appear anywhere, running another file's flows inline | **v0.2** (parameterless); **v2.0** parameterized macros | 03 §4.1, 04 |
-| In-process PyQGIS + `qgis_process` backends, auto-select | **v0.1** | 02 §4 |
+| In-process **PyQGIS** backend (runs interactive + headless) | **v0.1** | 02 §4 |
+| `qgis_process` backend + auto-select | **v0.2** | 04 |
 | Python engine as power-user **escape hatch** | **v0.1** | 01, 02 §3.6 |
 | Interop with raw PyQGIS / GeoPandas / SQL | **v0.1 requirement** | 02 §3.6 |
 | `--json`, exit codes, stdout/stderr discipline | **v0.1** | 02 §6 |
@@ -142,7 +143,7 @@ Bottleneck is QGIS/`qgis_process` startup + GDAL/GEOS/PROJ + I/O, **not** Python
 - **Mapping SQL `ST_*` into the alias registry** — kept as a distinct `sql` surface
   instead, to avoid the three-way name collision (06 §8.1).
 
-> **Note on backends.** v1 keeps **both** PyQGIS and `qgis_process` with the
-> normalization cost accepted — but `00 §3.3` argues for one backend first. This
-> is the main *unsettled* concept; the handle contract and registry are written so
-> either choice works. Flagged for a decision.
+> **Backends — decided.** v1 ships **PyQGIS-only** (in-process), which runs both
+> interactively and headless — so one backend covers every context with no
+> parity cost. The `Backend` ABC stays as the extension seam; `qgis_process` is
+> added in v0.2 (`00 §3.3`).

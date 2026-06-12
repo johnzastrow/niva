@@ -51,6 +51,13 @@ the work and the bug surface. Pick **one** for v1 (in-process PyQGIS matches the
 interactive library goal and reuses the QGIS-interpreter work already done in
 marimo-qgis); add `qgis_process` later for headless batch.
 
+> **Decided: PyQGIS-only for v1.** The in-process backend runs **both**
+> interactively (a live QGIS session) and headless (niva initializes a headless
+> `QgsApplication`, the marimo-qgis model) — so one backend covers every context.
+> The `Backend` ABC stays as the extension point; `qgis_process` is added in v0.2
+> for process isolation / no-Python batch. This removes the normalization and
+> backend-parity cost from v1.
+
 ### 3.4 The real hard problem — output/layer lifecycle — is unsolved
 This is where niva will live or die ergonomically, and the docs barely touch it:
 - `save` is a placeholder (doc 15 admits it doesn't materialize output).
@@ -117,12 +124,13 @@ that share a small core.
 | # | Decision | Choice |
 | :-- | :-- | :-- |
 | 1 | Primary form factor | **Library-first** — the Python API is the product; CLI is a thin wrapper over the same functions |
-| 2 | v1 backend | **Both** in-process PyQGIS *and* `qgis_process` (interactive vs headless) |
+| 2 | v1 backend | **PyQGIS-only (in-process)** — runs interactive *and* headless; `qgis_process` deferred to v0.2 (decided, §3.3) |
 | 3 | Pipelines in v1 | **Deferred** — v1 ships direct one-shot calls only; chaining/flows are v2 |
 | 4 | Usage contexts | **All four**: marimo-qgis notebooks, QGIS Python Console, standalone scripts, terminal CLI/batch |
 
 Implications carried into the planning docs:
-- "Both backends" means a clean `Backend` abstraction is load-bearing from day one.
+- The `Backend` abstraction stays the extension point, but v1 ships **only the
+  PyQGIS backend** — no normalization/parity cost until `qgis_process` lands (v0.2).
 - The CLI/library are generated from the same per-operation specs, so they never drift.
 
 ## 7. Resolved direction (2026-06-11, supersedes parts of §6)

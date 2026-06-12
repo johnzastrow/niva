@@ -30,7 +30,9 @@ contract** right (`02-§3`) — everything later builds on them.
 - `grammar/`: lexer, parser (`Stage[]`), runner (pipe chaining, sinks).
 - `core/`: `engine.run()`, the `Layer` handle (source/qgs/db_table/memory) +
   cross-surface threading (`02-§3.3`), `Result`, `OpError`/`FlowError`, `qgis_env`.
-- `backends/`: `Backend` ABC, `PyqgisBackend`, `QgisProcessBackend`, auto-`select`.
+- `backends/`: `Backend` ABC + **`PyqgisBackend` only** (in-process; runs
+  interactive *and* headless via a headless `QgsApplication`). The ABC is the
+  seam; `qgis_process` + auto-select are deferred to v0.2 (`00-§3.3`, decided).
 
 **Coverage (the registry)**
 - `registry/`: declarative alias entries + loader + **linter** validating against
@@ -53,8 +55,8 @@ contract** right (`02-§3`) — everything later builds on them.
 - **Runner everywhere**: `niva run flow.niva`, `niva "…"`, `niva.flow("…")`
   (marimo/console); Python engine/API as the escape hatch.
 - `pyproject.toml`; `pip install` into QGIS's Python; `niva` console script.
-- **Tests/CI**: grammar + registry-linter units (no QGIS), backend-parity,
-  end-to-end flows on fixture GeoPackages; headless GitHub Actions on a QGIS Linux
+- **Tests/CI**: grammar units (no QGIS), the registry linter, and end-to-end
+  flows on fixture GeoPackages; headless GitHub Actions on a QGIS Linux
   container, across a small QGIS-version matrix (`07-§9`).
 - **Exit criteria**: `03-mvp-scope.md` "definition of done".
 
@@ -68,7 +70,9 @@ contract** right (`02-§3`) — everything later builds on them.
 - **Auto-lineage to formal metadata** on `save` (`08-§3`) and the **`metadata`**
   verb (read/set/export, `06-§2.5`); `assess --deep` (Check-geometry battery).
 - **Richer `filter`** (IN, LIKE, NULL handling) while staying non-code-like.
-- Minimal `config` (default backend); `--json` contracts; timing.
+- **`qgis_process` backend** + auto-selection (`--backend` / `NIVA_BACKEND`) — the
+  second `Backend` impl, for process isolation / no-Python headless batch.
+- Minimal `config`; `--json` contracts; timing.
 - **`call` / file composition**: parameterless `call other.niva` to run another
   file's flows inline (procedural reuse), usable anywhere in a parent (`03-§4.1`).
 - Docs site + a cookbook of example `.niva` flows.
