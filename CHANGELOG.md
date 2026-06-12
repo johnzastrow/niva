@@ -20,6 +20,12 @@ once it has releases.
   `qgis_process` + auto-selection move to v0.2. Updated across docs 00–05.
 
 ### Added
+- **Deployment & operation doc** (`planning/09-deployment-and-operation.md`),
+  analyst-friendly: niva installs into QGIS's own Python (pip now; QGIS plugin
+  later); connects to QGIS tools, files, and databases via QGIS's saved
+  connections (`@name`, no stored credentials); the human-interface options
+  (`.niva` files, CLI, QGIS console, marimo, later a plugin GUI and service mode);
+  where it runs (workstation/headless/CI/service); and a phased maturity table.
 - **PRD reworked** (`planning/01-prd.md`) as the capstone summary of everything
   decided: the procedural grammar + `call`, the one-grammar-every-surface value
   prop (Processing native-first, expressions, `sql` passthrough), **provenance for
