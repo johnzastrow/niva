@@ -1,0 +1,407 @@
+name	group	args
+aggregate	Aggregates	6
+array_agg	Aggregates	4
+collect	Aggregates	3
+concatenate	Aggregates	5
+concatenate_unique	Aggregates	5
+count	Aggregates	3
+count_distinct	Aggregates	3
+count_missing	Aggregates	3
+iqr	Aggregates	3
+majority	Aggregates	3
+max_length	Aggregates	3
+maximum	Aggregates	3
+mean	Aggregates	3
+median	Aggregates	3
+min_length	Aggregates	3
+minimum	Aggregates	3
+minority	Aggregates	3
+q1	Aggregates	3
+q3	Aggregates	3
+range	Aggregates	3
+relation_aggregate	Aggregates	5
+stdev	Aggregates	3
+sum	Aggregates	3
+array	Arrays	-1
+array_all	Arrays	2
+array_append	Arrays	2
+array_cat	Arrays	-1
+array_contains	Arrays	2
+array_count	Arrays	2
+array_distinct	Arrays	1
+array_filter	Arrays	3
+array_find	Arrays	2
+array_first	Arrays	1
+array_foreach	Arrays	2
+array_get	Arrays	2
+array_insert	Arrays	3
+array_intersect	Arrays	2
+array_last	Arrays	1
+array_length	Arrays	1
+array_majority	Arrays	2
+array_max	Arrays	1
+array_mean	Arrays	1
+array_median	Arrays	1
+array_min	Arrays	1
+array_minority	Arrays	2
+array_prepend	Arrays	2
+array_prioritize	Arrays	2
+array_remove_all	Arrays	2
+array_remove_at	Arrays	2
+array_replace	Arrays	-1
+array_reverse	Arrays	1
+array_slice	Arrays	3
+array_sort	Arrays	2
+array_sum	Arrays	1
+array_to_string	Arrays	3
+generate_series	Arrays	3
+geometries_to_array	Arrays	1
+regexp_matches	Arrays	3
+string_to_array	Arrays	3
+crs_from_text	CRS	1
+crs_to_authid	CRS	1
+color_cmyk	Color	4
+color_cmyka	Color	5
+color_cmykf	Color	5
+color_grayscale_average	Color	1
+color_hsl	Color	3
+color_hsla	Color	4
+color_hslf	Color	4
+color_hsv	Color	3
+color_hsva	Color	4
+color_hsvf	Color	4
+color_mix	Color	3
+color_mix_rgb	Color	3
+color_part	Color	2
+color_rgb	Color	3
+color_rgba	Color	4
+color_rgbf	Color	4
+create_ramp	Color	2
+darker	Color	2
+lighter	Color	2
+project_color	Color	1
+project_color_object	Color	1
+ramp_color	Color	2
+ramp_color_object	Color	2
+set_color_part	Color	3
+coalesce	Conditionals	-1
+if	Conditionals	3
+nullif	Conditionals	2
+regexp_match	Conditionals	2
+try	Conditionals	2
+extract_degrees	Conversions	1
+extract_minutes	Conversions	1
+extract_seconds	Conversions	1
+from_base64	Conversions	1
+hash	Conversions	2
+md5	Conversions	1
+sha256	Conversions	1
+to_base64	Conversions	1
+to_bool	Conversions	1
+to_date	Conversions	3
+to_datetime	Conversions	3
+to_decimal	Conversions	1
+to_dm	Conversions	4
+to_dms	Conversions	4
+to_int	Conversions	1
+to_interval	Conversions	1
+to_real	Conversions	1
+to_string	Conversions	1
+to_time	Conversions	3
+age	Date and Time	2
+convert_timezone	Date and Time	2
+datetime_from_epoch	Date and Time	1
+day	Date and Time	1
+day_of_week	Date and Time	1
+epoch	Date and Time	1
+get_timezone	Date and Time	1
+hour	Date and Time	1
+make_date	Date and Time	3
+make_datetime	Date and Time	6
+make_interval	Date and Time	7
+make_time	Date and Time	3
+minute	Date and Time	1
+month	Date and Time	1
+now	Date and Time	0
+second	Date and Time	1
+set_timezone	Date and Time	2
+timezone_from_id	Date and Time	1
+timezone_id	Date and Time	1
+week	Date and Time	1
+year	Date and Time	1
+base_file_name	Files and Paths	1
+exif	Files and Paths	2
+file_exists	Files and Paths	1
+file_name	Files and Paths	1
+file_path	Files and Paths	1
+file_size	Files and Paths	1
+file_suffix	Files and Paths	1
+is_directory	Files and Paths	1
+is_file	Files and Paths	1
+current_parent_value	Form	1
+current_value	Form	1
+hamming_distance	Fuzzy Matching	2
+levenshtein	Fuzzy Matching	2
+longest_common_substring	Fuzzy Matching	2
+soundex	Fuzzy Matching	1
+env	General	1
+eval	General	1
+eval_template	General	1
+is_layer_visible	General	1
+mime_type	General	1
+var	General	1
+with_variable	General	3
+$area	GeometryGroup	0
+$geometry	GeometryGroup	0
+$length	GeometryGroup	0
+$perimeter	GeometryGroup	0
+$x	GeometryGroup	0
+$x_at	GeometryGroup	1
+$y	GeometryGroup	0
+$y_at	GeometryGroup	1
+$z	GeometryGroup	0
+affine_transform	GeometryGroup	10
+angle_at_vertex	GeometryGroup	2
+apply_dash_pattern	GeometryGroup	6
+area	GeometryGroup	1
+azimuth	GeometryGroup	2
+bearing	GeometryGroup	4
+boundary	GeometryGroup	1
+bounds	GeometryGroup	1
+bounds_height	GeometryGroup	1
+bounds_width	GeometryGroup	1
+buffer	GeometryGroup	6
+buffer_by_m	GeometryGroup	2
+centroid	GeometryGroup	1
+close_line	GeometryGroup	1
+closest_point	GeometryGroup	2
+collect_geometries	GeometryGroup	-1
+combine	GeometryGroup	2
+concave_hull	GeometryGroup	3
+contains	GeometryGroup	2
+convex_hull	GeometryGroup	1
+crosses	GeometryGroup	2
+densify_by_count	GeometryGroup	2
+densify_by_distance	GeometryGroup	2
+difference	GeometryGroup	2
+disjoint	GeometryGroup	2
+distance	GeometryGroup	2
+distance_to_vertex	GeometryGroup	2
+end_point	GeometryGroup	1
+equals	GeometryGroup	2
+exif_geotag	GeometryGroup	1
+extend	GeometryGroup	3
+exterior_ring	GeometryGroup	1
+extrude	GeometryGroup	3
+flip_coordinates	GeometryGroup	1
+force_polygon_ccw	GeometryGroup	1
+force_polygon_cw	GeometryGroup	1
+force_rhr	GeometryGroup	1
+geom_from_gml	GeometryGroup	1
+geom_from_wkb	GeometryGroup	1
+geom_from_wkt	GeometryGroup	1
+geom_to_wkb	GeometryGroup	1
+geom_to_wkt	GeometryGroup	2
+geometry	GeometryGroup	1
+geometry_n	GeometryGroup	2
+geometry_type	GeometryGroup	1
+hausdorff_distance	GeometryGroup	3
+inclination	GeometryGroup	2
+interior_ring_n	GeometryGroup	2
+intersection	GeometryGroup	2
+intersects	GeometryGroup	2
+intersects_bbox	GeometryGroup	2
+is_closed	GeometryGroup	1
+is_empty	GeometryGroup	1
+is_empty_or_null	GeometryGroup	1
+is_multipart	GeometryGroup	1
+is_valid	GeometryGroup	1
+length3D	GeometryGroup	1
+line_interpolate_angle	GeometryGroup	2
+line_interpolate_point	GeometryGroup	2
+line_interpolate_point_by_m	GeometryGroup	3
+line_locate_m	GeometryGroup	3
+line_locate_point	GeometryGroup	2
+line_merge	GeometryGroup	1
+line_substring	GeometryGroup	3
+m	GeometryGroup	1
+m_at	GeometryGroup	2
+m_max	GeometryGroup	1
+m_min	GeometryGroup	1
+main_angle	GeometryGroup	1
+make_circle	GeometryGroup	3
+make_ellipse	GeometryGroup	5
+make_line	GeometryGroup	-1
+make_point	GeometryGroup	-1
+make_point_m	GeometryGroup	3
+make_polygon	GeometryGroup	-1
+make_rectangle_3points	GeometryGroup	4
+make_regular_polygon	GeometryGroup	4
+make_square	GeometryGroup	2
+make_triangle	GeometryGroup	3
+make_valid	GeometryGroup	3
+minimal_circle	GeometryGroup	2
+nodes_to_points	GeometryGroup	2
+num_geometries	GeometryGroup	1
+num_interior_rings	GeometryGroup	1
+num_points	GeometryGroup	1
+num_rings	GeometryGroup	1
+offset_curve	GeometryGroup	5
+order_parts	GeometryGroup	3
+oriented_bbox	GeometryGroup	1
+overlaps	GeometryGroup	2
+overlay_contains	GeometryGroup	9
+overlay_crosses	GeometryGroup	9
+overlay_disjoint	GeometryGroup	9
+overlay_equals	GeometryGroup	9
+overlay_intersects	GeometryGroup	9
+overlay_nearest	GeometryGroup	6
+overlay_touches	GeometryGroup	9
+overlay_within	GeometryGroup	9
+perimeter	GeometryGroup	1
+point_n	GeometryGroup	2
+point_on_surface	GeometryGroup	1
+pole_of_inaccessibility	GeometryGroup	2
+project	GeometryGroup	4
+relate	GeometryGroup	-1
+rotate	GeometryGroup	4
+roundness	GeometryGroup	1
+scale	GeometryGroup	4
+segments_to_lines	GeometryGroup	1
+shared_paths	GeometryGroup	2
+shortest_line	GeometryGroup	2
+simplify	GeometryGroup	2
+simplify_vw	GeometryGroup	2
+single_sided_buffer	GeometryGroup	5
+sinuosity	GeometryGroup	1
+smooth	GeometryGroup	5
+square_wave	GeometryGroup	4
+square_wave_randomized	GeometryGroup	6
+start_point	GeometryGroup	1
+straight_distance_2d	GeometryGroup	1
+sym_difference	GeometryGroup	2
+tapered_buffer	GeometryGroup	4
+touches	GeometryGroup	2
+transform	GeometryGroup	3
+translate	GeometryGroup	3
+triangular_wave	GeometryGroup	4
+triangular_wave_randomized	GeometryGroup	6
+union	GeometryGroup	2
+wave	GeometryGroup	4
+wave_randomized	GeometryGroup	6
+wedge_buffer	GeometryGroup	5
+within	GeometryGroup	2
+x	GeometryGroup	1
+x_at	GeometryGroup	2
+x_max	GeometryGroup	1
+x_min	GeometryGroup	1
+y	GeometryGroup	1
+y_at	GeometryGroup	2
+y_max	GeometryGroup	1
+y_min	GeometryGroup	1
+z	GeometryGroup	1
+z_at	GeometryGroup	2
+z_max	GeometryGroup	1
+z_min	GeometryGroup	1
+item_variables	Layout	1
+map_credits	Layout	3
+magnetic_declination	MagneticModels	6
+magnetic_declination_rate_of_change	MagneticModels	6
+magnetic_inclination	MagneticModels	6
+magnetic_inclination_rate_of_change	MagneticModels	6
+decode_uri	Map Layers	2
+layer_property	Map Layers	2
+load_layer	Map Layers	2
+from_json	Maps	1
+hstore_to_map	Maps	1
+map	Maps	-1
+map_akeys	Maps	1
+map_avals	Maps	1
+map_concat	Maps	-1
+map_delete	Maps	2
+map_exist	Maps	2
+map_get	Maps	2
+map_insert	Maps	3
+map_prefix_keys	Maps	2
+map_to_hstore	Maps	1
+map_to_html_dl	Maps	1
+map_to_html_table	Maps	1
+to_json	Maps	1
+url_encode	Maps	1
+abs	Math	1
+acos	Math	1
+asin	Math	1
+atan	Math	1
+atan2	Math	2
+ceil	Math	1
+clamp	Math	3
+cos	Math	1
+degrees	Math	1
+exp	Math	1
+floor	Math	1
+ln	Math	1
+log	Math	2
+log10	Math	1
+max	Math	-1
+min	Math	-1
+pi	Math	0
+radians	Math	1
+rand	Math	3
+randf	Math	3
+round	Math	2
+scale_exponential	Math	6
+scale_linear	Math	5
+scale_polynomial	Math	6
+sin	Math	1
+sqrt	Math	1
+tan	Math	1
+parameter	Processing	1
+raster_attributes	Rasters	3
+raster_statistic	Rasters	3
+raster_value	Rasters	3
+$currentfeature	Record and Attributes	0
+$id	Record and Attributes	0
+attribute	Record and Attributes	-1
+attributes	Record and Attributes	1
+display_expression	Record and Attributes	-1
+feature_id	Record and Attributes	1
+get_feature	Record and Attributes	3
+get_feature_by_id	Record and Attributes	2
+is_attribute_valid	Record and Attributes	4
+is_feature_valid	Record and Attributes	3
+is_selected	Record and Attributes	-1
+maptip	Record and Attributes	-1
+num_selected	Record and Attributes	-1
+represent_attributes	Record and Attributes	-1
+represent_value	Record and Attributes	2
+sqlite_fetch_and_increment	Record and Attributes	6
+uuid	Record and Attributes	1
+sensor_data	Sensors	2
+ascii	String	1
+char	String	1
+concat	String	-1
+format	String	-1
+format_date	String	3
+format_number	String	5
+left	String	2
+length	String	1
+lower	String	1
+lpad	String	3
+ltrim	String	2
+regexp_replace	String	3
+regexp_substr	String	2
+repeat	String	2
+replace	String	-1
+reverse	String	1
+right	String	2
+rpad	String	3
+rtrim	String	2
+strpos	String	2
+substr	String	3
+substr_count	String	3
+title	String	1
+trim	String	1
+unaccent	String	1
+upper	String	1
+wordwrap	String	3
+$scale	deprecated	0

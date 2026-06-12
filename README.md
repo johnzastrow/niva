@@ -56,6 +56,7 @@ The thinking lives in [`planning/`](planning/):
 | `03-mvp-scope.md` | what a first cut would (and wouldn't) include |
 | `04-roadmap.md` | phased direction |
 | `05-concepts-captured.md` | concepts gathered from the exploration |
+| `06-qgis-surface-reference.md` | **reference**: the full QGIS capability surface niva could reach — 769 Processing algorithms, 406 expression functions, SpatiaLite/PostGIS spatial SQL, SQL drivers, the version stack — with before/after niva examples (machine-readable inventories in `planning/reference/`) |
 
 Notable undecided questions: library vs CLI as the *primary* surface; whether the
 text DSL earns its keep next to a Python chain + YAML; and the output/layer

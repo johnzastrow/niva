@@ -16,6 +16,12 @@ once it has releases.
 - **Planning materials** (`planning/`): critique & open questions, product
   requirements for the non-programmer text-pipeline grammar, architecture, MVP
   scope, roadmap, and captured concepts.
+- **QGIS capability surface reference** (`planning/06-qgis-surface-reference.md`
+  + `planning/reference/*.tsv`): a snapshot, enumerated live from QGIS 4.0.3, of
+  everything niva could reach — 769 Processing algorithms (8 providers), 406
+  expression functions, SpatiaLite's 238 `ST_*` + PostGIS spatial SQL, the
+  SQL-capable data providers and OGR/GDAL drivers, and the full version stack —
+  with current signatures/access and before/after niva examples.
 - **Brand assets** (`logos/`): the niva mark (`logo.svg` / `logo.png`) and
   wordmark (`logo_text.svg` / `logo_text.png`); earlier logo explorations
   archived under `logos/OLD/`.
