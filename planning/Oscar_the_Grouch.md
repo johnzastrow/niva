@@ -74,7 +74,7 @@ Severity: 🟥 High · 🟧 Medium · 🟨 Low.
 | C5 | **`sql`/`run` are loaded guns** — arbitrary SQL, arbitrary params, arbitrary file paths; injection if niva ever string-builds SQL. | 🟧 | Never interpolate into SQL; validate identifiers; credentials stay in QGIS (`09`, §6 below). |
 | C6 | **Type-system coverage gaps.** QGIS has exotic param types (matrix, point, color, layout, datetime, range, multilayer, aggregate, coordinate-operation). niva's types won't cover all → some algorithms un-aliasable. | 🟧 | `run id KEY=value` reaches them raw; alias only what the type system supports; grow types as needed (`07-§5/§8`). |
 | C7 | **Multi-output algorithms lose data.** Aliases expose only the primary output; join counts, fail-outputs, secondary sinks vanish. | 🟨 | Documented; reach extras via `run`; an `outputs:` block later (`07-§7`). |
-| C8 | **Save/destination semantics are underspecified.** Layer name inside a GeoPackage, overwrite vs append, output CRS, format inference from extension — all ways to surprise or clobber. | 🟧 | Define `save` semantics explicitly; default to safe (no silent overwrite); confirm in design. *(Open.)* |
+| C8 | ~~Save/destination semantics underspecified~~ — **specified** (`03-§2.5`): GeoPackage default, extension-inferred format, replaces target but won't overwrite a same-flow source, `as <layer>` naming, `append`, never reprojects, lock-aware. | 🟨 | Resolved in design (`03-§2.5`); verify in implementation. |
 | C9 | **Grammar/registry versioning.** Renaming a verb or changing a default **breaks every `.niva` file in the wild**. | 🟥 | **Grammar freeze at v1.0** + SemVer on the verb/flag/param surface; deprecation path; the registry is the contract (`04`). |
 | C10 | **Machine-output / journal format drift.** Tools parsing `--json` or the run journal break when the shape changes. | 🟨 | Version the JSON/journal schema; treat as a contract (`02-§6`, `08-§2`). |
 | C11 | **Errors are cryptic to the target user** (GDAL "Could not open layer", `ALL_CAPS` dicts). | 🟧 | A friendly error layer naming the failing stage + a fix — flagged, **not yet designed** (`00` open Qs). More work than it looks. |
@@ -214,8 +214,8 @@ should be written.
 
 | # | The hole | Why it bites | Blocker? | Home |
 |---|----------|--------------|:--:|------|
-| G1 | **Distance units.** `buffer 100` — 100 *what*? Metres? Feet? Degrees? Still open (`00`, `03-§1`). | A non-programmer assumes metres; data may be feet or lat/long degrees → silently wrong buffers. Core grammar semantics, undecided. | 🟥 yes | `03` |
-| G2 | **`save` semantics.** Format/extension inference, overwrite vs append, layer name inside a GeoPackage, output CRS. Open (`00`, Oscar C8). | Data loss / clobbering on a verb everyone uses. | 🟥 yes | `03` |
+| G1 | ~~Distance units~~ — **DECIDED** (`03-§1.1`): bare = CRS units; unit suffixes convert; a linear distance on a degrees CRS is a hard error (no silent wrong buffers); auto-reproject is v0.2. | was: silently wrong buffers. | ✅ closed | `03-§1.1` |
+| G2 | ~~`save` semantics~~ — **DECIDED** (`03-§2.5`): GeoPackage default, extension-inferred format, replaces target but refuses to overwrite a same-flow source, `as <layer>` naming, `append`, never reprojects, lock-aware. | was: data loss / clobbering. | ✅ closed | `03-§2.5` |
 | G3 | **CRS handling policy.** On-the-fly reprojection? A default CRS? What if a layer has none? (tied to G1.) | Wrong-CRS geometry is the classic silent error (Oscar D2). | 🟧 | `02`/`03` |
 | G4 | **Error UX.** Flagged repeatedly (`00`, Oscar C11) but never designed — and it's *central* to a non-programmer tool. | Cryptic GDAL errors = the user is stuck and gone. | 🟧 | own treatment |
 
@@ -284,7 +284,7 @@ grouch-vibes, not a forecast — update as reality arrives.
 
 | Phase | "Success" means | P(this \| prior) | Cumulative | What gates it |
 |-------|-----------------|:--:|:--:|---------------|
-| **v0.1 MVP** | Tier-1 flows run reliably; released; a handful of real users try it | **~60%** | **~60%** | dev commitment · G1/G2 decided · install friction (E2) · premise (M1) |
+| **v0.1 MVP** | Tier-1 flows run reliably; released; a handful of real users try it | **~60%** | **~60%** | dev commitment · ~~G1/G2 decided~~ ✅ · install friction (E2) · premise (M1) |
 | **v0.2** | breadth + provenance shipped; an early community uses it | ~65% | **~40%** | sustained attention (P1) · 2nd-backend cost · did v0.1 get traction? |
 | **v1.0** | stable release, grammar frozen with confidence, on PyPI, recurring users | ~50% | **~20%** | enough adoption to freeze wisely (M1) · maintenance (P1) · registry drift (A4) |
 | **v2.0** | control-flow + SQL writes + quality rules; a contributor base | ~40% | **~8%** | bus factor / governance (P1/P3) · scope creep (P5) · competition (P4) |
@@ -299,7 +299,7 @@ pessimism about the *design* — it's just what reaching the end of a solo
 open-source roadmap honestly looks like.
 
 **The four cheap moves that most improve the odds:**
-1. **Decide G1 (units) and G2 (`save`) and build a thin MVP fast** — stop planning, ship the Tier-1 slice.
+1. ~~Decide G1 (units) and G2 (`save`)~~ ✅ **done** — now **build a thin MVP fast**: stop planning, ship the Tier-1 slice.
 2. **Ship the plugin install path early** — the only thing that fixes E2 and lets the *actual target user* in.
 3. **Validate the premise (M1) with real analysts before over-building** — a few users who'd use it beats v0.2's feature list.
 4. **Recruit a second maintainer** — P1 (bus-factor-of-one) is the quiet killer of every phase past v1.0.

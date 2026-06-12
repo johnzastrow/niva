@@ -27,6 +27,17 @@ once it has releases.
   `qgis_process` + auto-selection move to v0.2. Updated across docs 00–05.
 
 ### Added
+- **Closed the two v1 blockers** flagged by Oscar (G1/G2), now specified in
+  `03-mvp-scope.md`:
+  - **Distances & units** (§1.1): a bare number = the layer's CRS units; unit
+    suffixes (`100m`/`2km`/`ft`/…) convert; a linear distance on a **degrees CRS
+    is a hard error** with a reproject fix — niva never silently buffers in
+    degrees; auto-reproject convenience deferred to v0.2.
+  - **`save` semantics** (§2.5): GeoPackage default + extension-inferred format;
+    `as <layer>` naming in a container; replaces the target by default **but
+    refuses to overwrite a source read earlier in the same flow**; `append`
+    option; never reprojects; lock-aware errors; `--dry-run` preview.
+  Marked resolved in `00` and Oscar (G1/G2/C8 closed; MVP-odds gate cleared).
 - **Failure register** (`planning/Oscar_the_Grouch.md`): a comprehensive,
   adversarial catalogue of how niva could fail — premise/market, architecture,
   engineering, packaging/environment (incl. breaking QGIS's own Python), data

@@ -179,8 +179,9 @@ Captured so work can resume cleanly. Grouped by area; the grammar ones block the
   filter→expression, calc→field+expr, merge→extra inputs). See `03 §2`.
 - **Multi-positional verbs** — is `calc area_m2 "$area"` (two positionals) acceptable, or
   prefer a named form like `calc field=area_m2 expr=$area`?
-- **Distance units** — bare value = layer CRS units, or support suffixes
-  (`buffer 100m`, `buffer 0.5km`)? Auto-handle metric buffers on geographic CRS?
+- ~~Distance units~~ — **decided** (`03-§1.1`): bare = CRS units; suffixes
+  (`100m`/`2km`/`ft`/…) convert; a linear distance on a degrees CRS is a hard
+  error (no silent wrong buffers); auto-reproject convenience is v0.2.
 - **`filter` scope** — how far does the simplified expression go in v1
   (`=`, `<>`, `<`, `>`, `and`/`or`)? Include `IN` / `LIKE` / NULL handling now or later?
   Confirm the raw `expr="…"` fallback. See `03 §3`.
@@ -189,7 +190,9 @@ Captured so work can resume cleanly. Grouped by area; the grammar ones block the
 ### Files, output, UX
 - **`.niva` files** — multiple flows separated by blank lines (proposed) or `;`?
   `#` comments (proposed)?
-- **`save`** — default format/extension (GeoPackage?), overwrite behavior, layer naming.
+- ~~`save`~~ — **decided** (`03-§2.5`): GeoPackage default, extension-inferred
+  format, replaces target but refuses to overwrite a same-flow source, `as <layer>`
+  naming, `append` option, never reprojects.
 - **`add`** — default layer name and styling when loading into the live project.
 - **Error UX for non-programmers** — how friendly should parse/runtime errors be (name the
   failing stage, suggest a fix)? The audience is minimal coders, so this matters.

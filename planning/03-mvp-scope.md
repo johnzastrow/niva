@@ -33,9 +33,29 @@ Rules (kept simple so the syntax never reads like code):
 - **`|` is the chain**: each stage's output feeds the next stage's input automatically.
 - Quote values containing spaces; `#` starts a comment.
 
-> **❓ Open (see `00 §8`):** Is `load` required to start a flow, or may the first stage
-> take a path directly (`buffer roads.gpkg 100 | …`)? And do distances accept unit
-> suffixes (`buffer 100m`, `0.5km`) or are bare values always CRS units?
+> **❓ Open (see `00 §8`):** Is `load` required to start a flow, or may the first
+> stage take a path directly (`buffer roads.gpkg 100 | …`)?
+
+### 1.1 Distances & units (decided — was a v1 blocker, G1)
+
+Every distance/tolerance value (`buffer`, `simplify`, `grid`, …) resolves so:
+
+- **A bare number is in the layer's CRS units** (matches QGIS): `buffer 100` on a
+  metre-based layer is 100 m.
+- **An explicit unit suffix is the recommended form**, converted to the layer's
+  CRS units: `m`, `km`, `cm`, `ft`, `yd`, `mi`, `nmi` (and `deg` for degrees).
+  `buffer 100m` on a feet-based layer → 328.08 ft.
+- **Geographic-CRS guard — no silent wrong results.** A linear (or bare) distance
+  on a **degrees** CRS (e.g. EPSG:4326) is a **hard error** with the fix: *"this
+  layer is in degrees; `reproject` to a projected CRS first (niva suggests a UTM
+  zone), or pass a `deg` value."* niva **never silently buffers in degrees** — the
+  classic beginner footgun (Oscar D2). `100deg` opts into degrees explicitly.
+- The unit and any conversion are **recorded in lineage** (`08`).
+
+> **v0.2 convenience:** auto-handle a linear distance on a geographic CRS by
+> reprojecting to an appropriate equidistant/UTM CRS, buffering, and reprojecting
+> back (recorded in lineage) — so `buffer 100m` on lat/long "just works." v1 errors
+> with guidance rather than guessing a projection.
 
 ```mermaid
 flowchart LR
@@ -159,6 +179,26 @@ reachable — so it is not blocked, just not a curated v1 verb (§6).
 
 ### Meta verbs
 (`run` / `find` / `describe` are the built-ins in §2.1.)
+
+### 2.5 `save` semantics (decided — was a v1 blocker, G2)
+
+`save <path>` writes the current layer. Pinned behavior:
+
+- **Format** is inferred from the extension (`.gpkg`→GeoPackage, `.shp`→Shapefile,
+  `.geojson`, `.fgb`→FlatGeobuf, …). **Default = GeoPackage**; a path with no
+  extension gets `.gpkg`.
+- **Layer name** in a container defaults to the file's base name. Name or add a
+  layer in a GeoPackage with `save city.gpkg as roads` — a `.gpkg` holds many
+  layers, and this replaces/creates only the `roads` layer, leaving others intact.
+- **Overwrite (the data-loss guard).** `save` **replaces the target layer/file by
+  default** (re-runnable flows need this), **but refuses to write to a path read as
+  a source earlier in the same flow** (don't eat your own input) → hard error.
+  `save … append` adds features to an existing layer instead of replacing it.
+- **Output CRS is unchanged** — `save` never reprojects; `reproject` first if you
+  want a different CRS.
+- **Locked target** (open in QGIS / another writer holds the SQLite lock) → a clear
+  *"target is locked — close it in QGIS"* error, not a cryptic one (Oscar E5).
+- `--dry-run` lists exactly what would be written/replaced before anything happens.
 
 ## 3. The `filter` case (keeping expressions non-code-like)
 
