@@ -57,7 +57,7 @@ The thinking lives in [`planning/`](planning/):
 | `02-architecture.md` | proposed architecture — layering, lex→parse→run pipeline, backends, and the **layer handle contract** (the value threaded through `\|`, and how it bridges Processing ↔ SQL ↔ expression surfaces) |
 | `03-mvp-scope.md` | what a first cut would (and wouldn't) include — the **initial ~40-verb set** (built-ins + Tier 1/2 aliases to real algorithm ids), SQL read passthrough in v1, and the definition of done |
 | `04-roadmap.md` | phased direction — v0.1 MVP → v2.x across three tracks (grammar/engine, coverage/registry, provenance), reconciled with the verb set, SQL, and lineage plans |
-| `05-concepts-captured.md` | concepts gathered from the exploration |
+| `05-concepts-captured.md` | every concept with its disposition — the original exploration **plus** the surface/registry/handle/provenance work — and what was deliberately rejected |
 | `06-qgis-surface-reference.md` | **reference**: the full QGIS capability surface niva could reach — 769 Processing algorithms, 406 expression functions, SpatiaLite/PostGIS spatial SQL, SQL drivers, the version stack — with before/after niva examples (machine-readable inventories in `planning/reference/`) |
 | `07-alias-registry-design.md` | the **alias registry** — how niva maps friendly verbs onto QGIS algorithms: entry schema, grammar→parameter binding, type coercion, enum vocab, the raw `run` escape hatch, and validation against the live registry |
 | `08-data-quality-provenance.md` | **logging, lineage & data quality** — the operation log, the `assess` verb for profiling incoming data, and auto-recording processing steps as formal metadata lineage (provenance as a byproduct of the work) |

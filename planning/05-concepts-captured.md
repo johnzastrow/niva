@@ -1,105 +1,145 @@
 # Niva — Concepts Captured (supersedes the local design exploration)
 
-_Records every relevant concept from the (uncommitted) local exploration with its
-disposition, so the planning set is self-sufficient and the source material need not be
-committed. Clean-room: framed on QGIS/Python terms only._
+_Records every relevant concept — from the original local exploration **and** the
+later surface/registry/provenance work (`06`–`08`) — with its disposition, so the
+planning set is self-sufficient. Clean-room: framed on QGIS/Python terms only._
 
 ```mermaid
 mindmap
   root((niva))
-    v1 core
+    v0.1 core
       text grammar — pipe chaining
-      13 vector verbs
+      Tier-1 verbs + built-ins
       load / save / add
+      sql read passthrough
       both backends
+      layer handle contract
+      alias registry + linter
       runner — headless · terminal · marimo
-      Python engine + escape hatch
-      filter translator
-      run / find / describe
-    v1.1
-      raster verbs
-      more vector verbs
+      operation log
+      assess
+    v0.2
+      Tier-2 + raster verbs
+      auto-lineage to metadata
+      metadata verb
       richer filter
     v2
       grammar control-flow
-      variables / named intermediates
-      SQL / PostGIS sources+sinks
+      SQL writes + connections
+      quality rules
     v2.x
       GUI / plugin front-end
       service / daemon mode
+      rendering / layouts
     rejected
       programmer-first fluent API
       quoting-heavy DSL draft
       Rust / Go core
 ```
 
-## 1. Disposition of every concept
+## 1. Foundational concepts (the original exploration)
 
 | Concept | Disposition | Where |
 | :-- | :-- | :-- |
-| **Text-pipeline grammar for non-programmers** | **v1 core — the product** | 01, 03 |
-| Pipe `\|` chaining (output→input) | **v1 core** | 02 §2a, 03 §1 |
-| Brief grammar: positional + flags + `key=value` | **v1 core** | 03 §1 |
-| Alias registry (verb → `native:*`) + per-verb spec | **v1** | 02 §5 |
-| 13 vector verbs + `load`/`save`/`add` | **v1** | 03 §2 |
-| `run` escape hatch · `find` · `describe` | **v1** | 03 §2 |
-| In-process PyQGIS backend | **v1** | 02 §4 |
-| `qgis_process` headless backend | **v1** | 02 §4 |
-| Auto backend selection + override | **v1** | 02 §4 |
-| `Layer` / `Result` return contract | **v1 (key)** | 02 §3 |
-| Python engine as power-user **escape hatch** | **v1** | 01, 02 §3a |
-| Interop with raw PyQGIS / GeoPandas / SQL | **v1 requirement** | 02 §3a |
-| `--json`, exit codes, stdout/stderr discipline | **v1** | 02 §6 |
-| Runs headless (saved `.niva`) + in marimo cells | **v1** | 03 §4 |
-| Simplified `filter` expression translator | **v1** | 03 §3 |
-| Raster verbs | **v1.1** | 04 |
-| Grammar control-flow (variables, named intermediates, branch) | **v2** | 04 |
-| SQL / PostGIS sources & sinks | **v2** | 04 |
-| GUI / plugin / Processing-Toolbox front end | **v2.x** | 04 |
-| Service/daemon mode (amortize startup) | **v2.x** | 04 |
-| Fluent **method-chaining** Python API (`.buffer().clip()`) | **Optional / v1.1** — engine API is direct functions; the *text grammar* is the chaining surface | 02 |
-| Programmer-first / Python-fluent as the primary face | **Rejected** — primary face is the non-programmer grammar | 00 §7 |
-| Quoting-heavy single-string DSL draft | **Rejected** — replaced by the brief pipe grammar | 00 §7 |
-| Rust/Go core | **Rejected** (no speed gain) | §3 |
+| **Text-pipeline grammar for non-programmers** | **the product** | 01, 03 |
+| Pipe `\|` chaining (output→input) | **v0.1 core** | 02 §2a, 03 §1 |
+| Brief grammar: positional + flags + `key=value` | **v0.1 core** | 03 §1 |
+| Alias registry (verb → `native:*`) + per-verb spec | **v0.1 core** | 07 |
+| Built-ins + Tier-1 verbs (the ~40-verb curated set) | **v0.1 (Tier 1) / v0.2 (Tier 2)** | 03 §2 |
+| `run` escape hatch · `find` · `describe` | **v0.1** | 03 §2, 07 §8 |
+| In-process PyQGIS + `qgis_process` backends, auto-select | **v0.1** | 02 §4 |
+| Python engine as power-user **escape hatch** | **v0.1** | 01, 02 §3.6 |
+| Interop with raw PyQGIS / GeoPandas / SQL | **v0.1 requirement** | 02 §3.6 |
+| `--json`, exit codes, stdout/stderr discipline | **v0.1** | 02 §6 |
+| Runs headless (`.niva`) + in marimo cells | **v0.1** | 03 §4 |
+| Simplified `filter` translator | **v0.1** | 03 §3 |
+| Fluent method-chaining Python API (`.buffer().clip()`) | **Optional** — the *text grammar* is the chaining surface | 02 |
+| Programmer-first as the primary face | **Rejected** | 00 §7 |
+| Quoting-heavy single-string DSL draft | **Rejected** — replaced by the pipe grammar | 00 §7 |
+| Rust/Go core | **Rejected** (no speed gain) | §3 below |
 
-## 2. QGIS integration patterns (how niva gets used in-context)
+## 2. Concepts from the surface survey (`06`)
 
-- **marimo-qgis notebooks** — `niva.flow("load … | … | save …")` in a cell; the notebook
-  already runs on QGIS's Python. A primary target context.
-- **QGIS Python Console** — `import niva`; in-process backend uses the live session;
-  `add` loads results into the project; `Layer.as_qgs()` returns project layers.
-- **`startup.py` / `PYQGIS_STARTUP`** — preload niva so it's always importable. Keep
-  startup light (paths + import); defer GUI/`iface` work.
-- **Standalone / headless** — `niva run flow.niva`; `qgis_env` initializes a headless
-  app or niva auto-selects the `qgis_process` backend. CI and scheduled jobs.
-- **(Later) Processing-script / plugin** — niva inside a custom Processing script, or a
-  plugin where plugin = UI and niva = logic.
+The live enumeration of QGIS (769 algorithms, 406 expression functions, 238+
+SpatiaLite `ST_*`) reshaped several decisions:
 
-## 3. Performance guidance (informs design, not a v1 deliverable)
+| Concept | Disposition | Where |
+| :-- | :-- | :-- |
+| **Five surfaces**, not one API: Processing · expressions · DB spatial SQL · PyQGIS-only · drivers | framing for all coverage decisions | 06 §1 |
+| **Three-way name collision** — `buffer` is an algorithm, `buffer()` expression, **and** `ST_Buffer` SQL | resolved: `buffer` = the algorithm; SQL only via explicit `sql`; expressions only inside `where`/`compute` | 06 §8.1, 07 §2 |
+| **SpatiaLite/PostGIS as a parallel geoprocessing surface** (`ST_*`), near-interchangeable OGC SQL/MM | reach via `sql` passthrough; read in v0.1, writes in v2 | 06 §4 |
+| **SpatiaLite Virtual Tables** (VirtualShape/Text/OGR/Postgres) — SQL over heterogeneous sources | a bridging mechanism for the handle | 06 §4.1, 02 §3.3 |
+| **Introspect, never assume** — provider/algorithm/CRS/SQL sets are build-specific | a `niva doctor`/capability report from live enumeration | 06 §8.4, 07 §9 |
+| Machine-readable **reference inventories** (algorithms + expression fns TSVs) | committed; regenerate per build | 06 appendix, `reference/` |
+| **Hard-to-reach surface** (rendering, layouts, symbology) | out until v2.x | 06 §6, 04 |
+
+## 3. Concepts from the engine & registry design (`02`, `07`)
+
+| Concept | Disposition | Where |
+| :-- | :-- | :-- |
+| **Layer handle contract** — one `Layer`, four backing kinds (source/qgs/db_table/memory) | **v0.1 (the load-bearing decision)** | 02 §3 |
+| **Cross-surface bridging** — expose cheaply (OGR SQLITE / VirtualOGR / virtual layers); materialize to temp GeoPackage **only at boundaries** | v0.1 | 02 §3.3 |
+| Connections by **`@name`** via QGIS's own registry (no stored credentials) | v0.1 | 02 §3.5 |
+| **Eager now, lazy-capable later** (fuse `sql`, push filters down) | v0.1 eager; planner later | 02 §3.4 |
+| Alias entry as **declarative data** (not code); scaffolder + linter vs the live registry | v0.1 | 07 §3, §9 |
+| **Word-valued enums** reconciled with the algorithm's option strings | v0.1 | 07 §6 |
+| Raw `run id KEY=value` **full-coverage guarantee**; aliases = progressive enhancement | v0.1 | 07 §8 |
+
+## 4. Concepts from data quality & provenance (`08`)
+
+| Concept | Disposition | Where |
+| :-- | :-- | :-- |
+| **Operation log / run journal** (structured OpRecords) = machine-readable methods doc | **v0.1** | 08 §2 |
+| **`assess`** — profile incoming data (CRS/schema/validity/duplicates/nulls + existing lineage) | **v0.1** | 08 §4 |
+| **Auto-lineage to formal metadata** on `save` (`native:addhistorymetadata` → `QgsLayerMetadata.history`) | **v0.2** | 08 §3 |
+| **`metadata`** verb (read/set/export) | **v0.2** | 08 §5, 06 §2.5 |
+| **Provenance as a byproduct** — the op-log becomes the lineage; grows every milestone | cross-cutting | 08 §1, 04 |
+| Quality **rules/constraints** (assert + fail on bad data); metadata catalog/search | **v2** | 08 §6 |
+
+## 5. QGIS integration patterns (how niva gets used in-context)
+
+- **marimo-qgis notebooks** — `niva.flow("load … | … | save …")` in a cell; the
+  notebook already runs on QGIS's Python. A primary target context.
+- **QGIS Python Console** — `import niva`; in-process backend uses the live
+  session; `add` loads results into the project; `Layer.as_qgs()` returns project
+  layers.
+- **`startup.py` / `PYQGIS_STARTUP`** — preload niva so it's always importable;
+  keep startup light (paths + import), defer GUI/`iface` work.
+- **Standalone / headless** — `niva run flow.niva`; `qgis_env` initializes a
+  headless app or auto-selects `qgis_process`. CI and scheduled jobs.
+- **(Later) Processing-script / plugin** — niva inside a custom Processing script,
+  or a plugin where plugin = UI and niva = logic (the niva plugin stub is the seed).
+
+## 6. Performance guidance (informs design, not a v0.1 deliverable)
 
 Bottleneck is QGIS/`qgis_process` startup + GDAL/GEOS/PROJ + I/O, **not** Python glue:
-- Implementation stays **Python**; Rust/Go buys packaging, not geoprocessing speed
-  (rejected).
-- Later wins: amortize QGIS startup (batch/service mode), push set/filter/join work into
-  **PostGIS SQL** where appropriate, prefer native algorithms over per-feature loops,
-  avoid needless temp I/O. Consider exposing `qgis_process --skip-loading-plugins` /
-  `--no-python` for fast headless batches in v0.2.
+- Implementation stays **Python**; Rust/Go buys packaging, not geoprocessing speed.
+- Later wins: amortize QGIS startup (batch/service mode); push set/filter/join work
+  into **PostGIS/SpatiaLite SQL** where appropriate (the `sql` surface and the
+  lazy planner, 02 §3.4); prefer native algorithms over per-feature loops; avoid
+  needless temp I/O (materialize only at surface boundaries, 02 §3.3). Consider
+  `qgis_process --skip-loading-plugins` / `--no-python` for fast headless batches.
 
-## 4. Naming
+## 7. Naming
 
 - Project/package/command name: **`niva`** (decided).
 - **Verify before publishing:** PyPI availability of `niva`. If taken, candidate
   fallbacks (distribution name may differ from import name): `pyniva`, `nivagis`,
   `niva-gis`. The CLI command stays `niva`.
 
-## 5. Deliberately rejected / cut (and why)
+## 8. Deliberately rejected / cut (and why)
 
-- **Programmer-first fluent API as the face** — the audience is non-programmers; the
-  text grammar leads, the Python API is the escape hatch underneath.
+- **Programmer-first fluent API as the face** — the audience is non-programmers;
+  the text grammar leads, the Python API is the escape hatch underneath.
 - **Quoting-heavy single-string DSL draft** — replaced by the brief, pipe-chained,
   newline-optional grammar.
-- **Single-backend-only v1** — both interactive and headless are needed from the start;
-  accepted the normalization cost.
 - **Rust/Go core** — no runtime benefit for this workload.
-- **niva as a GeoPandas replacement** — it *interoperates* with GeoPandas/PyQGIS, not a
-  competitor.
+- **niva as a GeoPandas replacement** — it *interoperates* with GeoPandas/PyQGIS,
+  not a competitor.
+- **Mapping SQL `ST_*` into the alias registry** — kept as a distinct `sql` surface
+  instead, to avoid the three-way name collision (06 §8.1).
+
+> **Note on backends.** v1 keeps **both** PyQGIS and `qgis_process` with the
+> normalization cost accepted — but `00 §3.3` argues for one backend first. This
+> is the main *unsettled* concept; the handle contract and registry are written so
+> either choice works. Flagged for a decision.
