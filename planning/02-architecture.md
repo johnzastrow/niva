@@ -105,17 +105,21 @@ result. **Sinks** (`save`, `add`) consume `current`: `save` writes to disk, `add
 into the live QGIS project. Intermediate outputs are managed temporaries
 (`TEMPORARY_OUTPUT` in-process; temp files for `qgis_process`) and cleaned up.
 
-## 3. Return-type contract (`Layer` / `Result`)
+## 3. The layer handle contract
 
-Every op produces a `Result`; its `.output` is a `Layer`. This is what makes both the
-chain and the power-user escape hatch work.
+This is the single most load-bearing decision in niva: **what flows through the
+`|`**. Every op produces a `Result` whose `.output` is a `Layer` **handle**, and
+every op accepts a `Layer` as input. The handle must be the common currency across
+all three execution surfaces — Processing algorithms, SQL, and expressions
+(`06-§1`) — which is the cross-surface problem `00-§3.4`, `06-§8.3` and `07`
+deferred here.
 
 ```mermaid
 classDiagram
     class Result {
       +bool ok
       +Layer output
-      +dict outputs
+      +dict outputs        // secondary outputs (JOINED_COUNT, FAIL_OUTPUT…)
       +str algorithm
       +dict params
       +float elapsed
@@ -124,39 +128,108 @@ classDiagram
       +load(name)
     }
     class Layer {
-      +source : str
+      +kind : source|qgs|db_table|memory
+      +source() str          // an OGR-openable URI (materializes if needed)
       +as_qgs() QgsVectorLayer
-      +feature_count
-      +crs
-      +geometry_type
+      +as_uri() str          // provider URI (ogr/postgres/spatialite…)
+      +db_ref() (conn, table)
+      +crs · geometry_type · fields · feature_count   // lazy, cached
+      +materialize(path?, fmt=gpkg) Layer
       +coerce(value)$ Layer
     }
     class OpError {
-      +str algorithm
-      +dict params
-      +str backend
-      +str message
+      +str algorithm · dict params · str backend · str message
     }
     Result --> Layer : output
     Result ..> OpError : raises on failure
 ```
 
-`Layer` is dual-natured — it wraps **either** an on-disk source (path/URI/PostGIS)
-**or** a live `QgsVectorLayer` — so it is accepted as input everywhere and produced as
-output everywhere. `Layer.coerce()` accepts a path, a `QgsMapLayer`, a `Result`, or
-another `Layer`.
+### 3.1 One type, four backing kinds
 
-## 3a. Interoperability (escape hatches are first-class)
+A `Layer` is **one** Python type that may be backed by any of four kinds, so it is
+accepted as input everywhere and produced as output everywhere:
 
-The grammar must never trap the user; each level exposes the one below.
+| kind | backing | produced by | consumed cheaply by |
+|------|---------|-------------|---------------------|
+| `source` | file path / OGR URI (GeoPackage, shp, FlatGeobuf…) | `qgis_process` outputs, `save`, `load <file>` | any surface (Processing `INPUT`, OGR SQL, `load`) |
+| `qgs` | a live `QgsVectorLayer` (in-process) | `PyqgisBackend` outputs, `load` in a live QGIS | in-process Processing, `as_qgs()` |
+| `db_table` | `(connection @name, schema.table)` | `sql` on a DB connection, `load @conn.table` | `sql` on the **same** connection (no copy); Processing via provider URI |
+| `memory` | in-memory features / memory provider | small intermediates | quick in-process ops |
+
+All four expose the same protocol (`source()`, `as_qgs()`, `as_uri()`, `db_ref()`,
+metadata, `materialize()`), so callers never branch on kind — they ask for the form
+they need and the handle provides it, materializing only if forced (§3.3).
+
+### 3.2 Invariants (what every step may assume)
+
+1. **In, one out.** A step takes exactly one primary input `Layer` and yields
+   exactly one primary output `Layer` (plus a `Result` carrying secondary outputs).
+2. **No mutation.** A step does not mutate its input; it returns a new handle —
+   the pipeline is functional. **Exception:** a `sql` write (`UPDATE`/`DELETE`/
+   `INSERT`) returns the *same* `db_table` handle and is documented as in-place.
+3. **Metadata travels.** `crs`, `geometry_type`, `fields` are part of the handle,
+   computed lazily and cached, and propagate downstream.
+4. **Temps are owned.** Intermediate handles are run-owned temporaries, cleaned up
+   when the flow ends; `save` materializes the final handle to the user's path,
+   `add` registers it in the live QGIS project.
+
+### 3.3 Crossing surfaces — the bridge rules
+
+The handle is the bridge between engines. niva **materializes only at a boundary
+that requires it**, always to a temp **GeoPackage** (the portable interchange
+format), and records the temp for cleanup. Same-engine consecutive steps never
+copy.
+
+```mermaid
+flowchart LR
+  P1[Processing] -->|qgs / source, no copy| P2[Processing]
+  P2 -->|expose as table| SQL[sql]
+  SQL -->|temp table / temp gpkg| P3[Processing]
+```
+
+| from → to | rule |
+|-----------|------|
+| **Processing → Processing** (same backend) | pass the handle directly — `qgs` in-process, or a temp `source`. No copy. |
+| **Processing → `sql`** | the SQL engine must see a table. If handle is `db_table` on the target connection → query in place. Else expose the `source` **without a full copy** where possible: OGR `SQLITE` dialect, or SpatiaLite **VirtualOGR/VirtualShape**, or a QGIS **virtual layer** over a live `qgs`. Only if none apply → `materialize()` to temp GeoPackage and attach. |
+| **`sql` → Processing** | a `SELECT` result becomes a handle: on a DB connection, a `db_table` (result/temp table) or materialized temp GeoPackage; via OGR `SQLITE` dialect, the result is written to a temp GeoPackage → `source`. |
+| **expressions** (`where`/`compute`) | these are in-process Processing algorithms (`extractbyexpression`, field calculator) — surface 1, no special bridging. |
+
+This is why the handle carries `db_ref()` and `as_uri()` as well as `source()`:
+the boundary code chooses the cheapest exposure for the next engine.
+
+### 3.4 Eager now, lazy-capable later
+
+v1 is **eager**: the runner holds `current`, each step executes immediately and
+returns a materialized/live handle — simple and debuggable. The contract is
+written so a future **lazy planner** is an invisible optimization: a handle is
+"something you can open as a layer," whether it already exists or carries a
+deferred plan. Laziness would let niva **fuse consecutive `sql` steps into one
+query** and **push filters down to the database** — but the grammar and the
+handle protocol do not change.
+
+### 3.5 Connections & `@names`
+
+A `db_table` handle references a **saved QGIS provider connection** by `@name`
+(resolved via `QgsProviderRegistry … providerMetadata(key).findConnection(name)`).
+`load @prod_db.roads` → a `db_table` handle; `sql @prod_db "…"` runs against it.
+niva **never stores credentials** — it reuses QGIS's own connection registry, so
+connections configured once in QGIS are available to niva by name.
+
+### 3.6 Interoperability (escape hatches are first-class)
+
+The handle never traps the user; each level exposes the one below:
 
 | niva value | drop down to … | how |
 | :-- | :-- | :-- |
 | `Result` | raw Processing outputs / what ran | `result.outputs`, `result.algorithm`, `result.params` |
-| `Result` / `Layer` | a file path/URI | `os.fspath(result)`, `layer.source` |
+| `Result` / `Layer` | a file path / URI | `os.fspath(result)`, `layer.source()` |
 | `Layer` | a live `QgsVectorLayer` | `layer.as_qgs()` |
-| `Layer` | GeoPandas / Shapely / SQL | `layer.source` → `gpd.read_file(...)`, etc. |
-| any op | a not-yet-aliased algorithm | grammar `run provider:alg key=value` or `niva.run(...)` |
+| `Layer` | a DB table | `layer.db_ref()` → `(connection, table)` |
+| `Layer` | GeoPandas / Shapely / raw SQL | `layer.source()` → `gpd.read_file(...)`, etc. |
+| any op | a not-yet-aliased algorithm | `run provider:alg key=value` (grammar) or `niva.run(...)` (API) |
+
+`Layer.coerce()` accepts a path, a `QgsMapLayer`, a `Result`, a `(conn, table)`
+ref, or another `Layer` — so any of these can be fed into a flow as input.
 
 ## 4. Backend abstraction (the cost of "both backends")
 

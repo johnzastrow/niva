@@ -54,7 +54,7 @@ The thinking lives in [`planning/`](planning/):
 |-----|----------------|
 | `00-critique-and-open-questions.md` | what's strong, what's risky, decisions pending |
 | `01-prd.md` | the text-pipeline grammar — product requirements |
-| `02-architecture.md` | proposed architecture |
+| `02-architecture.md` | proposed architecture — layering, lex→parse→run pipeline, backends, and the **layer handle contract** (the value threaded through `\|`, and how it bridges Processing ↔ SQL ↔ expression surfaces) |
 | `03-mvp-scope.md` | what a first cut would (and wouldn't) include |
 | `04-roadmap.md` | phased direction |
 | `05-concepts-captured.md` | concepts gathered from the exploration |

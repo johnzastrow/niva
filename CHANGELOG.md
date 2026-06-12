@@ -32,6 +32,11 @@ once it has releases.
   grammar→parameter binding, type coercion, enum vocabularies, the raw `run`
   escape hatch for full coverage, generation/validation against the live
   registry, and worked examples.
+- **Layer handle contract** in `planning/02-architecture.md`: the value threaded
+  through the `|` pipeline — one `Layer` type with four backing kinds (source /
+  live QgsVectorLayer / db_table / memory), its invariants, and the rules for
+  **crossing surfaces** (Processing ↔ SQL ↔ expressions) with materialization
+  only at boundaries that need it; connections by `@name`; eager-now/lazy-later.
 - **Brand assets** (`logos/`): the niva mark (`logo.svg` / `logo.png`) and
   wordmark (`logo_text.svg` / `logo_text.png`); earlier logo explorations
   archived under `logos/OLD/`.
