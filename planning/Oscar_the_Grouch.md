@@ -162,7 +162,47 @@ Severity: 🟥 High · 🟧 Medium · 🟨 Low.
 
 ---
 
-## 9. Oscar reviews the planning docs — the gaps
+## 9. Deep dive — performance & computational limits
+
+> *"You glossed over whether this thing actually RUNS on real data. Sit down."*
+> — Oscar
+
+niva is *thin* — it adds little compute of its own — but "thin" means it inherits
+every limit of QGIS/GDAL/GEOS **and** adds a couple (materialization overhead,
+in-process hosting). The question for an analyst with a county of parcels and a
+tile of lidar: *where does it fall over, and what do we do?*
+
+**Already flagged elsewhere:** startup tax (A1) · in-process memory growth (A8) ·
+no parallel flows (A9) · inherits QGIS per-op cost (C3) · temp leaks (C4) ·
+disk/temp pressure (E7) · cross-surface materialization blowup (A3) · float/grid
+precision (D7) · the lazy planner — the optimization — deferred (C10).
+
+**The computational limits Oscar wants spelled out:**
+
+| # | Limit / failure | Why it bites | Mitigation |
+|---|-----------------|--------------|------------|
+| L1 | **Memory / OOM.** In-process ops load layers into RAM (PyQGIS + algorithm buffers). A large vector, a GB raster, or a multi-million-point LAS tile can exhaust RAM and kill the process — possibly taking host QGIS with it. | The use case literally uses **lidar (LAS)** and orthophotos — the data most likely to OOM. | Tile/clip early; prefer streaming/out-of-core (PDAL chunking); push set ops to the DB; publish a memory envelope. |
+| L2 | **No documented scaling envelope.** Nobody's said what "big" niva handles — 10k features? 10M? a 50GB raster? a billion lidar points? | Analysts throw real data at it and hit a silent wall. | Publish a tested envelope per data type; **warn, don't crash**, past it; recommend DB/tiled workflows for the big stuff. |
+| L3 | **Eager full-materialization.** v1 runs each step to completion and writes a temp at every surface boundary — a 10-step cross-surface flow can write 10 intermediate GeoPackages. No push-down, no fusion. | I/O amplification dominates runtime on big data. | Boundary-only materialization (already); prefer same-engine runs; the deferred lazy planner (C10) is the real fix; push filters into SQL early. |
+| L4 | **Large SQL result sets.** `sql "SELECT …"` returning 10M rows gets pulled and materialized — when the DB could've done the whole job in place. | Memory + disk + time blowup. | Do the heavy work **in** the SQL (where the index lives), return only results; stream/cursor big reads; cap + warn. |
+| L5 | **Inherited algorithmic complexity.** Overlay/join/dissolve are ~O(n·m) without a spatial index; a non-programmer won't know to index first. | A clip of two big layers "hangs." | Prefer native (indexed/multithreaded) algos; push spatial joins to PostGIS (indexed); show progress so it doesn't look hung. |
+| L6 | **Not exploiting per-op parallelism.** Some GDAL/native algorithms take `MULTITHREADING`/`-multi`; friendly defaults may leave it off. | Leaves throughput on the table on multi-core machines. (Distinct from A9: that's *between* flows; this is *within* an op.) | Enable/expose multithreading where supported; document. |
+| L7 | **No caching.** Re-running a flow re-reads and re-computes everything, including unchanged expensive intermediates. | The iterative data-science loop in `use_cases.md` repeats costly steps. | Content-addressed intermediate cache is a post-v1 win; for now `save` intermediates and `load` them next run. |
+| L8 | **Remote/network latency.** PostGIS over a WAN, WFS, online geocoding — round-trips and rate limits dominate, unrelated to local compute. | Flows feel slow or get throttled (Nominatim). | Pull once, cache locally; batch; prefer server-side SQL for remote DBs; fail clearly on rate limits. |
+| L9 | **Interactive responsiveness.** In the console/marimo, a long op blocks the thread and freezes the UI — no progress, no cancel. | The "interactive exploration" use case feels broken on anything non-trivial. | Progress + cancellation; in the plugin, run on a `QgsTask` background thread (minding A9's threading rule). |
+
+**Oscar's bottom line:** niva's honest performance story is *"as fast as QGIS,
+plus materialization overhead, minus any optimization in v1."* That's **fine for
+the interactive, modest-data sweet spot** — and the single biggest lever is
+**"push heavy set operations into the database"** (the `sql` surface), where the
+index and query planner already live. The two things genuinely missing from the
+plan are a **documented scaling envelope (L2)** and **progress/cancel (L9)**;
+everything else is a known QGIS limit niva inherits and should *document*, not
+pretend to fix.
+
+---
+
+## 10. Oscar reviews the planning docs — the gaps
 
 > *"You wrote a DOZEN documents and still left holes you could drive a garbage
 > truck through. Let me point at the empty spots."* — Oscar
@@ -215,7 +255,7 @@ until there's code, but they decide whether anyone *adopts* the thing.
 
 ---
 
-## 10. How to use this register
+## 11. How to use this register
 
 - Re-read Oscar **before each milestone**; demote a risk only when its mitigation
   is built *and tested*.
@@ -226,5 +266,43 @@ until there's code, but they decide whether anyone *adopts* the thing.
   the existential trio: a tool that breaks your QGIS, lies about results, or
   nobody wants is dead regardless of how elegant the grammar is.
 
-> *"…huh. That's a respectable pile of garbage. Now GET LOST — I've got a project
-> to keep being suspicious of."* — Oscar
+---
+
+## 12. Conclusion — Oscar's odds on each phase *succeeding*
+
+> *"You want a NUMBER? Fine. Here's my bet — grouchy, subjective, and probably
+> generous."* — Oscar
+
+**"Success" = built, works on real data, released, AND actually used** — not just
+"the code compiles." For a small open-source project the odds are gated less by
+*can you build it* (the design is buildable) than by **sustained maintainer
+attention, whether anyone wants it (M1), and install friction (E2)**.
+
+Numbers are **conditional** (reaching this phase successfully *given the previous
+one did*) and **cumulative** (from a standing start today). Calibrated
+grouch-vibes, not a forecast — update as reality arrives.
+
+| Phase | "Success" means | P(this \| prior) | Cumulative | What gates it |
+|-------|-----------------|:--:|:--:|---------------|
+| **v0.1 MVP** | Tier-1 flows run reliably; released; a handful of real users try it | **~60%** | **~60%** | dev commitment · G1/G2 decided · install friction (E2) · premise (M1) |
+| **v0.2** | breadth + provenance shipped; an early community uses it | ~65% | **~40%** | sustained attention (P1) · 2nd-backend cost · did v0.1 get traction? |
+| **v1.0** | stable release, grammar frozen with confidence, on PyPI, recurring users | ~50% | **~20%** | enough adoption to freeze wisely (M1) · maintenance (P1) · registry drift (A4) |
+| **v2.0** | control-flow + SQL writes + quality rules; a contributor base | ~40% | **~8%** | bus factor / governance (P1/P3) · scope creep (P5) · competition (P4) |
+| **v2.x** | GUI/plugin + service mode; broad adoption | ~35% | **~3%** | all of the above + a living ecosystem · QGIS-builds-it (P4) |
+
+**Read it like this:** the **MVP is the most likely thing to succeed (~60%)** —
+it's well-scoped and the marimo-qgis prior art proves the runtime model. Every
+later phase multiplies the odds *down*, and the multiplier is dominated by
+**non-technical** factors (will the maintainer keep going? did the last release
+get adopted?), not engineering difficulty. Full maturity (v2.x) at ~3% isn't
+pessimism about the *design* — it's just what reaching the end of a solo
+open-source roadmap honestly looks like.
+
+**The four cheap moves that most improve the odds:**
+1. **Decide G1 (units) and G2 (`save`) and build a thin MVP fast** — stop planning, ship the Tier-1 slice.
+2. **Ship the plugin install path early** — the only thing that fixes E2 and lets the *actual target user* in.
+3. **Validate the premise (M1) with real analysts before over-building** — a few users who'd use it beats v0.2's feature list.
+4. **Recruit a second maintainer** — P1 (bus-factor-of-one) is the quiet killer of every phase past v1.0.
+
+> *"…there. Numbers. Don't come crying when reality turns out grumpier than I am.
+> Now GET OUT — these odds aren't gonna second-guess themselves."* — Oscar
