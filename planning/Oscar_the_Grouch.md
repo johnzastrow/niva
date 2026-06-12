@@ -162,7 +162,60 @@ Severity: 🟥 High · 🟧 Medium · 🟨 Low.
 
 ---
 
-## 9. How to use this register
+## 9. Oscar reviews the planning docs — the gaps
+
+> *"You wrote a DOZEN documents and still left holes you could drive a garbage
+> truck through. Let me point at the empty spots."* — Oscar
+
+A blocker means you can't build/ship v1 without deciding it. "Home" = where it
+should be written.
+
+### Undecided fundamentals (these block design, not just docs)
+
+| # | The hole | Why it bites | Blocker? | Home |
+|---|----------|--------------|:--:|------|
+| G1 | **Distance units.** `buffer 100` — 100 *what*? Metres? Feet? Degrees? Still open (`00`, `03-§1`). | A non-programmer assumes metres; data may be feet or lat/long degrees → silently wrong buffers. Core grammar semantics, undecided. | 🟥 yes | `03` |
+| G2 | **`save` semantics.** Format/extension inference, overwrite vs append, layer name inside a GeoPackage, output CRS. Open (`00`, Oscar C8). | Data loss / clobbering on a verb everyone uses. | 🟥 yes | `03` |
+| G3 | **CRS handling policy.** On-the-fly reprojection? A default CRS? What if a layer has none? (tied to G1.) | Wrong-CRS geometry is the classic silent error (Oscar D2). | 🟧 | `02`/`03` |
+| G4 | **Error UX.** Flagged repeatedly (`00`, Oscar C11) but never designed — and it's *central* to a non-programmer tool. | Cryptic GDAL errors = the user is stuck and gone. | 🟧 | own treatment |
+
+### Missing specifications
+
+| # | The hole | Why it bites | Home |
+|---|----------|--------------|------|
+| G5 | **Formal grammar.** Described by example, not specified — no EBNF, no precise tokenization / quoting / escaping / comment / line-continuation rules. | You can't build (or keep stable) a parser from prose; ambiguities surface as bugs. | a `grammar` spec |
+| G6 | **Consolidated CLI + Python-API reference.** Commands, global flags (`--dry-run`/`--json`/`--backend`/`--log`), exit codes, and the `niva.*` surface are scattered across `02`/`03`/`09`. | No single contract for users or tooling. | a reference doc |
+| G7 | **Config spec.** "minimal config" and `NIVA_*` are name-dropped, never specified — what's configurable, file location/format, precedence. | Inconsistent behavior; nothing to implement against. | `09` / config spec |
+| G8 | **Logging/journal schema.** `OpRecord` is sketched (`08-§2`) but not a finalized, versioned schema others can parse. | The provenance promise needs a stable format. | `08` |
+| G9 | **Security / threat model.** Exists only as Oscar risks (sql/run loaded guns; `.niva` is executable). No model of trust boundaries, what's validated, safe defaults. | Injection / arbitrary execution surprises. | own doc |
+
+### Missing project / process docs
+
+| # | The hole | Why it bites | Home |
+|---|----------|--------------|------|
+| G10 | **Governance & contribution.** No CONTRIBUTING / registry-PR review model. | A bad community alias = silent wrong results for everyone (Oscar P3). | CONTRIBUTING + governance |
+| G11 | **Acceptance criteria beyond the MVP.** Only v1 has a Definition of Done (`03-§7`); v0.2 / v1.0 / v2.0 have none. | "Done" is undefined for every milestone but the first. | `04` |
+| G12 | **Product success metrics.** The PRD has *technical* success criteria but no *adoption/outcome* metrics (can a non-programmer finish task X? retention? installs?). | You won't know if the premise (Oscar M1) held. | `01` |
+| G13 | **Competitive / positioning analysis.** Modeler, GeoPandas, FME, ArcPy, rasterio are mentioned in passing, never analyzed. | "Why not X?" (Oscar U6/M1) is unanswered with evidence. | `01` / own doc |
+| G14 | **Glossary.** flow / stage / handle / surface / provider / backend are used precisely but defined nowhere in one place. | New readers (and contributors) guess. | a glossary |
+
+### Thin coverage
+
+| # | The hole | Why it bites |
+|---|----------|--------------|
+| G15 | **One use case, one persona.** `use_cases.md` is a single analyst story; the PRD claims 4 use-case types and 3 audiences. No worked developer / teacher / quick-exploration cases. | The design is tuned to one workflow; others may not fit the grammar. |
+| G16 | **Testing plan is a sketch** (`02-§8`) — no fixtures spec, coverage targets, or concrete multi-version CI plan. | The linter/parity claims are unbacked until this exists. |
+| G17 | **i18n & accessibility unplanned** (Oscar C13) — English-only grammar; plugin-GUI a11y untouched. | Excludes non-English users and a11y needs. |
+
+**Oscar's verdict on the gaps:** the *design* docs (`02`/`06`/`07`/`08`) are
+solid; the **undecided fundamentals (G1–G4) and the contract specs (G5–G7) are the
+real holes** — you can't build a stable parser or avoid data loss without them.
+G1 (units) and G2 (`save`) **block v1 today**; the process docs (G10–G13) can wait
+until there's code, but they decide whether anyone *adopts* the thing.
+
+---
+
+## 10. How to use this register
 
 - Re-read Oscar **before each milestone**; demote a risk only when its mitigation
   is built *and tested*.

@@ -31,7 +31,11 @@ once it has releases.
   adversarial catalogue of how niva could fail — premise/market, architecture,
   engineering, packaging/environment (incl. breaking QGIS's own Python), data
   correctness (silent wrong results), users, and sustainability — each with a
-  severity and a mitigation, plus an existential-risk shortlist.
+  severity and a mitigation, plus an existential-risk shortlist. Now also
+  includes **Oscar's review of the planning docs for gaps** (§9): undecided
+  fundamentals that block v1 (distance units, `save` semantics, CRS policy, error
+  UX) and missing specs/process docs (formal grammar, CLI/API reference, config,
+  security model, governance, acceptance criteria, success metrics, glossary).
 - **Deployment & operation doc** (`planning/09-deployment-and-operation.md`),
   analyst-friendly: niva installs into QGIS's own Python (pip now; QGIS plugin
   later); connects to QGIS tools, files, and databases via QGIS's saved
