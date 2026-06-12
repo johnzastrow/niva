@@ -37,6 +37,10 @@ once it has releases.
   live QgsVectorLayer / db_table / memory), its invariants, and the rules for
   **crossing surfaces** (Processing ↔ SQL ↔ expressions) with materialization
   only at boundaries that need it; connections by `@name`; eager-now/lazy-later.
+- **Roadmap** reworked (`planning/04-roadmap.md`): v0.1 MVP → v2.x sequenced
+  across three parallel tracks (grammar/engine, coverage via the registry,
+  provenance), reconciled with the ~40-verb set, SQL read-in-v1/writes-in-v2, the
+  layer handle contract, and the logging/assess/auto-lineage plan.
 - **Metadata, data quality & lineage surface** in `planning/06-§2.5`: the
   "Metadata tools" algorithms (with signatures) + `QgsLayerMetadata` model, the
   21-algorithm Check-geometry group and profiling stats for quality assessment,
