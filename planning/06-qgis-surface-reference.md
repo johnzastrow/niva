@@ -225,9 +225,24 @@ closer to the data than round-tripping through Processing.
 
 ### 4.1 SpatiaLite 5.1.0 — enumerated live
 
-- **1131** total registered SQL functions; **238** `ST_*` spatial functions
-  (+ 16 `gpkg*` GeoPackage functions).
-- Coverage mirrors Processing's vector geometry/overlay groups:
+- **1131** total registered SQL functions (via `PRAGMA function_list`); **238**
+  under `ST_` names; 16 `gpkg*` GeoPackage functions.
+- **The `ST_` count understates the spatial surface.** Cross-checked against the
+  [official SpatiaLite 5.1.0 SQL reference][sl-ref] (~300+ functions in ~50
+  categories): SpatiaLite registers most spatial functions under **both** the
+  OGC `ST_` name **and** a legacy non-prefixed alias (`Area()` *and* `ST_Area()`,
+  `Buffer()` *and* `ST_Buffer()`) — all 25 legacy names probed here are present —
+  **plus** SpatiaLite-only extensions with no `ST_` form. So the real geoprocessing
+  surface ≈ the ~300+ documented spatial functions; the 1131 total adds SQLite
+  built-ins and the duplicate alias set.
+- **Extensions beyond core OGC** (confirmed present on this install): tessellation
+  **grids** (`SquareGrid`/`HexagonalGrid`/`TriangularGrid`, 8 fns), **topology**
+  TopoGeo/TopoNet (62 fns), **routing/network** (7), **GeoPackage** compat
+  (24 `gpkg*`), format converters (`AsKml`/`AsGeoJSON`/`AsEWKB`/`AsTWKB`),
+  **RasterLite2** (RL2), KNN, geodesic, and metadata/catalog functions.
+- Core coverage mirrors Processing's vector geometry/overlay groups:
+
+[sl-ref]: https://www.gaia-gis.it/gaia-sins/spatialite-sql-5.1.0.html
 
 | ~Count | `ST_*` family | Examples |
 |-------:|---------------|----------|
@@ -240,12 +255,39 @@ closer to the data than round-tripping through Processing.
 
 ### 4.2 PostGIS
 
-Not enumerated here (no live PostGIS on this box), but the parallel is direct and
-**larger**: PostGIS exposes ~1000 functions across the same families
-(`ST_Buffer`/`ST_Intersection`/`ST_Union`/`ST_DWithin`/`ST_ClusterKMeans`/
-`ST_Subdivide`/topology/raster `ST_*`/3D). The **exact set is version-dependent**
-(PostGIS 3.x vs 3.5+), so niva must introspect a connection (`SELECT
+Not enumerated live here (no PostGIS on this box), but cross-checked against the
+[official PostGIS function reference][pg-ref] — and the parallel to SpatiaLite is
+near one-to-one. The reference documents **300+ functions across 23 sections**;
+the *installed* count is larger (~1000+ with overloads, raster and topology). Same
+families, same `ST_` names:
+
+| Family | Examples |
+|--------|----------|
+| constructors / accessors / editors | `ST_MakePoint`, `ST_Boundary`, `ST_AddPoint`, `ST_Reverse` |
+| validation | `ST_IsValid`, `ST_MakeValid` |
+| SRS / I/O | `ST_Transform`, `ST_SRID`, WKT/WKB/GeoJSON/KML/GML |
+| relationships / measurement | `ST_Intersects`, `ST_Contains`, `ST_DWithin`, `ST_Distance`, `ST_Area` |
+| overlay | `ST_Union`, `ST_Intersection`, `ST_Difference` |
+| processing | `ST_Buffer`, `ST_Simplify`, `ST_ConvexHull`, `ST_ConcaveHull`, `ST_Subdivide`, `ST_VoronoiPolygons`, `ST_DelaunayTriangles` |
+| clustering | `ST_ClusterKMeans`, `ST_ClusterDBSCAN` |
+| linear referencing / trajectory | `ST_LineInterpolatePoint`, `ST_ClosestPointOfApproach` |
+| 3D / SFCGAL | `ST_3DIntersects`, `ST_3DDistance` |
+| KNN operators | `<->`, `<#>` (index-assisted nearest neighbour) |
+
+Separate extensions (own schemas): **raster** (`postgis_raster`), **topology**
+(`postgis_topology`), **address standardizer + Tiger geocoder**. The **set is
+version-dependent**, so niva must introspect a connection (`SELECT
 postgis_full_version()`) rather than assume.
+
+[pg-ref]: https://postgis.net/docs/reference.html
+
+> **Correlation note.** SpatiaLite and PostGIS are both OGC SQL/MM
+> implementations, so their `ST_*` surfaces are close to interchangeable — and
+> both mirror QGIS Processing's vector-geometry/overlay groups (§2.2). The *same*
+> "buffer" is reachable as `native:buffer` (algorithm), `buffer()` (expression),
+> and `ST_Buffer` (either DB). This three-way overlap is the central naming
+> decision for niva (§8.1), and the strong DB-to-DB parallel means one niva `sql`
+> verb can target either engine with the same grammar.
 
 ### 4.3 How this is reached today
 

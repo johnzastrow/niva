@@ -19,7 +19,9 @@ once it has releases.
 - **QGIS capability surface reference** (`planning/06-qgis-surface-reference.md`
   + `planning/reference/*.tsv`): a snapshot, enumerated live from QGIS 4.0.3, of
   everything niva could reach — 769 Processing algorithms (8 providers), 406
-  expression functions, SpatiaLite's 238 `ST_*` + PostGIS spatial SQL, the
+  expression functions, SpatiaLite/PostGIS spatial SQL (cross-checked against the
+  official SpatiaLite 5.1.0 and PostGIS function references — ~300+ documented
+  spatial functions each, under OGC `ST_` plus legacy/extension names), the
   SQL-capable data providers and OGR/GDAL drivers, and the full version stack —
   with current signatures/access and before/after niva examples.
 - **Brand assets** (`logos/`): the niva mark (`logo.svg` / `logo.png`) and
