@@ -69,6 +69,8 @@ contract** right (`02-§3`) — everything later builds on them.
   verb (read/set/export, `06-§2.5`); `assess --deep` (Check-geometry battery).
 - **Richer `filter`** (IN, LIKE, NULL handling) while staying non-code-like.
 - Minimal `config` (default backend); `--json` contracts; timing.
+- **`call` / file composition**: parameterless `call other.niva` to run another
+  file's flows inline (procedural reuse), usable anywhere in a parent (`03-§4.1`).
 - Docs site + a cookbook of example `.niva` flows.
 
 ## v1.0 — Stable release
@@ -85,7 +87,9 @@ Extends the grammar without breaking v1 flows.
 
 - **Named intermediates / reuse**: capture a stage's output and reuse it
   (e.g. `… > $roads`, then `load $roads`) — non-linear flows (branch/merge).
-- **Variables / parameters** in `.niva` scripts for reusable pipelines.
+- **Variables / parameters** in `.niva` scripts, and **parameterized `call`**
+  (pass values / the current layer into a called file) — reusable macros
+  (`03-§4.1`), guarded so the common case still reads like prose.
 - **SQL writes & connection management** (`06-§4`, `03-§6`): `UPDATE`/`DELETE`/
   `CREATE`, import-to-PostGIS/SpatiaLite, managing `@connections`; exit code `4`
   (connection/SQL). (Read passthrough already shipped in v0.1.)

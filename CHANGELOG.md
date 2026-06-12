@@ -13,6 +13,10 @@ once it has releases.
 ## [Unreleased]
 
 ### Added
+- **File composition (`call`)**: a `.niva` file executes procedurally, and a
+  `call <file.niva>` may appear anywhere to run another file's flows inline —
+  procedural reuse / macros. Documented in `03-§4.1`, placed on the roadmap
+  (v0.2 parameterless; v2.0 parameterized), and captured in concepts.
 - **Worked example** (`examples/youngstown_cat_canvassing.niva`): the full
   `use_cases.md` workflow expressed in the proposed niva grammar (illustrative,
   not runnable) — multi-source/CRS/format load, assess, reproject, clip, geocode,

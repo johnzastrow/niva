@@ -47,6 +47,7 @@ mindmap
 | Alias registry (verb → `native:*`) + per-verb spec | **v0.1 core** | 07 |
 | Built-ins + Tier-1 verbs (the ~40-verb curated set) | **v0.1 (Tier 1) / v0.2 (Tier 2)** | 03 §2 |
 | `run` escape hatch · `find` · `describe` | **v0.1** | 03 §2, 07 §8 |
+| **`call <file.niva>`** — procedural file composition; a `.niva` runs top-to-bottom and a `call` may appear anywhere, running another file's flows inline | **v0.2** (parameterless); **v2.0** parameterized macros | 03 §4.1, 04 |
 | In-process PyQGIS + `qgis_process` backends, auto-select | **v0.1** | 02 §4 |
 | Python engine as power-user **escape hatch** | **v0.1** | 01, 02 §3.6 |
 | Interop with raw PyQGIS / GeoPandas / SQL | **v0.1 requirement** | 02 §3.6 |

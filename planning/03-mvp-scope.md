@@ -195,6 +195,35 @@ load parcels.gpkg
   | save r1_near.gpkg
 ```
 
+### 4.1 Calling other `.niva` files (procedural composition)
+
+A `.niva` file **executes procedurally** — top to bottom, one flow after the
+next. A **`call <file.niva>`** statement may appear **anywhere** in a parent file;
+at that point niva runs the called file's flows inline (procedurally), then
+continues. This is how a long workflow is broken into reusable, named pieces — the
+plain-language equivalent of an `#include` / `source`, not a programming
+construct:
+
+```
+# acquire_and_prepare.niva  — reused by several analyses
+load "nys.gdb|layername=buildings" | reproject EPSG:2262 | clip village.gpkg | save work/buildings.gpkg
+load "niagara/roads.shp"           | reproject EPSG:2262 | fix | clip village.gpkg | save work/roads.gpkg
+```
+
+```
+# analyze_canvass.niva
+call acquire_and_prepare.niva          # runs that file's flows here, then continues
+load work/buildings.gpkg | centroid | save work/homes.gpkg
+call make_handouts.niva                # a call can sit mid-file, anywhere
+```
+
+Rules: calls run in file order at the point they appear; **circular calls are an
+error** (niva tracks the call stack); a called file is found relative to the
+caller (then a search path). **Passing parameters / the current layer** into a
+called file (parameterized macros) is a later extension — see `04-roadmap.md`
+(v0.2 plain `call`; v2.0 parameterized) and `00 §8`. v1 keeps calls parameterless
+so the grammar stays non-code-like.
+
 ## 5. Backends (both, in v1)
 
 - In-process **PyQGIS** (default when inside QGIS / a live session) and headless
