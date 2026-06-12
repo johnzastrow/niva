@@ -96,12 +96,14 @@ run pdal:exportraster INPUT=data/usgs/lidar.las RESOLUTION=1 OUTPUT=work/dem.tif
 run native:slope INPUT=work/dem.tif OUTPUT=work/slope.tif
 
 # Cost surface (penalize steep slopes) and TSP routing have NO native equivalent
-# -> fall back to GRASS, used LAST and only here. Exact params: `describe grass:…`.
-run grass:r.cost INPUT=work/slope.tif START_POINTS=work/target_points.gpkg OUTPUT=work/cost.tif
-# Travelling-salesman tour over the targets on the network (one per travel mode):
-run grass:v.net.salesman input=work/network_edges.gpkg ccats=work/target_points.gpkg \
+# -> fall back to GRASS, used LAST and only here. NOTE: GRASS algorithms take
+# LOWERCASE parameter names (input/points/output), unlike native/gdal (INPUT/…) —
+# one more reason GRASS is least-preferred. Verify with `describe grass:<id>`.
+run grass:r.cost input=work/slope.tif start_points=work/target_points.gpkg output=work/cost.tif
+# Travelling-salesman tour over the target stops on the network (one per mode):
+run grass:v.net.salesman input=work/network_edges.gpkg points=work/target_points.gpkg \
     output=work/route_foot.gpkg
-run grass:v.net.salesman input=work/network_edges.gpkg ccats=work/target_points.gpkg \
+run grass:v.net.salesman input=work/network_edges.gpkg points=work/target_points.gpkg \
     output=work/route_bike.gpkg
 
 
@@ -109,9 +111,9 @@ run grass:v.net.salesman input=work/network_edges.gpkg ccats=work/target_points.
 # Export an existing atlas layout (.qpt) — one page per route/canvasser. The
 # layout is composed once in QGIS; niva just drives the export (a native algo).
 run native:atlaslayouttomultiplepdf LAYOUT=layouts/canvasser.qpt \
-    COVERAGE_LAYER=work/route_foot.gpkg FOLDER=out/handouts_foot/
+    COVERAGE_LAYER=work/route_foot.gpkg OUTPUT_FOLDER=out/handouts_foot/
 run native:atlaslayouttomultiplepdf LAYOUT=layouts/canvasser.qpt \
-    COVERAGE_LAYER=work/route_bike.gpkg FOLDER=out/handouts_bike/
+    COVERAGE_LAYER=work/route_bike.gpkg OUTPUT_FOLDER=out/handouts_bike/
 
 
 # ---- Step 9 · documented repository for reuse -------------------------------
