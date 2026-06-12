@@ -71,7 +71,9 @@ SpatiaLite `ST_*`) reshaped several decisions:
 | **SpatiaLite Virtual Tables** (VirtualShape/Text/OGR/Postgres) — SQL over heterogeneous sources | a bridging mechanism for the handle | 06 §4.1, 02 §3.3 |
 | **Introspect, never assume** — provider/algorithm/CRS/SQL sets are build-specific | a `niva doctor`/capability report from live enumeration | 06 §8.4, 07 §9 |
 | Machine-readable **reference inventories** (algorithms + expression fns TSVs) | committed; regenerate per build | 06 appendix, `reference/` |
-| **Hard-to-reach surface** (rendering, layouts, symbology) | out until v2.x | 06 §6, 04 |
+| **Hard-to-reach surface** (rendering, layouts, symbology) | out until v2.x; but atlas *export* is an algorithm (reachable) | 06 §6, 04 |
+| **Provider preference order** — native > gdal > qgis > pdal > … > **GRASS/SAGA last** | **decided** | 07 §12.1, 03 §2.4 |
+| Escape hatch reaches the long tail (GRASS network/TSP, PDAL lidar) — coverage isn't capped by the curated verbs | validated by the canonical use case | 03 §2.4, 07 §8 |
 
 ## 3. Concepts from the engine & registry design (`02`, `07`)
 

@@ -335,9 +335,15 @@ experts, lintable against multiple QGIS builds, and serializable for a future
 
 ## 12. Open questions
 
-1. **Verb naming collisions across providers.** `native:buffer` vs `gdal:buffer`
-   — which owns `buffer`? Proposal: curated verbs prefer `native`; reach others
-   via a qualified alias (`gbuffer`) or `run gdal:…`.
+1. **Provider preference order (decided).** When more than one provider offers a
+   capability, the registry resolves to the **most-preferred available** one:
+   `native` → `gdal` → `qgis` → `pdal` → … → **`grass` / `saga` last**. GRASS and
+   SAGA are heavier, externally dependent, and use different conventions, so a
+   curated verb **never** resolves to them when a native/gdal option exists; they
+   stay reachable via `run grass:*` / `run saga:*` or an explicit qualified alias
+   (e.g. a deliberate `gbuffer`). Same-name natives (`native:buffer` vs
+   `gdal:buffer`) prefer `native`. (Open: where a GRASS/SAGA-only capability like
+   TSP earns a *curated* verb vs staying `run`-only.)
 2. **Enum drift.** Reconciling curated words with QGIS's option strings
    automatically vs by hand — how much can be generated (§9.5)?
 3. **Multi-output algorithms** (join counts, fail outputs): keep them `run`-only,

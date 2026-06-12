@@ -72,6 +72,10 @@ wrapper?). None of these are settled.
 - **`planning/`** — the design exploration and open decisions.
 - **`logos/`** — the niva brand (`logo.svg`, `logo_text.svg`; earlier concepts in
   `OLD/`).
+- **`examples/`** — an **illustrative** niva flow
+  ([`youngstown_cat_canvassing.niva`](examples/youngstown_cat_canvassing.niva))
+  that performs the `use_cases.md` workflow end to end in the proposed grammar.
+  Not runnable yet — a design artifact to review the grammar against a real task.
 - **`plugin/`** — a minimal **QGIS plugin stub** that previews the niva logo on
   the toolbar and Plugins menu. It does **no geoprocessing yet** — it's a
   skeleton + branding preview for if niva becomes a QGIS plugin. See

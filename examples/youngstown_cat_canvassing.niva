@@ -1,0 +1,131 @@
+# =============================================================================
+# niva example  ·  Youngstown cat-canvassing workflow
+# =============================================================================
+# Project : Cats for the Humane Treatment of Humans — Youngstown, NY
+# Goal    : efficient foot/bike routes to visit cat-owning homes, avoiding homes
+#           with dogs or pet birds and avoiding steep slopes; produce maps and
+#           per-canvasser handouts; leave a fully documented data repository.
+# Source  : planning/use_cases.md  (the 9 steps below mirror it 1:1)
+#
+# STATUS  : ILLUSTRATIVE. niva is a design proposal (see planning/); this grammar
+#           is NOT yet runnable. This file shows what the workflow would look like
+#           in niva so the design can be reviewed against a real task.
+#
+# RULES this example demonstrates:
+#   · native-first provider preference (07-§12.1): native > gdal > qgis > pdal >
+#     ... > GRASS/SAGA LAST. GRASS appears only in step 7, where nothing native
+#     can do cost-surface routing / TSP.
+#   · the `run id KEY=value` escape hatch (07-§8) reaches the long tail (PDAL,
+#     GRASS, atlas export) with no curated alias needed.
+#   · every `save` records lineage into the layer's metadata (08-§3); `assess`
+#     documents incoming data quality (08-§4) — provenance as a byproduct.
+#
+# Local working SRS: EPSG:2262  (NAD83 / New York West, US survey feet) — a
+# high-resolution local CRS for Niagara County. Sources arrive in mixed CRS
+# (NYS FileGDB, county shapefiles in feet, federal GeoPackage NAD83 lat/long).
+# `#` starts a comment.  `|` chains a stage's output into the next stage.
+# =============================================================================
+
+
+# ---- Step 1 · document the originals & assess for common data issues --------
+# `assess` profiles each source (CRS set? extent, schema, validity, duplicates,
+# nulls, any existing lineage) and writes a quality report — no data is altered.
+load "data/nys.gdb|layername=buildings" | assess to docs/quality/buildings.md
+load "data/niagara/parcels.shp"         | assess to docs/quality/parcels.md
+load "data/niagara/roads.shp"           | assess --deep to docs/quality/roads.md
+load "data/federal/gnis.gpkg"           | assess to docs/quality/gnis.md
+load @cats_pg.human_homes               | assess to docs/quality/human_homes.md
+load "data/usgs/ortho.tif"              | assess to docs/quality/ortho.md
+load "data/usgs/lidar.las"              | assess to docs/quality/lidar.md
+
+
+# ---- Step 2 · reproject / warp everything to the local SRS (EPSG:2262) -------
+load "data/nys.gdb|layername=buildings" | reproject EPSG:2262 | save work/buildings.gpkg
+load "data/nys.gdb|layername=highways"  | reproject EPSG:2262 | save work/highways.gpkg
+load "data/niagara/parcels.shp"         | reproject EPSG:2262 | fix | save work/parcels.gpkg
+load "data/niagara/roads.shp"           | reproject EPSG:2262 | fix | save work/roads.gpkg
+load "data/federal/gnis.gpkg"           | reproject EPSG:2262 | save work/gnis.gpkg
+# raster warp is gdal (preferred over GRASS for this):
+run gdal:warpreproject INPUT=data/usgs/ortho.tif TARGET_CRS=EPSG:2262 RESAMPLING=1 OUTPUT=work/ortho.tif
+
+
+# ---- Step 3 · clip all data to the village bounds ---------------------------
+load work/buildings.gpkg | clip data/village_bounds.gpkg | save work/buildings_v.gpkg
+load work/parcels.gpkg   | clip data/village_bounds.gpkg | save work/parcels_v.gpkg
+load work/roads.gpkg     | clip data/village_bounds.gpkg | save work/roads_v.gpkg
+run gdal:cliprasterbymasklayer INPUT=work/ortho.tif MASK=data/village_bounds.gpkg OUTPUT=work/ortho_v.tif
+
+
+# ---- Step 4 · geocode the tabular addresses into points ---------------------
+# Preferred: native online geocoder.
+load @cats_pg.human_homes
+  | run native:batchnominatimgeocoder FIELD=address
+  | reproject EPSG:2262
+  | save work/homes_points.gpkg
+# Offline alternative (no internet) — join to building outlines that carry an
+# address attribute, then take a point on each matched building:
+#   load @cats_pg.human_homes
+#     | join with=work/buildings_v.gpkg field=address field2=addr fields=fid
+#     | save work/homes_points.gpkg
+
+
+# ---- Step 5 · build a routable street network from the roads ----------------
+# Clean the geometry/topology natively first (roads are "non-routable yet").
+load work/roads_v.gpkg | fix | explode | save work/network_edges.gpkg
+# (network construction/noding for routing happens in step 7 against this layer)
+
+
+# ---- Step 6 · select human homes linked to qualifying cat homes -------------
+# Pull the relationship + criteria straight from PostGIS (set work pushed to the
+# DB), then attach geometry from the geocoded points. Excludes dog/bird homes.
+sql @cats_pg "SELECT h.address, h.occupants
+              FROM human_homes h
+              JOIN cat_homes c USING (address)
+              WHERE c.has_cat AND NOT h.has_dog AND NOT h.has_bird"
+  | save work/targets_attr.gpkg
+
+load work/homes_points.gpkg
+  | join with=work/targets_attr.gpkg field=address field2=address fields=occupants
+  | filter "occupants is not null"
+  | save work/target_points.gpkg
+
+
+# ---- Step 7 · slope-aware route optimization --------------------------------
+# Lidar -> DEM with PDAL (preferred over GRASS), slope with native terrain.
+run pdal:exportraster INPUT=data/usgs/lidar.las RESOLUTION=1 OUTPUT=work/dem.tif
+run native:slope INPUT=work/dem.tif OUTPUT=work/slope.tif
+
+# Cost surface (penalize steep slopes) and TSP routing have NO native equivalent
+# -> fall back to GRASS, used LAST and only here. Exact params: `describe grass:…`.
+run grass:r.cost INPUT=work/slope.tif START_POINTS=work/target_points.gpkg OUTPUT=work/cost.tif
+# Travelling-salesman tour over the targets on the network (one per travel mode):
+run grass:v.net.salesman input=work/network_edges.gpkg ccats=work/target_points.gpkg \
+    output=work/route_foot.gpkg
+run grass:v.net.salesman input=work/network_edges.gpkg ccats=work/target_points.gpkg \
+    output=work/route_bike.gpkg
+
+
+# ---- Step 8 · maps + per-canvasser handouts ---------------------------------
+# Export an existing atlas layout (.qpt) — one page per route/canvasser. The
+# layout is composed once in QGIS; niva just drives the export (a native algo).
+run native:atlaslayouttomultiplepdf LAYOUT=layouts/canvasser.qpt \
+    COVERAGE_LAYER=work/route_foot.gpkg FOLDER=out/handouts_foot/
+run native:atlaslayouttomultiplepdf LAYOUT=layouts/canvasser.qpt \
+    COVERAGE_LAYER=work/route_bike.gpkg FOLDER=out/handouts_bike/
+
+
+# ---- Step 9 · documented repository for reuse -------------------------------
+# Every `save` above already wrote per-step lineage into the layer metadata
+# history (08-§3). Stamp the headline deliverables with descriptive metadata:
+load work/target_points.gpkg
+  | metadata set title="Cat-owning residences — canvass targets (Youngstown)" \
+                 keywords=cats,canvass,youngstown,niagara \
+                 abstract="Geocoded cat-owning homes, excluding homes with dogs or birds; EPSG:2262."
+  | save deliverables/target_points.gpkg
+
+load work/route_foot.gpkg
+  | metadata set title="Optimized foot route" keywords=route,foot,tsp
+  | save deliverables/route_foot.gpkg
+
+# Result: deliverables/ + out/handouts_* + docs/quality/*, each carrying its own
+# provenance — a self-documenting repository, reproducible by re-running this file.

@@ -116,24 +116,45 @@ engine runs them uniformly. Tier 1 is the ship-first cut; Tier 2 rounds out v1.
 > the primary arg (`buffer 100`, `clip city.gpkg`), named `key=value` for the rest.
 > Confirm.
 
-### 2.4 The use case, in verbs
+### 2.4 The canonical use case, end to end
 
-The `use_cases.md` analyst flow (Youngstown cat-canvassing) maps onto the set:
+The `use_cases.md` analyst (cat-canvassing in Youngstown, NY) is a full
+multi-source, multi-CRS, multi-format data-science workflow. niva covers it
+**native-first** — the provider preference order (`07-§12.1`): prefer `native`,
+then `gdal`/`qgis`/`pdal`, and use **GRASS only as a last resort** where nothing
+else can.
+
+| step (`use_cases.md`) | niva — preferred provider first |
+| :-- | :-- |
+| 1. document + assess originals | `assess` + `metadata` (08) — native |
+| 2. reproject/warp to a local SRS | `reproject` (native) · `warp` (gdal, v0.2) |
+| 3. clip to village bounds | `clip` — native |
+| 4. geocode addresses → points | `run native:batchnominatimgeocoder`, or address-`join` to building outlines — native |
+| 5. routable street network | native network prep where possible |
+| 6. select cat-homes meeting criteria | `load @cats_pg.homes` · `sql` · `join` · `filter` (exclude dog/bird) — native / PostGIS |
+| 7. routes (foot/bike, avoid steep slopes) | lidar→DEM `run pdal:exportraster` (PDAL) → `slope` (native) → cost-surface + TSP fall to **GRASS** here only (`r.cost`, `v.net.salesman`) — no native equivalent |
+| 8. maps + per-canvasser handouts | `run native:atlaslayouttomultiplepdf` — native (atlas, one page/route) |
+| 9. documented repository | lineage/provenance on every `save` (08) — native |
+
+So **only step 7's cost-surface routing/TSP touches GRASS** — everything else is
+native/gdal/pdal/PostGIS. Illustrative slice (steps 1–3, 6):
 
 ```
-# acquire + prepare: FileGDB in EPSG:4629 → cleaned, projected working data
-load "cats.gdb|layername=parcels" | reproject EPSG:26918 | fix
-  | filter "owns_cat = 1" | save work/cat_parcels.gpkg
-
-# explore/analyze: residence points, blocks that contain them
-load work/cat_parcels.gpkg | centroid | save work/cat_points.gpkg
-load blocks.gpkg | spatialjoin with=work/cat_points.gpkg predicate=contains
-  | save work/blocks_with_cats.gpkg
+load "ny_state.gdb|layername=buildings" | assess to docs/buildings_quality.md
+load "ny_state.gdb|layername=buildings" | reproject EPSG:6350 | clip village.gpkg
+  | save work/buildings.gpkg
+sql @cats_pg "SELECT * FROM human_homes h JOIN cat_homes c USING (address)
+              WHERE c.has_cat AND NOT h.has_dog AND NOT h.has_bird"
+  | save work/target_homes.gpkg
 ```
 
-Routing ("visit all residences on foot, most efficiently") needs the
-**network-analysis** group (shortest path); full route optimization (TSP) is a
-**known gap** in QGIS native algorithms and is out of v1 (§6).
+**Provider preference.** GRASS (307 algos) and SAGA are the **least-preferred**
+backends — heavier, externally dependent, different conventions — so niva reaches
+them **last, only when native/gdal/qgis/pdal cannot do the job** (here: TSP via
+`grass:v.net.salesman`, cost surface via `grass:r.cost`). They stay reachable via
+`run grass:*`; a curated verb never resolves to GRASS when a native option exists
+(`07-§12.1`). True route optimization (TSP) is absent from *native* QGIS but
+reachable — so it is not blocked, just not a curated v1 verb (§6).
 
 ### Meta verbs
 (`run` / `find` / `describe` are the built-ins in §2.1.)

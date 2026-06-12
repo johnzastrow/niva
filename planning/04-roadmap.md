@@ -98,8 +98,10 @@ Extends the grammar without breaking v1 flows.
 - Optional **QGIS plugin / Processing-Toolbox** front end so flows run from the
   GUI (the niva plugin stub is the seed).
 - Optional **service/daemon mode** to amortize QGIS startup across many flows.
-- **Hard-to-reach surfaces** (`06-§6`): rendering to PNG/PDF, print layouts/atlases,
-  symbology — only if demand warrants; these are large and GUI-shaped.
+- **Hard-to-reach surfaces** (`06-§6`): *composing* print layouts and symbology is
+  GUI-shaped — later. (But *exporting* an existing atlas/layout is a Processing
+  algorithm — `native:atlaslayouttomultiplepdf` — so per-canvasser handouts from a
+  `.qpt` template are reachable earlier via `run`.)
 - Optional compiled outer CLI only if packaging/startup friction warrants it (no
   geoprocessing-speed reason — see `05 §3`).
 
@@ -109,6 +111,10 @@ Extends the grammar without breaking v1 flows.
 - **Non-programmer-first** grammar: no stage may read like code.
 - **Introspect, never assume** (`06-§8.4`): the registry, providers, CRS ops and
   SQL functions are build-specific; validate against the installed QGIS.
+- **Provider preference: native-first** (`07-§12.1`): prefer `native` → `gdal` →
+  `qgis` → `pdal`; **GRASS/SAGA last**, only when nothing else covers the job
+  (reached via `run`). The long tail (GRASS network/TSP, PDAL lidar) is reachable
+  from v0.1 without curated aliases.
 - **Interop** stays first-class (`02-§3.6`); the `run` escape hatch always reaches
   the full surface.
 - **One spec per verb** drives grammar, Python API, CLI, and `describe` — never diverge.

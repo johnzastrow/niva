@@ -13,6 +13,17 @@ once it has releases.
 ## [Unreleased]
 
 ### Added
+- **Worked example** (`examples/youngstown_cat_canvassing.niva`): the full
+  `use_cases.md` workflow expressed in the proposed niva grammar (illustrative,
+  not runnable) — multi-source/CRS/format load, assess, reproject, clip, geocode,
+  PostGIS select, lidar→DEM→slope, GRASS routing/TSP, atlas handouts, and
+  metadata/lineage on save.
+- **Provider preference order (decided)**: native > gdal > qgis > pdal > … >
+  **GRASS/SAGA last** — documented in `07-§12.1` and applied across the use-case
+  walkthrough (`03-§2.4`), roadmap, and concepts. The canonical use case is shown
+  to be almost entirely native, with GRASS reached (via `run`) only for
+  cost-surface routing / TSP, which native lacks.
+
 - **Planning materials** (`planning/`): critique & open questions, product
   requirements for the non-programmer text-pipeline grammar, architecture, MVP
   scope, roadmap, and captured concepts.
