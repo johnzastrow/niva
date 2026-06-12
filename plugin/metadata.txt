@@ -1,0 +1,19 @@
+[general]
+name=niva (logo demo)
+qgisMinimumVersion=3.0
+description=Stub plugin that previews the niva logo on the QGIS toolbar and menu.
+version=0.0.1
+author=John Zastrow
+email=br8kwall@gmail.com
+about=A minimal stub: it adds a toolbar button and a Plugins ▸ niva menu entry
+    using the niva logo, and shows the logo in a dialog when clicked. niva is a
+    planned PyQGIS wrapper for higher-level scripting of geoprocessing; this stub
+    exists to preview the branding in the QGIS UI and as a starting point if niva
+    becomes a full QGIS plugin.
+tracker=https://github.com/johnzastrow/niva/issues
+repository=https://github.com/johnzastrow/niva
+homepage=https://github.com/johnzastrow/niva
+category=Plugins
+icon=icon.svg
+experimental=True
+deprecated=False
