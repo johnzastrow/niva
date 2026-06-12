@@ -3,6 +3,8 @@
 **A concise, readable text-pipeline grammar for QGIS geoprocessing — for people
 who don't want to write PyQGIS.**
 
+### Our Motto, "Easy wins every time"
+
 <img src="logos/logo_text.png" width="320" alt="niva">
 
 > ⚠️ **Early days — largely a thought exercise right now.** niva is in the
