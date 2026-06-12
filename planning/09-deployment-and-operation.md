@@ -20,21 +20,31 @@ You are **not** installing a second GIS. niva borrows QGIS's.
 
 ## 2. Getting niva onto a workstation
 
-**Phase 1 (today / v1) — install it yourself, once.** niva is `pip`-installed into
-QGIS's Python, the same way the marimo-qgis plugin installs its dependencies:
+> **The package and the plugin are not two products — they're one.** niva itself
+> is a **pip-installed Python package** (the engine the CLI, `.niva` files, the
+> QGIS console, and marimo all use). The **QGIS plugin is a thin wrapper around
+> that same package**: it `pip`-installs niva for you and adds a GUI. The plugin
+> never *replaces* the package — it *delivers* it. Same niva underneath, whichever
+> way you got it. (This is exactly how the marimo-qgis plugin installs the
+> `marimo` pip package into QGIS's Python.)
+
+**Phase 1 (today / v1) — install the package yourself, once.** niva is
+`pip`-installed into QGIS's Python:
 
 - **Windows (OSGeo4W):** in the OSGeo4W shell, `python -m pip install niva`.
 - **Linux:** `<qgis-python> -m pip install --user niva` (if pip is missing,
   `sudo apt install python3-pip` first).
 - **macOS:** `/Applications/QGIS.app/.../bin/python3 -m pip install --user niva`.
 
-**Phase 2 (v1.x) — install it like any QGIS plugin.** A niva QGIS plugin (grown
-from the current logo stub) installs niva for you and adds a button/panel — you
-get it from **Plugins ▸ Manage and Install Plugins**, no terminal needed.
+**Phase 2 (v1.x) — let the plugin do the pip install for you.** A niva QGIS plugin
+(grown from the current logo stub) you get from **Plugins ▸ Manage and Install
+Plugins**. On first run it **`pip`-installs the niva package into QGIS's Python**
+(offering to, if it's missing — the marimo-qgis pattern) and adds a button/panel.
+No terminal needed, but it's the same package from Phase 1 doing the work.
 
-**Phase 3 (org-wide) — IT pushes it.** For a team, niva and a shared config are
-deployed to many workstations with normal software-deployment tools, so analysts
-just open QGIS and it's there.
+**Phase 3 (org-wide) — IT pushes it.** For a team, the niva package (and a shared
+config) are deployed to many workstations with normal software-deployment tools —
+optionally bundled with the plugin — so analysts just open QGIS and it's there.
 
 ---
 
@@ -112,7 +122,7 @@ like.
 | | **Phase 1 — Self-serve** | **Phase 2 — Plugin & team** | **Phase 3 — Service** |
 |---|---|---|---|
 | Versions | v0.1 → v1.0 | v1.x | v2.x |
-| Install | `pip` into QGIS's Python | QGIS Plugin Manager (bundles niva) | org push / container image |
+| Install | `pip` the niva package into QGIS's Python | plugin that **pip-installs the same package** for you | org push of the package (± plugin) / container image |
 | Interfaces | CLI · `.niva` files · QGIS console · marimo | + **GUI panel / Toolbox**, shared config & connections | + scheduled jobs · service endpoint |
 | Runs where | workstation (interactive + headless) · CI | + server batch | + always-on shared service |
 | Backend | PyQGIS in-process (`00-§3.3`) | + `qgis_process` for batch | service / pooled |
