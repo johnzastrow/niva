@@ -63,6 +63,7 @@ The thinking lives in [`planning/`](planning/):
 | `07-alias-registry-design.md` | the **alias registry** — how niva maps friendly verbs onto QGIS algorithms: entry schema, grammar→parameter binding, type coercion, enum vocab, the raw `run` escape hatch, and validation against the live registry |
 | `08-data-quality-provenance.md` | **logging, lineage & data quality** — the operation log, the `assess` verb for profiling incoming data, and auto-recording processing steps as formal metadata lineage (provenance as a byproduct of the work) |
 | `09-deployment-and-operation.md` | **deployment & operation** (analyst-friendly) — how niva installs into QGIS's Python, connects to QGIS/databases/files, the human-interface options (CLI, `.niva`, console, marimo, plugin GUI), and how it matures in phases |
+| `Oscar_the_Grouch.md` | the **failure register** — a comprehensive, adversarial catalogue of every way niva could fail (premise, architecture, engineering, packaging/environment, data correctness, users, sustainability) with severities and mitigations |
 
 Notable undecided questions: library vs CLI as the *primary* surface; whether the
 text DSL earns its keep next to a Python chain + YAML; and the output/layer

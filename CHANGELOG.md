@@ -27,6 +27,11 @@ once it has releases.
   `qgis_process` + auto-selection move to v0.2. Updated across docs 00–05.
 
 ### Added
+- **Failure register** (`planning/Oscar_the_Grouch.md`): a comprehensive,
+  adversarial catalogue of how niva could fail — premise/market, architecture,
+  engineering, packaging/environment (incl. breaking QGIS's own Python), data
+  correctness (silent wrong results), users, and sustainability — each with a
+  severity and a mitigation, plus an existential-risk shortlist.
 - **Deployment & operation doc** (`planning/09-deployment-and-operation.md`),
   analyst-friendly: niva installs into QGIS's own Python (pip now; QGIS plugin
   later); connects to QGIS tools, files, and databases via QGIS's saved
