@@ -52,7 +52,8 @@ The thinking lives in [`planning/`](planning/):
 
 | Doc | What it covers |
 |-----|----------------|
-| `00-critique-and-open-questions.md` | what's strong, what's risky, decisions pending |
+| `use_cases.md` | the driving example — a GIS analyst's end-to-end, multi-source workflow (Youngstown cat-canvassing) that the design is tested against |
+| `00-critique-and-open-questions.md` | what's strong, what's risky, decisions pending (historical — superseded items flagged) |
 | `01-prd.md` | **product requirements** — the top-level summary of everything decided: the grammar, native-first verb set, SQL & provenance value props, v1 goals/non-goals, success criteria, risks |
 | `02-architecture.md` | proposed architecture — layering, lex→parse→run pipeline, backends, and the **layer handle contract** (the value threaded through `\|`, and how it bridges Processing ↔ SQL ↔ expression surfaces) |
 | `03-mvp-scope.md` | what a first cut would (and wouldn't) include — the **initial ~40-verb set** (built-ins + Tier 1/2 aliases to real algorithm ids), SQL read passthrough in v1, and the definition of done |
