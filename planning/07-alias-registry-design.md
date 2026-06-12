@@ -49,7 +49,7 @@ entries, because they don't wrap a single algorithm:
 | Verb | Kind | Backed by |
 |------|------|-----------|
 | `load` / `save` | built-in | layer I/O + output materialization |
-| `where` | built-in | a raw QGIS **expression** → `native:extractbyexpression` |
+| `filter` | built-in | a raw QGIS **expression** → `native:extractbyexpression` |
 | `compute` | built-in | field calculator (raw expression) |
 | `sql` | built-in | DB / OGR / virtual-layer **SQL** passthrough (`06-§4`) |
 | `run` | built-in | the **raw escape hatch** — any algorithm by id (§8) |
@@ -57,7 +57,7 @@ entries, because they don't wrap a single algorithm:
 
 This honours the namespace decision from `06-§8.1`: `buffer` is always the
 **algorithm**; `ST_Buffer` is reached only via the explicit `sql` verb; the
-`buffer()` expression function only inside `where`/`compute` strings. One name,
+`buffer()` expression function only inside `filter`/`compute` strings. One name,
 one meaning, per surface.
 
 > **Relationship to existing QGIS automation.** QGIS already ships two multi-step
@@ -302,7 +302,7 @@ before release, not by a user.
 | `… \| dissolve by zone` | `native:dissolve {INPUT,FIELD:'zone',SEPARATE_DISJOINT:False,OUTPUT}` |
 | `… \| reproject EPSG:3857` | `native:reprojectlayer {INPUT,TARGET_CRS:'EPSG:3857',CONVERT_CURVED_GEOMETRIES:False,TRANSFORM_Z:False,OUTPUT}` |
 | `… \| zonalstats dem.tif stats mean,max prefix elev_` | `native:zonalstatisticsfb {INPUT,INPUT_RASTER:'dem.tif',RASTER_BAND:1,STATISTICS:[2,6],COLUMN_PREFIX:'elev_',OUTPUT}` |
-| `… \| where "area($geometry) > 1000"` | `native:extractbyexpression {INPUT,EXPRESSION:'area($geometry) > 1000',OUTPUT}` |
+| `… \| filter "area($geometry) > 1000"` | `native:extractbyexpression {INPUT,EXPRESSION:'area($geometry) > 1000',OUTPUT}` |
 | `sql @city "UPDATE roads SET geom=ST_Buffer(geom,100)"` | `native:spatialiteexecutesql {DATABASE:'city',SQL:…}` |
 
 (`dissolve by zone` shows an option whose key word is `by` → `FIELD`; alias

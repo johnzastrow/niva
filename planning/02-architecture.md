@@ -192,7 +192,7 @@ flowchart LR
 | **Processing → Processing** (same backend) | pass the handle directly — `qgs` in-process, or a temp `source`. No copy. |
 | **Processing → `sql`** | the SQL engine must see a table. If handle is `db_table` on the target connection → query in place. Else expose the `source` **without a full copy** where possible: OGR `SQLITE` dialect, or SpatiaLite **VirtualOGR/VirtualShape**, or a QGIS **virtual layer** over a live `qgs`. Only if none apply → `materialize()` to temp GeoPackage and attach. |
 | **`sql` → Processing** | a `SELECT` result becomes a handle: on a DB connection, a `db_table` (result/temp table) or materialized temp GeoPackage; via OGR `SQLITE` dialect, the result is written to a temp GeoPackage → `source`. |
-| **expressions** (`where`/`compute`) | these are in-process Processing algorithms (`extractbyexpression`, field calculator) — surface 1, no special bridging. |
+| **expressions** (`filter`/`compute`) | these are in-process Processing algorithms (`extractbyexpression`, field calculator) — surface 1, no special bridging. |
 
 This is why the handle carries `db_ref()` and `as_uri()` as well as `source()`:
 the boundary code chooses the cheapest exposure for the next engine.

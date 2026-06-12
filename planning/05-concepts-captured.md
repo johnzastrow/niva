@@ -110,7 +110,8 @@ SpatiaLite `ST_*`) reshaped several decisions:
 - **`startup.py` / `PYQGIS_STARTUP`** — preload niva so it's always importable;
   keep startup light (paths + import), defer GUI/`iface` work.
 - **Standalone / headless** — `niva run flow.niva`; `qgis_env` initializes a
-  headless app or auto-selects `qgis_process`. CI and scheduled jobs.
+  headless `QgsApplication` and the PyQGIS backend runs there (no GUI needed).
+  CI and scheduled jobs. (`qgis_process` is an alternative headless backend in v0.2.)
 - **(Later) Processing-script / plugin** — niva inside a custom Processing script,
   or a plugin where plugin = UI and niva = logic (the niva plugin stub is the seed).
 

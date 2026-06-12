@@ -13,6 +13,13 @@ once it has releases.
 ## [Unreleased]
 
 ### Changed
+- **Consistency pass over the planning set.** Unified verb names to canonical
+  `filter`/`compute` (was `where`/`calc` in 02/06/07); fixed the version scheme so
+  `v1.1` → `v0.2` (the roadmap's post-MVP release; `v1.1` contradicted
+  `v1.0`=stable) and clarified that the MVP = `v0.1`; flagged doc 00 as historical
+  with its superseded decisions (library-first, pipelines-deferred) and answered
+  open questions struck through; removed remaining stale "both backends /
+  auto-select in v1" wording.
 - **Backend decision pinned: PyQGIS-only for v1** (ratifies `00-§3.3`). The
   in-process backend runs both interactively and headless (a headless
   `QgsApplication`), so one backend covers every context with no

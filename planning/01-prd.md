@@ -44,7 +44,7 @@ flowchart TD
     G --> PARSE["parser → stages (procedural)"]
     PARSE --> ENG["niva engine<br/>verbs → algorithm ids · layer handle · op log"]
     ENG --> S1["Processing algorithms (native-first)"]
-    ENG --> S2["expressions (where / compute)"]
+    ENG --> S2["expressions (filter / compute)"]
     ENG --> S3["spatial SQL (SpatiaLite / PostGIS)"]
     ENG --> S4["metadata & lineage"]
     S1 & S2 & S3 & S4 --> GD["GDAL · GEOS · PROJ · SpatiaLite · providers (the real work)"]
@@ -155,9 +155,9 @@ flowchart LR
 
 - **SQL writes & connection management** (`UPDATE`/`CREATE`, import-to-PostGIS,
   managing connections) → v2. *(Read passthrough is in v1.)*
-- **Heavy raster processing** (terrain, raster calculator, warp pipelines) → v1.1.
+- **Heavy raster processing** (terrain, raster calculator, warp pipelines) → v0.2.
   *(Raster×vector — `zonalstats`/`sample` — is in v1.)*
-- **Auto-lineage to formal metadata** and the `metadata` verb → v1.1. *(The
+- **Auto-lineage to formal metadata** and the `metadata` verb → v0.2. *(The
   operation log + `assess` are in v1.)*
 - **Grammar control-flow** (variables, branching, loops) and **parameterized
   `call`** (macros) → v2.

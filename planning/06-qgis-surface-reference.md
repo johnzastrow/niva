@@ -255,10 +255,10 @@ than layer-to-layer. Examples (live signatures): `buffer(geom, dist, …)`,
 computed fields, reusing QGIS's own expression syntax verbatim (no second
 language to learn):
 ```
-load parcels.gpkg | where "area($geometry) > 1000 and \"zone\" = 'R1'" \
+load parcels.gpkg | filter "area($geometry) > 1000 and \"zone\" = 'R1'" \
   | compute density = "\"pop\" / area($geometry)" | save big_residential.gpkg
 ```
-`where` maps to `native:extractbyexpression`; `compute` to the field-calculator
+`filter` maps to `native:extractbyexpression`; `compute` to the field-calculator
 algorithm — both just carry a raw QGIS expression string through.
 
 ---
@@ -467,7 +467,7 @@ algorithm, no one-liner. These are where niva could add the most, and where the
 | **Apply/derive symbology & styling** | `QgsSymbol`/`QgsRenderer` classes; `.qml` files; no algorithm | `style roads.gpkg by class using styles/roads.qml` |
 | **Print layouts / atlases** | `QgsPrintLayout`, `QgsLayoutItemMap`, atlas iteration — entirely PyQGIS/GUI | `atlas template.qpt over regions.gpkg to pdf/` |
 | **Manage DB connections / schema** | provider connection API, GUI Browser | `connections list`, `tables @prod_db` |
-| **Field calculator at scale / batch** | per-layer GUI, or scripting | covered by `compute`/`where` (§3) |
+| **Field calculator at scale / batch** | per-layer GUI, or scripting | covered by `compute`/`filter` (§3) |
 | **Project assembly** (add layers, set CRS, save `.qgz`) | `QgsProject` API, GUI | `project new crs EPSG:3857 add *.gpkg save city.qgz` |
 | **Multi-step temp lifecycle** | manual `TEMPORARY_OUTPUT` threading + cleanup | implicit in the pipeline |
 
@@ -525,7 +525,7 @@ sel = processing.run("native:extractbyexpression",
 # + a separate field-calculator run for the density column…
 ```
 ```
-load parcels.gpkg | where "area($geometry) > 1000" \
+load parcels.gpkg | filter "area($geometry) > 1000" \
   | compute density = "\"pop\" / area($geometry)" | save big.gpkg
 ```
 

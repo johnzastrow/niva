@@ -133,14 +133,14 @@ load cats.gdb | assess to data/cat_parcels_quality.md
 - **v1:** the **operation log / run journal** (§2) — every op recorded; the journal
   as methods documentation. `assess` (structure + validity + basic stats + read
   existing lineage). These need no metadata-writing and are pure value.
-- **v1.1:** **auto-lineage to formal metadata** on `save` (§3); the `metadata`
+- **v0.2:** **auto-lineage to formal metadata** on `save` (§3); the `metadata`
   read/set/export verbs; `assess --deep` Check-geometry battery.
 - **v2:** quality **rules/constraints** (assert + fail a flow on bad data),
   metadata templates, and catalog/search integration
   (`QgsLayerMetadataProviderRegistry`).
 
 (Reconcile with `03-mvp-scope.md` / `04-roadmap.md`: `assess` likely earns a place
-in the v1 verb set; full metadata writing is v1.1.)
+in the v1 verb set; full metadata writing is v0.2.)
 
 ---
 

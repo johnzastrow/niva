@@ -1,5 +1,11 @@
 # Niva — Critique of Starting Materials & Open Decisions
 
+> **Status — historical.** This is the original critique of the starting
+> materials. **Many questions below have since been decided**; the current state
+> of the design lives in `01-prd.md` and `02`–`09`, with every concept's
+> disposition in `05-concepts-captured.md`. Superseded items are struck through
+> and point to where the decision now lives.
+
 _Critical review of `starting_materials/` (16 Perplexity exports), written to drive
 proper planning. Status: awaiting decisions on the open questions at the bottom._
 
@@ -123,9 +129,9 @@ that share a small core.
 
 | # | Decision | Choice |
 | :-- | :-- | :-- |
-| 1 | Primary form factor | **Library-first** — the Python API is the product; CLI is a thin wrapper over the same functions |
+| 1 | Primary form factor | ~~Library-first~~ → **superseded: the text grammar is the product**; the Python API is the power-user escape hatch (`01-§2a`, `05-§1`) |
 | 2 | v1 backend | **PyQGIS-only (in-process)** — runs interactive *and* headless; `qgis_process` deferred to v0.2 (decided, §3.3) |
-| 3 | Pipelines in v1 | **Deferred** — v1 ships direct one-shot calls only; chaining/flows are v2 |
+| 3 | Pipelines in v1 | ~~Deferred to v2~~ → **superseded: pipe chaining IS the v1 product** (the whole grammar; `01`, `03`) |
 | 4 | Usage contexts | **All four**: marimo-qgis notebooks, QGIS Python Console, standalone scripts, terminal CLI/batch |
 
 Implications carried into the planning docs:
@@ -154,7 +160,7 @@ whitespace/newlines around `|` are insignificant; only `save` writes to disk. Ex
 flowchart TD
     NP["Non-programmer writes a text pipeline"] --> GR["niva grammar (pipe-chained)"]
     GR --> ENG["niva engine + verb registry"]
-    ENG --> BK["backends — PyQGIS · qgis_process"]
+    ENG --> BK["backend — PyQGIS (qgis_process in v0.2)"]
     BK --> QG["QGIS Processing → GDAL · GEOS · PROJ"]
     ENG -. "escape hatch" .-> PWR["power users — niva Python API · raw PyQGIS"]
 ```
@@ -192,9 +198,10 @@ Captured so work can resume cleanly. Grouped by area; the grammar ones block the
 
 ### Engine & packaging
 - **Ratify the `Layer`/`Result` model** (`02 §3`) — load-bearing; everything builds on it.
-- **Confirm the v1 verb set** (13) — anything must-have missing (centroids, simplify,
-  singlepart, extract-by-attribute = `filter`)?
-- **Backend auto-selection rules** (`02 §4`) — acceptable as drafted?
+- ~~Confirm the v1 verb set (13)~~ — **decided**: ~40 curated verbs (built-ins +
+  Tier 1/2), all mapped to real algorithm ids (`03-§2`).
+- ~~Backend auto-selection rules~~ — **moot**: v1 is PyQGIS-only; selection
+  arrives with the `qgis_process` backend in v0.2 (`00-§3.3`).
 - **Targets** — minimum QGIS version, supported Python versions, and license (confirm the
   repo's existing `LICENSE`).
 - **PyPI name `niva`** — verify availability before publishing (action item, not a

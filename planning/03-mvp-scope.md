@@ -1,7 +1,8 @@
 # Niva — v1 MVP Scope
 
 _Status: draft for review. The concrete v1 boundary: the grammar, the verb set, the
-runner, the backends._
+runner, the backend. In the roadmap's numbering this MVP ships as **v0.1**; "v1"
+below means the first/MVP line (`04-roadmap.md`)._
 
 ## 1. The grammar
 
@@ -52,11 +53,11 @@ prepare → explore → analyze → produce). Everything else stays reachable vi
 algorithm through the alias registry (`07`); all algorithm ids below are verified
 present in QGIS 4.0.3 (`reference/qgis-algorithms-4.0.3.tsv`).
 
-> **Naming & grammar reconciliation.** These names are canonical for v1. Where
-> earlier docs differ: `filter` ≡ `where` (06/07); `compute` ≡ `calc`. Parameters
-> use **`key=value`** (the lexer in `02 §2`); the space-form `key value` in some
-> `07` examples is illustrative only. The registry (`07`) is the source of truth
-> for each mapping.
+> **Naming & grammar note.** These verb names are canonical (`where` and `calc`
+> are historical synonyms for `filter` and `compute`). Parameters use
+> **`key=value`** (the lexer in `02 §2`); the space-form `key value` in some `07`
+> examples is illustrative only. The registry (`07`) is the source of truth for
+> each mapping.
 
 ### 2.1 Built-in verbs (engine-level, not registry aliases — `07-§2`)
 
@@ -241,12 +242,12 @@ so the grammar stays non-code-like.
   "SELECT …"` → layer, `06-§4`) **is in v1** as a built-in (§2.1); it reuses
   QGIS's existing connections by `@name` (`02-§3.5`).
 - **Heavy raster processing** (terrain, raster calculator, warp pipelines) →
-  v1.1. Raster×vector that the workflow needs (`zonalstats`, `sample`) **is in
+  v0.2. Raster×vector that the workflow needs (`zonalstats`, `sample`) **is in
   v1** (§2.3).
 - **Routing / network optimization** (shortest-path verbs, and TSP — a gap in
   QGIS native algorithms) → later, despite the `use_cases.md` need (§2.4).
 - Rendering, layouts, symbology (surface 4, `06-§6`) → later.
-- `config` profiles beyond a default-backend setting → v1.1.
+- `config` profiles beyond a default-backend setting → v0.2.
 - A GUI / QGIS-plugin front end → later.
 
 ## 7. Definition of done (v1)
