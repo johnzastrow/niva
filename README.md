@@ -55,7 +55,7 @@ The thinking lives in [`planning/`](planning/):
 | `00-critique-and-open-questions.md` | what's strong, what's risky, decisions pending |
 | `01-prd.md` | the text-pipeline grammar — product requirements |
 | `02-architecture.md` | proposed architecture — layering, lex→parse→run pipeline, backends, and the **layer handle contract** (the value threaded through `\|`, and how it bridges Processing ↔ SQL ↔ expression surfaces) |
-| `03-mvp-scope.md` | what a first cut would (and wouldn't) include |
+| `03-mvp-scope.md` | what a first cut would (and wouldn't) include — the **initial ~40-verb set** (built-ins + Tier 1/2 aliases to real algorithm ids), SQL read passthrough in v1, and the definition of done |
 | `04-roadmap.md` | phased direction |
 | `05-concepts-captured.md` | concepts gathered from the exploration |
 | `06-qgis-surface-reference.md` | **reference**: the full QGIS capability surface niva could reach — 769 Processing algorithms, 406 expression functions, SpatiaLite/PostGIS spatial SQL, SQL drivers, the version stack — with before/after niva examples (machine-readable inventories in `planning/reference/`) |

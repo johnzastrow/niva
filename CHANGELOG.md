@@ -37,6 +37,11 @@ once it has releases.
   live QgsVectorLayer / db_table / memory), its invariants, and the rules for
   **crossing surfaces** (Processing ↔ SQL ↔ expressions) with materialization
   only at boundaries that need it; connections by `@name`; eager-now/lazy-later.
+- **Initial verb set** in `planning/03-mvp-scope.md`: a curated ~40-verb v1 set
+  (9 built-ins incl. `sql` read passthrough; Tier 1 + Tier 2 registry aliases),
+  every alias mapped to a real, verified QGIS 4.0.3 algorithm id, tied to the
+  `use_cases.md` analyst workflow; verb-naming reconciled across docs and the
+  out-of-scope/definition-of-done updated (SQL reads in v1; writes/routing v2+).
 - **Brand assets** (`logos/`): the niva mark (`logo.svg` / `logo.png`) and
   wordmark (`logo_text.svg` / `logo_text.png`); earlier logo explorations
   archived under `logos/OLD/`.
