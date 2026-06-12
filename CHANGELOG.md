@@ -37,6 +37,16 @@ once it has releases.
   live QgsVectorLayer / db_table / memory), its invariants, and the rules for
   **crossing surfaces** (Processing ↔ SQL ↔ expressions) with materialization
   only at boundaries that need it; connections by `@name`; eager-now/lazy-later.
+- **Metadata, data quality & lineage surface** in `planning/06-§2.5`: the
+  "Metadata tools" algorithms (with signatures) + `QgsLayerMetadata` model, the
+  21-algorithm Check-geometry group and profiling stats for quality assessment,
+  and proposed niva verbs.
+- **Data quality, provenance & lineage design** (`planning/08-data-quality-
+  provenance.md`): the operation log / run journal, the `assess` verb for
+  profiling incoming data (CRS/schema/validity/duplicates/nulls), and
+  auto-recording data-altering steps as formal metadata lineage
+  (`native:addhistorymetadata` → `QgsLayerMetadata.history`) on save — making
+  provenance a byproduct of the work.
 - **Initial verb set** in `planning/03-mvp-scope.md`: a curated ~40-verb v1 set
   (9 built-ins incl. `sql` read passthrough; Tier 1 + Tier 2 registry aliases),
   every alias mapped to a real, verified QGIS 4.0.3 algorithm id, tied to the

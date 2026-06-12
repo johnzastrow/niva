@@ -176,6 +176,54 @@ niva's job here: an **alias registry** (`buffer` → `native:buffer`), sensible
 (`dissolve`), automatic **output lifecycle** (temp between steps, materialize on
 `save`), and **enum-by-word** (`cap=flat` not `END_CAP_STYLE=1`).
 
+### 2.5 Metadata, data quality & lineage
+
+A cross-surface capability the analyst workflow leans on (`use_cases.md`: *assess
+the data, convey its quality, document the data and the methods*). QGIS already
+provides three pieces — niva's job is to make them automatic and connected
+(designed in [`08-data-quality-provenance.md`](08-data-quality-provenance.md)).
+
+**(a) Formal layer metadata** — the "Metadata tools" Processing group (6 algos),
+backed by the ISO-19115-style `QgsLayerMetadata` model (PyQGIS), readable inline
+via the `layer_property()` expression function:
+
+| algorithm | signature | does |
+|-----------|-----------|------|
+| `native:setlayermetadata` | `INPUT, METADATA:file(.qmd), DEFAULT:bool` | set metadata from a `.qmd` |
+| `native:setmetadatafields` | `INPUT, TITLE?, ABSTRACT?, IDENTIFIER?, TYPE?, LANGUAGE?, ENCODING?, CRS?, FEES?` | set individual fields |
+| `native:updatelayermetadata` / `native:copylayermetadata` | `SOURCE, TARGET[, DEFAULT]` | merge / copy metadata between layers |
+| `native:addhistorymetadata` | `INPUT, HISTORY:string` | **append a lineage / history entry** |
+| `native:exportlayermetadata` | `INPUT, OUTPUT:file` | export ISO metadata XML |
+
+`QgsLayerMetadata` fields: title, abstract, keywords, categories, contacts, links,
+licenses, rights, constraints, **history** (lineage), language, encoding, fees,
+crs, extent, identifier, type.
+
+**(b) Data-quality assessment** — the **Check geometry** group (21 algorithms:
+duplicate geometries/vertices, gaps, overlaps, slivers, self-intersections,
+dangles, holes, small angles/areas…), `native:checkvalidity`, and profiling algos
+`native:basicstatisticsforfields`, `native:listuniquevalues`,
+`native:rasterlayerstatistics`. Structural facts (CRS, extent, feature count,
+field schema, driver) come from `QgsVectorLayer` / `layer_property()`.
+
+**(c) Reached today:** metadata is mostly **GUI-only** (Layer Properties ▸
+Metadata tab, `.qmd` sidecars); the 6 algorithms automate parts; quality checks
+run as individual Processing dialogs. There is **no single "assess this dataset"
+command, and nothing auto-records what you did.**
+
+**niva (proposed):**
+```
+load cats.gdb | assess          # quality report: CRS, extent, schema, validity, duplicates, nulls
+load x.gpkg   | metadata        # show formal metadata (title/abstract/keywords/lineage)
+…             | metadata set title="Cat parcels" keywords=cats,canvass
+…             | save out.gpkg    # niva auto-writes the pipeline as lineage history
+```
+
+This is niva's **provenance differentiator: the operation log becomes formal
+lineage** — every data-altering step is recorded and, on `save`, written into the
+layer's metadata `history` (`native:addhistorymetadata`). Full design in
+`08-data-quality-provenance.md`.
+
 ---
 
 ## 3. Expression functions (406)
