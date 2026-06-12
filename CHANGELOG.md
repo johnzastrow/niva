@@ -13,6 +13,12 @@ once it has releases.
 ## [Unreleased]
 
 ### Added
+- **PRD reworked** (`planning/01-prd.md`) as the capstone summary of everything
+  decided: the procedural grammar + `call`, the one-grammar-every-surface value
+  prop (Processing native-first, expressions, `sql` passthrough), **provenance for
+  free** (assess + op-log + lineage), the ~40-verb alias registry, the layer
+  handle, and updated v1 goals/non-goals/success-criteria/risks (SQL reads in v1,
+  writes v2; backends flagged as the one unsettled call).
 - **File composition (`call`)**: a `.niva` file executes procedurally, and a
   `call <file.niva>` may appear anywhere to run another file's flows inline —
   procedural reuse / macros. Documented in `03-§4.1`, placed on the roadmap

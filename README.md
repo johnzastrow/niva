@@ -53,7 +53,7 @@ The thinking lives in [`planning/`](planning/):
 | Doc | What it covers |
 |-----|----------------|
 | `00-critique-and-open-questions.md` | what's strong, what's risky, decisions pending |
-| `01-prd.md` | the text-pipeline grammar — product requirements |
+| `01-prd.md` | **product requirements** — the top-level summary of everything decided: the grammar, native-first verb set, SQL & provenance value props, v1 goals/non-goals, success criteria, risks |
 | `02-architecture.md` | proposed architecture — layering, lex→parse→run pipeline, backends, and the **layer handle contract** (the value threaded through `\|`, and how it bridges Processing ↔ SQL ↔ expression surfaces) |
 | `03-mvp-scope.md` | what a first cut would (and wouldn't) include — the **initial ~40-verb set** (built-ins + Tier 1/2 aliases to real algorithm ids), SQL read passthrough in v1, and the definition of done |
 | `04-roadmap.md` | phased direction — v0.1 MVP → v2.x across three tracks (grammar/engine, coverage/registry, provenance), reconciled with the verb set, SQL, and lineage plans |
