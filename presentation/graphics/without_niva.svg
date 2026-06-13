@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 480" font-family="'DejaVu Sans','Arial',sans-serif">
+  <rect width="1200" height="480" fill="#ffffff"/>
+  <text x="40" y="52" font-size="28" font-weight="700" fill="#28323b">Today: automation means programming</text>
+  <text x="40" y="84" font-size="18" fill="#6B7B6F">The analyst who needs the answer can't get it without code — or someone who writes it.</text>
+
+  <!-- flow boxes -->
+  <g font-size="17" fill="#28323b" text-anchor="middle">
+    <!-- 1 -->
+    <rect x="40"  y="140" width="200" height="92" rx="10" fill="#eef1ec" stroke="#8d998b" stroke-width="1.5"/>
+    <text x="140" y="180" font-weight="700">Analyst has a</text>
+    <text x="140" y="204" font-weight="700">spatial question</text>
+
+    <!-- 2 -->
+    <rect x="290" y="140" width="200" height="92" rx="10" fill="#f6e7e1" stroke="#b85c3c" stroke-width="1.5"/>
+    <text x="390" y="174" fill="#b85c3c" font-weight="700">Write PyQGIS —</text>
+    <text x="390" y="197" fill="#b85c3c" font-weight="700">or wait for a</text>
+    <text x="390" y="218" fill="#b85c3c" font-weight="700">programmer</text>
+
+    <!-- 3 -->
+    <rect x="540" y="140" width="200" height="92" rx="10" fill="#f6e7e1" stroke="#b85c3c" stroke-width="1.5"/>
+    <text x="640" y="186" fill="#b85c3c" font-weight="700">Brittle, one-off</text>
+    <text x="640" y="210" fill="#b85c3c" font-weight="700">scripts</text>
+
+    <!-- 4 -->
+    <rect x="790" y="140" width="200" height="92" rx="10" fill="#f6e7e1" stroke="#b85c3c" stroke-width="1.5"/>
+    <text x="890" y="186" fill="#b85c3c" font-weight="700">Outputs scattered</text>
+    <text x="890" y="210" fill="#b85c3c" font-weight="700">across tools</text>
+
+    <!-- 5 -->
+    <rect x="1010" y="140" width="160" height="92" rx="10" fill="#f6e7e1" stroke="#b85c3c" stroke-width="1.5"/>
+    <text x="1090" y="174" fill="#b85c3c" font-weight="700">Hard to</text>
+    <text x="1090" y="197" fill="#b85c3c" font-weight="700">reproduce</text>
+    <text x="1090" y="218" fill="#b85c3c" font-weight="700">or share</text>
+  </g>
+
+  <!-- arrows between -->
+  <g stroke="#b85c3c" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M244 186 h40 m0 0 l-10 -8 m10 8 l-10 8"/>
+    <path d="M494 186 h40 m0 0 l-10 -8 m10 8 l-10 8"/>
+    <path d="M744 186 h40 m0 0 l-10 -8 m10 8 l-10 8"/>
+    <path d="M994 186 h10 m0 0 l-10 -8 m10 8 l-10 8"/>
+  </g>
+
+  <!-- consequence band -->
+  <rect x="40" y="296" width="1130" height="120" rx="12" fill="#fbf3ef" stroke="#e3c4b6" stroke-width="1.5"/>
+  <text x="70" y="338" font-size="20" font-weight="700" fill="#b85c3c">The cost</text>
+  <g font-size="18" fill="#5b4a42">
+    <text x="70" y="372">• Automation is gated on scarce programming skill — everyday work waits in a queue.</text>
+    <text x="70" y="400">• Results are siloed and stale; stakeholders get one-off exports they can't explore or trust.</text>
+  </g>
+</svg>

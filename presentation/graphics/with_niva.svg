@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 480" font-family="'DejaVu Sans','Arial',sans-serif">
+  <rect width="1200" height="480" fill="#ffffff"/>
+  <text x="40" y="52" font-size="28" font-weight="700" fill="#28323b">With niva: the analyst is self-sufficient</text>
+  <text x="40" y="84" font-size="18" fill="#6B7B6F">Write a readable pipeline in the tools you already use — reproducible and shareable by design.</text>
+
+  <g font-size="17" fill="#28323b" text-anchor="middle">
+    <!-- 1 -->
+    <rect x="40"  y="140" width="220" height="92" rx="10" fill="#eef1ec" stroke="#8d998b" stroke-width="1.5"/>
+    <text x="150" y="174" font-weight="700">Analyst writes niva</text>
+    <text x="150" y="197" fill="#6B7B6F">in Marimo · CLI · YAML</text>
+    <text x="150" y="218" fill="#6B7B6F">· QGIS plugin</text>
+
+    <!-- 2 -->
+    <rect x="312" y="140" width="200" height="92" rx="10" fill="#e7eee8" stroke="#465753" stroke-width="1.5"/>
+    <text x="412" y="186" fill="#465753" font-weight="700">Runs on QGIS</text>
+    <text x="412" y="210" fill="#465753" font-weight="700">Processing</text>
+
+    <!-- 3 -->
+    <rect x="564" y="140" width="220" height="92" rx="10" fill="#e7eee8" stroke="#465753" stroke-width="1.5"/>
+    <text x="674" y="174" fill="#465753" font-weight="700">Reproducible flow</text>
+    <text x="674" y="197" fill="#465753" font-weight="700">+ provenance</text>
+    <text x="674" y="218" fill="#6B7B6F">(lineage as a byproduct)</text>
+
+    <!-- 4 -->
+    <rect x="836" y="140" width="334" height="92" rx="10" fill="#f3efe6" stroke="#c1b49b" stroke-width="2"/>
+    <text x="1003" y="174" fill="#7d6f50" font-weight="700">Explore the results anywhere</text>
+    <text x="1003" y="200" fill="#28323b">QGIS · Marimo · static files</text>
+    <text x="1003" y="220" fill="#6B7B6F">for every kind of stakeholder</text>
+  </g>
+
+  <!-- arrows -->
+  <g stroke="#465753" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M264 186 h40 m0 0 l-10 -8 m10 8 l-10 8"/>
+    <path d="M516 186 h40 m0 0 l-10 -8 m10 8 l-10 8"/>
+    <path d="M788 186 h40 m0 0 l-10 -8 m10 8 l-10 8"/>
+  </g>
+
+  <!-- payoff band -->
+  <rect x="40" y="296" width="1130" height="120" rx="12" fill="#edf2ec" stroke="#c9d8c8" stroke-width="1.5"/>
+  <text x="70" y="338" font-size="20" font-weight="700" fill="#465753">The payoff</text>
+  <g font-size="18" fill="#33433c">
+    <text x="70" y="372">• No programming bottleneck — the person with the question does the work, same day.</text>
+    <text x="70" y="400">• One reproducible, audited flow; everyone works from the same current analysis, in their tool of choice.</text>
+  </g>
+</svg>

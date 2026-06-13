@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 560" font-family="'DejaVu Sans','Arial',sans-serif">
+  <rect width="1200" height="560" fill="#ffffff"/>
+
+  <!-- central niva node -->
+  <rect x="360" y="40" width="480" height="120" rx="14" fill="#28323b"/>
+  <text x="600" y="84" text-anchor="middle" font-size="24" font-weight="700" fill="#ffffff">niva — one readable grammar</text>
+  <text x="600" y="124" text-anchor="middle" font-size="19" font-family="'DejaVu Sans Mono','Consolas',monospace" fill="#c1b49b">load … | buffer | clip | save</text>
+
+  <!-- connectors -->
+  <g stroke="#8d998b" stroke-width="2.5" fill="none">
+    <path d="M600 160 V200"/>
+    <path d="M138 230 V200 H1062 V230"/>
+    <path d="M138 200 V230"/><path d="M370 200 V230"/><path d="M600 200 V230"/><path d="M832 200 V230"/><path d="M1062 200 V230"/>
+  </g>
+
+  <!-- 5 surface cards -->
+  <g text-anchor="middle">
+    <!-- Marimo (emphasized) -->
+    <rect x="35"  y="232" width="206" height="200" rx="12" fill="#f3efe6" stroke="#c1b49b" stroke-width="3"/>
+    <text x="138" y="272" font-size="21" font-weight="700" fill="#7d6f50">Marimo</text>
+    <text x="138" y="300" font-size="16" fill="#28323b">reactive notebooks</text>
+    <text x="138" y="326" font-size="15" fill="#6B7B6F">repeatable &amp;</text>
+    <text x="138" y="346" font-size="15" fill="#6B7B6F">shareable analysis</text>
+    <text x="138" y="392" font-size="13.5" font-style="italic" fill="#8d998b">already in your</text>
+    <text x="138" y="410" font-size="13.5" font-style="italic" fill="#8d998b">workflow</text>
+
+    <!-- Python API -->
+    <rect x="267" y="232" width="206" height="200" rx="12" fill="#eef1ec" stroke="#8d998b" stroke-width="1.5"/>
+    <text x="370" y="272" font-size="21" font-weight="700" fill="#465753">Python API</text>
+    <text x="370" y="300" font-size="16" fill="#28323b">chain calls</text>
+    <text x="370" y="350" font-size="13" font-family="'DejaVu Sans Mono','Consolas',monospace" fill="#6B7B6F">niva.chain(x)</text>
+    <text x="370" y="370" font-size="13" font-family="'DejaVu Sans Mono','Consolas',monospace" fill="#6B7B6F">.buffer().clip()</text>
+
+    <!-- CLI -->
+    <rect x="499" y="232" width="206" height="200" rx="12" fill="#eef1ec" stroke="#8d998b" stroke-width="1.5"/>
+    <text x="602" y="272" font-size="21" font-weight="700" fill="#465753">Command line</text>
+    <text x="602" y="300" font-size="16" fill="#28323b">scripts &amp; batch</text>
+    <text x="602" y="350" font-size="13" font-family="'DejaVu Sans Mono','Consolas',monospace" fill="#6B7B6F">niva run</text>
+    <text x="602" y="370" font-size="13" font-family="'DejaVu Sans Mono','Consolas',monospace" fill="#6B7B6F">flow.niva</text>
+
+    <!-- YAML -->
+    <rect x="731" y="232" width="206" height="200" rx="12" fill="#eef1ec" stroke="#8d998b" stroke-width="1.5"/>
+    <text x="834" y="272" font-size="21" font-weight="700" fill="#465753">YAML flows</text>
+    <text x="834" y="300" font-size="16" fill="#28323b">reproducible</text>
+    <text x="834" y="326" font-size="15" fill="#6B7B6F">version-controlled</text>
+    <text x="834" y="346" font-size="15" fill="#6B7B6F">pipelines</text>
+
+    <!-- QGIS plugin -->
+    <rect x="963" y="232" width="206" height="200" rx="12" fill="#eef1ec" stroke="#8d998b" stroke-width="1.5"/>
+    <text x="1066" y="272" font-size="21" font-weight="700" fill="#465753">QGIS plugin</text>
+    <text x="1066" y="300" font-size="16" fill="#28323b">point-and-click</text>
+    <text x="1066" y="326" font-size="15" fill="#6B7B6F">inside the GIS</text>
+    <text x="1066" y="346" font-size="15" fill="#6B7B6F">you know</text>
+  </g>
+
+  <text x="600" y="492" text-anchor="middle" font-size="19" fill="#28323b">Meet people where they are — <tspan font-weight="700" fill="#465753">the same grammar everywhere</tspan>.</text>
+  <text x="600" y="522" text-anchor="middle" font-size="16" font-style="italic" fill="#8d998b">…and it all runs on QGIS's own Processing algorithms underneath.</text>
+</svg>

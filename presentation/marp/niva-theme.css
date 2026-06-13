@@ -1,0 +1,90 @@
+/* @theme niva
+   niva brand theme for Marp — white background, earthy slate/sage/tan palette.
+   Edit freely; re-render with build_all.sh (or npx @marp-team/marp-cli). */
+
+:root {
+  --ink: #28323b;     /* slate — headings / primary text */
+  --deep: #465753;    /* deep sage — primary accent */
+  --sage: #6B7B6F;    /* mid sage — secondary text */
+  --mist: #92988E;    /* muted */
+  --tan: #c1b49b;     /* warm accent / highlight */
+  --pain: #b85c3c;    /* terracotta — "without niva" */
+  --light: #eef1ec;   /* light sage fill */
+}
+
+section {
+  background: #ffffff;
+  color: var(--ink);
+  font-family: "Arial", "Helvetica Neue", sans-serif;
+  font-size: 26px;
+  padding: 56px 64px 72px;
+  justify-content: flex-start;
+}
+
+h1 { color: var(--ink); font-size: 46px; margin: 0 0 6px; }
+h2 { color: var(--deep); font-size: 30px; margin: 0 0 18px; font-weight: 700; }
+h3 { color: var(--deep); font-size: 24px; margin: 0 0 8px; }
+
+/* eyebrow: a small caps label via blockquote at top */
+section .eyebrow,
+blockquote {
+  color: var(--tan); font-weight: 700; letter-spacing: .08em;
+  text-transform: uppercase; font-size: 16px; border: none;
+  margin: 0 0 4px; padding: 0;
+}
+
+strong { color: var(--deep); }
+em { color: var(--mist); font-style: italic; }
+a { color: var(--deep); }
+
+ul { line-height: 1.5; }
+li::marker { color: var(--deep); }
+
+code {
+  font-family: "Consolas", "DejaVu Sans Mono", monospace;
+  background: var(--light); color: var(--ink);
+  padding: 2px 8px; border-radius: 5px; font-size: .9em;
+}
+pre {
+  background: var(--ink); color: #d7dbd6; border-radius: 10px;
+  padding: 20px 24px; font-size: 24px;
+}
+pre code { background: transparent; color: inherit; padding: 0; }
+
+/* accent rule under the title via section::after footer */
+section::after {
+  color: var(--mist); font-size: 14px;
+}
+footer { color: var(--mist); font-size: 14px; }
+header { color: var(--tan); font-weight: 700; letter-spacing: .08em;
+         text-transform: uppercase; font-size: 15px; }
+
+/* utility slide classes */
+section.center { justify-content: center; text-align: center; }
+section.dark { background: var(--ink); color: #ffffff; }
+section.dark h1 { color: #ffffff; }
+section.dark strong { color: var(--tan); }
+section.dark em { color: var(--tan); }
+
+section.graphic { justify-content: flex-start; }
+section.graphic img { display: block; margin: 8px auto 0; max-height: 76%; }
+
+.lead { color: var(--sage); font-size: 24px; }
+.tan { color: var(--tan); }
+.deep { color: var(--deep); }
+.big { font-size: 34px; line-height: 1.25; }
+.note { color: var(--mist); font-size: 19px; font-style: italic; }
+
+/* three-column cards */
+.cols { display: flex; gap: 22px; margin-top: 18px; }
+.card { flex: 1; background: var(--light); border-top: 8px solid var(--deep);
+        border-radius: 10px; padding: 18px 20px; font-size: 19px; }
+.card.warm { border-top-color: var(--tan); }
+.card h3 { margin: 0 0 8px; font-size: 21px; color: var(--ink); }
+.card p { margin: 0; color: var(--sage); }
+
+/* stat row */
+.stats { display: flex; gap: 26px; margin-top: 26px; text-align: center; }
+.stat { flex: 1; background: var(--light); border-radius: 10px; padding: 26px 10px; }
+.stat .num { color: var(--deep); font-size: 64px; font-weight: 700; line-height: 1; }
+.stat .lab { color: var(--ink); font-size: 19px; margin-top: 10px; }

@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 620" font-family="'DejaVu Sans','Arial',sans-serif">
+  <rect width="1200" height="620" fill="#ffffff"/>
+
+  <!-- ===== LEFT: without niva (PyQGIS) ===== -->
+  <text x="40" y="48" font-size="26" font-weight="700" fill="#b85c3c">Without niva — write PyQGIS</text>
+  <text x="40" y="78" font-size="17" fill="#6B7B6F">A programming task: init, algorithm IDs, ALL_CAPS dicts, temp outputs, threading.</text>
+
+  <rect x="40" y="98" width="540" height="430" rx="10" fill="#28323b"/>
+  <g font-family="'DejaVu Sans Mono','Consolas',monospace" font-size="16.5" fill="#d7dbd6">
+    <text x="62" y="134"><tspan fill="#8d998b">from</tspan> qgis.core <tspan fill="#8d998b">import</tspan> QgsApplication</text>
+    <text x="62" y="160"><tspan fill="#8d998b">import</tspan> processing</text>
+    <text x="62" y="186">qgs = QgsApplication([], <tspan fill="#c1b49b">False</tspan>)</text>
+    <text x="62" y="212">qgs.initQgis()</text>
+    <text x="62" y="244">processing.run(<tspan fill="#c1b49b">"native:buffer"</tspan>, {</text>
+    <text x="62" y="270">    <tspan fill="#c1b49b">"INPUT"</tspan>:    <tspan fill="#c1b49b">"roads.gpkg"</tspan>,</text>
+    <text x="62" y="296">    <tspan fill="#c1b49b">"DISTANCE"</tspan>: <tspan fill="#c1b49b">100</tspan>,</text>
+    <text x="62" y="322">    <tspan fill="#c1b49b">"DISSOLVE"</tspan>: <tspan fill="#c1b49b">True</tspan>,</text>
+    <text x="62" y="348">    <tspan fill="#c1b49b">"OUTPUT"</tspan>:   <tspan fill="#c1b49b">"TEMPORARY_OUTPUT"</tspan>,</text>
+    <text x="62" y="374">})[<tspan fill="#c1b49b">"OUTPUT"</tspan>]</text>
+    <text x="62" y="406" fill="#747D77"># …now thread that into clip…</text>
+    <text x="62" y="432" fill="#747D77"># …then into save… repeat per step.</text>
+    <text x="62" y="464" fill="#747D77"># memorize IDs · params · plumbing</text>
+    <text x="62" y="500" fill="#b85c3c">⟶ out of reach for GUI-first analysts</text>
+  </g>
+
+  <!-- ===== arrow ===== -->
+  <g>
+    <circle cx="600" cy="320" r="30" fill="#eef1ec"/>
+    <path d="M588 320 h22 m0 0 l-9 -9 m9 9 l-9 9" stroke="#465753" stroke-width="3.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+
+  <!-- ===== RIGHT: with niva ===== -->
+  <text x="640" y="48" font-size="26" font-weight="700" fill="#465753">With niva — one readable line</text>
+  <text x="640" y="78" font-size="17" fill="#6B7B6F">A line a non-programmer can write and read.</text>
+
+  <rect x="640" y="98" width="520" height="200" rx="10" fill="#f4f6f3" stroke="#c9d2c8" stroke-width="1.5"/>
+  <g font-family="'DejaVu Sans Mono','Consolas',monospace" font-size="20" fill="#28323b">
+    <text x="664" y="150"><tspan fill="#465753" font-weight="700">load</tspan> roads.gpkg</text>
+    <text x="664" y="184">  | <tspan fill="#465753" font-weight="700">buffer</tspan> 100 dissolve</text>
+    <text x="664" y="218">  | <tspan fill="#465753" font-weight="700">clip</tspan> city.gpkg</text>
+    <text x="664" y="252">  | <tspan fill="#465753" font-weight="700">save</tspan> roads_local.gpkg</text>
+  </g>
+
+  <!-- benefits -->
+  <g font-size="19" fill="#28323b">
+    <circle cx="652" cy="350" r="6" fill="#465753"/><text x="670" y="356">Readable — review it like a sentence</text>
+    <circle cx="652" cy="392" r="6" fill="#465753"/><text x="670" y="398">Reproducible — same flow, same result</text>
+    <circle cx="652" cy="434" r="6" fill="#465753"/><text x="670" y="440">Shareable — one line, not a script</text>
+    <circle cx="652" cy="476" r="6" fill="#c1b49b"/><text x="670" y="482">Full QGIS power underneath</text>
+  </g>
+  <text x="640" y="520" font-size="17" font-style="italic" fill="#8d998b">Easy wins every time.</text>
+</svg>
