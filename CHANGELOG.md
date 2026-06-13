@@ -77,6 +77,10 @@ once it has releases.
     project layer (lost on close unless saved); default name + QGIS default
     styling (no styling verb in v1); **main-thread only** (can't background an
     `add`-flow). New limitation Oscar U12; raster `add` ties to A10.
+  - **Synthesis (`13-§0`)** rolls up the six exercise rounds into a box score: 34
+    issues surfaced, ~26 folded into specs, 1 verified-positive, ~5 still open,
+    8 logged as Oscar risks — grouped by theme (grammar/verbs, sinks, the layer
+    handle, SQL, `call`, provenance) so the conclusions aren't buried in the rounds.
   - **Verified all of `13`'s signatures against live QGIS 4.0.3** — param names,
     defaults, and enum-by-word mappings (`buffer` cap/join, `join` method,
     `zonalstats` stats) all confirmed; noted in the doc header.

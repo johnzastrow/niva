@@ -9,6 +9,53 @@ proposal; the QGIS call it resolves to is real)._
 
 ---
 
+## 0. What exercising the design surfaced (synthesis)
+
+Six worked rounds (§§5–11: vector composite, raster, SQL, `call`, provenance,
+interactive `add`) turned up **34 concrete issues**. Most were folded straight back
+into the specs — this is the box score so the conclusions aren't buried in the
+round tables.
+
+**Decisions the exercise forced** (round in brackets):
+
+- **Grammar / verbs** — the simplified `filter` is *essential*, not optional, and its
+  expression still needs outer quotes [§5]; list options are comma-joined
+  (`fields=a,b`) [§5]; stages stay one line, flows wrap only at `|` [§5].
+- **Sinks** — `save` defaults to GeoPackage, infers format, **won't overwrite a
+  same-flow source**, creates parent dirs [§5]; **sinks pass through**, so `save …
+  | add` chains [§11]; `add` is **live-session-only** (headless warns/skips), adds a
+  *temporary* layer, default styling, main-thread only [§11].
+- **The layer handle** — needs a **vector/raster facet** (band/resolution metadata,
+  kind-correct `as_qgs()`) and **piped-input type-checking** [§7, §11 → Oscar A10];
+  a raster secondary is **never silently warped** [§7].
+- **SQL** — `sql` has **three forms/engines** (query-layer / `gdal:executesql` /
+  `qgis:executesql`); the write-only `*executesql` algorithms are **not** the read
+  path [§8]; a `SELECT` isn't self-describing (`key=`/`geom=`/`crs=`) [§8]; inputs
+  are `input1`, `input2` [§8]; v1 is **read-only** (top-level `SELECT`, read-only
+  txn) [§8]; prefer `ST_*` in-query for DB-resident data [§8].
+- **`call`** — a **statement, not a pipeable stage**; files share data only via
+  `save`/`add` (no shared layer) [§9]; `call` target is caller-relative, data paths
+  are run-`work_dir` [§9]; cycles error + max-depth [§9].
+- **Provenance** — lineage **survives non-algorithm steps** (`sql`/`load`) [§10];
+  multi-input ops **merge** all inputs' histories (flattened, role-tagged) [§10];
+  `filter`/`extract` **count as data-altering** and are recorded [§10]; the journal
+  tags ops by source file and lineage records the call chain across `call`s [§9, §10].
+
+**The design held** — the `buffer`/`join`/`zonalstats` enum-by-word vocab matches
+the live QGIS registry exactly, so the registry + linter premise (`07`) works
+[§7, verified].
+
+**Still open** (tracked in `00` / Oscar): stage line-wrapping [§5]; surfacing
+secondary outputs in a text flow [§5]; ratifying the vector/raster handle facet
+[§7]; flat-log vs structured provenance (PROV/DAG) [§10]; robust read-only-SQL
+classification [§8].
+
+**Box score:** 34 surfaced · ~26 folded into specs (`02`/`03`/`06`/`08`/`10`) ·
+1 verified-positive · ~5 still open · 8 logged as Oscar risks (A10, C15/C16,
+D8–D10, U11/U12).
+
+---
+
 ## 1. What a verb is
 
 A niva **verb** is a friendly name for **one** QGIS algorithm. The grammar binds a
