@@ -27,6 +27,23 @@ once it has releases.
   `qgis_process` + auto-selection move to v0.2. Updated across docs 00–05.
 
 ### Added
+- **v0.1 increment 2 — the registry + binder** (`niva/registry/`, planning 07):
+  - `model.py` — the declarative `Alias` / `Arg` / `Option` / `Flag` schema.
+  - `definitions.py` — `CORE`: the curated verb set (buffer, clip, intersect,
+    difference, dissolve, reproject, fix, centroid, join, zonalstats) as Python
+    data, every `native:*` id and param name grounded in QGIS 4.0.3.
+  - `registry.py` — `Registry` lookup with duplicate detection; `core_registry()`.
+  - `binder.py` — `bind(stage, alias) → BoundOp`: splits flags from positionals,
+    coerces by type (`distance` → `Distance(value, unit)`, enum word → QGIS int,
+    `enumlist`, comma-lists), fills defaults, forces fixed values, validates
+    arity / required options / unknown options — all `FlowError`s with line + stage.
+  - `values.py` — the `Distance` value type (unit resolved against the layer CRS at
+    run time, never silently reprojected).
+  - `tests/test_registry.py` — **20 new unittest cases** (41 total, all passing).
+  - **Registry format decision:** Python data, **not** YAML — a YAML parser would be
+    a runtime dependency and break the zero-dep rule (Oscar E1). Doc 07 §11 revised.
+  - CLI upgraded to **parse + bind**: alias verbs now print their resolved QGIS
+    algorithm and `processing.run` params (built-ins marked pending the engine).
 - **v0.1 MVP — build started (the package).** First code increment, grounded in
   the design docs:
   - `pyproject.toml` (hatchling; **zero runtime deps** per Oscar E1; `niva` console

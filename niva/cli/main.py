@@ -1,9 +1,10 @@
 """niva CLI entry point (planning/11-cli-and-api-reference.md).
 
-**v0.1 increment 1 — parse-only.** The registry binding and the PyQGIS backend are
-not built yet, so this currently lexes/parses a flow and prints its structure
-(effectively a permanent ``--dry-run`` of the grammar). That is enough to exercise
-the grammar end to end from the command line and proves the foundation works.
+**v0.1 increment 2 — parse + bind, no execution yet.** Lexes/parses a flow and,
+for every verb that is a registered alias, resolves it through the binder to show
+the QGIS algorithm and the ``processing.run`` params it would receive (a permanent
+``--dry-run``). Built-in verbs (``load`` / ``save`` / …) are marked as such; the
+engine and PyQGIS backend that would actually run them are the next increments.
 """
 
 from __future__ import annotations
@@ -12,6 +13,9 @@ import sys
 
 from ..errors import FlowError
 from ..grammar import Call, parse
+from ..registry import bind, core_registry
+
+_REG = core_registry()
 
 _USAGE = 'usage: niva run <file.niva>  |  niva "<flow>"   (v0.1: parse-only)'
 
@@ -34,6 +38,7 @@ def main(argv=None) -> int:
         else:
             source = "<inline>"
             program = parse(argv[0])
+        _print_program(program, source)
     except FlowError as exc:
         print(f"niva: {exc}", file=sys.stderr)
         return 2
@@ -41,7 +46,6 @@ def main(argv=None) -> int:
         print(f"niva: {exc}", file=sys.stderr)
         return 3
 
-    _print_program(program, source)
     return 0
 
 
@@ -53,12 +57,16 @@ def _print_program(program: list, source: str) -> None:
             continue
         print(f"{i}. flow — {len(st.stages)} stage(s):")
         for s in st.stages:
-            bits = [f"verb={s.verb}"]
-            if s.args:
-                bits.append(f"args={s.args}")
-            if s.options:
-                bits.append(f"options={s.options}")
-            print("     " + "  ".join(bits))
+            alias = _REG.get(s.verb)
+            if alias is None:
+                print(f"     {s.verb}  (built-in — engine not built yet)")
+                continue
+            op = bind(s, alias)
+            print(f"     {s.verb} → {op.algorithm}")
+            print(f"         {op.input_param} ← upstream layer (engine fills)")
+            for key, value in op.params.items():
+                print(f"         {key} = {value!r}")
+            print(f"         {op.output_param} ← output dest (engine fills)")
 
 
 if __name__ == "__main__":

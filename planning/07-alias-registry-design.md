@@ -312,24 +312,36 @@ options can use natural words, not just the param name.)
 
 ## 11. Storage & layout
 
+> **Format decision (revised during the v0.1 build): Python data, not YAML.** This
+> section originally showed YAML files. Building the registry surfaced a hard
+> conflict: a YAML parser is a **runtime dependency**, and niva's zero-dependency
+> rule (Oscar E1) exists precisely so niva can never destabilise QGIS's own Python.
+> So the registry is authored as Python `Alias(...)` literals in
+> `niva/registry/definitions.py`. They are just as declarative and diffable, need
+> no parser, work on Python 3.9+ (no `tomllib`), and the validator (§9) lints them
+> against live QGIS exactly the same way. The schema below stands; only the on-disk
+> serialization changed.
+
+As built (v0.1):
+
 ```
 niva/registry/
-  core.yaml          # curated aliases: buffer, clip, dissolve, reproject, …
-  raster.yaml        # raster-group aliases
-  enums.yaml         # shared enum vocabularies (cap/join/resampling/stats…)
-  _generated.yaml    # full scaffolded stubs (uncurated long tail; optional)
-  schema.py          # dataclasses + loader + validator
+  model.py           # Alias / Arg / Option / Flag dataclasses (the schema)
+  definitions.py     # CORE: the curated aliases as Python data (was core.yaml)
+  registry.py        # Registry lookup + duplicate detection + core_registry()
+  binder.py          # Stage + Alias → BoundOp (param dict for processing.run)
 ```
 
-- Curated files are small, reviewable, and grouped by domain.
-- Shared enum vocabularies live once and are referenced, so `resampling` words are
-  consistent across every raster alias.
-- The loader parses YAML into dataclasses; the validator (§9) runs on load (dev)
-  and in CI (release).
+- `CORE` is small, reviewable, and can be split by domain later (a raster group, a
+  generated long-tail module) without changing the loader — it is just a list.
+- Shared enum vocabularies are dicts defined inline today; they can be promoted to
+  named constants so `resampling` words stay consistent across raster aliases.
+- The validator (§9, a later increment) runs over `CORE` on load (dev) and in CI.
 
-Why data files over hardcoded Python: diffable in review, editable by domain
-experts, lintable against multiple QGIS builds, and serializable for a future
-`niva aliases` introspection command.
+Why Python data over YAML/TOML: zero added dependencies (the whole point of E1),
+diffable in review, editable by domain experts, lintable against multiple QGIS
+builds, and trivially serializable for a future `niva aliases` introspection
+command.
 
 ---
 

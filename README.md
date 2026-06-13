@@ -82,9 +82,13 @@ wrapper?). None of these are settled.
 - **`logos/`** — the niva brand (`logo.svg`, `logo_text.svg`; earlier concepts in
   `OLD/`).
 - **`niva/`** — the **package** (v0.1, in progress). Implemented + tested: the
-  **grammar** (`niva/grammar/` lexer + parser, `10-grammar-spec.md`), error types,
-  and a parse-only CLI (`niva/cli/`). Next: registry binding → engine → PyQGIS
-  backend. Run the tests with `python -m unittest discover -s tests`.
+  **grammar** (`niva/grammar/` lexer + parser, `10-grammar-spec.md`); the **registry
+  + binder** (`niva/registry/`, `07-alias-registry-design.md`) that maps verbs like
+  `buffer`/`join`/`zonalstats` to real `native:*` algorithms and resolves a stage
+  into the exact `processing.run` params; error types; and a CLI (`niva/cli/`) that
+  parses a flow and prints the resolved algorithm + params. Next: the **engine** and
+  **PyQGIS backend** (which will actually run those params). Run the tests with
+  `python -m unittest discover -s tests` (41 passing).
 - **`examples/`** — an **illustrative** niva flow
   ([`youngstown_cat_canvassing.niva`](examples/youngstown_cat_canvassing.niva))
   that performs the `use_cases.md` workflow end to end in the proposed grammar.
