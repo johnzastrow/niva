@@ -12,6 +12,19 @@ once it has releases.
 
 ## [Unreleased]
 
+### Added
+- **v0.1 increment 5 — `call` execution** (`niva/engine/engine.py`, planning 02/10).
+  The file-composition mechanism the design centres on now runs: a `call <file>`
+  statement resolves the target **relative to the calling file's directory**, parses
+  it, and executes its flows inline (depth-first). `niva.flow`/`run_file` and the CLI
+  thread the `base_dir` through so paths resolve correctly; the engine carries a
+  call-stack for **cycle detection** (`a → b → a` is a clear FlowError, not a hang),
+  and a missing/un-readable target is a FlowError with the offending name. Calling
+  the same file twice in sequence is allowed (not a cycle).
+- `tests/test_call.py` — **9 new unittest cases** (68 on bare Python, 73 under QGIS):
+  composition, relative-path resolution, nesting, result propagation, self/indirect
+  cycles, missing file, and error-propagation from a called file.
+
 ### Changed
 - **Consistency pass over the planning set.** Unified verb names to canonical
   `filter`/`compute` (was `where`/`calc` in 02/06/07); fixed the version scheme so

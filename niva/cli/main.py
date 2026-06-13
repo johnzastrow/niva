@@ -44,14 +44,15 @@ def main(argv=None) -> int:
         if text is None:
             return 2
         program = parse(text, file=None if source == "<inline>" else source)
+        base_dir = None if source == "<inline>" else os.path.dirname(os.path.abspath(source))
 
         if mode == "explain":
             _print_plan(program, source)
         elif mode == "dry-run":
             _print_plan(program, source)
-            _dry_run(program)
+            _dry_run(program, base_dir)
         else:
-            return _execute(program)
+            return _execute(program, base_dir)
     except FlowError as exc:
         print(f"niva: {exc}", file=sys.stderr)
         return 2
@@ -75,7 +76,7 @@ def _read_source(argv):
     return "<inline>", argv[0]
 
 
-def _execute(program) -> int:
+def _execute(program, base_dir=None) -> int:
     from ..engine import Engine
     from ..engine.pyqgis import PyqgisBackend, ensure_qgis
 
@@ -90,7 +91,7 @@ def _execute(program) -> int:
         return 3
     code = 0
     try:
-        result = Engine(PyqgisBackend()).execute(program)
+        result = Engine(PyqgisBackend()).execute(program, base_dir=base_dir)
         _print_result(result)
     except FlowError as exc:
         print(f"niva: {exc}", file=sys.stderr)
@@ -143,11 +144,11 @@ def _print_plan(program: list, source: str) -> None:
             print(f"         {op.output_param} ← output dest (engine fills)")
 
 
-def _dry_run(program: list) -> None:
+def _dry_run(program: list, base_dir=None) -> None:
     from ..engine import Engine, MockBackend
 
     backend = MockBackend()
-    Engine(backend).execute(program)  # raises FlowError on an invalid flow
+    Engine(backend).execute(program, base_dir=base_dir)  # raises FlowError on an invalid flow
     print(f"\n# dry-run OK — {len(backend.calls)} backend operation(s) over MockBackend:")
     for call in backend.calls:
         if call[0] == "run":

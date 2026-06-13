@@ -29,11 +29,14 @@ def flow(text: str, *, backend=None, file: str | None = None):
     ``backend`` defaults to the real :class:`PyqgisBackend` (which requires QGIS);
     pass a ``MockBackend`` to dry-run a flow without QGIS.
     """
+    import os
+
     from .engine import Engine
     from .grammar import parse
 
     program = parse(text, file=file)
-    return Engine(backend or _default_backend()).execute(program)
+    base_dir = os.path.dirname(os.path.abspath(file)) if file else None
+    return Engine(backend or _default_backend()).execute(program, base_dir=base_dir)
 
 
 def run_file(path: str, *, backend=None):

@@ -8,8 +8,10 @@ delegates everything that touches geodata to a ``Backend``. No QGIS import here.
 
 from __future__ import annotations
 
+import os
+
 from ..errors import FlowError
-from ..grammar import Call, Flow
+from ..grammar import Call, Flow, parse
 from ..registry import bind, core_registry
 from ..values import Distance
 from .backend import Backend
@@ -22,17 +24,41 @@ class Engine:
         self.backend = backend
         self.registry = registry or core_registry()
 
-    def execute(self, program: list) -> Layer | None:
-        """Run every statement; return the final layer of the last flow."""
+    def execute(self, program: list, *, base_dir: str | None = None,
+                _stack: tuple = ()) -> Layer | None:
+        """Run every statement; return the final layer of the last flow.
+
+        ``base_dir`` is the directory ``call`` targets are resolved against (the
+        calling file's directory, or the cwd for an inline program). ``_stack`` is
+        the chain of files currently being executed, for cycle detection."""
+        base_dir = base_dir or os.getcwd()
         result: Layer | None = None
         for stmt in program:
             if isinstance(stmt, Call):
-                raise FlowError(
-                    "`call` is parsed but not executed by the v0.1 engine yet",
-                    line=stmt.line, stage=stmt.raw,
-                )
-            result = self.run_flow(stmt)
+                result = self._run_call(stmt, base_dir, _stack)
+            else:
+                result = self.run_flow(stmt)
         return result
+
+    # --- call (file composition, planning 10/02) -----------------------------
+
+    def _run_call(self, call: Call, base_dir: str, stack: tuple) -> Layer | None:
+        target = call.target
+        path = target if os.path.isabs(target) else os.path.join(base_dir, target)
+        path = os.path.abspath(path)
+        if path in stack:
+            chain = " → ".join(os.path.basename(p) for p in (*stack, path))
+            raise FlowError(f"`call` cycle detected: {chain}", line=call.line, stage=call.raw)
+        try:
+            with open(path, encoding="utf-8") as fh:
+                text = fh.read()
+        except OSError as exc:
+            raise FlowError(
+                f"`call` cannot read `{target}`: {exc.strerror or exc}",
+                line=call.line, stage=call.raw,
+            )
+        sub_program = parse(text, file=path)
+        return self.execute(sub_program, base_dir=os.path.dirname(path), _stack=(*stack, path))
 
     def run_flow(self, flow: Flow) -> Layer | None:
         current: Layer | None = None

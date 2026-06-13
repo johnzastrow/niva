@@ -17,10 +17,11 @@ who don't want to write PyQGIS.**
 > niva.flow("load roads.gpkg | filter \"type = 'primary'\" | buffer 100m dissolve | save out.gpkg")
 > ```
 >
-> Verified on QGIS 4.0.3 (64 tests pass under QGIS's Python; 59 on bare Python).
-> Still thin: a starter verb set (buffer, clip, dissolve, reproject, join,
-> zonalstats, filter, …), no `call` execution yet, and the API/CLI surface will
-> grow. The grammar and architecture are largely settled; expect additions.
+> Verified on QGIS 4.0.3 (73 tests pass under QGIS's Python; 68 on bare Python).
+> Multi-file flows compose via `call` (resolved relative to the calling file, with
+> cycle detection). Still thin: a starter verb set (buffer, clip, dissolve,
+> reproject, join, zonalstats, filter, …) that will grow, plus more API/CLI surface.
+> The grammar and architecture are largely settled; expect additions.
 
 ## The idea
 
