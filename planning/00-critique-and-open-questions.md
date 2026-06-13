@@ -196,6 +196,14 @@ Captured so work can resume cleanly. Grouped by area; the grammar ones block the
   format, replaces target but refuses to overwrite a same-flow source, `as <layer>`
   naming, `append` option, never reprojects.
 - **`add`** — default layer name and styling when loading into the live project.
+- **Stage line-wrapping** (surfaced by `13`) — a flow wraps at `|` (`10-§2`), but a
+  long single stage (many options, e.g. `join`) has no continuation. Keep stages
+  one-line (verbs are meant to be short), or add a stage-continuation rule?
+- **Secondary outputs in a text flow** (surfaced by `13`) — a verb like `join` also
+  produces `JOINED_COUNT`/`UNJOINABLE_COUNT`, but a `.niva` flow only carries the
+  primary layer onward; the counts live in `Result.outputs`/`--json`/the journal.
+  Should niva print scalar secondary outputs in the run summary, or add a capture
+  syntax (cf. v2 named intermediates)?
 - ~~Error UX for non-programmers~~ — **decided** (`02-§6`): every error names the
   failing stage + offending token in plain language with a suggested fix; friendly
   by default, `-v` for QGIS detail.

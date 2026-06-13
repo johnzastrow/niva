@@ -27,6 +27,16 @@ once it has releases.
   `qgis_process` + auto-selection move to v0.2. Updated across docs 00–05.
 
 ### Added
+- **Worked verb reference** (`planning/13-verb-reference.md`): the verb model
+  fully explained (positional/flag/option, defaults, enum-by-word, units,
+  input/output threading), three signatures from simple to complex (`reproject` →
+  `buffer` → `join`) each with the resulting `processing.run` call, and a composite
+  flow that uses all three. Writing it **exercised the design and surfaced issues**:
+  fixed back into the specs — list-valued options (`10-§2.1`), `save` creates
+  parent dirs (`03-§2.5`); and logged as open — stage line-wrapping and
+  text-flow secondary outputs (`00`), plus a new silent join-key-type-mismatch
+  risk (Oscar D8). Also confirmed the simplified `filter` (`03-§3`) is essential,
+  not optional.
 - **Closed the two v1 blockers** flagged by Oscar (G1/G2), now specified in
   `03-mvp-scope.md`:
   - **Distances & units** (§1.1): a bare number = the layer's CRS units; unit

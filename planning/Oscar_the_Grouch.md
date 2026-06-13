@@ -126,6 +126,7 @@ Severity: 🟥 High · 🟧 Medium · 🟨 Low.
 | D5 | **Encoding-mangled attributes** (CP1252 shapefiles, non-ASCII) silently corrupt joins/filters. | 🟨 | Normalize/declare encodings; test non-ASCII (`C13`). |
 | D6 | **Reproducibility asterisk** — same flow, different QGIS/GDAL, different result. | 🟧 | Lineage stamps the version stack; recommend pinning (`08-§3`). |
 | D7 | **Float/precision & grid-size** issues in overlay (`GRID_SIZE`, snapping) give non-deterministic edges. | 🟨 | Expose the relevant params; document; sensible defaults. |
+| D8 | **Silent join-key type mismatch.** A numeric join key vs a string key (e.g. a CSV `GEOID`) yields **zero matches, silently** — surfaced by the `13` worked composite. | 🟧 | `join` warns (and `assess` flags) on key-type mismatch; report `UNJOINABLE_COUNT`; don't let a 0-match join look like success. |
 
 ---
 

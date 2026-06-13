@@ -36,6 +36,10 @@ top-to-bottom (`03-§4.1`). A **flow** is one or more **stages** joined by `|`. 
   `sql @db "SELECT … WHERE x = 'y'"`.
 - A **`DISTANCE`** is a `NUMBER` immediately followed by an optional unit
   (`100`, `100m`, `0.5km`) — units and resolution per `03-§1.1`.
+- A **list value** for a list-typed option is **comma-separated, no spaces**:
+  `fields=pop,income`, `stats=mean,min,max`. The registry decides which options are
+  list-typed (`07`); commas inside a value otherwise have no special meaning. Use a
+  quoted string if a value must contain a literal comma or space.
 
 ### 2.2 Stage tokens (after the verb)
 

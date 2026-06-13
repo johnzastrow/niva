@@ -66,6 +66,7 @@ The thinking lives in [`planning/`](planning/):
 | `10-grammar-spec.md` | the **formal grammar** — EBNF + lexical rules (tokens, quoting/escaping, comments, line-continuation, stage binding, reserved words) |
 | `11-cli-and-api-reference.md` | the **CLI & Python-API reference** — commands, global flags, exit codes, the `niva.*`/`Layer`/`Result` surface, env vars |
 | `12-security-model.md` | the **security & threat model** — trust boundaries, threats + controls (SQL/`run`/credentials/untrusted flows), safe defaults |
+| `13-verb-reference.md` | a **worked verb reference** — the verb model fully explained, three signatures simple→complex (`reproject`/`buffer`/`join`), a composite flow, and the design issues that writing them surfaced |
 | `Oscar_the_Grouch.md` | the **failure register** — a comprehensive, adversarial catalogue of every way niva could fail (premise, architecture, engineering, packaging/environment, data correctness, users, sustainability) with severities and mitigations |
 
 Notable undecided questions: library vs CLI as the *primary* surface; whether the

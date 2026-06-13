@@ -200,7 +200,7 @@ reachable — so it is not blocked, just not a curated v1 verb (§6).
 
 - **Format** is inferred from the extension (`.gpkg`→GeoPackage, `.shp`→Shapefile,
   `.geojson`, `.fgb`→FlatGeobuf, …). **Default = GeoPackage**; a path with no
-  extension gets `.gpkg`.
+  extension gets `.gpkg`. Missing **parent directories are created**.
 - **Layer name** in a container defaults to the file's base name. Name or add a
   layer in a GeoPackage with `save city.gpkg as roads` — a `.gpkg` holds many
   layers, and this replaces/creates only the `roads` layer, leaving others intact.
