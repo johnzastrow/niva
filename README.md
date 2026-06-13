@@ -7,11 +7,13 @@ who don't want to write PyQGIS.**
 
 <img src="logos/logo_text.png" width="320" alt="niva">
 
-> ⚠️ **Early days — largely a thought exercise right now.** niva is in the
-> design/exploration stage. There is **no working package yet**: this repo holds
-> planning notes, a brand, and a tiny QGIS plugin stub that only previews the
-> logo. The grammar, API, and architecture described below are **goals and open
-> questions**, not shipped features. Expect everything to change.
+> ⚠️ **Early days — building has started.** The design is worked out in
+> [`planning/`](planning/) and the **v0.1 MVP is now under construction.** What
+> works today: the **grammar layer** (`niva/grammar/` — lexer + parser) with a
+> parse-only CLI and a passing test suite. What's *not* built yet: the registry
+> binding, the engine, and the PyQGIS backend — so niva **does not run
+> geoprocessing yet**. The grammar and architecture below are largely settled;
+> the rest is in progress. Expect change.
 
 ## The idea
 
@@ -79,6 +81,10 @@ wrapper?). None of these are settled.
 - **`planning/`** — the design exploration and open decisions.
 - **`logos/`** — the niva brand (`logo.svg`, `logo_text.svg`; earlier concepts in
   `OLD/`).
+- **`niva/`** — the **package** (v0.1, in progress). Implemented + tested: the
+  **grammar** (`niva/grammar/` lexer + parser, `10-grammar-spec.md`), error types,
+  and a parse-only CLI (`niva/cli/`). Next: registry binding → engine → PyQGIS
+  backend. Run the tests with `python -m unittest discover -s tests`.
 - **`examples/`** — an **illustrative** niva flow
   ([`youngstown_cat_canvassing.niva`](examples/youngstown_cat_canvassing.niva))
   that performs the `use_cases.md` workflow end to end in the proposed grammar.

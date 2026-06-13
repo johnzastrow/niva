@@ -1,0 +1,32 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "niva"
+version = "0.1.0.dev0"
+description = "A concise, readable text-pipeline grammar for QGIS geoprocessing."
+readme = "README.md"
+requires-python = ">=3.9"
+license = "GPL-3.0-or-later"
+authors = [{ name = "John Zastrow" }]
+keywords = ["qgis", "gis", "geoprocessing", "pyqgis", "dsl"]
+# Near-zero dependencies by design (see planning/Oscar_the_Grouch.md E1): QGIS and
+# its stack are provided by the host interpreter, never bundled by niva.
+dependencies = []
+
+# The test suite is stdlib `unittest` so it runs in QGIS's own Python with zero
+# install (that's where CI runs it). `pytest` is an *optional* convenience — it
+# runs the same unittest-style tests — for anyone who prefers it.
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[project.urls]
+Homepage = "https://github.com/johnzastrow/niva"
+Source = "https://github.com/johnzastrow/niva"
+
+[project.scripts]
+niva = "niva.cli.main:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["niva"]

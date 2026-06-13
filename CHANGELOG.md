@@ -27,6 +27,19 @@ once it has releases.
   `qgis_process` + auto-selection move to v0.2. Updated across docs 00–05.
 
 ### Added
+- **v0.1 MVP — build started (the package).** First code increment, grounded in
+  the design docs:
+  - `pyproject.toml` (hatchling; **zero runtime deps** per Oscar E1; `niva` console
+    script; `dev` extra = pytest).
+  - `niva/grammar/` — the **lexer + parser** (`10-grammar-spec.md`): comment
+    stripping, quote-aware pipe splitting and stage tokenization (`key="…"`,
+    `"expr"`, `@conn`, distances), `|` line-continuation, blank-line flow
+    separation, and `call` statements → a `Program` of `Flow`/`Stage`/`Call`.
+  - `niva/errors.py` — `FlowError` (exit 2; names file+line+stage) / `OpError`.
+  - `niva/cli/` — a **parse-only CLI** (`niva "<flow>"`, `niva run <file>`) that
+    prints the parsed structure (the engine/backend aren't built yet).
+  - `tests/test_grammar.py` — **21 stdlib-`unittest` tests, all passing**; runs in
+    QGIS's own Python with no install (where CI will run them).
 - **Worked verb reference** (`planning/13-verb-reference.md`): the verb model
   fully explained (positional/flag/option, defaults, enum-by-word, units,
   input/output threading), three signatures from simple to complex (`reproject` →
