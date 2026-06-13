@@ -68,6 +68,11 @@ CORE = [
     Alias("fix", "native:fixgeometries", "Repair invalid geometries."),
     Alias("centroid", "native:centroids", "Replace each feature with its centroid point."),
     Alias(
+        "explode",
+        "native:multiparttosingleparts",
+        "Split multipart features into one feature per part.",
+    ),
+    Alias(
         "join",
         "native:joinattributestable",
         "Join attributes from another table by matching a field value.",

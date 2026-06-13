@@ -82,6 +82,40 @@ class TestDistanceResolution(unittest.TestCase):
             run("load a | buffer 0.5deg", crs=PROJECTED_M)
 
 
+class TestRunEscapeHatch(unittest.TestCase):
+    def test_run_passes_algorithm_and_scalar_coerced_params(self):
+        backend, _ = run("load dem.tif | run native:slope Z_FACTOR=2 | save slope.tif")
+        run_call = next(c for c in backend.calls if c[0] == "run")
+        self.assertEqual(run_call[1], "native:slope")
+        self.assertEqual(run_call[2], {"Z_FACTOR": 2})  # "2" coerced to int
+
+    def test_run_coerces_float_bool_keeps_strings(self):
+        backend, _ = run('load a | run x:y RES=1.5 FLAG=true CRS=EPSG:2262 PATH=a/b.tif')
+        params = next(c for c in backend.calls if c[0] == "run")[2]
+        self.assertEqual(params["RES"], 1.5)
+        self.assertIs(params["FLAG"], True)
+        self.assertEqual(params["CRS"], "EPSG:2262")  # not a number → string
+        self.assertEqual(params["PATH"], "a/b.tif")
+
+    def test_run_standalone_then_pipe(self):
+        # run can start a flow (no upstream) and feed the next stage
+        backend, _ = run("run native:something INPUT=a.gpkg | buffer 5m | save o.gpkg")
+        kinds = [c[0] for c in backend.calls]
+        self.assertEqual(kinds, ["run", "run", "save"])
+
+    def test_run_requires_algorithm(self):
+        with self.assertRaises(FlowError):
+            run("load a | run")
+
+    def test_run_rejects_extra_positional(self):
+        with self.assertRaises(FlowError):
+            run("load a | run native:slope native:aspect")
+
+    def test_explode_alias(self):
+        backend, _ = run("load roads.gpkg | explode | save e.gpkg")
+        self.assertEqual(backend.calls[1][1], "native:multiparttosingleparts")
+
+
 class TestErrors(unittest.TestCase):
     def test_unknown_verb(self):
         with self.assertRaises(FlowError) as ctx:

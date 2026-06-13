@@ -74,6 +74,8 @@ class Engine:
             return self._load(stage)
         if verb == "save":
             return self._save(stage, current)
+        if verb == "run":
+            return self._run_raw(stage, current)
 
         alias = self.registry.get(verb)
         if alias is None:
@@ -114,6 +116,27 @@ class Engine:
             )
         return self.backend.save(current, stage.args[0])
 
+    def _run_raw(self, stage, current: Layer | None) -> Layer | None:
+        # `run <algorithm> KEY=value …` — the escape hatch (07-§8). Params are passed
+        # to the algorithm verbatim (no registry, no alias). Values are best-effort
+        # scalar-coerced (int/float/bool) so e.g. RESAMPLING=1 reaches QGIS as 1, not
+        # "1". The backend injects INPUT (from the upstream layer) and OUTPUT (temp)
+        # when absent.
+        if not stage.args:
+            raise FlowError(
+                "`run` needs an algorithm id: `run native:slope KEY=value`",
+                line=stage.line, stage=stage.raw,
+            )
+        if len(stage.args) > 1:
+            extra = ", ".join(repr(a) for a in stage.args[1:])
+            raise FlowError(
+                f"`run` takes one algorithm id, then KEY=value options; got extra: {extra}",
+                line=stage.line, stage=stage.raw,
+            )
+        algorithm = stage.args[0]
+        params = {key: _scalar(value) for key, value in stage.options.items()}
+        return self.backend.run_raw(algorithm, params, input_layer=current)
+
     # --- distance resolution -------------------------------------------------
 
     def _resolve_distances(self, params: dict, layer: Layer, stage) -> dict:
@@ -124,3 +147,19 @@ class Engine:
             key: (resolve_distance(value, crs, stage=stage) if isinstance(value, Distance) else value)
             for key, value in params.items()
         }
+
+
+def _scalar(value: str):
+    """Best-effort coercion of a raw `run` option value to int / float / bool,
+    falling back to the original string (paths, CRS strings, field names, …)."""
+    low = value.lower()
+    if low in ("true", "false"):
+        return low == "true"
+    try:
+        return int(value)
+    except ValueError:
+        pass
+    try:
+        return float(value)
+    except ValueError:
+        return value

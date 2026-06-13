@@ -78,6 +78,18 @@ class TestPyqgisBackend(unittest.TestCase):
         niva.flow(f'load {self.src} | filter "id = 1" | save {out}')
         self.assertEqual(self._saved(out).featureCount(), 1)
 
+    def test_run_escape_hatch_real_algorithm(self):
+        # `run` a native algorithm by id (not aliased), piped from the loaded layer.
+        import niva
+
+        out = os.path.join(self.tmp, "centroids.gpkg")
+        niva.flow(f"load {self.src} | run native:centroids | save {out}")
+        from qgis.core import QgsWkbTypes
+
+        layer = self._saved(out)
+        self.assertEqual(layer.featureCount(), 2)
+        self.assertIn("Point", QgsWkbTypes.displayString(layer.wkbType()))
+
     def test_degrees_mismatch_is_flowerror(self):
         import niva
         from niva.errors import FlowError

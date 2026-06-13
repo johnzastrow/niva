@@ -13,6 +13,17 @@ once it has releases.
 ## [Unreleased]
 
 ### Added
+- **v0.1 increment 6 — the `run` escape hatch + `explode` alias** (planning 07-§8).
+  `run <algorithm> KEY=value …` reaches **any** QGIS algorithm with no curated alias
+  — the long tail the example needs (gdal, grass, pdal, native). Implemented as an
+  engine built-in routing to a new `Backend.run_raw`: the backend injects `INPUT`
+  from the upstream layer (piped use) and a temporary `OUTPUT` when absent, and
+  returns the output as a handle (or `None` for terminal exports like a PDF/folder).
+  Option values are best-effort scalar-coerced (`RES=1.5`→float, `FLAG=true`→bool,
+  `RESAMPLING=1`→int; paths/CRS/field names stay strings). Added the `explode` alias
+  (`native:multiparttosingleparts`). CLI `--explain`/`--dry-run` render `run` stages
+  specially. **6 new tests** (74 bare / 80 under QGIS), incl. a real
+  `run native:centroids` smoke test.
 - **v0.1 increment 5 — `call` execution** (`niva/engine/engine.py`, planning 02/10).
   The file-composition mechanism the design centres on now runs: a `call <file>`
   statement resolves the target **relative to the calling file's directory**, parses

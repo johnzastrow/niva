@@ -132,9 +132,13 @@ def _print_plan(program: list, source: str) -> None:
             continue
         print(f"{i}. flow — {len(st.stages)} stage(s):")
         for s in st.stages:
+            if s.verb == "run":  # the escape hatch — passed to QGIS verbatim
+                algo = s.args[0] if s.args else "?"
+                print(f"     run → {algo}  (raw)  {s.options}")
+                continue
             alias = _REG.get(s.verb)
             if alias is None:
-                print(f"     {s.verb}  (built-in: load/save handled by the engine)")
+                print(f"     {s.verb}  (built-in: handled by the engine)")
                 continue
             op = bind(s, alias)
             print(f"     {s.verb} → {op.algorithm}")

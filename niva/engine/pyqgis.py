@@ -114,6 +114,27 @@ class PyqgisBackend(Backend):
             out = self.load(out).ref
         return Layer(MEMORY, out, facet=self._facet(out), name=algorithm)
 
+    def run_raw(self, algorithm: str, params: dict, *, input_layer: Layer | None = None):
+        import processing
+
+        full = dict(params)
+        if "INPUT" not in full and input_layer is not None:
+            full["INPUT"] = input_layer.ref
+        full.setdefault("OUTPUT", "TEMPORARY_OUTPUT")
+        try:
+            result = processing.run(algorithm, full)
+        except Exception as exc:
+            raise OpError(str(exc), algorithm=algorithm, params=full, backend="pyqgis") from exc
+        out = result.get("OUTPUT")
+        if out is None:  # no pipeable output (e.g. a folder/PDF export) — terminal
+            return None
+        if isinstance(out, str):
+            try:
+                return self.load(out)
+            except OpError:  # wrote something that is not a loadable layer
+                return Layer(SOURCE, out, facet="vector", name=os.path.basename(out))
+        return Layer(MEMORY, out, facet=self._facet(out), name=algorithm)
+
     def save(self, layer: Layer, dest: str) -> Layer:
         # Use QgsVectorFileWriter directly rather than a Processing algorithm: it is
         # the canonical write API, picks the driver from the extension, and does not

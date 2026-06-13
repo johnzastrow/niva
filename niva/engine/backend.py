@@ -28,6 +28,13 @@ class Backend(abc.ABC):
         output as a new handle. Failures raise ``OpError``."""
 
     @abc.abstractmethod
+    def run_raw(self, algorithm: str, params: dict, *, input_layer: Layer | None = None):
+        """The `run` escape hatch: pass ``params`` to ``algorithm`` verbatim. The
+        backend injects ``INPUT`` from ``input_layer`` if absent (piped use) and a
+        temporary ``OUTPUT`` if absent, then returns the output as a handle, or
+        ``None`` if the algorithm produces no pipeable layer (e.g. a folder export)."""
+
+    @abc.abstractmethod
     def save(self, layer: Layer, dest: str) -> Layer:
         """Write ``layer`` to ``dest`` and return a handle to the written file."""
 
@@ -56,6 +63,12 @@ class MockBackend(Backend):
         self._n += 1
         return Layer(MEMORY, f"result-{self._n}", facet=input_layer.facet,
                      name=f"{algorithm}#{self._n}")
+
+    def run_raw(self, algorithm: str, params: dict, *, input_layer: Layer | None = None):
+        self.calls.append(("run", algorithm, params))
+        self._n += 1
+        facet = input_layer.facet if input_layer is not None else "vector"
+        return Layer(MEMORY, f"result-{self._n}", facet=facet, name=algorithm)
 
     def save(self, layer: Layer, dest: str) -> Layer:
         self.calls.append(("save", dest))
