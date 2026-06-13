@@ -82,6 +82,8 @@ Severity: 🟥 High · 🟧 Medium · 🟨 Low.
 | C12 | **Lazy planner is a complexity trap** — clever fusion/push-down breeds subtle correctness bugs. | 🟨 | Explicitly deferred; v1 is eager (`02-§3.4`). |
 | C13 | **i18n/encoding.** QGIS param descriptions are translated; niva is English-only. Non-ASCII paths/fields, shapefile CP1252, locale-dependent number parsing all break things. | 🟨 | Decide English-only for verbs; normalize encodings; test non-ASCII fixtures. *(Open.)* |
 | C14 | **Testing the 769-surface is hopeless.** | 🟧 | Test engine + curated verbs + linter; linter guards the tail (`02-§8`, `07-§9`). |
+| C15 | **`sql` read-only detection (v1).** "Starts with `SELECT`" misses `WITH … SELECT` / `SELECT … INTO` / side-effecting functions; and reads vs writes use *different* mechanisms (query-layer vs `*executesql`) — surfaced by `13-§8`. | 🟧 | Allow only top-level `SELECT`/`WITH … SELECT`; run in a **read-only transaction** where supported; writes are v2 (`03-§2.6`). |
+| C16 | **A SELECT isn't self-describing.** Virtual/DB query→layer needs a uid, geometry column, geometry type, and CRS that a bare `SELECT` doesn't carry. | 🟨 | Auto-detect where possible, else `sql … key= geom= crs=`; a no-geometry result is a non-spatial table (`03-§2.6`). |
 
 ---
 

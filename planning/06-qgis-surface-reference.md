@@ -374,16 +374,17 @@ the backing engine, against a file or a named connection:
 
 ```
 # GeoPackage / OGR source, SQLITE dialect under the hood (gdal:executesql):
-sql "SELECT *, ST_Buffer(geom, 100) AS geom FROM roads WHERE class='local'" \
+sql "SELECT *, ST_Buffer(geom, 100) AS geom FROM roads WHERE class='local'"
     from data.gpkg | save local_buffer.gpkg
 
-# Against a registered PostGIS connection, load the result:
-use @prod_db
-sql "SELECT gid, ST_Subdivide(geom) AS geom FROM parcels" | load
-
-# In-place DB update (no layer returned):
-sql @prod_db "UPDATE roads SET geom = ST_Transform(geom, 3857)"
+# Against a registered PostGIS connection — the SELECT becomes a query layer:
+sql @prod_db "SELECT gid, ST_Subdivide(geom) AS geom FROM parcels" | save subdivided.gpkg
 ```
+
+> Canonical `sql` syntax and forms are spec'd in `03-§2.6`. **Reads** (a `SELECT`)
+> become a layer via a query layer / `gdal:executesql` / `qgis:executesql`. **Writes**
+> (`UPDATE`/DDL — *no layer returned*) use `native:postgisexecutesql` /
+> `native:spatialiteexecutesql` and are a **v2** capability, not v1 read-passthrough.
 
 Design questions this raises (tracked for `02-architecture.md`):
 - **Which engine runs the SQL?** OGR `SQLITE` dialect (portable, works on any

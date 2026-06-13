@@ -204,6 +204,10 @@ Captured so work can resume cleanly. Grouped by area; the grammar ones block the
   primary layer onward; the counts live in `Result.outputs`/`--json`/the journal.
   Should niva print scalar secondary outputs in the run summary, or add a capture
   syntax (cf. v2 named intermediates)?
+- **`sql` read-only detection** (surfaced by `13-§8`) — v1 spec'd as "top-level
+  `SELECT`/`WITH … SELECT`, run read-only" (`03-§2.6`), but robustly classifying a
+  statement as side-effect-free is hard; confirm the rule and the read-only-txn
+  fallback per provider.
 - ~~Error UX for non-programmers~~ — **decided** (`02-§6`): every error names the
   failing stage + offending token in plain language with a suggested fix; friendly
   by default, `-v` for QGIS detail.

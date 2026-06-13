@@ -218,6 +218,37 @@ reachable — so it is not blocked, just not a curated v1 verb (§6).
   *"target is locked — close it in QGIS"* error, not a cryptic one (Oscar E5).
 - `--dry-run` lists exactly what would be written/replaced before anything happens.
 
+### 2.6 `sql` semantics (decided — read passthrough in v1)
+
+`sql` runs spatial SQL and turns a `SELECT` into the current layer. **Three forms**,
+by where the data lives (`06-§4/§5`):
+
+| Form | Engine | How the result becomes a layer |
+| :-- | :-- | :-- |
+| `sql @conn "SELECT …"` | the connection's SQL (PostGIS / SpatiaLite) | a **query layer** over the SELECT — no copy |
+| `sql "SELECT …" from <file>` | OGR **SQLITE** dialect (`gdal:executesql`) | result written to a temp layer |
+| `sql "SELECT … FROM input1 …"` | QGIS **virtual layer** (`qgis:executesql`) | SQL over the piped + loaded layers |
+
+Rules:
+- **Piped/loaded layers are `input1`, `input2`, …** in a bare `sql` (QGIS's
+  virtual-layer convention): `load roads.gpkg | sql "SELECT * FROM input1 WHERE …"`.
+- **A SELECT must yield a usable layer.** niva auto-detects the **unique key** and
+  **geometry column**; where it can't (and for virtual SQL, which *also* needs the
+  geometry **type** and **CRS**) specify them: `sql … key=id geom=geom crs=EPSG:2262`.
+  A result with no geometry is a **non-spatial table** (fine for joins/attributes; a
+  geometry verb after it errors).
+- **Result CRS** = the result geometry's SRID (a `ST_Transform` in the query changes
+  it); for virtual SQL it's inferred from the inputs or set with `crs=`.
+- **v1 is read-only.** Only a top-level `SELECT` (or `WITH … SELECT`) is allowed;
+  anything else (`UPDATE`/`INSERT`/DDL) errors with *"writes are v2"*. Where the
+  provider supports it, niva runs the read in a **read-only transaction**.
+- **`*executesql` are *not* this.** `native:spatialiteexecutesql` /
+  `native:postgisexecutesql` execute SQL but **return no layer** — they are the v2
+  *write* path, not the read passthrough.
+- **Push work to the DB.** `sql @conn "…" | <verb>` pulls the result client-side for
+  the verb; for DB-resident data prefer doing the geo-work *in* the SQL (`ST_*`),
+  which stays indexed and server-side (Oscar L4).
+
 ## 3. The `filter` case (keeping expressions non-code-like)
 
 Raw QGIS expressions are the least approachable thing (`"ZONE" = 'R1'` with field

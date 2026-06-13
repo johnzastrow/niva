@@ -44,6 +44,15 @@ once it has releases.
     caveat** (don't silently warp, `03-§1.2`), and **field-name truncation** on
     Shapefiles (Oscar D9). Fixed a consistency bug: doc `06`'s `zonalstats`
     example used the space form → corrected to `key=value`.
+  - **Round 3 — the SQL path** (`13-§8`) stressed cross-surface bridging and the
+    connection model. **Spec'd the `sql` verb** (`03-§2.6`): three forms (`@conn`
+    query-layer / `from file` `gdal:executesql` / bare `qgis:executesql` virtual),
+    `input1` table naming, `key=`/`geom=`/`crs=` for non-self-describing SELECTs,
+    result-CRS from the SRID, and a v1 **read-only rule** (top-level SELECT, run in
+    a read-only transaction). **Corrected** the conflation of `SELECT` reads with
+    the write-only `*executesql` algorithms, and reconciled the drifted `sql`
+    syntax (`06-§4.4` used `use @conn`/`| load`). New risks: Oscar C15 (read-only
+    detection), C16 (SELECT not self-describing).
 - **Closed the two v1 blockers** flagged by Oscar (G1/G2), now specified in
   `03-mvp-scope.md`:
   - **Distances & units** (§1.1): a bare number = the layer's CRS units; unit

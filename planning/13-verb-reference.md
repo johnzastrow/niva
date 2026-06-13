@@ -274,7 +274,53 @@ space form (`band 1 stats …`); corrected to the canonical `key=value` (`03-§2
 
 ---
 
+## 8. Round 3 — the SQL path (`sql` + cross-surface)
+
+The richest, messiest surface. The same `sql` verb has **three forms**, each a
+different engine and a different way the result becomes a layer (spec'd in
+`03-§2.6`):
+
+| Form | Engine | Mechanism | Result handle |
+|------|--------|-----------|---------------|
+| `sql @conn "SELECT …"` | PostGIS / SpatiaLite | a **query layer** over the SELECT (no copy) | `db_table` |
+| `sql "SELECT …" from file.gpkg` | OGR **SQLITE** | `gdal:executesql` → temp vector | `source` |
+| `sql "SELECT … FROM input1 …"` | QGIS **virtual layer** | `qgis:executesql` over piped + loaded layers | `source` |
+
+### Worked — round-trip a DB query back into a verb
+```
+sql @cats_pg "SELECT id, geom FROM homes WHERE has_cat AND NOT has_dog"
+  | buffer 100m
+  | save targets.gpkg
+```
+- `sql @cats_pg …` → a **PostGIS query layer** (`db_table` handle), roughly
+  `QgsVectorLayer("dbname=… table=\"(SELECT id, geom FROM homes WHERE …)\" (geom) key='id'")`.
+- `| buffer 100m` → `native:buffer` reads it — which **pulls the matching rows from
+  PostGIS into the in-process buffer** (correct, but client-side).
+- `| save targets.gpkg` → temp → GeoPackage; lineage records the SQL + the buffer.
+
+### …or do the geo-work in SQL (the lever)
+```
+sql @cats_pg "SELECT id, ST_Buffer(geom, 100) AS geom FROM homes WHERE has_cat AND NOT has_dog"
+  | save targets.gpkg
+```
+Buffers **server-side** (`ST_Buffer`, indexed, no client pull) — far faster on big
+data (Oscar L4). The grammar makes both one line; niva should *teach* the second
+for DB-resident data.
+
+### Issues this round surfaced
+| # | What surfaced | Verdict |
+|---|---------------|---------|
+| 11 | **Three forms, three mechanisms** — and the `*executesql` algorithms are **write-only** (no output), so a `SELECT` does *not* use them; reads use a query layer / `gdal:executesql` / `qgis:executesql`. | **fixed** — `03-§2.6`; `06-§4` corrected |
+| 12 | **A SELECT result isn't self-describing.** Virtual-layer SQL **requires** uid + geometry + geometry-type + **CRS**; a DB query layer needs a unique key + geometry column. | **spec'd** — auto-detect, else `sql … key= geom= crs=` (`03-§2.6`) |
+| 13 | **Table naming.** Bare `sql` references the piped/loaded layers as **`input1`**, `input2`, … (QGIS convention). | **spec'd** — `03-§2.6` |
+| 14 | **Read-only detection for v1.** "Starts with SELECT" misses `WITH … SELECT` / `SELECT … INTO` / side-effecting functions. | **spec'd** — allow top-level `SELECT`/`WITH … SELECT`, run in a **read-only transaction**; else "writes are v2" (`03-§2.6`) |
+| 15 | **The round-trip pulls data client-side**, losing the DB index/planner. | **guidance** — prefer `ST_*` in the query for DB data (Oscar L4) |
+| 16 | **Result CRS** = the geometry SRID (a `ST_Transform` changes it); virtual SQL must **declare** it. | **spec'd** — `03-§2.6` |
+| 17 | **`sql` syntax had drifted** — doc `06` used `use @conn` + `\| load`; doc `03` used `sql @conn`. | **fixed** — canonical `sql @conn "…"` everywhere; `06-§4.4` corrected |
+
+---
+
 > **Pattern to take away:** every verb is *one positional for the main thing,
 > flags for on/off, `key=value` for the rest* — and `describe`/`--dry-run` always
 > show the real QGIS call underneath. Learn that shape once and all ~40 verbs read
-> the same. (Rasters add a wrinkle — see §7 #7.)
+> the same. (Rasters add a wrinkle — §7 #7; SQL is its own world — §8.)
