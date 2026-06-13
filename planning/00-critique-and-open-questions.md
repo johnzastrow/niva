@@ -185,7 +185,9 @@ Captured so work can resume cleanly. Grouped by area; the grammar ones block the
 - **`filter` scope** — how far does the simplified expression go in v1
   (`=`, `<>`, `<`, `>`, `and`/`or`)? Include `IN` / `LIKE` / NULL handling now or later?
   Confirm the raw `expr="…"` fallback. See `03 §3`.
-- **CRS defaults** — inherit input CRS? warn/error on mixed-CRS inputs?
+- ~~CRS defaults~~ — **decided** (`03-§1.2`): work in each layer's CRS, never
+  silently reproject; reproject secondary→primary on multi-input ops (logged);
+  no-CRS = hard error.
 
 ### Files, output, UX
 - **`.niva` files** — multiple flows separated by blank lines (proposed) or `;`?
@@ -194,8 +196,9 @@ Captured so work can resume cleanly. Grouped by area; the grammar ones block the
   format, replaces target but refuses to overwrite a same-flow source, `as <layer>`
   naming, `append` option, never reprojects.
 - **`add`** — default layer name and styling when loading into the live project.
-- **Error UX for non-programmers** — how friendly should parse/runtime errors be (name the
-  failing stage, suggest a fix)? The audience is minimal coders, so this matters.
+- ~~Error UX for non-programmers~~ — **decided** (`02-§6`): every error names the
+  failing stage + offending token in plain language with a suggested fix; friendly
+  by default, `-v` for QGIS detail.
 - **marimo display** — what should `niva.flow(...)` return/show in a cell (a `Result`
   summary, a feature count, a map preview)?
 

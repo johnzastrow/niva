@@ -64,6 +64,20 @@ flowchart LR
     C -->|"output → input"| S["save out.gpkg"]
 ```
 
+### 1.2 CRS handling (decided — closes G3)
+
+- niva **works in each layer's own CRS and never silently reprojects an input.**
+  `reproject <crs>` is the only verb that changes a CRS.
+- **Multi-input ops** (`clip`, `intersect`, `spatialjoin`, …): if a secondary
+  layer's CRS differs from the primary's, niva reprojects the **secondary** to the
+  primary's CRS automatically and **records it in lineage** (matches QGIS; the
+  common, safe case). A mixed-CRS op emits a one-line note, not an error.
+- **A layer with no CRS** is a **hard error** — *"`<layer>` has no CRS; assign one
+  before processing"* — niva never guesses a CRS.
+- **Distances on a geographic CRS:** the degrees guard from §1.1 (a linear/bare
+  distance on a degrees CRS errors with a `reproject` fix).
+- **Output CRS = the current layer's CRS** — `save` never reprojects (§2.5).
+
 ## 2. The initial verb set
 
 v1 ships a **curated ~40-verb set** — the slice of the 769-algorithm surface

@@ -117,6 +117,31 @@ like.
 
 ---
 
+## 6a. Configuration (closes G7)
+
+niva needs almost no setup — but a small config covers the few defaults worth
+remembering. Keep it tiny.
+
+- **File:** a TOML file at the OS-standard config dir — `~/.config/niva/config.toml`
+  (Linux), `~/Library/Application Support/niva/config.toml` (macOS),
+  `%APPDATA%\niva\config.toml` (Windows). Override with `NIVA_CONFIG`. A
+  project-local `./niva.toml` is read too.
+- **Precedence** (highest wins): **CLI flag → env var → project `./niva.toml` →
+  user config → built-in default.**
+- **Keys (v1):**
+
+| Key | Default | What |
+|-----|---------|------|
+| `work_dir` | current dir | where relative `save` paths land |
+| `temp_dir` | OS temp | managed intermediates (`02-§3.3`) |
+| `default_format` | `gpkg` | output format when an extension is omitted (`03-§2.5`) |
+| `lineage` | `on` | write lineage metadata on `save` (`08-§3`) — `off` to opt out |
+| `log` | *(none)* | default journal path (also `NIVA_LOG`) |
+
+- **v0.2 adds:** `backend` (when `qgis_process` exists). **Database connections are
+  never here** — they come from QGIS by `@name` (`§3`).
+- `niva doctor` prints the effective config and where each value came from.
+
 ## 7. How the story matures (phases)
 
 | | **Phase 1 — Self-serve** | **Phase 2 — Plugin & team** | **Phase 3 — Service** |

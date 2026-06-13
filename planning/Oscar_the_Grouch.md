@@ -216,18 +216,18 @@ should be written.
 |---|----------|--------------|:--:|------|
 | G1 | ~~Distance units~~ — **DECIDED** (`03-§1.1`): bare = CRS units; unit suffixes convert; a linear distance on a degrees CRS is a hard error (no silent wrong buffers); auto-reproject is v0.2. | was: silently wrong buffers. | ✅ closed | `03-§1.1` |
 | G2 | ~~`save` semantics~~ — **DECIDED** (`03-§2.5`): GeoPackage default, extension-inferred format, replaces target but refuses to overwrite a same-flow source, `as <layer>` naming, `append`, never reprojects, lock-aware. | was: data loss / clobbering. | ✅ closed | `03-§2.5` |
-| G3 | **CRS handling policy.** On-the-fly reprojection? A default CRS? What if a layer has none? (tied to G1.) | Wrong-CRS geometry is the classic silent error (Oscar D2). | 🟧 | `02`/`03` |
-| G4 | **Error UX.** Flagged repeatedly (`00`, Oscar C11) but never designed — and it's *central* to a non-programmer tool. | Cryptic GDAL errors = the user is stuck and gone. | 🟧 | own treatment |
+| G3 | ~~CRS handling policy~~ — **CLOSED** (`03-§1.2`): work in each layer's CRS, never silently reproject; reproject secondary→primary on multi-input ops (logged); no-CRS = error; degrees-distance guard. | was: silent wrong-CRS geometry. | ✅ | `03-§1.2` |
+| G4 | ~~Error UX~~ — **CLOSED** (`02-§6`): every error names the stage + offending token in plain language with a suggested fix; friendly by default, `-v` for QGIS detail; common-error mapping. | was: cryptic GDAL errors. | ✅ | `02-§6` |
 
 ### Missing specifications
 
 | # | The hole | Why it bites | Home |
 |---|----------|--------------|------|
-| G5 | **Formal grammar.** Described by example, not specified — no EBNF, no precise tokenization / quoting / escaping / comment / line-continuation rules. | You can't build (or keep stable) a parser from prose; ambiguities surface as bugs. | a `grammar` spec |
-| G6 | **Consolidated CLI + Python-API reference.** Commands, global flags (`--dry-run`/`--json`/`--backend`/`--log`), exit codes, and the `niva.*` surface are scattered across `02`/`03`/`09`. | No single contract for users or tooling. | a reference doc |
-| G7 | **Config spec.** "minimal config" and `NIVA_*` are name-dropped, never specified — what's configurable, file location/format, precedence. | Inconsistent behavior; nothing to implement against. | `09` / config spec |
-| G8 | **Logging/journal schema.** `OpRecord` is sketched (`08-§2`) but not a finalized, versioned schema others can parse. | The provenance promise needs a stable format. | `08` |
-| G9 | **Security / threat model.** Exists only as Oscar risks (sql/run loaded guns; `.niva` is executable). No model of trust boundaries, what's validated, safe defaults. | Injection / arbitrary execution surprises. | own doc |
+| G5 | ~~Formal grammar~~ — **CLOSED** (`10-grammar-spec.md`): EBNF + lexical rules (tokens, quoting/escaping, comments, line-continuation, stage binding, reserved words). | — | `10` |
+| G6 | ~~CLI + Python-API reference~~ — **CLOSED** (`11-cli-and-api-reference.md`): commands, global flags, exit codes, the `niva.*`/`Layer`/`Result` surface, env vars, stability. | — | `11` |
+| G7 | ~~Config spec~~ — **CLOSED** (`09-§6a`): TOML file + per-OS locations, precedence, the v1 keys; connections stay in QGIS. | — | `09-§6a` |
+| G8 | ~~Logging/journal schema~~ — **CLOSED** (`08-§2`): versioned JSONL (`niva_journal` schema version + header line), secrets redacted. | — | `08-§2` |
+| G9 | ~~Security / threat model~~ — **CLOSED** (`12-security-model.md`): trust model, threats + controls, safe defaults, out-of-scope. | — | `12` |
 
 ### Missing project / process docs
 
@@ -247,11 +247,13 @@ should be written.
 | G16 | **Testing plan is a sketch** (`02-§8`) — no fixtures spec, coverage targets, or concrete multi-version CI plan. | The linter/parity claims are unbacked until this exists. |
 | G17 | **i18n & accessibility unplanned** (Oscar C13) — English-only grammar; plugin-GUI a11y untouched. | Excludes non-English users and a11y needs. |
 
-**Oscar's verdict on the gaps:** the *design* docs (`02`/`06`/`07`/`08`) are
-solid; the **undecided fundamentals (G1–G4) and the contract specs (G5–G7) are the
-real holes** — you can't build a stable parser or avoid data loss without them.
-G1 (units) and G2 (`save`) **block v1 today**; the process docs (G10–G13) can wait
-until there's code, but they decide whether anyone *adopts* the thing.
+**Oscar's verdict on the gaps:** the design holes are now **closed** — **G1–G9**
+are decided/specified (units, `save`, CRS, error UX, formal grammar, CLI/API
+reference, config, journal schema, security model). **Nothing blocks *building*
+v1.** What remains is **process & coverage** (G10–G17): governance/CONTRIBUTING,
+acceptance criteria beyond the MVP, product metrics, competitive analysis,
+glossary, more use cases, the test plan, i18n/a11y — these can wait until there's
+code, but they decide whether anyone *adopts* the thing.
 
 ---
 

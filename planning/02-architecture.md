@@ -271,12 +271,44 @@ Verb("buffer", "native:buffer",
      summary="Buffer features by a distance.")
 ```
 
-## 6. Errors & exit codes
+## 6. Errors & exit codes (error UX — closes G4)
 
-- Python raises `niva.OpError`; `Result.ok` also set. Grammar/parse problems raise
-  `niva.FlowError` with the offending stage.
-- CLI exit codes: `0` ok · `1` runtime · `2` usage/parse · `3` missing QGIS/dep ·
-  (`4` reserved for SQL/connection in v2). Logs/timing → stderr; data/`--json` → stdout.
+The audience is non-programmers, so error UX is a feature, not an afterthought.
+
+**Two error types:**
+- `niva.FlowError` — a **parse/grammar** problem (exit `2`). Always names the
+  **offending stage** (and line in a `.niva` file) and the bad token.
+- `niva.OpError` — a **runtime** problem from an algorithm/SQL (exit `1`).
+  `Result.ok` is set too.
+
+**Every error message has three parts:**
+1. **What went wrong, in plain language** — no `ALL_CAPS` dicts, no raw traceback.
+2. **Where** — the stage/verb and the offending value (`"buffer 100" — distance`).
+3. **A suggested fix**, whenever niva can infer one:
+
+| Situation | Message shape |
+|-----------|---------------|
+| unknown verb | "unknown verb `bufer` — did you mean `buffer`? (`find` to search)" |
+| unknown option/flag | "`buffer` has no option `colour` — valid: `segments`, `cap`, `join`" |
+| missing positional | "`clip` needs an overlay layer: `clip <layer>`" |
+| linear distance on a degrees CRS | "layer is in degrees (EPSG:4326); `reproject EPSG:<utm>` first, or use a `deg` value" (`03-§1.1`) |
+| no-CRS layer | "`roads.shp` has no CRS; assign one before processing" (`03-§1.2`) |
+| `save` over a same-flow source | "refusing to overwrite `roads.gpkg` — it's an input of this flow; choose another path or `append`" (`03-§2.5`) |
+| locked target | "`out.gpkg` is locked — close it in QGIS and retry" (`03-§2.5`) |
+| missing dependency/provider | "`grass:*` needs GRASS, which isn't installed (`niva doctor`)" (exit `3`) |
+
+**Verbosity:** the friendly summary is the default; `-v`/`--verbose` appends the
+underlying QGIS/GDAL detail (the real "Could not open layer …" line) for those who
+want it. **Expected** errors never dump a Python stack trace; only an *internal*
+niva bug does.
+
+**Common-error mapping:** niva keeps a small table mapping frequent GDAL/Processing
+messages to plain-language ones (e.g. "Could not open layer" → "Can't read
+`<path>` — check the path and that the format is supported").
+
+**Exit codes:** `0` ok · `1` runtime · `2` usage/parse · `3` missing QGIS/dep ·
+(`4` reserved for SQL/connection in v2). Logs/timing → stderr; data/`--json` →
+stdout.
 
 ## 7. Runtime & distribution
 

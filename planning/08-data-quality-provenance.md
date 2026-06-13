@@ -55,6 +55,12 @@ OpRecord:
 - A flow's journal is an ordered list of OpRecords — that ordered list **is** the
   machine-readable "methods used" the analyst must document, and the input to §3.
 - Lives with `core/logging.py` (`02-§1` package layout).
+- **Stable, versioned schema (closes G8).** The journal is **JSON Lines**: one JSON
+  object per `OpRecord`, preceded by a header line
+  `{"niva_journal": 1, "niva_version": "x.y", "flow": "<path|inline>", "started": "<ts>"}`.
+  The `niva_journal` integer is the schema version — a published contract tools can
+  parse; fields are added (minor) but not renamed/removed without a bump. Secrets
+  in `params`/connections are **redacted** (`12`).
 
 ---
 

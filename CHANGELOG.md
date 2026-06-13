@@ -38,6 +38,20 @@ once it has releases.
     refuses to overwrite a source read earlier in the same flow**; `append`
     option; never reprojects; lock-aware errors; `--dry-run` preview.
   Marked resolved in `00` and Oscar (G1/G2/C8 closed; MVP-odds gate cleared).
+- **Closed the remaining design holes (G3–G9)** — nothing now blocks *building* v1:
+  - **CRS handling policy** (`03-§1.2`): work in each layer's CRS, never silently
+    reproject; reproject secondary→primary on multi-input ops (logged); no-CRS =
+    hard error.
+  - **Error UX** (`02-§6`): every error names the failing stage + offending token
+    in plain language with a suggested fix; friendly by default, `-v` for detail;
+    common-error mapping.
+  - **Formal grammar** (`10-grammar-spec.md`): EBNF + lexical rules.
+  - **CLI & Python-API reference** (`11-cli-and-api-reference.md`).
+  - **Config spec** (`09-§6a`): TOML, locations, precedence, v1 keys.
+  - **Journal schema** (`08-§2`): versioned JSONL, secrets redacted.
+  - **Security & threat model** (`12-security-model.md`).
+  Oscar's gap verdict updated: only process/coverage docs (G10–G17) remain, and
+  they can wait for code.
 - **Failure register** (`planning/Oscar_the_Grouch.md`): a comprehensive,
   adversarial catalogue of how niva could fail — premise/market, architecture,
   engineering, packaging/environment (incl. breaking QGIS's own Python), data
