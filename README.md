@@ -81,14 +81,20 @@ wrapper?). None of these are settled.
 - **`planning/`** — the design exploration and open decisions.
 - **`logos/`** — the niva brand (`logo.svg`, `logo_text.svg`; earlier concepts in
   `OLD/`).
-- **`niva/`** — the **package** (v0.1, in progress). Implemented + tested: the
-  **grammar** (`niva/grammar/` lexer + parser, `10-grammar-spec.md`); the **registry
-  + binder** (`niva/registry/`, `07-alias-registry-design.md`) that maps verbs like
-  `buffer`/`join`/`zonalstats` to real `native:*` algorithms and resolves a stage
-  into the exact `processing.run` params; error types; and a CLI (`niva/cli/`) that
-  parses a flow and prints the resolved algorithm + params. Next: the **engine** and
-  **PyQGIS backend** (which will actually run those params). Run the tests with
-  `python -m unittest discover -s tests` (41 passing).
+- **`niva/`** — the **package** (v0.1, in progress). Implemented + tested:
+  - the **grammar** (`niva/grammar/` lexer + parser, `10-grammar-spec.md`);
+  - the **registry + binder** (`niva/registry/`, `07-alias-registry-design.md`) that
+    maps verbs like `buffer`/`join`/`zonalstats` to real `native:*` algorithms and
+    resolves a stage into the exact `processing.run` params;
+  - the **engine core** (`niva/engine/`, `05-architecture.md`) — runs a parsed flow
+    over a swappable `Backend`, threading one `Layer` handle down the pipe and
+    resolving distances against the layer CRS; QGIS-free and mock-backed today;
+  - a **CLI** (`niva/cli/`): prints the resolved algorithm + params, and with
+    `--dry-run` validates the whole flow over a mock backend.
+
+  The one piece left to make niva *run real geoprocessing* is the **PyQGIS
+  backend** — a thin adapter that drives `processing.run` inside QGIS's interpreter.
+  Run the tests with `python -m unittest discover -s tests` (59 passing).
 - **`examples/`** — an **illustrative** niva flow
   ([`youngstown_cat_canvassing.niva`](examples/youngstown_cat_canvassing.niva))
   that performs the `use_cases.md` workflow end to end in the proposed grammar.

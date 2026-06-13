@@ -59,6 +59,12 @@ CORE = [
         options={"operation": Option("OPERATION", "string")},
         forced={"CONVERT_CURVED_GEOMETRIES": False},
     ),
+    Alias(
+        "filter",
+        "native:extractbyexpression",
+        "Keep only the features matching an expression.",
+        args=[Arg("expression", "EXPRESSION", "expression")],
+    ),
     Alias("fix", "native:fixgeometries", "Repair invalid geometries."),
     Alias("centroid", "native:centroids", "Replace each feature with its centroid point."),
     Alias(

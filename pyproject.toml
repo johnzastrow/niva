@@ -7,7 +7,7 @@ name = "niva"
 version = "0.1.0.dev0"
 description = "A concise, readable text-pipeline grammar for QGIS geoprocessing."
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.12"  # QGIS 4.x ships Python 3.12 (OSGeo4W / system); niva runs in QGIS's own interpreter
 license = "GPL-3.0-or-later"
 authors = [{ name = "John Zastrow" }]
 keywords = ["qgis", "gis", "geoprocessing", "pyqgis", "dsl"]

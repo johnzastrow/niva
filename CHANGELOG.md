@@ -27,6 +27,28 @@ once it has releases.
   `qgis_process` + auto-selection move to v0.2. Updated across docs 00–05.
 
 ### Added
+- **v0.1 increment 3 — the engine core** (`niva/engine/`, planning 05/06),
+  QGIS-free and mock-backed so it is fully unit-testable with plain `python3`:
+  - `layer.py` — the `Layer` handle (backing `kind`: source/qgs/db_table/memory +
+    vector/raster `facet`) and `CrsInfo`. The engine moves *handles*; only a backend
+    ever touches real QGIS objects.
+  - `backend.py` — the `Backend` seam (load / run / save / crs_of) and `MockBackend`,
+    a no-QGIS double that records calls and returns fake handles (powers `--dry-run`).
+  - `units.py` — `resolve_distance`: a unit-bearing distance (`100m`) is converted
+    into the layer's CRS units; a linear distance on a **geographic CRS is a hard
+    error**, never a silent degrees buffer (03-§1.1); a bare number is trusted as
+    CRS units.
+  - `engine.py` — `Engine.execute`: walks the program, threads one `Layer` down each
+    flow's pipe, routes built-in `load`/`save` vs registry aliases, feeds the
+    upstream layer into each op's input param, resolves distances against its CRS,
+    and delegates to the backend. Unknown verb / op-before-load / save-with-nothing
+    are `FlowError`s with line + stage; `call` is parsed but not yet executed.
+  - `tests/test_engine.py` — **18 new unittest cases** (59 total, all passing):
+    pipeline threading, filter-as-alias, multi-flow, the full distance/CRS matrix
+    (m/ft/km, bare number, deg, and both degrees-mismatch errors), and the error paths.
+  - CLI gains **`--dry-run`**: runs the whole flow through the engine over
+    `MockBackend` and prints the validated backend operation sequence.
+  - `requires-python` bumped to **>=3.12** (QGIS 4.x ships Python 3.12).
 - **v0.1 increment 2 — the registry + binder** (`niva/registry/`, planning 07):
   - `model.py` — the declarative `Alias` / `Arg` / `Option` / `Flag` schema.
   - `definitions.py` — `CORE`: the curated verb set (buffer, clip, intersect,
