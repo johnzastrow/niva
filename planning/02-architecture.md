@@ -288,7 +288,8 @@ The audience is non-programmers, so error UX is a feature, not an afterthought.
 
 **Two error types:**
 - `niva.FlowError` — a **parse/grammar** problem (exit `2`). Always names the
-  **offending stage** (and line in a `.niva` file) and the bad token.
+  **offending stage** — the **file + line** (so a failure inside a `call`ed file
+  points there, not just the parent) and the bad token.
 - `niva.OpError` — a **runtime** problem from an algorithm/SQL (exit `1`).
   `Result.ok` is set too.
 

@@ -61,6 +61,9 @@ OpRecord:
   The `niva_journal` integer is the schema version — a published contract tools can
   parse; fields are added (minor) but not renamed/removed without a bump. Secrets
   in `params`/connections are **redacted** (`12`).
+- **Across `call`s** (`13-§9`): one continuous journal for the whole run, each
+  `OpRecord` tagged with its **source file** (`file` field) so a multi-file run is
+  one auditable record.
 
 ---
 
@@ -79,6 +82,9 @@ into that layer's formal metadata as history/lineage entries
   timestamp, and CRS changes.
 - **Chaining:** niva reads any history already on the input layer (so provenance
   carries across tools and sessions) and appends to it rather than replacing.
+- **Across `call`s** (`13-§9`): a saved layer's lineage records the **call chain**
+  (e.g. `analyze.niva → acquire.niva`), so a result produced by a helper file still
+  shows where it came from.
 
 ```
 load roads.gdb | reproject EPSG:26918 | fix | buffer 50 | save out.gpkg

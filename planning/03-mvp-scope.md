@@ -304,15 +304,26 @@ load "niagara/roads.shp"           | reproject EPSG:2262 | fix | clip village.gp
 # analyze_canvass.niva
 call acquire_and_prepare.niva          # runs that file's flows here, then continues
 load work/buildings.gpkg | centroid | save work/homes.gpkg
-call make_handouts.niva                # a call can sit mid-file, anywhere
+call make_handouts.niva                # a call is its own line — a statement, not a stage in a |
 ```
 
-Rules: calls run in file order at the point they appear; **circular calls are an
-error** (niva tracks the call stack); a called file is found relative to the
-caller (then a search path). **Passing parameters / the current layer** into a
-called file (parameterized macros) is a later extension — see `04-roadmap.md`
-(v0.2 plain `call`; v2.0 parameterized) and `00 §8`. v1 keeps calls parameterless
-so the grammar stays non-code-like.
+Rules:
+- **`call` is a statement, not a pipeable stage** — it sits on its own line and runs
+  the called file's self-contained flows; it does **not** take or return the
+  current layer (parameterless in v1). Parent ↔ called data is shared **only via
+  saved files** (above, `work/*.gpkg`) or the live project (`add`) — there is no
+  shared `current` layer.
+- **Path resolution:** the **`call` target** is found relative to the **caller**
+  (then a search path); **data paths inside flows** (`work/buildings.gpkg`) resolve
+  against the **run's working dir** (`09-§6a`), so `work/` means the same thing in
+  every file of the run.
+- **Cycles & nesting:** `a → b → c` is allowed; a circular call (`a → b → a`) is a
+  **hard error** (niva tracks the call stack), with a max-depth backstop.
+- **Provenance:** the run journal and a saved layer's lineage record the **call
+  chain** and tag each op by source file (`08`).
+- **Parameters** (passing values / the current layer into a called file) are a
+  later extension — `04` (v0.2 plain `call`; v2.0 parameterized), `00 §8`. v1 keeps
+  calls parameterless so the grammar stays non-code-like.
 
 ## 5. Backend (PyQGIS-only in v1)
 

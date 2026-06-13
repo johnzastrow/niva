@@ -115,6 +115,7 @@ Severity: 🟥 High · 🟧 Medium · 🟨 Low.
 | U8 | **Migration inertia.** Users with PyQGIS scripts or Modeler models won't rewrite them in niva. | 🟨 | Interop both ways; don't demand rewrites; niva for *new* work (`02-§3.6`). |
 | U9 | **Support burden.** Non-programmers ask a lot of questions; thin docs or no community = abandonment. | 🟧 | Great docs + recipes + friendly errors from day one; community-friendly repo. |
 | U10 | **Yet another DSL** to learn vs 10 lines of Python. | 🟨 | Small surface; Python API for the unconvinced (`01`). |
+| U11 | **`call` doesn't transform the current layer.** A user may expect `… \| call helper.niva \| …` to pipe data *through* a helper; in v1 `call` is a parameterless **statement** (file-based handoff only) — surfaced by `13-§9`. | 🟨 | Document it (`03-§4.1`); parameterized `call` (v2) adds in-memory handoff (`04`). |
 
 ---
 

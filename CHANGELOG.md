@@ -53,6 +53,17 @@ once it has releases.
     the write-only `*executesql` algorithms, and reconciled the drifted `sql`
     syntax (`06-§4.4` used `use @conn`/`| load`). New risks: Oscar C15 (read-only
     detection), C16 (SELECT not self-describing).
+  - **Round 4 — the `call` path** (`13-§9`) stressed multi-file composition.
+    Spec'd in `03-§4.1`: `call` is a **statement, not a pipeable stage** (no shared
+    `current` layer — handoff is via saved files / the live project); **path
+    resolution split** (call-target = caller-relative, data paths = run `work_dir`);
+    cycles/nesting with a max-depth backstop; provenance across calls — the journal
+    tags each op by **source file** and lineage records the **call chain** (`08`);
+    errors name the **file + line** across calls (`02-§6`). New limitation Oscar
+    U11 (`call` doesn't transform the current layer; parameterized `call` is v2).
+  - **Verified all of `13`'s signatures against live QGIS 4.0.3** — param names,
+    defaults, and enum-by-word mappings (`buffer` cap/join, `join` method,
+    `zonalstats` stats) all confirmed; noted in the doc header.
 - **Closed the two v1 blockers** flagged by Oscar (G1/G2), now specified in
   `03-mvp-scope.md`:
   - **Distances & units** (§1.1): a bare number = the layer's CRS units; unit

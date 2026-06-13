@@ -1,9 +1,11 @@
 # Niva — Verb Reference (worked)
 
-_Fully explains the verb model, then walks three verbs from simple to complex and
-composes them in one flow. Companion to `03` (the verb list), `07` (the registry
-that powers verbs), and `10` (the grammar). Examples are illustrative — niva isn't
-built yet._
+_Fully explains the verb model, then walks verbs from simple to complex and
+composes them. Companion to `03` (the verb list), `07` (the registry that powers
+verbs), and `10` (the grammar). The niva flows are **illustrative** — niva isn't
+built yet — but every **algorithm id, parameter, default, and enum-by-word mapping
+shown was verified against the live QGIS 4.0.3 registry** (the grammar is the
+proposal; the QGIS call it resolves to is real)._
 
 ---
 
@@ -320,7 +322,37 @@ for DB-resident data.
 
 ---
 
+## 9. Round 4 — the `call` path (multi-file composition)
+
+`call` runs another `.niva` file's flows inline (`03-§4.1`). A reusable helper and
+a parent that uses it:
+
+```
+# acquire.niva — reusable: fetch + clean the base layers
+load "nys.gdb|layername=buildings" | reproject EPSG:2262 | fix | clip village.gpkg | save work/buildings.gpkg
+load "niagara/roads.shp"           | reproject EPSG:2262 | fix | clip village.gpkg | save work/roads.gpkg
+```
+```
+# analyze.niva
+call acquire.niva                                                  # runs acquire's two flows here
+load work/buildings.gpkg | filter "landuse = 'R'" | buffer 100m | save out/res_buffers.gpkg
+call report.niva
+```
+
+### Issues this round surfaced
+| # | What surfaced | Verdict |
+|---|---------------|---------|
+| 18 | **`call` is a statement, not a pipeable stage.** "Anywhere in the parent" (`03-§4.1`) means *any line among the flows*, **not inside a `\|`** — a called file runs its own self-contained flows; it doesn't take/return the current layer (parameterless in v1). The grammar already makes `call` top-level (`10-§3`). | **clarified** — `03-§4.1` |
+| 19 | **No in-memory handoff.** A parent and a called file share data **only via saved files** (`acquire.niva` writes `work/*.gpkg`; `analyze.niva` `load`s them) or the live project (`add`) — there is no shared `current` layer. | **by design** — the procedural-include model; **parameterized `call` (v2)** adds in-memory handoff (`04`) |
+| 20 | **Path-resolution split.** The **`call` target** resolves relative to the **caller**; but **data paths inside flows** (`work/buildings.gpkg`) resolve against the **run's working dir** (`09-§6a`), so `work/` means the same thing in `acquire.niva` and `analyze.niva`. | **spec'd** — `03-§4.1` |
+| 21 | **Provenance across calls.** The run **journal** should be one continuous record with each op tagged by **source file**; a saved layer's **lineage** should note the **call chain** (`analyze.niva → acquire.niva`). | **spec'd** — `08-§2/§3` |
+| 22 | **Error location across files.** A failure in `acquire.niva` must name **that file + line/stage**, not just the parent. | **spec'd** — extends `02-§6` |
+| 23 | **Nesting & cycles.** `a → b → c` is allowed; `a → b → a` is a hard error (call-stack), with a **max-depth** backstop. | **spec'd** — `03-§4.1` |
+
+---
+
 > **Pattern to take away:** every verb is *one positional for the main thing,
 > flags for on/off, `key=value` for the rest* — and `describe`/`--dry-run` always
 > show the real QGIS call underneath. Learn that shape once and all ~40 verbs read
-> the same. (Rasters add a wrinkle — §7 #7; SQL is its own world — §8.)
+> the same. (Rasters add a wrinkle — §7; SQL is its own world — §8; `call` composes
+> files, not layers — §9.)
