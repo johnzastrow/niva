@@ -212,6 +212,10 @@ Captured so work can resume cleanly. Grouped by area; the grammar ones block the
 
 ### Engine & packaging
 - **Ratify the `Layer`/`Result` model** (`02 §3`) — load-bearing; everything builds on it.
+- **Vector/raster handle facet + piped-input type-checking** (surfaced by `13-§7`)
+  — the handle is vector-centric; the raster path needs raster metadata, a
+  kind-correct `as_qgs()`, and the engine to reject a raster piped into a
+  vector-primary verb (and vice-versa). Direction noted in `02-§3.1`; ratify.
 - ~~Confirm the v1 verb set (13)~~ — **decided**: ~40 curated verbs (built-ins +
   Tier 1/2), all mapped to real algorithm ids (`03-§2`).
 - ~~Backend auto-selection rules~~ — **moot**: v1 is PyQGIS-only; selection

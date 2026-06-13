@@ -225,7 +225,56 @@ genuine issues — some now fixed/specified, some newly open:
 
 ---
 
+## 7. Round 2 — `zonalstats` (raster × vector)
+
+A different shape: the piped layer is the **vector zones**, the **raster** is a
+secondary input, and `stats` is an **enumlist**.
+
+### Signature
+```
+zonalstats <raster> [band=<n>] [stats=count,sum,mean,…] [prefix=<p>]
+```
+
+| arg | kind | maps to | default | notes |
+|-----|------|---------|---------|-------|
+| `raster` | positional **(required)** | `INPUT_RASTER` | — | the raster to summarize (path → a raster source) |
+| `band` | option (int) | `RASTER_BAND` | 1 | which band |
+| `stats` | option (enumlist) | `STATISTICS` | `count,sum,mean` | any of `count sum mean median stdev min max range minority majority variety variance` — **verified vs live QGIS** |
+| `prefix` | option (string) | `COLUMN_PREFIX` | `_` | prefix for the new columns |
+| *(piped layer)* | primary input | `INPUT` | — | the **vector zones** — gains new stat columns |
+
+**Algorithm:** `native:zonalstatisticsfb` (the new-output variant — never mutates
+in place).
+
+### Worked
+```
+load watersheds.gpkg | zonalstats dem.tif band=1 stats=mean,min,max prefix=elev_ | save wsheds_elev.gpkg
+```
+```python
+processing.run("native:zonalstatisticsfb", {
+  "INPUT": <watersheds>,                 # the piped VECTOR zones
+  "INPUT_RASTER": "dem.tif", "RASTER_BAND": 1,
+  "STATISTICS": [2, 5, 6],               # mean,min,max → live enum indices (verified)
+  "COLUMN_PREFIX": "elev_",
+  "OUTPUT": "TEMPORARY_OUTPUT"})
+# output = watersheds + columns elev_mean, elev_min, elev_max
+```
+
+### Issues this round surfaced
+| # | What surfaced | Verdict |
+|---|---------------|---------|
+| 7 | **The layer handle is vector-centric.** `02-§3` models a `Layer` by `geometry_type`/`fields`/`feature_count`, with `as_qgs()`→`QgsVectorLayer`. A raster (`dem.tif`, and the whole lidar→DEM→slope path) has **bands/resolution/extent, no features**, and `as_qgs()` must return a `QgsRasterLayer`. | **open (significant)** — the handle needs a **vector/raster facet**: raster metadata, vector fields `None` for rasters, kind-correct `as_qgs()` (note added to `02-§3.1`) |
+| 8 | **CRS reconcile for a *raster* secondary.** `03-§1.2` says "reproject the secondary to the primary's CRS" — cheap for a vector overlay, but **warping a raster is expensive/lossy**. | **open** — raster caveat added to `03-§1.2`: prefer reprojecting the *vector zones* to the raster, or error rather than silently warp |
+| 9 | **Piped-input type isn't checked.** `zonalstats` needs a **vector** primary; in a raster-heavy flow it's easy to pipe a raster into `INPUT`. | **open** — the engine should type-check the piped handle against the verb's primary-input type and error clearly (`00`) |
+| 10 | **Field-name truncation.** `prefix=elevation_` + `mean` exceeds a **Shapefile's 10-char** field limit → silent truncation/collision. | **open** — warn when the output format limits field names; GeoPackage (the default, `03-§2.5`) avoids it (Oscar D9) |
+| ✓ | **Enum vocab — VERIFIED.** `stats=mean,min,max` → `[2,5,6]` matches `native:zonalstatisticsfb`'s live `STATISTICS` options exactly. | **positive** — the enum-by-word vocab (`07-§6`) reconciles with the installed QGIS; the linter passes |
+
+Also a **consistency** fix this turned up: doc `06`'s `zonalstats` example used the
+space form (`band 1 stats …`); corrected to the canonical `key=value` (`03-§2`).
+
+---
+
 > **Pattern to take away:** every verb is *one positional for the main thing,
 > flags for on/off, `key=value` for the rest* — and `describe`/`--dry-run` always
 > show the real QGIS call underneath. Learn that shape once and all ~40 verbs read
-> the same.
+> the same. (Rasters add a wrinkle — see §7 #7.)

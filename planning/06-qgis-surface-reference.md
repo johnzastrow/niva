@@ -506,7 +506,7 @@ processing.run("native:zonalstatisticsfb", {"INPUT":"zones.gpkg","INPUT_RASTER":
   "RASTER_BAND":1,"COLUMN_PREFIX":"elev_","STATISTICS":[0,1,2],"OUTPUT":"out.gpkg"})  # 0,1,2 = count,sum,mean
 ```
 ```
-load zones.gpkg | zonalstats dem.tif band 1 stats mean,min,max prefix elev_ | save out.gpkg
+load zones.gpkg | zonalstats dem.tif band=1 stats=mean,min,max prefix=elev_ | save out.gpkg
 ```
 
 **D. Spatial SQL** (database surface — SpatiaLite/PostGIS `ST_*`)

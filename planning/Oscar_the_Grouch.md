@@ -60,6 +60,7 @@ Severity: 🟥 High · 🟧 Medium · 🟨 Low.
 | A7 | **The layer-handle contract is load-bearing and unproven.** Get it wrong, everything downstream is wrong. | 🟥 | Most-reviewed design; prototype it first; ratify in v0.1 (`02-§3`). |
 | A8 | **Single QgsApplication per process is a straitjacket.** Long-lived hosts (console, service) accumulate state, leak memory, and can't reset cleanly. | 🟧 | Treat the process as disposable for batch; document interactive caveats; service mode manages worker lifecycles (`09`). |
 | A9 | **No concurrency story.** PyQGIS/Qt isn't thread-safe; running flows in parallel (or inside a threaded notebook) corrupts state. | 🟥 | One QgsApplication per process; **flows are serial within a process**; parallelism via separate processes; document the rule loudly (it bit marimo-qgis). |
+| A10 | **The layer handle is vector-centric.** The `Layer` contract models geometry/fields/feature-count; the raster path (`zonalstats`, lidar→DEM→slope) needs band/resolution metadata and a kind-correct `as_qgs()` — surfaced by `13-§7`. | 🟧 | Add a **vector/raster facet** to the handle + engine **type-checking of piped inputs** (`02-§3.1`). |
 
 ---
 
@@ -127,6 +128,7 @@ Severity: 🟥 High · 🟧 Medium · 🟨 Low.
 | D6 | **Reproducibility asterisk** — same flow, different QGIS/GDAL, different result. | 🟧 | Lineage stamps the version stack; recommend pinning (`08-§3`). |
 | D7 | **Float/precision & grid-size** issues in overlay (`GRID_SIZE`, snapping) give non-deterministic edges. | 🟨 | Expose the relevant params; document; sensible defaults. |
 | D8 | **Silent join-key type mismatch.** A numeric join key vs a string key (e.g. a CSV `GEOID`) yields **zero matches, silently** — surfaced by the `13` worked composite. | 🟧 | `join` warns (and `assess` flags) on key-type mismatch; report `UNJOINABLE_COUNT`; don't let a 0-match join look like success. |
+| D9 | **Field-name truncation by format.** A long `prefix` + stat name (`zonalstats`) exceeds a Shapefile's **10-char** field limit → silent truncation/collision (`13-§7`). | 🟨 | Warn when the output format limits field names; the GeoPackage default avoids it (`03-§2.5`). |
 
 ---
 

@@ -72,6 +72,10 @@ flowchart LR
   layer's CRS differs from the primary's, niva reprojects the **secondary** to the
   primary's CRS automatically and **records it in lineage** (matches QGIS; the
   common, safe case). A mixed-CRS op emits a one-line note, not an error.
+- **Raster secondary caveat** (surfaced by `13-§7`): when the secondary is a
+  **raster** (e.g. `zonalstats`'s raster), niva does **not** silently warp it
+  (expensive/lossy). It reprojects the **vector** side to the raster's CRS where
+  that's correct, or errors with guidance — never a quiet warp.
 - **A layer with no CRS** is a **hard error** — *"`<layer>` has no CRS; assign one
   before processing"* — niva never guesses a CRS.
 - **Distances on a geographic CRS:** the degrees guard from §1.1 (a linear/bare

@@ -37,6 +37,13 @@ once it has releases.
   text-flow secondary outputs (`00`), plus a new silent join-key-type-mismatch
   risk (Oscar D8). Also confirmed the simplified `filter` (`03-§3`) is essential,
   not optional.
+  - **Round 2 — `zonalstats` (raster × vector)** stressed the enumlist + raster
+    input: **verified** the `stats` enum vocab matches live QGIS; and surfaced —
+    the **layer handle is vector-centric** (needs a vector/raster facet + piped
+    type-checking, noted in `02-§3.1`, Oscar A10), a **raster-secondary CRS
+    caveat** (don't silently warp, `03-§1.2`), and **field-name truncation** on
+    Shapefiles (Oscar D9). Fixed a consistency bug: doc `06`'s `zonalstats`
+    example used the space form → corrected to `key=value`.
 - **Closed the two v1 blockers** flagged by Oscar (G1/G2), now specified in
   `03-mvp-scope.md`:
   - **Distances & units** (§1.1): a bare number = the layer's CRS units; unit

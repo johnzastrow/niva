@@ -160,6 +160,17 @@ All four expose the same protocol (`source()`, `as_qgs()`, `as_uri()`, `db_ref()
 metadata, `materialize()`), so callers never branch on kind — they ask for the form
 they need and the handle provides it, materializing only if forced (§3.3).
 
+> **Vector vs raster facet (gap surfaced by `13-§7`, to spec).** The metadata above
+> (`crs`, `geometry_type`, `fields`, `feature_count`) is **vector**-shaped. A raster
+> handle (a `dem.tif`, the lidar→DEM→slope path, the `zonalstats` raster input) has
+> **bands / resolution / extent, no features**, and `as_qgs()` must return a
+> `QgsRasterLayer`. The handle therefore needs a **`data_type: vector | raster`**
+> facet: vector metadata is `None` for rasters, raster metadata (`bands`,
+> `resolution`) is exposed instead, and `as_qgs()` is kind-correct. This does **not**
+> add a 5th backing kind — a raster is still a `source`/`qgs` — it adds a facet. The
+> engine also **type-checks the piped handle** against a verb's primary-input type
+> (vector vs raster) and errors clearly on a mismatch (`13-§7` #9).
+
 ### 3.2 Invariants (what every step may assume)
 
 1. **In, one out.** A step takes exactly one primary input `Layer` and yields
