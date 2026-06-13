@@ -48,6 +48,10 @@ OpRecord:
   status        ok | error(message)
 ```
 
+- **Non-algorithm steps** (`13-§10`): `sql` records `algorithm="sql"` with the
+  **SQL text + engine + connection** in `params` (secrets redacted, `12`); `load`
+  records the **source**, not a step; built-ins (`filter`/`compute`) record their
+  backing algorithm. So provenance survives steps with no `native:*` id.
 - Most of this already exists on `Result` (`02-§3`: algorithm, params, elapsed,
   backend) — the log is `Result` made durable and ordered.
 - **Two sinks:** a concise **human** line to stderr (per `02-§6`), and a
@@ -73,9 +77,16 @@ When `save` materializes a layer, niva writes the flow's **data-altering** steps
 into that layer's formal metadata as history/lineage entries
 (`native:addhistorymetadata` → `QgsLayerMetadata.history`):
 
-- **One history entry per data-altering step** (buffer, clip, reproject, fix,
-  dissolve, `sql UPDATE`, …). Read-only/derived steps (load, a `filter` that only
-  narrows, `describe`) are summarized or omitted (config).
+- **One history entry per data-altering step** — anything that changes the
+  geometry, the attributes, **or the feature set**: `buffer`, `clip`, `reproject`,
+  `fix`, `dissolve`, **`filter`/`extract`** (they define *what the output is*), a
+  `sql` transform, …. Only truly non-modifying steps (`assess`, `describe`) are
+  omitted (`13-§10` #26).
+- **Multi-input merge** (`13-§10` #25): an op with 2+ inputs (`clip`, `join`,
+  `intersect`) flattens **each** input's history into the output, tagged by role
+  (`input:`, `overlay:`, …), then appends the op. `QgsLayerMetadata.history` is a
+  flat list, so this is a flattened audit log, not a DAG — sufficient for "how was
+  this made."
 - Each entry: a human-readable line **plus** structured detail (algorithm id, key
   params) so it is both readable and re-runnable.
 - Plus a provenance stamp: **source(s)**, niva version, QGIS/GDAL/PROJ versions,
@@ -113,9 +124,12 @@ the data** — the Inspect stage as one command:
   statistics (`native:basicstatisticsforfields`), unique-value cardinality
   (`native:listuniquevalues`).
 - **Existing provenance:** any `metadata.history`/lineage already on the layer
-  (so the analyst can judge where the data came from).
+  (so the analyst can judge where the data came from). **DB sources** (`@conn`/
+  `db_table`) carry no `QgsLayerMetadata.history`, so this shows "(none)" — v1
+  records lineage on the **file** output at `save`; DB-side lineage is v2 (`13-§10` #27).
 - **Output:** a printed summary, plus `assess … to report.md|json` for the
-  documentation deliverable.
+  documentation deliverable. The report is **self-documenting** — it stamps the
+  source(s) + niva/QGIS/GDAL versions + timestamp (`13-§10` #28).
 - **`assess --deep`** runs the heavier **Check-geometry** battery (gaps, overlaps,
   slivers, self-intersections, dangles, …) for topological QA.
 

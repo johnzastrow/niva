@@ -61,6 +61,15 @@ once it has releases.
     tags each op by **source file** and lineage records the **call chain** (`08`);
     errors name the **file + line** across calls (`02-§6`). New limitation Oscar
     U11 (`call` doesn't transform the current layer; parameterized `call` is v2).
+  - **Round 5 — the `assess` / lineage round-trip** (`13-§10`) stressed provenance
+    across non-algorithm steps and runs. Spec'd in `08`: `sql`/`load` lineage
+    entries (no `native:*` id — record the SQL+engine / source); **multi-input
+    lineage merge** (flatten each input's history, role-tagged); sharpened
+    "data-altering" to **include `filter`/`extract`** (they define the output, so
+    they're recorded, not omitted); DB sources carry no lineage store (v1 records
+    on the file output); the `assess` report is self-documenting (version/source
+    stamp). New risk Oscar D10 (merge can mislead/bloat); open question on
+    structured-provenance representation.
   - **Verified all of `13`'s signatures against live QGIS 4.0.3** — param names,
     defaults, and enum-by-word mappings (`buffer` cap/join, `join` method,
     `zonalstats` stats) all confirmed; noted in the doc header.

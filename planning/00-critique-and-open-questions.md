@@ -208,6 +208,10 @@ Captured so work can resume cleanly. Grouped by area; the grammar ones block the
   `SELECT`/`WITH … SELECT`, run read-only" (`03-§2.6`), but robustly classifying a
   statement as side-effect-free is hard; confirm the rule and the read-only-txn
   fallback per provider.
+- **Lineage representation** (surfaced by `13-§10`) — multi-input ops merge 2+
+  inputs' histories into the flat `QgsLayerMetadata.history` list (`08-§3`). Is a
+  flattened, role-tagged audit log enough, or is a structured provenance model
+  (PROV / ISO 19115 lineage tree) warranted later?
 - ~~Error UX for non-programmers~~ — **decided** (`02-§6`): every error names the
   failing stage + offending token in plain language with a suggested fix; friendly
   by default, `-v` for QGIS detail.

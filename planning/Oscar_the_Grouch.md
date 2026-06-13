@@ -132,6 +132,7 @@ Severity: 🟥 High · 🟧 Medium · 🟨 Low.
 | D7 | **Float/precision & grid-size** issues in overlay (`GRID_SIZE`, snapping) give non-deterministic edges. | 🟨 | Expose the relevant params; document; sensible defaults. |
 | D8 | **Silent join-key type mismatch.** A numeric join key vs a string key (e.g. a CSV `GEOID`) yields **zero matches, silently** — surfaced by the `13` worked composite. | 🟧 | `join` warns (and `assess` flags) on key-type mismatch; report `UNJOINABLE_COUNT`; don't let a 0-match join look like success. |
 | D9 | **Field-name truncation by format.** A long `prefix` + stat name (`zonalstats`) exceeds a Shapefile's **10-char** field limit → silent truncation/collision (`13-§7`). | 🟨 | Warn when the output format limits field names; the GeoPackage default avoids it (`03-§2.5`). |
+| D10 | **Lineage merge can mislead or bloat.** Flattening 2+ inputs' histories (`clip`/`join`, `13-§10`) into one list loses the DAG and can balloon on many-input flows. | 🟨 | Tag entries by role + dedup shared ancestry; keep it a readable audit log, not a structural guarantee. |
 
 ---
 

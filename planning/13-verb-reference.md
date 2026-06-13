@@ -351,8 +351,46 @@ call report.niva
 
 ---
 
+## 10. Round 5 — the `assess` / lineage round-trip (provenance)
+
+Provenance must survive steps that **aren't a single QGIS algorithm**, and survive
+**across runs**. Worked across two:
+
+**Run 1 — prepare, recording lineage on `save`:**
+```
+load raw_parcels.gpkg | assess to docs/raw_quality.md
+load raw_parcels.gpkg | filter "landuse = 'R'" | reproject EPSG:2262 | buffer 100m | save mid/res_buffers.gpkg
+```
+`mid/res_buffers.gpkg` `metadata.history` gains (`08-§3`):
+```
+filter landuse='R'        (native:extractbyexpression)
+reproject → EPSG:2262     (native:reprojectlayer)
+buffer 100m               (native:buffer DISTANCE=328.08)
+source: raw_parcels.gpkg · niva x.y · QGIS 4.0.3 / GDAL 3.12.2 · CRS 4269→2262
+```
+
+**Run 2 — consume, with a `sql` step and a multi-input `clip`:**
+```
+load mid/res_buffers.gpkg | assess                            # surfaces Run-1's 3-step lineage
+load mid/res_buffers.gpkg
+  | sql "SELECT *, ST_Area(geometry) AS area FROM input1"     # virtual SQL — NO QGIS algorithm
+  | clip city.gpkg                                            # multi-input — whose lineage?
+  | save final/result.gpkg
+```
+
+### Issues this round surfaced
+| # | What surfaced | Verdict |
+|---|---------------|---------|
+| 24 | **Non-algorithm steps in lineage.** `sql` has no `native:*` id; `load` is a read. | **spec'd** — a `sql` `OpRecord`/lineage entry records the **SQL text + engine + connection** (secrets redacted), `algorithm="sql"`; `load` records the **source**, not a step (`08-§2`) |
+| 25 | **Multi-input lineage merge.** `clip`/`join`/`intersect` derive the output from **2+ inputs**; the result's history should reflect **all** contributors, not just the primary. | **spec'd** — flatten each input's history into the output, tagged by role (`input:`/`overlay:`…), then the op — a flattened audit log, since `QgsLayerMetadata.history` is a list, not a DAG (`08-§3`) |
+| 26 | **What counts as "data-altering"?** `08-§3` said a "narrowing `filter`" is omitted — but a `filter` *defines what the output IS* ("residential parcels"), so it's provenance-relevant. | **fixed** — record steps that change geometry, attributes, **or the feature set** (`filter`/`extract` included); only non-modifying steps (`assess`/`describe`) are omitted (`08-§3`) |
+| 27 | **DB sources carry no lineage store.** A `@conn`/`db_table` read has no `QgsLayerMetadata.history`; `assess` shows "(none)". | **noted** — v1 writes lineage to the **file** output on `save`; DB-side lineage is a v2 (DB-writes) concern (`08`) |
+| 28 | **The `assess` report should be self-documenting.** | **spec'd** — `assess to report.md` stamps source(s) + niva/QGIS/GDAL versions + timestamp (`08-§4`) |
+
+---
+
 > **Pattern to take away:** every verb is *one positional for the main thing,
 > flags for on/off, `key=value` for the rest* — and `describe`/`--dry-run` always
 > show the real QGIS call underneath. Learn that shape once and all ~40 verbs read
 > the same. (Rasters add a wrinkle — §7; SQL is its own world — §8; `call` composes
-> files, not layers — §9.)
+> files, not layers — §9; provenance survives all of it — §10.)
