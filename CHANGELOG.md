@@ -70,6 +70,13 @@ once it has releases.
     on the file output); the `assess` report is self-documenting (version/source
     stamp). New risk Oscar D10 (merge can mislead/bloat); open question on
     structured-provenance representation.
+  - **Round 6 — the `add`-to-live-project path** (`13-§11`) stressed the
+    interactive backend. Spec'd `add` (`03-§2.7`): **live-session only** (headless
+    `add` warns/skips; an add-only flow errors headless); **sinks pass through** so
+    `save … | add` chains (`02-§2a` corrected); `add` registers a *temporary*
+    project layer (lost on close unless saved); default name + QGIS default
+    styling (no styling verb in v1); **main-thread only** (can't background an
+    `add`-flow). New limitation Oscar U12; raster `add` ties to A10.
   - **Verified all of `13`'s signatures against live QGIS 4.0.3** — param names,
     defaults, and enum-by-word mappings (`buffer` cap/join, `join` method,
     `zonalstats` stats) all confirmed; noted in the doc header.

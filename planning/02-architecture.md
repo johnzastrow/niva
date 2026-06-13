@@ -101,9 +101,11 @@ sequenceDiagram
 
 The runner keeps a single `current` layer; each non-sink stage runs its algorithm with
 `INPUT = current` (unless the stage gives its own input) and replaces `current` with the
-result. **Sinks** (`save`, `add`) consume `current`: `save` writes to disk, `add` loads
-into the live QGIS project. Intermediate outputs are managed temporaries
-(`TEMPORARY_OUTPUT` in-process; temp files for `qgis_process`) and cleaned up.
+result. **Sinks** (`save`, `add`) are **side-effects that pass `current` through
+unchanged** — `save` writes to disk, `add` registers the layer in the live QGIS
+project — so they **chain** (`… | save out.gpkg | add`; see `03-§2.5/§2.7`).
+Intermediate outputs are managed temporaries (`TEMPORARY_OUTPUT` in-process; temp
+files for `qgis_process`) and cleaned up.
 
 ## 3. The layer handle contract
 

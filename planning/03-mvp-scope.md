@@ -249,6 +249,32 @@ Rules:
   the verb; for DB-resident data prefer doing the geo-work *in* the SQL (`ST_*`),
   which stays indexed and server-side (Oscar L4).
 
+### 2.7 `add` semantics (decided)
+
+`add [<name>]` registers the current layer in the **live QGIS project** (the
+interactive surface). Pinned:
+
+- **Live-session only.** `add` needs a running QGIS (the Python console or the
+  plugin). **Headless** (`niva run`, CI) `add` **warns and skips** — the result
+  must be persisted by a `save` in the flow; a flow whose **only** sink is `add`
+  **errors** headless (*"no persistent output; `add` needs a live session, or use
+  `save`"*).
+- **Sinks pass through.** `save` and `add` return the current layer **unchanged**,
+  so they **chain**: `… | save out.gpkg | add` persists *and* registers; `… | add
+  | save backup.gpkg` registers then persists. (They're side-effects, not
+  transforms — `02-§2a`.)
+- **What's added.** the current handle via `as_qgs()` — a `QgsVectorLayer` or
+  `QgsRasterLayer` per the handle's data-type facet (`02-§3.1`). A pipeline temp
+  becomes a **temporary** project layer — **lost when QGIS closes unless also
+  `save`d**.
+- **Name** defaults to the layer's derived name; `add residential_buffers` sets it.
+- **Styling** is QGIS's default (single symbol). niva has **no styling verb in v1**
+  — symbology is the v2.x hard-to-reach surface (`06-§6`); style in QGIS or apply a
+  `.qml` later.
+- **Threading.** `add` mutates `QgsProject` — **main-thread only**; an
+  `add`-containing flow can't run on a background `QgsTask`. In the plugin, do the
+  heavy work on a task and the `add` on the main thread at the end.
+
 ## 3. The `filter` case (keeping expressions non-code-like)
 
 Raw QGIS expressions are the least approachable thing (`"ZONE" = 'R1'` with field

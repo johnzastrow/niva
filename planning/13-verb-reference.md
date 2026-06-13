@@ -389,8 +389,40 @@ load mid/res_buffers.gpkg
 
 ---
 
+## 11. Round 6 — the `add`-to-live-project path (interactive)
+
+The one path that needs a **running QGIS** — it stresses `as_qgs()`, project state,
+threading, and styling. Worked in the QGIS Python Console (a live session):
+
+```
+# QGIS Python Console — a project is open
+niva.flow("""
+load parcels.gpkg | filter "landuse = 'R'" | buffer 100m
+  | save out/res_buffers.gpkg      # persist…
+  | add residential_buffers        # …and register the saved layer in the open project
+""")
+```
+
+…and the **same flow headless**:
+```
+$ niva run that_flow.niva
+# `add` step → "skipping add (no live QGIS session); the result was saved to out/res_buffers.gpkg"
+```
+
+### Issues this round surfaced
+| # | What surfaced | Verdict |
+|---|---------------|---------|
+| 29 | **`add` needs a live session.** Headless (`niva run`, CI) there's no project/canvas. | **spec'd** — headless `add` **warns and skips**; a flow whose **only** sink is `add` **errors** headless ("no persistent output; use `save`") (`03-§2.7`) |
+| 30 | **`add` registers a *temporary* layer** — a pipeline temp becomes a scratch project layer, **lost on QGIS close** unless also saved. | **spec'd** — `save … \| add` (or add a saved file) persists; documented (`03-§2.7`) |
+| 31 | **Are sinks terminal or pass-through?** `save … \| add` needs `save` to pass the layer on. | **decided** — **sinks pass through**: `save`/`add` return the current layer unchanged and **chain** (`03-§2.7`; `02-§2a` corrected) |
+| 32 | **Default name + styling.** What's the project layer called, and how is it styled? | **spec'd** — name defaults to the derived name (`add <name>` overrides); the layer gets QGIS's **default style** — **no niva styling verb in v1** (symbology is v2.x, `06-§6`) |
+| 33 | **Threading.** `add` mutates `QgsProject` — **main-thread only**; an `add`-flow can't run on a background `QgsTask` and blocks the GUI on long ops. | **noted** — plugin does heavy work on a task, the `add` on the main thread at the end (Oscar A9/L9) |
+| 34 | **`as_qgs()` across kinds.** `add` of a raster (e.g. a slope output) must return a `QgsRasterLayer`. | **ties to A10** — needs the vector/raster handle facet (`02-§3.1`) |
+
+---
+
 > **Pattern to take away:** every verb is *one positional for the main thing,
 > flags for on/off, `key=value` for the rest* — and `describe`/`--dry-run` always
 > show the real QGIS call underneath. Learn that shape once and all ~40 verbs read
-> the same. (Rasters add a wrinkle — §7; SQL is its own world — §8; `call` composes
-> files, not layers — §9; provenance survives all of it — §10.)
+> the same. (Rasters — §7; SQL — §8; `call` composes files — §9; provenance
+> survives all of it — §10; `add` needs a live QGIS — §11.)
