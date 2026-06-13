@@ -270,6 +270,31 @@ class Backend(ABC):
 - **Selection/override (v0.2, when a 2nd backend exists):** `niva.use_backend(...)`,
   env `NIVA_BACKEND`, CLI `--backend`. In v1 there is nothing to select.
 
+### 4.1 Standalone PyQGIS init — three non-obvious gotchas (learned building v0.1)
+
+`niva.engine.pyqgis.ensure_qgis()` reuses a running QGIS app or bootstraps a
+headless one. Getting a *standalone* `QgsApplication` to actually run `processing.run`
+took working around three PyQGIS lifetime/registration traps, all now handled in
+`ensure_qgis`/`_init_processing`. Documented here so they are not rediscovered:
+
+1. **`Processing.initialize()` alone leaves the registry empty** in this build
+   (QGIS 4.0.3): `processingRegistry().algorithms()` returns 0 and every
+   `native:*` lookup fails. Fix: explicitly
+   `addProvider(QgsNativeAlgorithms(reg))` (adds the 339 C++ algorithms), *then*
+   `Processing.initialize()` (adds the Python providers → 769). Inside a running
+   QGIS the `native` provider already exists, so this is guarded/idempotent.
+2. **The `QgsNativeAlgorithms` instance must be kept alive.** If it is
+   garbage-collected its algorithms vanish from the registry. niva gives it the
+   registry as Qt parent **and** holds a module reference (`_NATIVE_PROVIDER`).
+3. **The `QgsApplication` must be kept alive.** If the bootstrapped app is created
+   in a function and the return value is discarded, Python GC collects it and tears
+   down the *entire* Processing registry. niva holds it in `_QGIS_APP`.
+
+Plus a teardown trap: a standalone process **segfaults at interpreter shutdown**
+(Python GC races QGIS's C++ teardown). The CLI's owned-app path flushes output,
+calls `app.exitQgis()`, and `os._exit(code)` to exit cleanly with the right code.
+None of this affects the in-QGIS path (niva does not own the app there).
+
 ## 5. One spec per verb (drives grammar, API, CLI, help)
 
 A verb is declared once; the grammar binding, the Python function, the CLI subcommand,

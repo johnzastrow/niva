@@ -7,13 +7,20 @@ who don't want to write PyQGIS.**
 
 <img src="logos/logo_text.png" width="320" alt="niva">
 
-> ⚠️ **Early days — building has started.** The design is worked out in
-> [`planning/`](planning/) and the **v0.1 MVP is now under construction.** What
-> works today: the **grammar layer** (`niva/grammar/` — lexer + parser) with a
-> parse-only CLI and a passing test suite. What's *not* built yet: the registry
-> binding, the engine, and the PyQGIS backend — so niva **does not run
-> geoprocessing yet**. The grammar and architecture below are largely settled;
-> the rest is in progress. Expect change.
+> ⚠️ **Early days, but it runs.** The design is worked out in
+> [`planning/`](planning/) and the **v0.1 MVP now executes real geoprocessing.**
+> The full path works end to end — grammar → registry/binder → engine → **PyQGIS
+> backend** — so inside QGIS's Python you can already do:
+>
+> ```python
+> import niva
+> niva.flow("load roads.gpkg | filter \"type = 'primary'\" | buffer 100m dissolve | save out.gpkg")
+> ```
+>
+> Verified on QGIS 4.0.3 (64 tests pass under QGIS's Python; 59 on bare Python).
+> Still thin: a starter verb set (buffer, clip, dissolve, reproject, join,
+> zonalstats, filter, …), no `call` execution yet, and the API/CLI surface will
+> grow. The grammar and architecture are largely settled; expect additions.
 
 ## The idea
 
@@ -86,15 +93,18 @@ wrapper?). None of these are settled.
   - the **registry + binder** (`niva/registry/`, `07-alias-registry-design.md`) that
     maps verbs like `buffer`/`join`/`zonalstats` to real `native:*` algorithms and
     resolves a stage into the exact `processing.run` params;
-  - the **engine core** (`niva/engine/`, `05-architecture.md`) — runs a parsed flow
+  - the **engine core** (`niva/engine/`, `02-architecture.md`) — runs a parsed flow
     over a swappable `Backend`, threading one `Layer` handle down the pipe and
-    resolving distances against the layer CRS; QGIS-free and mock-backed today;
-  - a **CLI** (`niva/cli/`): prints the resolved algorithm + params, and with
-    `--dry-run` validates the whole flow over a mock backend.
+    resolving distances against the layer CRS;
+  - the **PyQGIS backend** (`niva/engine/pyqgis.py`) — drives `processing.run`
+    inside QGIS's interpreter; this is what makes niva actually run geoprocessing;
+  - the **Python API** (`niva.flow`, `niva.run_file`) and a **CLI** (`niva/cli/`):
+    executes for real by default, with `--dry-run` (mock backend) and `--explain`
+    (plan only) both QGIS-free.
 
-  The one piece left to make niva *run real geoprocessing* is the **PyQGIS
-  backend** — a thin adapter that drives `processing.run` inside QGIS's interpreter.
-  Run the tests with `python -m unittest discover -s tests` (59 passing).
+  Run the tests with `python -m unittest discover -s tests` (59 on bare Python;
+  64 under QGIS's Python, e.g. `PYTHONPATH=/usr/share/qgis/python python3 -m
+  unittest discover -s tests`).
 - **`examples/`** — an **illustrative** niva flow
   ([`youngstown_cat_canvassing.niva`](examples/youngstown_cat_canvassing.niva))
   that performs the `use_cases.md` workflow end to end in the proposed grammar.

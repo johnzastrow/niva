@@ -27,6 +27,31 @@ once it has releases.
   `qgis_process` + auto-selection move to v0.2. Updated across docs 00–05.
 
 ### Added
+- **v0.1 increment 4 — the PyQGIS backend: niva now runs real geoprocessing.**
+  (`niva/engine/pyqgis.py`, `niva/__init__.py`, `niva/cli/main.py`, planning 02-§4.)
+  - `PyqgisBackend` implements the four `Backend` methods against QGIS:
+    `load` → `QgsVectorLayer`/`QgsRasterLayer`; `run` → `processing.run` with the
+    upstream layer fed into the input param + `TEMPORARY_OUTPUT`, errors wrapped as
+    `OpError`; `save` → `QgsVectorFileWriter` (driver by extension); `crs_of` →
+    `CrsInfo` from the layer CRS (`isGeographic()` + metres-per-unit factor) so the
+    engine's distance resolution runs against the real CRS. All `qgis` imports are
+    lazy, so the package stays importable on any interpreter.
+  - `ensure_qgis()` reuses a running QGIS or bootstraps a headless one, working
+    around three standalone-PyQGIS traps (all in planning 02-§4.1): the Processing
+    registry is empty without an explicit `QgsNativeAlgorithms` provider, and both
+    that provider **and** the `QgsApplication` must be retained or GC tears the
+    registry down. The CLI's owned-app path hard-exits cleanly to dodge the
+    shutdown segfault.
+  - **Python API:** `niva.flow("…")` and `niva.run_file(path)` (default real
+    backend; pass `backend=MockBackend()` to dry-run without QGIS).
+  - **CLI now executes for real** by default; `--dry-run` (mock) and `--explain`
+    (plan only) remain QGIS-free.
+  - `tests/test_pyqgis.py` — **5 smoke tests** that run actual geoprocessing
+    (load→buffer→save produces a real polygon layer; 1km-buffer dissolve; filter;
+    the degrees-mismatch FlowError; bad-load OpError). They **skip cleanly** when
+    QGIS is absent, so the suite is 59-pass on bare `python3` and **64-pass under
+    QGIS's Python** (verified on QGIS 4.0.3 / Python 3.14, PyQGIS at
+    `/usr/share/qgis/python`).
 - **v0.1 increment 3 — the engine core** (`niva/engine/`, planning 05/06),
   QGIS-free and mock-backed so it is fully unit-testable with plain `python3`:
   - `layer.py` — the `Layer` handle (backing `kind`: source/qgs/db_table/memory +
