@@ -1,0 +1,6 @@
+# helper (called by 07_cat_territory.niva): build the cat's territory polygon
+load @@SHP@@
+  | reproject EPSG:26918
+  | buffer 50m dissolve
+  | metadata set title="Wandering cat territory" keywords=cat,territory
+  | save @@OUT@@/07_territory.gpkg

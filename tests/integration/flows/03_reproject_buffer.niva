@@ -1,0 +1,6 @@
+# reproject 4326 -> 26918 (metres), buffer + dissolve, then assess the OUTPUT
+load "@@GPKG@@|layername=ny_ytown_buildings"
+  | reproject EPSG:26918
+  | buffer 10m dissolve
+  | save @@OUT@@/03_buf.gpkg
+load "@@OUT@@/03_buf.gpkg" | assess to @@OUT@@/03_buf.md

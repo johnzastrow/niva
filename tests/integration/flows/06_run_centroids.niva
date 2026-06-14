@@ -1,0 +1,3 @@
+# the `run` escape hatch on an un-aliased algorithm; assess the OUTPUT
+load "@@GPKG@@|layername=gnis" | run native:centroids | save @@OUT@@/06_cent.gpkg
+load "@@OUT@@/06_cent.gpkg" | assess to @@OUT@@/06_cent.md

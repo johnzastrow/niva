@@ -115,9 +115,11 @@ class MockBackend(Backend):
             "geometry_type": "Point",
             "extent": {"xmin": 0.0, "ymin": 0.0, "xmax": 1.0, "ymax": 1.0},
             "fields": [{"name": "id", "type": "Integer"}],
+            "metadata": {"title": "", "abstract": "", "keywords": [], "history": []},
         }
         if deep:
-            prof.update(invalid_geometries=0, empty_geometries=0, null_counts={"id": 0})
+            prof.update(invalid_geometries=0, empty_geometries=0,
+                        duplicate_geometries=0, null_counts={"id": 0})
         return prof
 
     def set_metadata(self, layer: Layer, fields: dict) -> Layer:

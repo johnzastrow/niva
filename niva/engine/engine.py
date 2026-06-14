@@ -288,6 +288,21 @@ def _format_assessment(profile: dict, deep: bool) -> str:
         lines.append("- **Extent:** (empty / none)")
     lines.append("")
 
+    meta = profile.get("metadata") or {}
+    if any([meta.get("title"), meta.get("abstract"), meta.get("keywords"), meta.get("history")]):
+        lines += ["## Metadata", ""]
+        if meta.get("title"):
+            lines.append(f"- **Title:** {meta['title']}")
+        if meta.get("abstract"):
+            lines.append(f"- **Abstract:** {meta['abstract']}")
+        if meta.get("keywords"):
+            lines.append(f"- **Keywords:** {', '.join(meta['keywords'])}")
+        history = meta.get("history") or []
+        if history:
+            lines.append("- **Lineage:**")
+            lines += [f"    - {h}" for h in history]
+        lines.append("")
+
     fields = profile.get("fields")
     if fields is not None:
         lines += [f"## Fields ({len(fields)})", "", "| name | type |", "|------|------|"]
@@ -298,6 +313,7 @@ def _format_assessment(profile: dict, deep: bool) -> str:
         lines += ["## Quality checks", ""]
         lines.append(f"- **Invalid geometries:** {profile.get('invalid_geometries', 'n/a')}")
         lines.append(f"- **Empty geometries:** {profile.get('empty_geometries', 'n/a')}")
+        lines.append(f"- **Duplicate geometries:** {profile.get('duplicate_geometries', 'n/a')}")
         nulls = profile.get("null_counts") or {}
         if nulls:
             flagged = {k: v for k, v in nulls.items() if v}

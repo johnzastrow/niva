@@ -1,0 +1,6 @@
+# metadata + auto-lineage round-trip, verified through niva's own assess output:
+# set metadata, save, reload, assess — the report must echo Title + Lineage.
+load "@@GPKG@@|layername=gnis"
+  | metadata set title="GNIS names" keywords=names,gnis
+  | save @@OUT@@/05_gnis.gpkg
+load "@@OUT@@/05_gnis.gpkg" | assess to @@OUT@@/05_gnis.md

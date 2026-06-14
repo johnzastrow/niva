@@ -109,8 +109,10 @@ wrapper?). None of these are settled.
 
   **Tests:** `scripts/run_tests.sh` runs the unit suite (116 tests under QGIS's
   Python, incl. PyQGIS smoke tests; the PyQGIS ones skip cleanly on plain Python).
-  `tests/integration/run.sh` runs 10 proven end-to-end flows against real GIS data
-  (non-destructive; skips if QGIS or the data is absent).
+  `tests/integration/run.sh` runs the integration suite — which is written **in niva
+  itself** (`tests/integration/flows/*.niva`), executed via the real `niva run` CLI
+  against real GIS data and verified by grepping the `assess` reports niva produces
+  (19 checks; non-destructive; skips if QGIS or the data is absent).
 - **`examples/`** — an **illustrative** niva flow
   ([`youngstown_cat_canvassing.niva`](examples/youngstown_cat_canvassing.niva))
   that performs the `use_cases.md` workflow end to end in the proposed grammar.

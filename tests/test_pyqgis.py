@@ -101,6 +101,7 @@ class TestPyqgisBackend(unittest.TestCase):
         self.assertIn("| id |", report)                 # the fixture's field
         self.assertIn("## Quality checks", report)      # deep
         self.assertIn("**Invalid geometries:** 0", report)
+        self.assertIn("**Duplicate geometries:** 0", report)
 
     def test_lineage_written_to_history(self):
         import niva

@@ -1,0 +1,2 @@
+# assess: deep data-quality profile of a real polygon layer (~2790 parcels)
+load "@@GPKG@@|layername=parcels" | assess deep to @@OUT@@/01_parcels.md

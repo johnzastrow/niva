@@ -185,6 +185,18 @@ class PyqgisBackend(Backend):
             "valid": crs.isValid(),
         }
 
+    def _metadata_dict(self, ref) -> dict:
+        md = ref.metadata()
+        keywords = []
+        for words in md.keywords().values():
+            keywords.extend(words)
+        return {
+            "title": md.title(),
+            "abstract": md.abstract(),
+            "keywords": keywords,
+            "history": list(md.history()),
+        }
+
     def _extent_dict(self, ref):
         e = ref.extent()
         if e.isNull() or e.isEmpty():
@@ -205,23 +217,34 @@ class PyqgisBackend(Backend):
             "geometry_type": QgsWkbTypes.displayString(ref.wkbType()),
             "extent": self._extent_dict(ref),
             "fields": [{"name": f.name(), "type": f.typeName()} for f in fields],
+            "metadata": self._metadata_dict(ref),
         }
         if deep:
+            import hashlib
+
             from qgis.core import NULL
 
             names = [f.name() for f in fields]
-            invalid = empty = 0
+            invalid = empty = duplicates = 0
             nulls = {n: 0 for n in names}
+            seen = set()  # sha1(WKB) digests — bounds memory on big layers
             for feat in ref.getFeatures():
                 geom = feat.geometry()
                 if geom is None or geom.isEmpty():
                     empty += 1
-                elif not geom.isGeosValid():
-                    invalid += 1
+                else:
+                    if not geom.isGeosValid():
+                        invalid += 1
+                    digest = hashlib.sha1(bytes(geom.asWkb())).digest()
+                    if digest in seen:
+                        duplicates += 1
+                    else:
+                        seen.add(digest)
                 for n in names:
                     if feat[n] == NULL:
                         nulls[n] += 1
-            prof.update(invalid_geometries=invalid, empty_geometries=empty, null_counts=nulls)
+            prof.update(invalid_geometries=invalid, empty_geometries=empty,
+                        duplicate_geometries=duplicates, null_counts=nulls)
         return prof
 
     def _profile_raster(self, layer: Layer) -> dict:
@@ -234,6 +257,7 @@ class PyqgisBackend(Backend):
             "height": ref.height(),
             "bands": ref.bandCount(),
             "extent": self._extent_dict(ref),
+            "metadata": self._metadata_dict(ref),
         }
 
     def set_metadata(self, layer: Layer, fields: dict) -> Layer:

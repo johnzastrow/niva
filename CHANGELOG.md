@@ -13,19 +13,25 @@ once it has releases.
 ## [Unreleased]
 
 ### Added
-- **Test scripts + real-data validation.** Saved the proven tests as committed
-  scripts:
-  - `scripts/run_tests.sh` — runs the unit suite on QGIS's Python (falls back to
-    plain Python, where PyQGIS smoke tests skip). Reads unittest's own `OK`/`FAILED`
-    line so the QGIS interpreter-shutdown segfault can't clobber the exit code.
-  - `tests/integration/run.sh` + `integration_flows.py` — **10 proven end-to-end
-    flows against real GIS data** (the marimo_qgis 24-layer Youngstown GeoPackage +
-    a wandering-cat shapefile): assess deep, the degrees-mismatch guard, reproject/
-    buffer/dissolve, buffer-on-projected, clip-by-overlay, metadata + auto-lineage
-    round-trip, the `run` escape hatch, and the cat's line→territory buffer. Strictly
-    non-destructive (reads sources, writes only to a temp dir); data paths are
-    env-overridable (`NIVA_TEST_GPKG`/`NIVA_TEST_SHP`) and it SKIPs cleanly if QGIS
-    or the data is absent. **All 10 checks pass** on QGIS 4.0.3.
+- **`assess` now reports existing metadata/lineage and checks duplicate geometries.**
+  The report gains a **Metadata** section (title, abstract, keywords, and the
+  lineage/history — 08-§4's "any existing lineage"), and `deep` adds a
+  **duplicate-geometry** count (a topology check via WKB hashing) alongside the
+  invalid/empty/null checks. This also lets niva verify its own metadata round-trip
+  in pure niva (set → save → load → assess shows it).
+- **Integration tests are now niva scripts** (`tests/integration/flows/*.niva`),
+  run through the real `niva run` CLI against real GIS data and **self-verified by
+  grepping the `assess` reports niva produces** — the language tests itself.
+  `tests/integration/run.sh` substitutes the data/output paths, runs each flow
+  (asserting exit codes — incl. the degrees guard's exit 2), and checks the reports:
+  assess+topology, reproject/buffer/dissolve, clip-by-overlay (497 features),
+  metadata+lineage round-trip, the `run` escape hatch, and a `call`-composed cat
+  territory. **19/19 checks pass** on QGIS 4.0.3. Non-destructive, env-overridable
+  data paths, SKIPs cleanly when QGIS/data absent. (Replaces the earlier Python
+  integration driver.)
+- **`scripts/run_tests.sh`** — runs the unit suite on QGIS's Python (falls back to
+  plain Python, where the PyQGIS smoke tests skip). Reads unittest's own `OK`/`FAILED`
+  line so the QGIS interpreter-shutdown segfault can't clobber the exit code.
 - **v0.1 increment 11 — `describe`: introspection** (planning 11). Makes the `run`
   escape hatch discoverable. `niva describe <verb>` / `niva.describe("buffer")` shows
   how an alias maps to its QGIS algorithm (positionals, options with defaults/enums,

@@ -1,0 +1,3 @@
+# SAFETY: a linear distance on a geographic (EPSG:4326) layer must fail loud.
+# The runner expects this flow to EXIT 2 with "degrees" on stderr.
+load "@@GPKG@@|layername=ny_ytown_buildings" | buffer 10m | save @@OUT@@/02_nope.gpkg

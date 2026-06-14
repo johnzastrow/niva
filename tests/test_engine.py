@@ -169,6 +169,7 @@ class TestAssess(unittest.TestCase):
         self.assertTrue(backend.calls[-1] == ("assess", "a.gpkg", True))
         self.assertIn("## Quality checks", report)
         self.assertIn("Invalid geometries:", report)
+        self.assertIn("Duplicate geometries:", report)
 
     def test_assess_dashdeep_also_works(self):
         backend, _ = self._assess("load a.gpkg | assess --deep to {path}", "d2.md")
