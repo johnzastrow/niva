@@ -13,6 +13,19 @@ once it has releases.
 ## [Unreleased]
 
 ### Added
+- **Test scripts + real-data validation.** Saved the proven tests as committed
+  scripts:
+  - `scripts/run_tests.sh` — runs the unit suite on QGIS's Python (falls back to
+    plain Python, where PyQGIS smoke tests skip). Reads unittest's own `OK`/`FAILED`
+    line so the QGIS interpreter-shutdown segfault can't clobber the exit code.
+  - `tests/integration/run.sh` + `integration_flows.py` — **10 proven end-to-end
+    flows against real GIS data** (the marimo_qgis 24-layer Youngstown GeoPackage +
+    a wandering-cat shapefile): assess deep, the degrees-mismatch guard, reproject/
+    buffer/dissolve, buffer-on-projected, clip-by-overlay, metadata + auto-lineage
+    round-trip, the `run` escape hatch, and the cat's line→territory buffer. Strictly
+    non-destructive (reads sources, writes only to a temp dir); data paths are
+    env-overridable (`NIVA_TEST_GPKG`/`NIVA_TEST_SHP`) and it SKIPs cleanly if QGIS
+    or the data is absent. **All 10 checks pass** on QGIS 4.0.3.
 - **v0.1 increment 11 — `describe`: introspection** (planning 11). Makes the `run`
   escape hatch discoverable. `niva describe <verb>` / `niva.describe("buffer")` shows
   how an alias maps to its QGIS algorithm (positionals, options with defaults/enums,

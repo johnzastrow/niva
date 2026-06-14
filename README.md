@@ -107,9 +107,10 @@ wrapper?). None of these are settled.
     executes for real by default, with `--dry-run` (mock backend) and `--explain`
     (plan only) both QGIS-free.
 
-  Run the tests with `python -m unittest discover -s tests` (59 on bare Python;
-  64 under QGIS's Python, e.g. `PYTHONPATH=/usr/share/qgis/python python3 -m
-  unittest discover -s tests`).
+  **Tests:** `scripts/run_tests.sh` runs the unit suite (116 tests under QGIS's
+  Python, incl. PyQGIS smoke tests; the PyQGIS ones skip cleanly on plain Python).
+  `tests/integration/run.sh` runs 10 proven end-to-end flows against real GIS data
+  (non-destructive; skips if QGIS or the data is absent).
 - **`examples/`** — an **illustrative** niva flow
   ([`youngstown_cat_canvassing.niva`](examples/youngstown_cat_canvassing.niva))
   that performs the `use_cases.md` workflow end to end in the proposed grammar.
