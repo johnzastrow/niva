@@ -78,6 +78,15 @@ class TestPyqgisBackend(unittest.TestCase):
         niva.flow(f'load {self.src} | filter "id = 1" | save {out}')
         self.assertEqual(self._saved(out).featureCount(), 1)
 
+    def test_describe_real_algorithm(self):
+        import niva
+
+        out = niva.describe("native:buffer")
+        self.assertIn("native:buffer", out)
+        self.assertIn("DISTANCE", out)
+        self.assertIn("parameters:", out)
+        self.assertIn("outputs:", out)
+
     def test_assess_deep_real_layer(self):
         import niva
 

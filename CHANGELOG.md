@@ -13,6 +13,15 @@ once it has releases.
 ## [Unreleased]
 
 ### Added
+- **v0.1 increment 11 — `describe`: introspection** (planning 11). Makes the `run`
+  escape hatch discoverable. `niva describe <verb>` / `niva.describe("buffer")` shows
+  how an alias maps to its QGIS algorithm (positionals, options with defaults/enums,
+  flags) — pure, no QGIS. `niva describe <algorithm-id>` (anything with `:`)
+  introspects the live algorithm: parameters (name, type, optional, default) and
+  outputs — describe an algorithm, then `run` it. CLI `describe` subcommand +
+  `niva.describe()` API; the algorithm path tears QGIS down cleanly (no shutdown
+  segfault). **4 new tests** (103 bare / 116 under QGIS) incl. a real
+  `describe native:buffer`.
 - **v0.1 increment 10 — auto-lineage to metadata history** (planning 08-§3). Every
   `save` now records the niva stages that built the layer into the output's
   `QgsLayerMetadata.history` (prefixed `niva: `), so a saved layer carries its own

@@ -18,9 +18,12 @@ from __future__ import annotations
 
 __version__ = "0.1.0.dev0"
 
+from .describe import describe
 from .errors import FlowError, NivaError, OpError
 
-__all__ = ["__version__", "NivaError", "FlowError", "OpError", "flow", "run_file"]
+__all__ = [
+    "__version__", "NivaError", "FlowError", "OpError", "flow", "run_file", "describe",
+]
 
 
 def flow(text: str, *, backend=None, file: str | None = None):

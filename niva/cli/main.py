@@ -23,6 +23,7 @@ _REG = core_registry()
 _USAGE = (
     'usage: niva run <file.niva> [--dry-run|--explain]\n'
     '       niva "<flow>"        [--dry-run|--explain]\n'
+    "       niva describe <verb-or-algorithm-id>\n"
     "  (default executes via QGIS; --dry-run validates over a mock backend; "
     "--explain shows the plan)"
 )
@@ -38,6 +39,9 @@ def main(argv=None) -> int:
     if not argv or argv[0] in ("-h", "--help"):
         print(_USAGE)
         return 0
+
+    if argv[0] == "describe":
+        return _describe(argv[1:])
 
     try:
         source, text = _read_source(argv)
@@ -74,6 +78,34 @@ def _read_source(argv):
         with open(argv[1], encoding="utf-8") as fh:
             return argv[1], fh.read()
     return "<inline>", argv[0]
+
+
+def _describe(args) -> int:
+    if len(args) != 1:
+        print("usage: niva describe <verb-or-algorithm-id>", file=sys.stderr)
+        return 2
+    from .. import describe as _describe_fn
+
+    code = 0
+    try:
+        print(_describe_fn(args[0]))
+    except FlowError as exc:
+        print(f"niva: {exc}", file=sys.stderr)
+        code = 2
+    except ImportError as exc:
+        print(f"niva: describing an algorithm needs QGIS's Python [{exc}]", file=sys.stderr)
+        code = 3
+    # If describing an algorithm bootstrapped a standalone QGIS, tear it down and
+    # hard-exit with our code to dodge the interpreter-shutdown segfault (ensure_qgis).
+    from ..engine.pyqgis import owned_app
+
+    app = owned_app()
+    if app is not None:
+        sys.stdout.flush()
+        sys.stderr.flush()
+        app.exitQgis()
+        os._exit(code)
+    return code
 
 
 def _execute(program, base_dir=None) -> int:

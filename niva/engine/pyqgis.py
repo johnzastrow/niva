@@ -52,6 +52,41 @@ def ensure_qgis(prefix: str | None = None):
     return app, owns
 
 
+def owned_app():
+    """The QgsApplication niva created (standalone), or None if it reuses a running
+    QGIS. The CLI uses this to tear down cleanly before a hard exit."""
+    return _QGIS_APP
+
+
+def algorithm_info(algorithm_id: str):
+    """Introspect a QGIS algorithm by id for `describe`. Returns a plain dict, or
+    None if no such algorithm is installed. Assumes QGIS is already initialised."""
+    from qgis.core import QgsApplication, QgsProcessingParameterDefinition
+
+    alg = QgsApplication.processingRegistry().algorithmById(algorithm_id)
+    if alg is None:
+        return None
+    optional = QgsProcessingParameterDefinition.Flag.FlagOptional
+    params = [
+        {
+            "name": p.name(),
+            "type": p.type(),
+            "optional": bool(p.flags() & optional),
+            "default": p.defaultValue(),
+            "description": p.description(),
+        }
+        for p in alg.parameterDefinitions()
+    ]
+    outputs = [{"name": o.name(), "type": o.type()} for o in alg.outputDefinitions()]
+    return {
+        "id": alg.id(),
+        "display_name": alg.displayName(),
+        "provider": alg.provider().id(),
+        "params": params,
+        "outputs": outputs,
+    }
+
+
 def _init_processing():
     from qgis.core import QgsApplication
 
