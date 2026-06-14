@@ -78,6 +78,23 @@ class TestPyqgisBackend(unittest.TestCase):
         niva.flow(f'load {self.src} | filter "id = 1" | save {out}')
         self.assertEqual(self._saved(out).featureCount(), 1)
 
+    def test_metadata_set_persists_to_file(self):
+        import niva
+
+        out = os.path.join(self.tmp, "meta.gpkg")
+        niva.flow(
+            f'load {self.src} | metadata set title="Cat homes" '
+            f'abstract="Targets in Youngstown" keywords=cats,canvass | save {out}'
+        )
+        from qgis.core import QgsVectorLayer
+
+        reloaded = QgsVectorLayer(f"{out}|layername=meta", "m", "ogr")
+        self.assertTrue(reloaded.isValid())
+        md = reloaded.metadata()
+        self.assertEqual(md.title(), "Cat homes")
+        self.assertEqual(md.abstract(), "Targets in Youngstown")
+        self.assertEqual(md.keywords().get("keywords"), ["cats", "canvass"])
+
     def test_run_escape_hatch_real_algorithm(self):
         # `run` a native algorithm by id (not aliased), piped from the loaded layer.
         import niva

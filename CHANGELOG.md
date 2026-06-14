@@ -13,6 +13,15 @@ once it has releases.
 ## [Unreleased]
 
 ### Added
+- **v0.1 increment 8 — `metadata set`** (planning 08-§3). Attach descriptive
+  metadata to the current layer and persist it on the next `save`:
+  `metadata set title="…" abstract="…" keywords=a,b,c` (also `identifier`, `license`).
+  A pass-through stage — sets `QgsLayerMetadata` in memory; `save` writes it to the
+  file (GPKG/SpatiaLite via an explicit layer name + `saveDefaultMetadata`, falling
+  back to a `.qmd` sidecar). Unknown fields are a FlowError. `save` now sets a layer
+  name on multilayer outputs so metadata can be persisted and reloaded. **6 new
+  tests** (92 bare / 102 under QGIS) incl. a real round-trip (write title/abstract/
+  keywords → reopen → verify).
 - **v0.1 increment 7 — database connections: `@conn` loading + `sql`** (planning 02,
   `niva/engine/connections.py`). niva reaches databases through **named QGIS
   connections** the user already configured:

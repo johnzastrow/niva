@@ -45,6 +45,11 @@ class Backend(abc.ABC):
         ``None`` if the algorithm produces no pipeable layer (e.g. a folder export)."""
 
     @abc.abstractmethod
+    def set_metadata(self, layer: Layer, fields: dict) -> Layer:
+        """Attach descriptive metadata (title/abstract/keywords/…) to ``layer`` and
+        return it (a pass-through). Persisted to disk by the next ``save``."""
+
+    @abc.abstractmethod
     def save(self, layer: Layer, dest: str) -> Layer:
         """Write ``layer`` to ``dest`` and return a handle to the written file."""
 
@@ -89,6 +94,10 @@ class MockBackend(Backend):
         self.calls.append(("sql", conn, query))
         self._n += 1
         return Layer(MEMORY, f"sql-{self._n}", facet="vector", name="sql")
+
+    def set_metadata(self, layer: Layer, fields: dict) -> Layer:
+        self.calls.append(("metadata", fields))
+        return layer
 
     def save(self, layer: Layer, dest: str) -> Layer:
         self.calls.append(("save", dest))

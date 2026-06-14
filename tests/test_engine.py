@@ -116,6 +116,33 @@ class TestRunEscapeHatch(unittest.TestCase):
         self.assertEqual(backend.calls[1][1], "native:multiparttosingleparts")
 
 
+class TestMetadata(unittest.TestCase):
+    def test_metadata_set_passes_fields_and_is_passthrough(self):
+        backend, _ = run(
+            'load a.gpkg | metadata set title="Cats" keywords=a,b abstract="x" | save o.gpkg'
+        )
+        meta = next(c for c in backend.calls if c[0] == "metadata")
+        self.assertEqual(meta[1], {"title": "Cats", "keywords": "a,b", "abstract": "x"})
+        self.assertEqual([c[0] for c in backend.calls], ["load", "metadata", "save"])
+
+    def test_metadata_needs_a_layer(self):
+        with self.assertRaises(FlowError):
+            run('metadata set title="x"')
+
+    def test_metadata_requires_set_subcommand(self):
+        with self.assertRaises(FlowError):
+            run('load a | metadata get')
+
+    def test_metadata_requires_fields(self):
+        with self.assertRaises(FlowError):
+            run("load a | metadata set")
+
+    def test_metadata_rejects_unknown_field(self):
+        with self.assertRaises(FlowError) as ctx:
+            run('load a | metadata set colour=red')
+        self.assertIn("colour", str(ctx.exception))
+
+
 class TestErrors(unittest.TestCase):
     def test_unknown_verb(self):
         with self.assertRaises(FlowError) as ctx:

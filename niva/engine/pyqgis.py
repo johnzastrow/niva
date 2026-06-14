@@ -135,6 +135,23 @@ class PyqgisBackend(Backend):
                 return Layer(SOURCE, out, facet="vector", name=os.path.basename(out))
         return Layer(MEMORY, out, facet=self._facet(out), name=algorithm)
 
+    def set_metadata(self, layer: Layer, fields: dict) -> Layer:
+        md = layer.ref.metadata()
+        for key, value in fields.items():
+            if key == "title":
+                md.setTitle(value)
+            elif key == "abstract":
+                md.setAbstract(value)
+            elif key == "keywords":
+                md.setKeywords({"keywords": [k.strip() for k in value.split(",") if k.strip()]})
+            elif key == "identifier":
+                md.setIdentifier(value)
+            elif key in ("license", "licence"):
+                md.setLicenses([value])
+            # unknown keys are rejected by the engine before we get here
+        layer.ref.setMetadata(md)
+        return layer
+
     def save(self, layer: Layer, dest: str) -> Layer:
         # Use QgsVectorFileWriter directly rather than a Processing algorithm: it is
         # the canonical write API, picks the driver from the extension, and does not
@@ -147,10 +164,15 @@ class PyqgisBackend(Backend):
                 algorithm="save", params={"dest": dest}, backend="pyqgis",
             )
         dest = str(dest)
+        ext = os.path.splitext(dest)[1]
+        name = os.path.splitext(os.path.basename(dest))[0]
+        multilayer = ext.lower() in (".gpkg", ".sqlite", ".db")
         options = QgsVectorFileWriter.SaveVectorOptions()
-        driver = QgsVectorFileWriter.driverForExtension(os.path.splitext(dest)[1])
+        driver = QgsVectorFileWriter.driverForExtension(ext)
         if driver:
             options.driverName = driver
+        if multilayer:  # a known layer name is needed to persist metadata later
+            options.layerName = name
         err = QgsVectorFileWriter.writeAsVectorFormatV3(
             layer.ref, dest, QgsProject.instance().transformContext(), options
         )
@@ -159,7 +181,28 @@ class PyqgisBackend(Backend):
                 f"could not write `{dest}`: {err[1]}",
                 algorithm="save", params={"dest": dest}, backend="pyqgis",
             )
+        self._persist_metadata(layer, dest, name, multilayer)
         return Layer(SOURCE, dest, facet="vector", name=os.path.basename(dest))
+
+    def _persist_metadata(self, layer: Layer, dest: str, name: str, multilayer: bool) -> None:
+        """Carry the source layer's metadata onto the written file (best effort).
+        Only runs when something was actually set, so a plain save stays cheap."""
+        getter = getattr(layer.ref, "metadata", None)
+        if not callable(getter):  # ref is a path string, not a live layer
+            return
+        md = getter()
+        if not (md.title() or md.abstract() or md.keywords()):
+            return
+        from qgis.core import QgsVectorLayer
+
+        uri = f"{dest}|layername={name}" if multilayer else dest
+        out = QgsVectorLayer(uri, name, "ogr")
+        if not out.isValid():
+            return
+        out.setMetadata(md)
+        ok, _msg = out.saveDefaultMetadata()
+        if not ok:  # fall back to a .qmd sidecar
+            out.saveNamedMetadata(os.path.splitext(dest)[0] + ".qmd")
 
     # --- database connections (credentials stay in QGIS's store) -------------
 

@@ -77,6 +77,8 @@ class Engine:
             return self._save(stage, current)
         if verb == "sql":
             return self._sql(stage)
+        if verb == "metadata":
+            return self._metadata(stage, current)
         if verb == "run":
             return self._run_raw(stage, current)
 
@@ -152,6 +154,33 @@ class Engine:
             )
         return self.backend.save(current, stage.args[0])
 
+    def _metadata(self, stage, current: Layer | None) -> Layer:
+        # `metadata set key=value …` — attach descriptive metadata to the current
+        # layer; persisted to disk by the next `save` (08-§3).
+        if current is None:
+            raise FlowError(
+                "`metadata` sets metadata on the current layer — load one first",
+                line=stage.line, stage=stage.raw,
+            )
+        if stage.args != ["set"]:
+            raise FlowError(
+                '`metadata` supports one form: `metadata set key=value …`',
+                line=stage.line, stage=stage.raw,
+            )
+        if not stage.options:
+            raise FlowError(
+                '`metadata set` needs at least one field, e.g. `title="…"`',
+                line=stage.line, stage=stage.raw,
+            )
+        unknown = [k for k in stage.options if k not in _METADATA_FIELDS]
+        if unknown:
+            raise FlowError(
+                f"`metadata set`: unknown field(s) {', '.join(unknown)} — supported: "
+                + ", ".join(sorted(_METADATA_FIELDS)),
+                line=stage.line, stage=stage.raw,
+            )
+        return self.backend.set_metadata(current, dict(stage.options))
+
     def _run_raw(self, stage, current: Layer | None) -> Layer | None:
         # `run <algorithm> KEY=value …` — the escape hatch (07-§8). Params are passed
         # to the algorithm verbatim (no registry, no alias). Values are best-effort
@@ -183,6 +212,9 @@ class Engine:
             key: (resolve_distance(value, crs, stage=stage) if isinstance(value, Distance) else value)
             for key, value in params.items()
         }
+
+
+_METADATA_FIELDS = {"title", "abstract", "keywords", "identifier", "license"}
 
 
 def _scalar(value: str):
