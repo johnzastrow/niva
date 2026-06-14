@@ -13,6 +13,15 @@ once it has releases.
 ## [Unreleased]
 
 ### Added
+- **v0.1 increment 9 — `assess`: data-quality reports** (planning 08-§4). A
+  signature niva feature — provenance/quality as a byproduct.
+  `assess [deep] to <report.md>` profiles the current layer and writes a markdown
+  report (overview: type/feature-count/CRS-set?/extent; full field schema). `deep`
+  adds quality checks: invalid + empty geometry counts and per-field null counts.
+  A pass-through stage (profile, then keep piping). Backend returns a structured
+  profile dict (so markdown formatting is unit-tested with a mock); PyQGIS inspects
+  the real layer (vector full, raster basic). **11 new tests** (97 bare / 108 under
+  QGIS) incl. a real `assess deep` that catches a null value and reports it.
 - **v0.1 increment 8 — `metadata set`** (planning 08-§3). Attach descriptive
   metadata to the current layer and persist it on the next `save`:
   `metadata set title="…" abstract="…" keywords=a,b,c` (also `identifier`, `license`).

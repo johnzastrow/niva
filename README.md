@@ -20,11 +20,12 @@ who don't want to write PyQGIS.**
 > Verified on QGIS 4.0.3 (73 tests pass under QGIS's Python; 68 on bare Python).
 > Multi-file flows compose via `call` (resolved relative to the calling file, with
 > cycle detection); the `run <algorithm> KEY=value` escape hatch reaches **any**
-> QGIS algorithm; and databases are reached through named QGIS connections
+> QGIS algorithm; databases are reached through named QGIS connections
 > (`load @conn.table`, `sql @conn "SELECT …"`) — credentials stay in QGIS, niva
-> never sees them. Still thin: a starter verb set (buffer, clip, dissolve, reproject,
-> join, zonalstats, filter, fix, explode, centroid, …) that will grow, plus more
-> API/CLI surface. The grammar and architecture are largely settled; expect additions.
+> never sees them; `metadata set` and `assess` make provenance/quality a byproduct.
+> Still thin: a starter verb set (buffer, clip, dissolve, reproject, join,
+> zonalstats, filter, fix, explode, centroid, …) that will grow, plus more API/CLI
+> surface. The grammar and architecture are largely settled; expect additions.
 
 ## The idea
 

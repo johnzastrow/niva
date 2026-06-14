@@ -78,6 +78,21 @@ class TestPyqgisBackend(unittest.TestCase):
         niva.flow(f'load {self.src} | filter "id = 1" | save {out}')
         self.assertEqual(self._saved(out).featureCount(), 1)
 
+    def test_assess_deep_real_layer(self):
+        import niva
+
+        report_path = os.path.join(self.tmp, "quality.md")
+        niva.flow(f"load {self.src} | assess deep to {report_path}")
+        self.assertTrue(os.path.exists(report_path))
+        with open(report_path, encoding="utf-8") as fh:
+            report = fh.read()
+        self.assertIn("# Data quality assessment", report)
+        self.assertIn("**Features:** 2", report)        # the fixture has 2 points
+        self.assertIn("EPSG:3857", report)
+        self.assertIn("| id |", report)                 # the fixture's field
+        self.assertIn("## Quality checks", report)      # deep
+        self.assertIn("**Invalid geometries:** 0", report)
+
     def test_metadata_set_persists_to_file(self):
         import niva
 

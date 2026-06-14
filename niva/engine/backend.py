@@ -45,6 +45,13 @@ class Backend(abc.ABC):
         ``None`` if the algorithm produces no pipeable layer (e.g. a folder export)."""
 
     @abc.abstractmethod
+    def profile(self, layer: Layer, deep: bool = False) -> dict:
+        """Profile ``layer`` for a data-quality report (08-§4): feature count,
+        geometry type, CRS, extent, field schema, and — with ``deep`` — invalid/
+        empty geometry counts and per-field null counts. Returns a plain dict; the
+        engine formats and writes the markdown."""
+
+    @abc.abstractmethod
     def set_metadata(self, layer: Layer, fields: dict) -> Layer:
         """Attach descriptive metadata (title/abstract/keywords/…) to ``layer`` and
         return it (a pass-through). Persisted to disk by the next ``save``."""
@@ -94,6 +101,21 @@ class MockBackend(Backend):
         self.calls.append(("sql", conn, query))
         self._n += 1
         return Layer(MEMORY, f"sql-{self._n}", facet="vector", name="sql")
+
+    def profile(self, layer: Layer, deep: bool = False) -> dict:
+        self.calls.append(("assess", layer.name, deep))
+        prof = {
+            "name": layer.name,
+            "facet": layer.facet,
+            "crs": {"authid": "EPSG:3857", "geographic": False, "valid": True},
+            "feature_count": 2,
+            "geometry_type": "Point",
+            "extent": {"xmin": 0.0, "ymin": 0.0, "xmax": 1.0, "ymax": 1.0},
+            "fields": [{"name": "id", "type": "Integer"}],
+        }
+        if deep:
+            prof.update(invalid_geometries=0, empty_geometries=0, null_counts={"id": 0})
+        return prof
 
     def set_metadata(self, layer: Layer, fields: dict) -> Layer:
         self.calls.append(("metadata", fields))

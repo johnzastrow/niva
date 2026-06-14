@@ -135,6 +135,72 @@ class PyqgisBackend(Backend):
                 return Layer(SOURCE, out, facet="vector", name=os.path.basename(out))
         return Layer(MEMORY, out, facet=self._facet(out), name=algorithm)
 
+    # --- data-quality profiling (assess, 08-§4) ------------------------------
+
+    def profile(self, layer: Layer, deep: bool = False) -> dict:
+        if layer.facet == "raster":
+            return self._profile_raster(layer)
+        return self._profile_vector(layer, deep)
+
+    def _crs_dict(self, ref) -> dict:
+        crs = ref.crs()
+        return {
+            "authid": crs.authid() or "(none)",
+            "geographic": crs.isGeographic(),
+            "valid": crs.isValid(),
+        }
+
+    def _extent_dict(self, ref):
+        e = ref.extent()
+        if e.isNull() or e.isEmpty():
+            return None
+        return {"xmin": e.xMinimum(), "ymin": e.yMinimum(),
+                "xmax": e.xMaximum(), "ymax": e.yMaximum()}
+
+    def _profile_vector(self, layer: Layer, deep: bool) -> dict:
+        from qgis.core import QgsWkbTypes
+
+        ref = layer.ref
+        fields = ref.fields()
+        prof = {
+            "name": ref.name() or layer.name,
+            "facet": "vector",
+            "crs": self._crs_dict(ref),
+            "feature_count": ref.featureCount(),
+            "geometry_type": QgsWkbTypes.displayString(ref.wkbType()),
+            "extent": self._extent_dict(ref),
+            "fields": [{"name": f.name(), "type": f.typeName()} for f in fields],
+        }
+        if deep:
+            from qgis.core import NULL
+
+            names = [f.name() for f in fields]
+            invalid = empty = 0
+            nulls = {n: 0 for n in names}
+            for feat in ref.getFeatures():
+                geom = feat.geometry()
+                if geom is None or geom.isEmpty():
+                    empty += 1
+                elif not geom.isGeosValid():
+                    invalid += 1
+                for n in names:
+                    if feat[n] == NULL:
+                        nulls[n] += 1
+            prof.update(invalid_geometries=invalid, empty_geometries=empty, null_counts=nulls)
+        return prof
+
+    def _profile_raster(self, layer: Layer) -> dict:
+        ref = layer.ref
+        return {
+            "name": ref.name() or layer.name,
+            "facet": "raster",
+            "crs": self._crs_dict(ref),
+            "width": ref.width(),
+            "height": ref.height(),
+            "bands": ref.bandCount(),
+            "extent": self._extent_dict(ref),
+        }
+
     def set_metadata(self, layer: Layer, fields: dict) -> Layer:
         md = layer.ref.metadata()
         for key, value in fields.items():

@@ -143,6 +143,46 @@ class TestMetadata(unittest.TestCase):
         self.assertIn("colour", str(ctx.exception))
 
 
+class TestAssess(unittest.TestCase):
+    def _assess(self, flow, fname):
+        import os
+        import tempfile
+
+        d = tempfile.mkdtemp(prefix="niva_assess_")
+        path = os.path.join(d, fname)
+        backend = MockBackend()
+        Engine(backend).execute(parse(flow.format(path=path)))
+        with open(path, encoding="utf-8") as fh:
+            return backend, fh.read()
+
+    def test_assess_writes_report_and_is_passthrough(self):
+        backend, report = self._assess("load a.gpkg | assess to {path} | save o.gpkg", "r.md")
+        self.assertEqual([c[0] for c in backend.calls], ["load", "assess", "save"])
+        self.assertIn("# Data quality assessment", report)
+        self.assertIn("Features:", report)
+        self.assertIn("EPSG:3857", report)
+        self.assertIn("| id | Integer |", report)
+        self.assertNotIn("## Quality checks", report)  # not deep
+
+    def test_assess_deep_adds_quality_section(self):
+        backend, report = self._assess("load a.gpkg | assess deep to {path}", "d.md")
+        self.assertTrue(backend.calls[-1] == ("assess", "a.gpkg", True))
+        self.assertIn("## Quality checks", report)
+        self.assertIn("Invalid geometries:", report)
+
+    def test_assess_dashdeep_also_works(self):
+        backend, _ = self._assess("load a.gpkg | assess --deep to {path}", "d2.md")
+        self.assertTrue(backend.calls[-1][2] is True)
+
+    def test_assess_needs_to_destination(self):
+        with self.assertRaises(FlowError):
+            run("load a | assess")
+
+    def test_assess_needs_a_layer(self):
+        with self.assertRaises(FlowError):
+            run("assess to r.md")
+
+
 class TestErrors(unittest.TestCase):
     def test_unknown_verb(self):
         with self.assertRaises(FlowError) as ctx:
