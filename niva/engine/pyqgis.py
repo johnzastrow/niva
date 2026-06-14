@@ -21,7 +21,7 @@ import sys
 
 from ..errors import OpError
 from .backend import Backend
-from .layer import MEMORY, SOURCE, CrsInfo, Layer
+from .layer import DB_TABLE, MEMORY, SOURCE, CrsInfo, Layer
 
 # Retained module-side so neither object is garbage-collected after creation:
 # a dropped QgsApplication tears down the whole Processing registry, and a dropped
@@ -160,6 +160,71 @@ class PyqgisBackend(Backend):
                 algorithm="save", params={"dest": dest}, backend="pyqgis",
             )
         return Layer(SOURCE, dest, facet="vector", name=os.path.basename(dest))
+
+    # --- database connections (credentials stay in QGIS's store) -------------
+
+    def _find_connection(self, name: str):
+        """Locate a named connection across all DB providers. Returns
+        ``(metadata, connection)`` or raises OpError. Never touches credentials —
+        QGIS owns them; we resolve by name only."""
+        from qgis.core import QgsProviderRegistry
+
+        reg = QgsProviderRegistry.instance()
+        for provider in reg.providerList():
+            md = reg.providerMetadata(provider)
+            if md is None:
+                continue
+            try:
+                conns = md.connections(False)  # {name: connection}; raises on non-DB providers
+            except Exception:
+                continue
+            if name in conns:
+                return md, conns[name]
+        raise OpError(
+            f"no saved QGIS connection named `{name}` — configure it in QGIS first",
+            algorithm="connection", params={"connection": name}, backend="pyqgis",
+        )
+
+    def load_table(self, conn: str, schema: str | None, table: str) -> Layer:
+        from qgis.core import QgsVectorLayer
+
+        md, connection = self._find_connection(conn)
+        try:
+            uri = connection.tableUri(schema or "", table)
+        except Exception as exc:
+            raise OpError(
+                f"connection `{conn}` cannot reference table `{table}`: {exc}",
+                algorithm="load", params={"connection": conn, "table": table}, backend="pyqgis",
+            ) from exc
+        layer = QgsVectorLayer(uri, table, md.key())
+        if not layer.isValid():
+            raise OpError(
+                f"could not load table `{table}` from connection `{conn}`",
+                algorithm="load", params={"connection": conn, "table": table}, backend="pyqgis",
+            )
+        return Layer(DB_TABLE, layer, facet="vector", name=table)
+
+    def run_sql(self, conn: str, query: str) -> Layer:
+        from qgis.core import QgsAbstractDatabaseProviderConnection as DbConn
+
+        _md, connection = self._find_connection(conn)
+        options = DbConn.SqlVectorLayerOptions()
+        options.sql = query
+        try:
+            layer = connection.createSqlVectorLayer(options)
+        except Exception as exc:
+            # The connection name is logged; the query text is not (it stays in the
+            # provider). No credentials are ever in scope here.
+            raise OpError(
+                f"SQL query against connection `{conn}` failed: {exc}",
+                algorithm="sql", params={"connection": conn}, backend="pyqgis",
+            ) from exc
+        if layer is None or not layer.isValid():
+            raise OpError(
+                f"SQL query against connection `{conn}` produced no valid layer",
+                algorithm="sql", params={"connection": conn}, backend="pyqgis",
+            )
+        return Layer(MEMORY, layer, facet="vector", name="sql")
 
     def crs_of(self, layer: Layer) -> CrsInfo:
         from qgis.core import Qgis, QgsUnitTypes

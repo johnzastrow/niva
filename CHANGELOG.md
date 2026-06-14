@@ -13,6 +13,20 @@ once it has releases.
 ## [Unreleased]
 
 ### Added
+- **v0.1 increment 7 — database connections: `@conn` loading + `sql`** (planning 02,
+  `niva/engine/connections.py`). niva reaches databases through **named QGIS
+  connections** the user already configured:
+  - `load @conn.table` / `load @conn.schema.table` — load a DB table as a layer.
+  - `sql @conn "SELECT …"` — run a query and get a result (query) layer back, pipeable.
+  - **Security boundary:** niva passes only the connection *name* to the backend,
+    which resolves host/credentials from QGIS's own connection store. niva never
+    sees, stores, logs, or transmits credentials (global CLAUDE.md §1/§14); the SQL
+    text is not logged either (it stays in the provider). `_find_connection` searches
+    all DB providers by name; `load_table` uses `tableUri`, `run_sql` uses
+    `createSqlVectorLayer` (the provider parameterises — no string-built creds).
+  - **13 new tests** (87 bare / 96 under QGIS) incl. real SpatiaLite smoke tests
+    (`load @conn.homes`, `sql @conn "…WHERE id=1"`) that register a temp connection
+    and clean it up, plus an unknown-connection → OpError check.
 - **v0.1 increment 6 — the `run` escape hatch + `explode` alias** (planning 07-§8).
   `run <algorithm> KEY=value …` reaches **any** QGIS algorithm with no curated alias
   — the long tail the example needs (gdal, grass, pdal, native). Implemented as an

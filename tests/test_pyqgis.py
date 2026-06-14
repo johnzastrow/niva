@@ -108,5 +108,70 @@ class TestPyqgisBackend(unittest.TestCase):
             niva.flow(f"load {self.tmp}/does_not_exist.gpkg | save {self.tmp}/x.gpkg")
 
 
+class TestPyqgisConnections(unittest.TestCase):
+    """Real SpatiaLite connection: load @conn.table and sql @conn "…"."""
+
+    CONN = "niva_smoke_sl"
+
+    def setUp(self):
+        from qgis.core import (QgsFeature, QgsGeometry, QgsPointXY, QgsProject,
+                               QgsProviderRegistry, QgsVectorFileWriter, QgsVectorLayer)
+
+        self.tmp = tempfile.mkdtemp(prefix="niva_sl_")
+        self.db = os.path.join(self.tmp, "test.sqlite")
+        vl = QgsVectorLayer("Point?crs=EPSG:4326&field=id:integer&field=name:string",
+                            "t", "memory")
+        pr = vl.dataProvider()
+        for i, nm in [(1, "a"), (2, "b")]:
+            f = QgsFeature()
+            f.setGeometry(QgsGeometry.fromPointXY(QgsPointXY(i, i)))
+            f.setAttributes([i, nm])
+            pr.addFeature(f)
+        vl.updateExtents()
+        opts = QgsVectorFileWriter.SaveVectorOptions()
+        opts.driverName = "SpatiaLite"
+        opts.layerName = "homes"
+        QgsVectorFileWriter.writeAsVectorFormatV3(
+            vl, self.db, QgsProject.instance().transformContext(), opts
+        )
+        self.md = QgsProviderRegistry.instance().providerMetadata("spatialite")
+        connection = self.md.createConnection(f"dbname='{self.db}'", {})
+        self.md.saveConnection(connection, self.CONN)
+
+    def tearDown(self):
+        try:
+            self.md.deleteConnection(self.CONN)  # don't pollute the user's QGIS profile
+        except Exception:
+            pass
+
+    def _saved(self, path):
+        from qgis.core import QgsVectorLayer
+
+        layer = QgsVectorLayer(path, "out", "ogr")
+        self.assertTrue(layer.isValid(), f"{path} did not load")
+        return layer
+
+    def test_load_table_from_connection(self):
+        import niva
+
+        out = os.path.join(self.tmp, "tbl.gpkg")
+        niva.flow(f"load @{self.CONN}.homes | save {out}")
+        self.assertEqual(self._saved(out).featureCount(), 2)
+
+    def test_sql_query_layer(self):
+        import niva
+
+        out = os.path.join(self.tmp, "q.gpkg")
+        niva.flow(f'sql @{self.CONN} "SELECT * FROM homes WHERE id = 1" | save {out}')
+        self.assertEqual(self._saved(out).featureCount(), 1)
+
+    def test_unknown_connection_is_operror(self):
+        import niva
+        from niva.errors import OpError
+
+        with self.assertRaises(OpError):
+            niva.flow(f"load @no_such_conn_xyz.homes | save {self.tmp}/x.gpkg")
+
+
 if __name__ == "__main__":
     unittest.main()

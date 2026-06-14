@@ -12,13 +12,23 @@ from __future__ import annotations
 
 import abc
 
-from .layer import MEMORY, SOURCE, CrsInfo, Layer
+from .layer import DB_TABLE, MEMORY, SOURCE, CrsInfo, Layer
 
 
 class Backend(abc.ABC):
     @abc.abstractmethod
     def load(self, source: str, *, facet: str = "vector") -> Layer:
         """Open a source (path/URI) and return a handle to it."""
+
+    @abc.abstractmethod
+    def load_table(self, conn: str, schema: str | None, table: str) -> Layer:
+        """Load a table from the named QGIS connection ``conn``. Credentials come
+        from QGIS's connection store — the name is all niva passes through."""
+
+    @abc.abstractmethod
+    def run_sql(self, conn: str, query: str) -> Layer:
+        """Run ``query`` against the named QGIS connection and return the result as
+        a query layer."""
 
     @abc.abstractmethod
     def run(self, algorithm: str, params: dict, *, input_param: str,
@@ -69,6 +79,16 @@ class MockBackend(Backend):
         self._n += 1
         facet = input_layer.facet if input_layer is not None else "vector"
         return Layer(MEMORY, f"result-{self._n}", facet=facet, name=algorithm)
+
+    def load_table(self, conn: str, schema: str | None, table: str) -> Layer:
+        self.calls.append(("load_table", conn, schema, table))
+        ref = f"@{conn}." + (f"{schema}.{table}" if schema else table)
+        return Layer(DB_TABLE, ref, facet="vector", name=table)
+
+    def run_sql(self, conn: str, query: str) -> Layer:
+        self.calls.append(("sql", conn, query))
+        self._n += 1
+        return Layer(MEMORY, f"sql-{self._n}", facet="vector", name="sql")
 
     def save(self, layer: Layer, dest: str) -> Layer:
         self.calls.append(("save", dest))

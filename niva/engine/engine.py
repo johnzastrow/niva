@@ -15,6 +15,7 @@ from ..grammar import Call, Flow, parse
 from ..registry import bind, core_registry
 from ..values import Distance
 from .backend import Backend
+from .connections import is_connection_ref, parse_connection_ref
 from .layer import Layer
 from .units import resolve_distance
 
@@ -74,6 +75,8 @@ class Engine:
             return self._load(stage)
         if verb == "save":
             return self._save(stage, current)
+        if verb == "sql":
+            return self._sql(stage)
         if verb == "run":
             return self._run_raw(stage, current)
 
@@ -98,10 +101,43 @@ class Engine:
     def _load(self, stage) -> Layer:
         if len(stage.args) != 1 or stage.options:
             raise FlowError(
-                "`load` takes one source: `load <path-or-uri>`",
+                "`load` takes one source: `load <path-or-uri>` or `load @conn.table`",
                 line=stage.line, stage=stage.raw,
             )
-        return self.backend.load(stage.args[0])
+        source = stage.args[0]
+        if is_connection_ref(source):
+            try:
+                conn, schema, table = parse_connection_ref(source)
+            except ValueError as exc:
+                raise FlowError(f"`load`: {exc}", line=stage.line, stage=stage.raw)
+            if table is None:
+                raise FlowError(
+                    f"`load @conn.table` needs a table — `{source}` is a bare "
+                    "connection (use `sql @conn \"…\"` to query it)",
+                    line=stage.line, stage=stage.raw,
+                )
+            return self.backend.load_table(conn, schema, table)
+        return self.backend.load(source)
+
+    def _sql(self, stage) -> Layer:
+        if len(stage.args) != 2 or stage.options:
+            raise FlowError(
+                '`sql` takes a connection and a query: `sql @conn "SELECT …"`',
+                line=stage.line, stage=stage.raw,
+            )
+        ref, query = stage.args
+        if not is_connection_ref(ref):
+            raise FlowError(
+                f'`sql` needs a connection first: `sql @conn "…"` (got `{ref}`)',
+                line=stage.line, stage=stage.raw,
+            )
+        conn, schema, table = parse_connection_ref(ref)
+        if schema or table:
+            raise FlowError(
+                f"`sql` takes a bare connection `@{conn}`, not a table reference (`{ref}`)",
+                line=stage.line, stage=stage.raw,
+            )
+        return self.backend.run_sql(conn, query)
 
     def _save(self, stage, current: Layer | None) -> Layer:
         if current is None:
