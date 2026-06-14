@@ -90,10 +90,10 @@ def _footer(slide, n):
     # thin accent rule
     rule = _box(slide, 0.0, 7.18, SW, 0.06)
     _fill(rule, TAN)
-    _text(slide, 0.55, 7.06, 6, 0.4,
-          [[("niva", {"bold": True, "color": DEEP}), ("  ·  Easy wins every time", {"color": MIST})]],
-          size=11)
-    _text(slide, SW - 1.55, 7.06, 1.0, 0.4, str(n), size=11, color=MIST, align=PP_ALIGN.RIGHT)
+    _text(slide, 0.55, 7.04, 6, 0.4,
+          [[("niva", {"bold": True, "color": DEEP}), ("  ·  Easy wins every time", {"color": DEEP})]],
+          size=12)
+    _text(slide, SW - 1.55, 7.04, 1.0, 0.4, str(n), size=12, color=DEEP, bold=True, align=PP_ALIGN.RIGHT)
 
 
 def content_slide(prs, title, eyebrow=None):
@@ -355,7 +355,80 @@ for i, (h, b) in enumerate(vals):
     _text(s, x + 0.35, y + 0.66, cw - 0.5, 0.6, b, size=15.5, color=SAGE)
 _footer(s, 15)
 
-# ---- 16. CTA ------------------------------------------------------------
+# ---- 16. STATUS — WHAT'S BUILT -----------------------------------------
+s = content_slide(prs, "What's working today", eyebrow="Status · built and tested")
+_text(s, 0.85, 1.55, 11.6, 0.5,
+      [[("niva is pre-release (v0.1) — but the core already runs real analysis "
+         "end-to-end, on QGIS's own algorithms:", {"size": 17, "color": SAGE})]])
+status_cards = [
+    ("Grammar & engine", DEEP, [
+        "Readable lexer + parser → pipeline stages",
+        "Pipe-chaining engine: layer handles, results",
+        "PyQGIS backend — runs real geoprocessing",
+    ]),
+    ("Verb coverage", TAN, [
+        "~40-verb registry (Tier 1 + Tier 2 aliases)",
+        "9 core built-ins (load · save · filter · compute …)",
+        "sql read passthrough (SELECT → layer)",
+        "run — reach ANY QGIS algorithm",
+    ]),
+    ("Provenance & quality", DEEP, [
+        "Operation log / run journal — auto-recorded",
+        "assess — profile inputs before you trust them",
+    ]),
+    ("Composition & delivery", TAN, [
+        "call — compose flows across files (cycle-safe)",
+        "CLI + Python / Marimo API (--explain, --dry-run)",
+        "80 tests passing under QGIS · headless CI",
+    ]),
+]
+cw, ch, gx, gy = 5.8, 2.25, 0.25, 0.2
+x0 = (SW - (cw * 2 + gx)) / 2
+for i, (ctitle, accent, items) in enumerate(status_cards):
+    col, row = i % 2, i // 2
+    x = x0 + col * (cw + gx)
+    y = 2.2 + row * (ch + gy)
+    card = _box(s, x, y, cw, ch)
+    _fill(card, LIGHT)
+    bar = _box(s, x, y, cw, 0.16)
+    _fill(bar, accent)
+    _text(s, x + 0.3, y + 0.3, cw - 0.6, 0.4, ctitle, size=17, color=DEEP, bold=True)
+    paras = [[("✓  ", {"color": DEEP, "bold": True, "size": 14}),
+              (it, {"color": SAGE, "size": 14})] for it in items]
+    _text(s, x + 0.3, y + 0.82, cw - 0.55, ch - 0.92, paras, line_spacing=1.3)
+_footer(s, 16)
+
+# ---- 17. ROADMAP — REMAINING MILESTONES --------------------------------
+s = content_slide(prs, "The road ahead", eyebrow="Roadmap · remaining milestones")
+spine = _box(s, 1.62, 2.1, 0.04, 4.35)
+_fill(spine, TAN)
+milestones = [
+    ("v0.1", "Core engine & MVP",
+     "Grammar · PyQGIS backend · ~40 verbs · assess · run / call", "finishing now"),
+    ("v0.2", "Breadth & provenance",
+     "Tier-2 + raster verbs · auto-lineage → metadata · richer filter · qgis_process backend · docs", None),
+    ("v1.0", "Stable release",
+     "Grammar freeze (SemVer) · PyPI publish · worked Marimo–QGIS integration", None),
+    ("v2.0", "Power features",
+     "Named intermediates & variables · SQL writes · quality rules & constraints", None),
+    ("v2.x", "Front ends & service mode",
+     "QGIS plugin / Processing-Toolbox · service / daemon mode · layout & symbology export", None),
+]
+ry, rh = 2.0, 1.02
+for ver, mtitle, sub, tag in milestones:
+    pill = _box(s, 1.0, ry, 1.25, 0.5)
+    _fill(pill, DEEP)
+    _text(s, 1.0, ry, 1.25, 0.5, ver, size=18, color=WHITE, bold=True,
+          align=PP_ALIGN.CENTER, anchor=MSO_ANCHOR.MIDDLE)
+    head = [[(mtitle, {"size": 18, "color": INK, "bold": True})]]
+    if tag:
+        head[0].append(("   " + tag, {"size": 13, "color": PAIN, "bold": True, "italic": True}))
+    _text(s, 2.6, ry - 0.04, 10.4, 0.4, head)
+    _text(s, 2.6, ry + 0.4, 10.4, 0.5, sub, size=13.5, color=SAGE)
+    ry += rh
+_footer(s, 17)
+
+# ---- 18. CTA ------------------------------------------------------------
 s = prs.slides.add_slide(prs.slide_layouts[6])
 _bg_white(s)
 band = _box(s, 0, 0, SW, SH)

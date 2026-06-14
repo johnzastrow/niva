@@ -195,6 +195,35 @@ A whole pipeline on one line — that a non-programmer can **write and read** �
 
 ---
 
+> Status · built and tested
+
+# What's working today
+
+<p class="lead">niva is pre-release (v0.1) — but the core already runs real analysis end-to-end, on QGIS's own algorithms:</p>
+
+<div class="cols">
+<div class="card"><h3>Grammar &amp; engine</h3><p>✓ Readable lexer + parser → pipeline stages<br>✓ Pipe-chaining engine: layer handles, results<br>✓ PyQGIS backend — runs real geoprocessing</p></div>
+<div class="card warm"><h3>Verb coverage</h3><p>✓ ~40-verb registry (Tier 1 + Tier 2)<br>✓ 9 core built-ins (load · save · filter · compute …)<br>✓ <code>sql</code> read passthrough (SELECT → layer)<br>✓ <code>run</code> — reach ANY QGIS algorithm</p></div>
+</div>
+<div class="cols">
+<div class="card"><h3>Provenance &amp; quality</h3><p>✓ Operation log / run journal — auto-recorded<br>✓ <code>assess</code> — profile inputs before you trust them</p></div>
+<div class="card warm"><h3>Composition &amp; delivery</h3><p>✓ <code>call</code> — compose flows across files (cycle-safe)<br>✓ CLI + Python / Marimo API (<code>--explain</code>, <code>--dry-run</code>)<br>✓ 80 tests passing under QGIS · headless CI</p></div>
+</div>
+
+---
+
+> Roadmap · remaining milestones
+
+# The road ahead
+
+- **v0.1 — Core engine & MVP** <span class="tan">· finishing now</span><br><span class="lead">Grammar · PyQGIS backend · ~40 verbs · assess · run / call</span>
+- **v0.2 — Breadth & provenance**<br><span class="lead">Tier-2 + raster verbs · auto-lineage → metadata · richer filter · qgis_process backend · docs</span>
+- **v1.0 — Stable release**<br><span class="lead">Grammar freeze (SemVer) · PyPI publish · worked Marimo–QGIS integration</span>
+- **v2.0 — Power features**<br><span class="lead">Named intermediates & variables · SQL writes · quality rules & constraints</span>
+- **v2.x — Front ends & service mode**<br><span class="lead">QGIS plugin / Processing-Toolbox · service / daemon mode · layout & symbology export</span>
+
+---
+
 <!-- _class: dark center -->
 <!-- _footer: '' -->
 
