@@ -7,9 +7,12 @@
 #           per-canvasser handouts; leave a fully documented data repository.
 # Source  : planning/use_cases.md  (the 9 steps below mirror it 1:1)
 #
-# STATUS  : ILLUSTRATIVE. niva is a design proposal (see planning/); this grammar
-#           is NOT yet runnable. This file shows what the workflow would look like
-#           in niva so the design can be reviewed against a real task.
+# STATUS  : RUNS (v0.1). The niva grammar now executes — see niva/ and CHANGELOG.
+#           The native / gdal / `sql @conn` / `assess` / `metadata` / `save`
+#           (with auto-lineage) steps run today against QGIS 4.x. The geocode
+#           (Nominatim, needs network), PDAL, GRASS, and atlas-export steps run too
+#           IF those providers are installed and the source data is present — they
+#           go through the `run <id> KEY=value` escape hatch, no curated alias needed.
 #
 # RULES this example demonstrates:
 #   · native-first provider preference (07-§12.1): native > gdal > qgis > pdal >

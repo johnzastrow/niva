@@ -93,6 +93,19 @@ class TestPyqgisBackend(unittest.TestCase):
         self.assertIn("## Quality checks", report)      # deep
         self.assertIn("**Invalid geometries:** 0", report)
 
+    def test_lineage_written_to_history(self):
+        import niva
+
+        out = os.path.join(self.tmp, "lineage.gpkg")
+        niva.flow(f"load {self.src} | buffer 100m dissolve | save {out}")
+        from qgis.core import QgsVectorLayer
+
+        reloaded = QgsVectorLayer(f"{out}|layername=lineage", "l", "ogr")
+        self.assertTrue(reloaded.isValid())
+        history = reloaded.metadata().history()
+        self.assertTrue(any("buffer 100m dissolve" in h for h in history), history)
+        self.assertTrue(any(h.startswith("niva:") for h in history), history)
+
     def test_metadata_set_persists_to_file(self):
         import niva
 

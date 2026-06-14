@@ -183,6 +183,24 @@ class TestAssess(unittest.TestCase):
             run("assess to r.md")
 
 
+class TestLineage(unittest.TestCase):
+    def test_save_receives_build_lineage(self):
+        backend, _ = run("load roads.gpkg | reproject EPSG:2262 | buffer 100m dissolve | save out.gpkg")
+        self.assertEqual(
+            backend.last_lineage,
+            ["load roads.gpkg", "reproject EPSG:2262", "buffer 100m dissolve"],
+        )
+
+    def test_lineage_excludes_the_save_stage_itself(self):
+        backend, _ = run("load a.gpkg | save b.gpkg")
+        self.assertEqual(backend.last_lineage, ["load a.gpkg"])
+
+    def test_second_save_accumulates_intermediate_stages(self):
+        backend, _ = run("load a.gpkg | save b.gpkg\n\nload c.gpkg | buffer 5m | save d.gpkg")
+        # last_lineage reflects the most recent save (second flow)
+        self.assertEqual(backend.last_lineage, ["load c.gpkg", "buffer 5m"])
+
+
 class TestErrors(unittest.TestCase):
     def test_unknown_verb(self):
         with self.assertRaises(FlowError) as ctx:

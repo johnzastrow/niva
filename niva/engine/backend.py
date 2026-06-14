@@ -57,8 +57,10 @@ class Backend(abc.ABC):
         return it (a pass-through). Persisted to disk by the next ``save``."""
 
     @abc.abstractmethod
-    def save(self, layer: Layer, dest: str) -> Layer:
-        """Write ``layer`` to ``dest`` and return a handle to the written file."""
+    def save(self, layer: Layer, dest: str, lineage: list | None = None) -> Layer:
+        """Write ``layer`` to ``dest`` and return a handle to the written file.
+        ``lineage`` is the list of niva stages that built the layer; the backend
+        records them into the output's metadata history (08-§3)."""
 
     @abc.abstractmethod
     def crs_of(self, layer: Layer) -> CrsInfo:
@@ -73,6 +75,7 @@ class MockBackend(Backend):
     def __init__(self, crs: CrsInfo | None = None):
         self.crs = crs or CrsInfo("EPSG:3857", is_geographic=False, units_to_meters=1.0)
         self.calls: list = []
+        self.last_lineage: list = []
         self._n = 0
 
     def load(self, source: str, *, facet: str = "vector") -> Layer:
@@ -121,8 +124,9 @@ class MockBackend(Backend):
         self.calls.append(("metadata", fields))
         return layer
 
-    def save(self, layer: Layer, dest: str) -> Layer:
+    def save(self, layer: Layer, dest: str, lineage: list | None = None) -> Layer:
         self.calls.append(("save", dest))
+        self.last_lineage = list(lineage) if lineage else []
         return Layer(SOURCE, dest, facet=layer.facet, name=dest)
 
     def crs_of(self, layer: Layer) -> CrsInfo:

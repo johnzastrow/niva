@@ -63,18 +63,20 @@ class Engine:
 
     def run_flow(self, flow: Flow) -> Layer | None:
         current: Layer | None = None
+        lineage: list = []  # niva stages that built `current`, for save → history
         for stage in flow.stages:
-            current = self._run_stage(stage, current)
+            current = self._run_stage(stage, current, lineage)
+            lineage.append((stage.raw or stage.verb).strip())
         return current
 
     # --- per-stage dispatch --------------------------------------------------
 
-    def _run_stage(self, stage, current: Layer | None) -> Layer | None:
+    def _run_stage(self, stage, current: Layer | None, lineage: list) -> Layer | None:
         verb = stage.verb
         if verb == "load":
             return self._load(stage)
         if verb == "save":
-            return self._save(stage, current)
+            return self._save(stage, current, lineage)
         if verb == "sql":
             return self._sql(stage)
         if verb == "metadata":
@@ -143,7 +145,7 @@ class Engine:
             )
         return self.backend.run_sql(conn, query)
 
-    def _save(self, stage, current: Layer | None) -> Layer:
+    def _save(self, stage, current: Layer | None, lineage: list) -> Layer:
         if current is None:
             raise FlowError(
                 "`save` has nothing to save — the flow has not loaded a layer yet",
@@ -154,7 +156,7 @@ class Engine:
                 "`save` takes one destination: `save <path>`",
                 line=stage.line, stage=stage.raw,
             )
-        return self.backend.save(current, stage.args[0])
+        return self.backend.save(current, stage.args[0], lineage=lineage)
 
     def _metadata(self, stage, current: Layer | None) -> Layer:
         # `metadata set key=value …` — attach descriptive metadata to the current

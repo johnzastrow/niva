@@ -13,6 +13,15 @@ once it has releases.
 ## [Unreleased]
 
 ### Added
+- **v0.1 increment 10 — auto-lineage to metadata history** (planning 08-§3). Every
+  `save` now records the niva stages that built the layer into the output's
+  `QgsLayerMetadata.history` (prefixed `niva: `), so a saved layer carries its own
+  reproducible recipe — provenance as a byproduct, with no extra verbs. The engine
+  accumulates each flow's stage text and passes it to `save`; the PyQGIS backend
+  appends history items (alongside any descriptive `metadata set` fields) and writes
+  them with `saveDefaultMetadata` (`.qmd` sidecar fallback). **4 new tests** (100
+  bare / 112 under QGIS) incl. a real round-trip reading the recipe back out of the
+  saved GeoPackage. The Youngstown example header updated: **RUNS (v0.1)**.
 - **v0.1 increment 9 — `assess`: data-quality reports** (planning 08-§4). A
   signature niva feature — provenance/quality as a byproduct.
   `assess [deep] to <report.md>` profiles the current layer and writes a markdown

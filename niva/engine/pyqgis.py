@@ -218,7 +218,7 @@ class PyqgisBackend(Backend):
         layer.ref.setMetadata(md)
         return layer
 
-    def save(self, layer: Layer, dest: str) -> Layer:
+    def save(self, layer: Layer, dest: str, lineage: list | None = None) -> Layer:
         # Use QgsVectorFileWriter directly rather than a Processing algorithm: it is
         # the canonical write API, picks the driver from the extension, and does not
         # depend on the Processing registry being populated.
@@ -247,17 +247,18 @@ class PyqgisBackend(Backend):
                 f"could not write `{dest}`: {err[1]}",
                 algorithm="save", params={"dest": dest}, backend="pyqgis",
             )
-        self._persist_metadata(layer, dest, name, multilayer)
+        self._persist_metadata(layer, dest, name, multilayer, lineage)
         return Layer(SOURCE, dest, facet="vector", name=os.path.basename(dest))
 
-    def _persist_metadata(self, layer: Layer, dest: str, name: str, multilayer: bool) -> None:
-        """Carry the source layer's metadata onto the written file (best effort).
-        Only runs when something was actually set, so a plain save stays cheap."""
+    def _persist_metadata(self, layer: Layer, dest: str, name: str,
+                          multilayer: bool, lineage: list | None) -> None:
+        """Carry the source layer's descriptive metadata onto the written file and
+        record the niva lineage into its history (08-§3). Best effort; runs only when
+        there is something to write (descriptive fields or lineage)."""
         getter = getattr(layer.ref, "metadata", None)
-        if not callable(getter):  # ref is a path string, not a live layer
-            return
-        md = getter()
-        if not (md.title() or md.abstract() or md.keywords()):
+        md = getter() if callable(getter) else None
+        has_descriptive = bool(md and (md.title() or md.abstract() or md.keywords()))
+        if not has_descriptive and not lineage:
             return
         from qgis.core import QgsVectorLayer
 
@@ -265,7 +266,10 @@ class PyqgisBackend(Backend):
         out = QgsVectorLayer(uri, name, "ogr")
         if not out.isValid():
             return
-        out.setMetadata(md)
+        target = md if md is not None else out.metadata()
+        for entry in lineage or []:
+            target.addHistoryItem(f"niva: {entry}")
+        out.setMetadata(target)
         ok, _msg = out.saveDefaultMetadata()
         if not ok:  # fall back to a .qmd sidecar
             out.saveNamedMetadata(os.path.splitext(dest)[0] + ".qmd")
