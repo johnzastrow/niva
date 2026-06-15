@@ -7,6 +7,12 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Fixed
+- **Plugin: Qt6 scoped-enum crash opening the dock.** `Qt.RightDockWidgetArea`
+  (Qt5) is `Qt.DockWidgetArea.RightDockWidgetArea` in Qt6 (QGIS 4), so the toolbar
+  button raised `AttributeError`. Resolved both ways; the `QFont.StyleHint` hint is
+  guarded too. Rebuild/reinstall `niva_qgis.zip`.
+
 ### Added
 - **QGIS plugin on-ramp** (`plugin/`). A dock to write or open a `.niva` flow and
   **Run** it in the current QGIS session — a saved output lands on the map; a

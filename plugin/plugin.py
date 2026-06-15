@@ -19,6 +19,13 @@ except ImportError:  # pragma: no cover — Qt6 path
 PLUGIN_DIR = os.path.dirname(os.path.abspath(__file__))
 ICON_PATH = os.path.join(PLUGIN_DIR, "icon.svg")
 
+# Qt6 (QGIS 4) scopes enums (Qt.DockWidgetArea.RightDockWidgetArea); Qt5 (QGIS 3)
+# exposes them flat (Qt.RightDockWidgetArea). Resolve once, both ways.
+try:
+    _RIGHT_DOCK = Qt.DockWidgetArea.RightDockWidgetArea
+except AttributeError:  # pragma: no cover — Qt5 path
+    _RIGHT_DOCK = Qt.RightDockWidgetArea
+
 
 class NivaPlugin:
     MENU = "&niva"
@@ -51,7 +58,7 @@ class NivaPlugin:
             from .dock import NivaDock
 
             self.dock = NivaDock(self.iface)
-            self.iface.addDockWidget(Qt.RightDockWidgetArea, self.dock)
+            self.iface.addDockWidget(_RIGHT_DOCK, self.dock)
             self.dock.visibilityChanged.connect(self._sync_action)
         else:
             self.dock.setVisible(not self.dock.isVisible())

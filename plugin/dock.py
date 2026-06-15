@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import os
 
-from qgis.PyQt.QtCore import Qt
 from qgis.PyQt.QtGui import QFont
 from qgis.PyQt.QtWidgets import (
     QDockWidget,
@@ -131,5 +130,8 @@ class NivaDock(QDockWidget):
 
 def _mono() -> QFont:
     font = QFont("monospace")
-    font.setStyleHint(QFont.StyleHint.Monospace)
+    try:
+        font.setStyleHint(QFont.StyleHint.Monospace)  # Qt6 (QGIS 4)
+    except AttributeError:  # pragma: no cover — Qt5 (QGIS 3)
+        font.setStyleHint(QFont.Monospace)
     return font
