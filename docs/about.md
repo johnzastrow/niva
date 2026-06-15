@@ -34,7 +34,7 @@ load roads.gpkg | buffer 100 dissolve | clip city.gpkg | save roads_local.gpkg
 
 ## Status & open questions
 
-niva **runs** (v0.1.0): the full path — grammar → registry/binder → engine → PyQGIS
+niva **runs** (v0.2.0): the full path — grammar → registry/binder → engine → PyQGIS
 backend — executes real geoprocessing, validated against real GIS data on QGIS 4.0.3
 (122 unit + 19 niva-script integration checks). The verb set is still a starter set
 and will grow.

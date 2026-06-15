@@ -15,7 +15,7 @@ load roads.gpkg | buffer 100m dissolve | clip city.gpkg | save roads_local.gpkg
 niva turns QGIS automation from a PyQGIS programming task into a line of text a
 GUI-first analyst can write *and* read. It runs in QGIS's own Python, reaches **any**
 of its ~769 algorithms, talks to your databases, and records provenance as it goes —
-with near-zero dependencies. **v0.1.0 runs real geoprocessing**, validated on real
+with near-zero dependencies. **v0.2.0 runs real geoprocessing**, validated on real
 data (122 unit + 19 integration checks on QGIS 4.0.3).
 
 ## Quick start

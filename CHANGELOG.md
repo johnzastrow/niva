@@ -7,7 +7,20 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-06-15
+
+Plugin maturity + observability: a Setup tab, a timestamped run journal (human +
+machine), configurable logging, and QGIS-4/Qt6 fixes. (Engine/grammar unchanged from
+0.1.0.)
+
 ### Added
+- **Plugin: configurable run logging (Setup tab).** A "Write a log for each run"
+  toggle + a log-folder field (with Browse), persisted in QGIS settings
+  (`niva/log_enabled`, `niva/log_dir`). The dock passes the folder to the runner; the
+  environment report shows the effective setting. (Of niva's three env vars, only
+  `NIVA_LOG` is meaningful in-plugin — now exposed as a setting; `QGIS_PREFIX_PATH`
+  and `QT_QPA_PLATFORM` only affect the standalone CLI bootstrap, so they're not in
+  the UI.)
 - **Plugin: a Setup tab** showing the environment a niva user cares about — niva
   version + where it's imported from (bundled vs pip), built-in + aliased verbs, the
   number of algorithms `run` can reach + the Processing providers, the available

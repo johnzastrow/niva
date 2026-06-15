@@ -9,13 +9,16 @@ serial within a process anyway).
 from __future__ import annotations
 
 import os
+import tempfile
 
 from qgis.PyQt.QtGui import QFont, QPalette
 from qgis.PyQt.QtWidgets import (
+    QCheckBox,
     QDockWidget,
     QFileDialog,
     QHBoxLayout,
     QLabel,
+    QLineEdit,
     QPlainTextEdit,
     QPushButton,
     QTabWidget,
@@ -25,6 +28,14 @@ from qgis.PyQt.QtWidgets import (
 )
 
 from . import environment, runner
+
+# Persisted settings keys (QgsSettings) and the default run-log folder.
+_LOG_ENABLED_KEY = "niva/log_enabled"
+_LOG_DIR_KEY = "niva/log_dir"
+
+
+def default_log_dir() -> str:
+    return os.path.join(tempfile.gettempdir(), "niva_logs")
 
 _SAMPLE = """\
 # Edit this flow, then click Run — it executes in this QGIS session.
@@ -78,9 +89,35 @@ class NivaDock(QDockWidget):
         return tab
 
     def _build_setup_tab(self) -> QWidget:
+        from qgis.core import QgsSettings
+
         tab = QWidget(self)
         layout = QVBoxLayout(tab)
 
+        # --- Settings: where (and whether) to write a run log ----------------
+        settings = QgsSettings()
+        self.log_enabled = QCheckBox("Write a log for each run", tab)
+        self.log_enabled.setChecked(settings.value(_LOG_ENABLED_KEY, True, type=bool))
+        self.log_enabled.toggled.connect(
+            lambda v: QgsSettings().setValue(_LOG_ENABLED_KEY, v)
+        )
+        layout.addWidget(self.log_enabled)
+
+        row = QHBoxLayout()
+        row.addWidget(QLabel("Log folder:", tab))
+        self.log_dir = QLineEdit(
+            settings.value(_LOG_DIR_KEY, default_log_dir(), type=str), tab
+        )
+        self.log_dir.editingFinished.connect(
+            lambda: QgsSettings().setValue(_LOG_DIR_KEY, self.log_dir.text())
+        )
+        browse = QPushButton("Browse…", tab)
+        browse.clicked.connect(self._browse_log_dir)
+        row.addWidget(self.log_dir)
+        row.addWidget(browse)
+        layout.addLayout(row)
+
+        # --- the environment report ------------------------------------------
         self.setup_view = QTextBrowser(tab)
         _recede(self.setup_view)  # a read-only report — blend with the dialog
         layout.addWidget(self.setup_view, 1)
@@ -97,6 +134,23 @@ class NivaDock(QDockWidget):
 
         self._refresh_setup()
         return tab
+
+    def _browse_log_dir(self):
+        from qgis.core import QgsSettings
+
+        chosen = QFileDialog.getExistingDirectory(self, "Run-log folder", self.log_dir.text())
+        if chosen:
+            self.log_dir.setText(chosen)
+            QgsSettings().setValue(_LOG_DIR_KEY, chosen)
+
+    def _log_dir_for_run(self):
+        """The configured log folder, or None when logging is disabled."""
+        from qgis.core import QgsSettings
+
+        s = QgsSettings()
+        if not s.value(_LOG_ENABLED_KEY, True, type=bool):
+            return None
+        return s.value(_LOG_DIR_KEY, default_log_dir(), type=str) or default_log_dir()
 
     def _refresh_setup(self):
         try:
@@ -142,8 +196,9 @@ class NivaDock(QDockWidget):
     def _execute(self, *, dry_run: bool):
         text = self.editor.toPlainText()
         self._log(f"$ niva {'--dry-run' if dry_run else 'run'}")
+        log_dir = None if dry_run else self._log_dir_for_run()
         try:
-            result = runner.run_flow(text, file=self.path, dry_run=dry_run)
+            result = runner.run_flow(text, file=self.path, dry_run=dry_run, log_dir=log_dir)
         except Exception as exc:  # safety net — never let the dock crash QGIS
             self._log(f"niva: unexpected error: {exc}")
             return

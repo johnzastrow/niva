@@ -66,6 +66,15 @@ def _processing():
     return sorted(p.id() for p in reg.providers()), len(reg.algorithms())
 
 
+def _log_setting():
+    """(enabled, folder) for run logging, from QGIS settings (plugin-configurable)."""
+    from qgis.core import QgsSettings
+
+    default = os.path.join(tempfile.gettempdir(), "niva_logs")
+    s = QgsSettings()
+    return s.value("niva/log_enabled", True, type=bool), s.value("niva/log_dir", default, type=str)
+
+
 def _connections():
     """{connection name: provider} across all DB providers — the usable `@conn`s."""
     from qgis.core import QgsProviderRegistry
@@ -102,7 +111,13 @@ def report_markdown() -> str:
         add(f"- Source: {'bundled with this plugin' if vendored else 'pip-installed'}")
     except Exception as exc:  # noqa: BLE001
         add(f"- niva not importable: {exc}")
-    add(f"- Run journals: `{os.path.join(tempfile.gettempdir(), 'niva_logs')}`")
+    setting = _safe(_log_setting, default=None)
+    if isinstance(setting, tuple):
+        enabled, folder = setting
+        add(f"- Run journals: {'on' if enabled else 'off'} → `{folder}` "
+            "(configurable above)")
+    else:
+        add(f"- Run journals: `{os.path.join(tempfile.gettempdir(), 'niva_logs')}`")
     add("")
 
     # verbs + reachable algorithms
