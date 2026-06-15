@@ -24,6 +24,8 @@ _USAGE = (
     'usage: niva run <file.niva> [--dry-run|--explain]\n'
     '       niva "<flow>"        [--dry-run|--explain]\n'
     "       niva describe <verb-or-algorithm-id>\n"
+    "       niva export <file.niva> [-o <file.py>]\n"
+    "       niva import <file.py>   [-o <file.niva>]\n"
     "  (default executes via QGIS; --dry-run validates over a mock backend; "
     "--explain shows the plan)"
 )
@@ -47,6 +49,8 @@ def main(argv=None) -> int:
 
     if argv[0] == "describe":
         return _describe(argv[1:])
+    if argv[0] in ("export", "import"):
+        return _convert(argv[0], argv[1:])
 
     try:
         source, text = _read_source(argv)
@@ -83,6 +87,50 @@ def _read_source(argv):
         with open(argv[1], encoding="utf-8") as fh:
             return argv[1], fh.read()
     return "<inline>", argv[0]
+
+
+def _convert(kind: str, args) -> int:
+    """`niva export <file.niva>` → PyQGIS .py; `niva import <file.py>` → .niva.
+    Writes to ``-o <out>`` or stdout. Import warnings go to stderr (non-fatal)."""
+    out = None
+    if "-o" in args:
+        i = args.index("-o")
+        out = args[i + 1] if i + 1 < len(args) else None
+        args = args[:i] + args[i + 2:]
+    if len(args) != 1 or out is False:
+        print(f"usage: niva {kind} <file> [-o <output>]", file=sys.stderr)
+        return 2
+
+    from ..transpile import export_script, import_script
+
+    try:
+        with open(args[0], encoding="utf-8") as fh:
+            text = fh.read()
+    except OSError as exc:
+        print(f"niva: {exc}", file=sys.stderr)
+        return 3
+
+    if kind == "export":
+        result = export_script(
+            text, source_name=os.path.basename(args[0]),
+            out_name=os.path.basename(out) if out else "out.py", file=args[0],
+        )
+    else:  # import
+        result, warnings = import_script(text)
+        for w in warnings:
+            print(f"niva import: {w}", file=sys.stderr)
+        if not result.strip():
+            print("niva import: no processing.run(...) calls found — nothing to import",
+                  file=sys.stderr)
+            return 1
+
+    if out:
+        with open(out, "w", encoding="utf-8") as fh:
+            fh.write(result)
+        print(f"niva: wrote {out}", file=sys.stderr)
+    else:
+        sys.stdout.write(result)
+    return 0
 
 
 def _describe(args) -> int:

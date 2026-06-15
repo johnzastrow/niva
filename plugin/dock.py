@@ -57,10 +57,11 @@ class NivaDock(QDockWidget):
         self._session_id = datetime.now().strftime("%Y%m%d-%H%M%S-%f")
         self.setObjectName("NivaDock")
 
-        tabs = QTabWidget(self)
-        tabs.addTab(self._build_flow_tab(), "Flow")
-        tabs.addTab(self._build_setup_tab(), "Setup")
-        self.setWidget(tabs)
+        self.tabs = QTabWidget(self)
+        self.tabs.addTab(self._build_flow_tab(), "Flow")
+        self.tabs.addTab(self._build_convert_tab(), "Convert")
+        self.tabs.addTab(self._build_setup_tab(), "Setup")
+        self.setWidget(self.tabs)
 
     def _build_flow_tab(self) -> QWidget:
         tab = QWidget(self)
@@ -99,6 +100,53 @@ class NivaDock(QDockWidget):
         self.output.setFont(_mono())
         _recede(self.output)
         layout.addWidget(self.output, 2)
+        return tab
+
+    def _build_convert_tab(self) -> QWidget:
+        tab = QWidget(self)
+        layout = QVBoxLayout(tab)
+
+        note = QLabel(
+            "<b>Export</b> turns the flow in the Flow tab into a standalone PyQGIS "
+            "<code>.py</code> script (one <code>processing.run(…)</code> per step) — "
+            "to learn from, customise, or hand to a developer.<br>"
+            "<b>Import</b> reads a script back into a flow, but <b>only niva-shaped "
+            "scripts</b> — a flat list of <code>processing.run(…)</code> calls (such as "
+            "the ones Export produces, edited or not). Arbitrary PyQGIS cannot be "
+            "imported: niva is a linear pipeline; loops, conditionals and custom "
+            "functions have no equivalent and are reported, not guessed.",
+            tab,
+        )
+        note.setWordWrap(True)
+        layout.addWidget(note)
+
+        erow = QHBoxLayout()
+        export_btn = QPushButton("Export Flow → .py", tab)
+        export_btn.clicked.connect(self._export_to_py)
+        save_btn = QPushButton("Save .py…", tab)
+        save_btn.clicked.connect(self._save_py)
+        import_btn = QPushButton("Import .py…", tab)
+        import_btn.clicked.connect(self._import_from_py)
+        self.send_to_flow_btn = QPushButton("Send to Flow tab", tab)
+        self.send_to_flow_btn.clicked.connect(self._send_to_flow)
+        self.send_to_flow_btn.setEnabled(False)
+        for b in (export_btn, save_btn, import_btn, self.send_to_flow_btn):
+            erow.addWidget(b)
+        erow.addStretch(1)
+        layout.addLayout(erow)
+
+        # The preview holds whatever was last produced — generated .py (export) or
+        # recovered .niva (import). Editable .py here can be re-imported via Import…
+        self.convert_view = QPlainTextEdit(tab)
+        self.convert_view.setFont(_mono())
+        layout.addWidget(self.convert_view, 1)
+
+        self.convert_status = QLabel("", tab)
+        self.convert_status.setWordWrap(True)
+        layout.addWidget(self.convert_status)
+
+        self._last_export = ""   # generated .py text, for Save .py…
+        self._last_import = ""   # recovered .niva text, for Send to Flow tab
         return tab
 
     def _build_setup_tab(self) -> QWidget:
@@ -223,6 +271,94 @@ class NivaDock(QDockWidget):
             return
         self.path = path
         self.path_label.setText(os.path.basename(path))
+
+    # --- Convert tab: .niva <-> PyQGIS --------------------------------------
+
+    def _export_to_py(self):
+        from niva.transpile import export_script
+
+        text = self.editor.toPlainText()
+        src = os.path.basename(self.path) if self.path else "<flow>"
+        try:
+            py = export_script(text, source_name=src, out_name="flow.py")
+        except Exception as exc:  # FlowError (parse/bind) — show, don't crash
+            self.convert_status.setText(f"Export failed: {exc}")
+            return
+        self.convert_view.setPlainText(py)
+        self._last_export = py
+        self._convert_mode = "py"
+        self.send_to_flow_btn.setEnabled(False)
+        steps = py.count("processing.run(")
+        self.convert_status.setText(
+            f"Exported {steps} processing.run step(s). Edit here if you like, then "
+            "Save .py… or Import .py… to round-trip it back to a flow."
+        )
+
+    def _save_py(self):
+        py = self.convert_view.toPlainText()
+        if not py.strip():
+            self.convert_status.setText("Nothing to save — Export a flow first.")
+            return
+        path, _ = QFileDialog.getSaveFileName(
+            self, "Save PyQGIS script", "flow.py", "Python (*.py);;All files (*)"
+        )
+        if not path:
+            return
+        try:
+            with open(path, "w", encoding="utf-8") as fh:
+                fh.write(py)
+        except OSError as exc:
+            self.convert_status.setText(f"Could not save: {exc}")
+            return
+        self.convert_status.setText(f"Saved {os.path.basename(path)}.")
+
+    def _import_from_py(self):
+        from niva.transpile import import_script
+
+        # If the preview is holding a (possibly hand-edited) .py, import that;
+        # otherwise open a .py file to import.
+        if getattr(self, "_convert_mode", None) == "py" and self.convert_view.toPlainText().strip():
+            py = self.convert_view.toPlainText()
+            origin = "the script shown above"
+        else:
+            path, _ = QFileDialog.getOpenFileName(
+                self, "Import a PyQGIS script", "", "Python (*.py);;All files (*)"
+            )
+            if not path:
+                return
+            try:
+                with open(path, encoding="utf-8") as fh:
+                    py = fh.read()
+            except OSError as exc:
+                self.convert_status.setText(f"Could not open: {exc}")
+                return
+            origin = os.path.basename(path)
+
+        niva, warnings = import_script(py)
+        if not niva.strip():
+            self.convert_status.setText(
+                f"No importable processing.run(…) calls in {origin}. "
+                + (" ".join(warnings) if warnings else "")
+            )
+            self.send_to_flow_btn.setEnabled(False)
+            return
+        self.convert_view.setPlainText(niva)
+        self._last_import = niva
+        self._convert_mode = "niva"
+        self.send_to_flow_btn.setEnabled(True)
+        msg = f"Imported {origin} → flow ({niva.strip().count(chr(10)) + 1} stage(s))."
+        if warnings:
+            msg += "  ⚠ " + "  ".join(warnings)
+        self.convert_status.setText(msg)
+
+    def _send_to_flow(self):
+        niva = self._last_import or self.convert_view.toPlainText()
+        if not niva.strip():
+            return
+        self.editor.setPlainText(niva)
+        self.path = None
+        self.path_label.setText("(imported flow)")
+        self.tabs.setCurrentIndex(0)  # jump to the Flow tab
 
     def _run(self):
         self._execute(dry_run=False)

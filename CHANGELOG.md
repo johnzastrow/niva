@@ -10,6 +10,17 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ## [0.7.0] - 2026-06-15
 
 ### Added
+- **Export a flow to a standalone PyQGIS script, and import one back.** `niva export
+  <file.niva> [-o out.py]` transpiles a flow into a runnable `.py` (one
+  `processing.run(…)` per step, layers piped step-to-step, `save` directing the
+  preceding step's OUTPUT) — niva's *eject* path for learning/customising/handing off.
+  `niva import <file.py> [-o out.niva]` reverses it. Round-trip works for **niva-shaped
+  scripts only** (a flat list of `processing.run` calls); arbitrary PyQGIS can't import
+  (loops/conditionals/custom functions are reported, never guessed). The generated
+  `.py` carries a header explaining this; import returns warnings for anything it can't
+  map. New **Convert** tab in the plugin exposes both with the same caveat spelled out.
+  Editing the exported `.py`'s params (or splicing in a new `processing.run` step) and
+  re-importing carries the changes back into the flow. Implemented in `niva/transpile.py`.
 - **Journal echoes the equivalent `processing.run(...)` call.** Every curated verb and
   every `run` stage now records a copy-pasteable `processing.run('<algorithm>', {…})`
   string in the machine-readable `.jsonl` — the exact algorithm id and fully-resolved
