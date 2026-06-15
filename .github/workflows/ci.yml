@@ -1,0 +1,42 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  unit:
+    name: unit tests (no QGIS — PyQGIS smoke tests skip)
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      # niva has zero runtime dependencies; the pure-Python layers (grammar,
+      # registry, binder, engine over MockBackend) run on a plain interpreter.
+      # The PyQGIS smoke tests skip cleanly when qgis is unimportable.
+      - name: Run the unit suite
+        run: python -m unittest discover -s tests -t .
+
+  build:
+    name: build wheel + smoke-test the install
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install --upgrade build
+      - run: python -m build
+      - name: Install the wheel and exercise the CLI (no QGIS)
+        run: |
+          pip install dist/*.whl
+          cd /tmp
+          niva --help
+          niva describe buffer
+          niva "load a.gpkg | buffer 100m dissolve | save b.gpkg" --dry-run

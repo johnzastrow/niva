@@ -3,14 +3,21 @@
 All notable changes to **niva** are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
-and the project will follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
-once it has releases.
-
-> **Status: pre-release.** niva is an early-stage design exploration — no
-> versioned release or installable package exists yet. Everything below sits
-> under *Unreleased*; the grammar and API are still goals, not shipped features.
+and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [0.1.0] - 2026-06-15
+
+First working release — niva runs real geoprocessing. The pipeline is complete end
+to end (grammar → registry/binder → engine → PyQGIS backend), validated against real
+GIS data (a 24-layer Youngstown GeoPackage + DEM rasters) on QGIS 4.0.3: **122 unit
+tests + 19 niva-script integration checks**, all green. Highlights:
+verbs `load` (files + `@conn` tables + multi-layer-safe), `save` (with metadata +
+auto-lineage), `sql @conn`, `run` (any algorithm, incl. multilayer params), `call`
+file composition, `metadata set`, `assess` (quality + topology + lineage),
+`describe`; 12 curated `native:*` aliases; a parse/`--dry-run`/`--explain`/`describe`
+CLI and a `niva.flow()` Python API; near-zero runtime dependencies.
 
 ### Changed
 - **`run` reaches multilayer params; fixed a GeoPackage save bug** (both surfaced by
