@@ -8,6 +8,9 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ## [Unreleased]
 
 ### Fixed
+- **Plugin: white background on the dock's text panels.** The editor and output now
+  force a light background + dark text regardless of the QGIS theme (a dark theme had
+  made the editor look non-editable).
 - **Plugin: Qt6 scoped-enum crash opening the dock.** `Qt.RightDockWidgetArea`
   (Qt5) is `Qt.DockWidgetArea.RightDockWidgetArea` in Qt6 (QGIS 4), so the toolbar
   button raised `AttributeError`. Resolved both ways; the `QFont.StyleHint` hint is

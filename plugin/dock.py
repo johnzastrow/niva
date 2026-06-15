@@ -24,6 +24,10 @@ from qgis.PyQt.QtWidgets import (
 
 from . import runner
 
+# White text panels regardless of the QGIS theme (a dark theme made the editor look
+# non-editable). Hardcode a light background + dark text for both editor and output.
+_PANEL_STYLE = "QPlainTextEdit { background-color: white; color: #1a1a1a; }"
+
 _SAMPLE = """\
 # Edit this flow, then click Run — it executes in this QGIS session.
 # A GeoPackage holds many layers, so name one with |layername=.
@@ -45,6 +49,7 @@ class NivaDock(QDockWidget):
         self.editor = QPlainTextEdit(root)
         self.editor.setPlainText(_SAMPLE)
         self.editor.setFont(_mono())
+        self.editor.setStyleSheet(_PANEL_STYLE)
         layout.addWidget(self.editor, 3)
 
         buttons = QHBoxLayout()
@@ -61,6 +66,7 @@ class NivaDock(QDockWidget):
         self.output = QPlainTextEdit(root)
         self.output.setReadOnly(True)
         self.output.setFont(_mono())
+        self.output.setStyleSheet(_PANEL_STYLE)
         layout.addWidget(self.output, 2)
 
         self.setWidget(root)
