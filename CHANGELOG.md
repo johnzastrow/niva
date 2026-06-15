@@ -7,6 +7,18 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-06-15
+
+### Changed
+- **One run log per QGIS session (not per run), one line per operation.** The plugin
+  now appends every run to a single session journal (`niva-session-<stamp>.{log,jsonl}`)
+  until you hit a new **Reset (new file)** button in the Setup tab — and the Setup tab
+  shows the current session-log path. The human `.log` is now strictly **one line per
+  operation** (`<ts>  <stage>  [algorithm]  → <full path>  (ms)`, errors inlined), with
+  a one-line `# run:` marker separating runs and a one-line `# done:` per run (was a
+  3-line header + footer). `niva.flow(..., log_append=True)` enables session append;
+  the CLI's `--log` still truncates per invocation. **+3 journal tests** (131 total).
+
 ## [0.2.1] - 2026-06-15
 
 ### Fixed

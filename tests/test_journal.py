@@ -47,12 +47,34 @@ class TestJournal(unittest.TestCase):
     def test_human_log_is_readable_with_full_paths(self):
         self._run("load a.gpkg | buffer 100m | save out/b.gpkg")
         text = open(self.base + ".log").read()
-        self.assertIn("niva run journal", text)         # header
+        self.assertIn("# run:", text)                   # one-line run header
         self.assertIn("buffer 100m", text)              # the stage text
         self.assertIn("native:buffer", text)            # the algorithm
         self.assertIn(os.path.abspath("out/b.gpkg"), text)  # FULL path for the save
-        self.assertIn("done —", text)                   # footer
+        self.assertIn("# done:", text)                  # one-line footer
         self.assertNotIn("{", text)                     # not JSON
+
+    def test_one_line_per_operation(self):
+        self._run("load a.gpkg | buffer 100m | save out.gpkg")
+        text = open(self.base + ".log").read()
+        op_lines = [ln for ln in text.splitlines()
+                    if ln and not ln.startswith("#")]
+        self.assertEqual(len(op_lines), 3)  # load, buffer, save — one line each
+
+    def test_session_append_accumulates_runs(self):
+        flow("load a.gpkg | save a.gpkg", backend=MockBackend(), log=self.base, log_append=True)
+        flow("load b.gpkg | save b.gpkg", backend=MockBackend(), log=self.base, log_append=True)
+        text = open(self.base + ".log").read()
+        self.assertEqual(text.count("# run:"), 2)        # both runs in one file
+        self.assertIn("load a.gpkg", text)
+        self.assertIn("load b.gpkg", text)
+
+    def test_failure_inline_one_line(self):
+        with self.assertRaises(FlowError):
+            flow("buffer 100m", backend=MockBackend(), log=self.base)  # op before load
+        lines = [ln for ln in open(self.base + ".log").read().splitlines()
+                 if "FAILED" in ln]
+        self.assertEqual(len(lines), 1)  # the failure is a single line
 
     def test_timestamps_present(self):
         self._run("load a.gpkg | save out.gpkg")

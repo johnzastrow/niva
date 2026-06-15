@@ -2,15 +2,18 @@
 
 Writes **two files** from one base path, because humans don't read JSON:
 
-- ``<base>.jsonl`` — machine-readable JSON Lines: a header line carrying the schema
-  version + niva version + flow source + start time, then one object per operation.
-  A stable, versioned contract for tools (`niva_journal` = schema version).
-- ``<base>.log``  — plain text a person can actually read: one timestamped line per
-  operation, with a header and a final summary.
+- ``<base>.jsonl`` — machine-readable JSON Lines: one JSON object per line. Each run
+  starts with a self-describing run-start object (`niva_journal` schema version,
+  niva version, flow, started) and ends with a run-finished object; one object per
+  operation in between.
+- ``<base>.log``  — plain text, **one line per operation**:
+  ``<ts>  <stage>  [algorithm]  → <full path>  (12 ms)`` (errors are appended inline,
+  so a failure is still one line). A one-line ``# run:`` marker separates runs and a
+  one-line ``# done:`` marker closes each.
 
-What is recorded is the **niva stage text** (what the user wrote) plus the resolved
-algorithm id, timing, and ok/error — **never** resolved parameter dicts or
-credentials (database logins live in QGIS's connection store and never reach here).
+With ``append=True`` the files are reused (a single log per QGIS session); otherwise
+they are truncated (one log per CLI invocation). What is recorded is the niva stage
+text + the resolved output path — never resolved parameter dicts or credentials.
 """
 
 from __future__ import annotations
@@ -27,15 +30,12 @@ def _now() -> str:
 
 
 class Journal:
-    """Append-only run journal writing a JSONL + a human-readable log side by side."""
-
-    def __init__(self, base_path: str):
-        # `base_path` may be given with or without an extension; we always write
-        # <base>.jsonl and <base>.log.
+    def __init__(self, base_path: str, *, append: bool = False):
         root, ext = os.path.splitext(base_path)
         self.base = root if ext in (".jsonl", ".log", ".json") else base_path
         self.jsonl_path = self.base + ".jsonl"
         self.log_path = self.base + ".log"
+        self.append = append
         self._jsonl = None
         self._log = None
         self._n = 0
@@ -45,16 +45,19 @@ class Journal:
         parent = os.path.dirname(self.base)
         if parent:
             os.makedirs(parent, exist_ok=True)
-        self._jsonl = open(self.jsonl_path, "w", encoding="utf-8")
-        self._log = open(self.log_path, "w", encoding="utf-8")
+        mode = "a" if self.append else "w"
+        existing = self.append and os.path.exists(self.log_path) and os.path.getsize(self.log_path) > 0
+        self._jsonl = open(self.jsonl_path, mode, encoding="utf-8")
+        self._log = open(self.log_path, mode, encoding="utf-8")
         started = _now()
         self._emit_json({
             "niva_journal": SCHEMA,
             "niva_version": niva_version,
-            "flow": flow,
+            "run": flow,
             "started": started,
         })
-        self._log.write(f"niva run journal\n  flow:    {flow}\n  started: {started}\n\n")
+        sep = "\n" if existing else ""  # blank line between runs in a session log
+        self._log.write(f"{sep}# run: {flow}  ({started})\n")
         self._log.flush()
         return self
 
@@ -76,7 +79,7 @@ class Journal:
             rec["duration_ms"] = duration_ms
         self._emit_json(rec)
 
-        # human line: "<ts>  <stage>  [algorithm]  → <full path>  (12 ms)" (+ error)
+        # exactly one line per operation (errors inlined, newlines flattened)
         parts = [ts, " ", text]
         if algorithm:
             parts.append(f"  [{algorithm}]")
@@ -85,20 +88,19 @@ class Journal:
         if duration_ms is not None:
             parts.append(f"  ({duration_ms} ms)")
         if not ok:
-            parts.append("  ✗ FAILED")
+            flat = " ".join((error or "failed").split())
+            parts.append(f"  ✗ FAILED: {flat[:200]}")
         self._log.write("".join(parts) + "\n")
-        if error:
-            self._log.write(f"    {error}\n")
         self._log.flush()
 
     def close(self) -> None:
         if self._log is not None:
             outcome = "ok" if self._failed == 0 else f"{self._failed} failed"
-            self._log.write(f"\ndone — {self._n} operation(s), {outcome} — {_now()}\n")
+            self._log.write(f"# done: {self._n} operation(s), {outcome}  ({_now()})\n")
             self._log.close()
             self._log = None
         if self._jsonl is not None:
-            self._emit_json({"finished": _now(), "operations": self._n, "failed": self._failed})
+            self._emit_json({"run_finished": _now(), "operations": self._n, "failed": self._failed})
             self._jsonl.close()
             self._jsonl = None
 

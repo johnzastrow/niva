@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import os
 import tempfile
+from datetime import datetime
 
 from qgis.PyQt.QtGui import QFont, QPalette
 from qgis.PyQt.QtWidgets import (
@@ -50,6 +51,10 @@ class NivaDock(QDockWidget):
         super().__init__("niva", iface.mainWindow())
         self.iface = iface
         self.path = None  # the .niva file currently open, if any (for relative paths)
+        # One log file per QGIS session: a stamp fixed for the dock's lifetime, so all
+        # runs append to the same journal until the user hits Reset (new stamp). The
+        # microseconds keep a Reset within the same second from reusing the file.
+        self._session_id = datetime.now().strftime("%Y%m%d-%H%M%S-%f")
         self.setObjectName("NivaDock")
 
         tabs = QTabWidget(self)
@@ -94,13 +99,11 @@ class NivaDock(QDockWidget):
         tab = QWidget(self)
         layout = QVBoxLayout(tab)
 
-        # --- Settings: where (and whether) to write a run log ----------------
+        # --- Settings: the per-session run log -------------------------------
         settings = QgsSettings()
-        self.log_enabled = QCheckBox("Write a log for each run", tab)
+        self.log_enabled = QCheckBox("Log each run to one file per QGIS session", tab)
         self.log_enabled.setChecked(settings.value(_LOG_ENABLED_KEY, True, type=bool))
-        self.log_enabled.toggled.connect(
-            lambda v: QgsSettings().setValue(_LOG_ENABLED_KEY, v)
-        )
+        self.log_enabled.toggled.connect(self._on_log_enabled)
         layout.addWidget(self.log_enabled)
 
         row = QHBoxLayout()
@@ -108,14 +111,23 @@ class NivaDock(QDockWidget):
         self.log_dir = QLineEdit(
             settings.value(_LOG_DIR_KEY, default_log_dir(), type=str), tab
         )
-        self.log_dir.editingFinished.connect(
-            lambda: QgsSettings().setValue(_LOG_DIR_KEY, self.log_dir.text())
-        )
+        self.log_dir.editingFinished.connect(self._on_log_dir_edited)
         browse = QPushButton("Browse…", tab)
         browse.clicked.connect(self._browse_log_dir)
         row.addWidget(self.log_dir)
         row.addWidget(browse)
         layout.addLayout(row)
+
+        srow = QHBoxLayout()
+        srow.addWidget(QLabel("Session log:", tab))
+        self.session_label = QLabel(tab)
+        self.session_label.setTextInteractionFlags(self.session_label.textInteractionFlags())
+        reset = QPushButton("Reset (new file)", tab)
+        reset.clicked.connect(self._reset_session_log)
+        srow.addWidget(self.session_label, 1)
+        srow.addWidget(reset)
+        layout.addLayout(srow)
+        self._update_session_label()
 
         # --- the environment report ------------------------------------------
         self.setup_view = QTextBrowser(tab)
@@ -136,21 +148,41 @@ class NivaDock(QDockWidget):
         return tab
 
     def _browse_log_dir(self):
-        from qgis.core import QgsSettings
-
         chosen = QFileDialog.getExistingDirectory(self, "Run-log folder", self.log_dir.text())
         if chosen:
             self.log_dir.setText(chosen)
-            QgsSettings().setValue(_LOG_DIR_KEY, chosen)
+            self._on_log_dir_edited()
 
-    def _log_dir_for_run(self):
-        """The configured log folder, or None when logging is disabled."""
+    def _on_log_enabled(self, value):
+        from qgis.core import QgsSettings
+
+        QgsSettings().setValue(_LOG_ENABLED_KEY, value)
+        self._update_session_label()
+
+    def _on_log_dir_edited(self):
+        from qgis.core import QgsSettings
+
+        QgsSettings().setValue(_LOG_DIR_KEY, self.log_dir.text())
+        self._update_session_label()
+
+    def _reset_session_log(self):
+        """Start a fresh session log (the next run writes to a new file)."""
+        self._session_id = datetime.now().strftime("%Y%m%d-%H%M%S-%f")
+        self._update_session_label()
+
+    def _session_log_base(self):
+        """The session journal base path, or None when logging is disabled."""
         from qgis.core import QgsSettings
 
         s = QgsSettings()
         if not s.value(_LOG_ENABLED_KEY, True, type=bool):
             return None
-        return s.value(_LOG_DIR_KEY, default_log_dir(), type=str) or default_log_dir()
+        folder = s.value(_LOG_DIR_KEY, default_log_dir(), type=str) or default_log_dir()
+        return os.path.join(folder, f"niva-session-{self._session_id}")
+
+    def _update_session_label(self):
+        base = self._session_log_base()
+        self.session_label.setText((base + ".log") if base else "(logging off)")
 
     def _refresh_setup(self):
         try:
@@ -196,9 +228,9 @@ class NivaDock(QDockWidget):
     def _execute(self, *, dry_run: bool):
         text = self.editor.toPlainText()
         self._log(f"$ niva {'--dry-run' if dry_run else 'run'}")
-        log_dir = None if dry_run else self._log_dir_for_run()
+        log_base = None if dry_run else self._session_log_base()
         try:
-            result = runner.run_flow(text, file=self.path, dry_run=dry_run, log_dir=log_dir)
+            result = runner.run_flow(text, file=self.path, dry_run=dry_run, log_base=log_base)
         except Exception as exc:  # safety net — never let the dock crash QGIS
             self._log(f"niva: unexpected error: {exc}")
             return

@@ -13,13 +13,14 @@ import os
 
 
 def run_flow(text: str, *, file: str | None = None, dry_run: bool = False,
-             log_dir: str | None = None) -> dict:
+             log_base: str | None = None) -> dict:
     """Execute ``text`` (or dry-run it). Returns a result dict:
 
     ``{ok: bool, mode: str, summary: str, layer, error: str | None, log}``
     where ``layer`` is the final niva ``Layer`` handle on a successful real run
-    (``None`` otherwise) so the caller can add it to the map. ``log_dir`` (when set)
-    is the folder a per-run journal is written to; ``None`` disables logging.
+    (``None`` otherwise) so the caller can add it to the map. ``log_base`` (when set)
+    is the journal base path; the plugin passes one **session** base so all runs
+    append to a single log. ``None`` disables logging.
     """
     import niva
     from niva.errors import NivaError
@@ -43,16 +44,11 @@ def run_flow(text: str, *, file: str | None = None, dry_run: bool = False,
         return {"ok": True, "mode": "dry-run", "summary": body, "layer": None,
                 "error": None, "log": None}
 
-    # Log each real run to a timestamped journal in `log_dir` (if logging is enabled).
+    # Append every real run to the session journal (one file per QGIS session).
     # niva writes <base>.jsonl (machine) and <base>.log (human); we surface the .log.
-    log_base = log_path = None
-    if log_dir:
-        from datetime import datetime
-
-        log_base = os.path.join(log_dir, "niva-" + datetime.now().strftime("%Y%m%d-%H%M%S-%f"))
-        log_path = log_base + ".log"
+    log_path = (log_base + ".log") if log_base else None
     try:
-        layer = niva.flow(text, file=file, log=log_base)  # in-process; reuses the running QGIS
+        layer = niva.flow(text, file=file, log=log_base, log_append=True)
     except NivaError as exc:
         result = _fail("run", exc)
         result["log"] = log_path  # the journal recorded the failure before raising

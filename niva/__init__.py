@@ -16,7 +16,7 @@ Pass ``backend=MockBackend()`` to exercise a flow with no QGIS at all.
 
 from __future__ import annotations
 
-__version__ = "0.2.1"
+__version__ = "0.3.0"
 
 from .describe import describe
 from .errors import FlowError, NivaError, OpError
@@ -26,7 +26,7 @@ __all__ = [
 ]
 
 
-def flow(text: str, *, backend=None, file: str | None = None, log=None):
+def flow(text: str, *, backend=None, file: str | None = None, log=None, log_append=False):
     """Parse and execute a niva flow, returning the final layer handle.
 
     ``backend`` defaults to the real :class:`PyqgisBackend` (which requires QGIS);
@@ -34,6 +34,8 @@ def flow(text: str, *, backend=None, file: str | None = None, log=None):
 
     ``log`` is a base path for the run journal; ``<log>.jsonl`` (machine) and
     ``<log>.log`` (human) are written. Falls back to the ``NIVA_LOG`` env var.
+    ``log_append=True`` appends to an existing journal (one log per session) instead
+    of truncating (one log per invocation).
     """
     import os
 
@@ -48,7 +50,9 @@ def flow(text: str, *, backend=None, file: str | None = None, log=None):
     if log:
         from .journal import Journal
 
-        journal = Journal(log).open(flow=file or "<inline>", niva_version=__version__)
+        journal = Journal(log, append=log_append).open(
+            flow=file or "<inline>", niva_version=__version__
+        )
     try:
         return Engine(backend or _default_backend(), journal=journal).execute(
             program, base_dir=base_dir
