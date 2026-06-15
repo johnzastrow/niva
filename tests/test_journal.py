@@ -25,6 +25,30 @@ class TestJournal(unittest.TestCase):
         self.assertTrue(os.path.exists(self.base + ".jsonl"))
         self.assertTrue(os.path.exists(self.base + ".log"))
 
+    def test_pyqgis_echo_in_jsonl_only(self):
+        # Curated verb and the `run` escape hatch each carry a copy-pasteable
+        # processing.run(...) equivalent in the machine record; built-ins do not;
+        # the human .log stays one line per op (no params dict).
+        self._run('load a.gpkg | buffer 100m | run native:centroids ALL_PARTS=true | save out.gpkg')
+        records = {r["kind"]: r for r in
+                   (json.loads(x) for x in open(self.base + ".jsonl") if x.strip())
+                   if "kind" in r}
+
+        self.assertIn("pyqgis", records["buffer"])
+        self.assertTrue(records["buffer"]["pyqgis"].startswith("processing.run('native:buffer'"))
+        self.assertIn("'DISTANCE': 100.0", records["buffer"]["pyqgis"])
+        self.assertIn("'OUTPUT': 'TEMPORARY_OUTPUT'", records["buffer"]["pyqgis"])
+
+        self.assertIn("pyqgis", records["run"])
+        self.assertIn("'ALL_PARTS': True", records["run"]["pyqgis"])
+
+        self.assertNotIn("pyqgis", records["load"])
+        self.assertNotIn("pyqgis", records["save"])
+
+        log = open(self.base + ".log").read()
+        self.assertNotIn("processing.run", log)  # echo is machine-record only
+        self.assertNotIn("{", log)
+
     def test_jsonl_header_records_footer(self):
         self._run("load a.gpkg | buffer 100m | save out.gpkg")
         lines = [json.loads(x) for x in open(self.base + ".jsonl") if x.strip()]

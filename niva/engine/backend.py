@@ -68,6 +68,35 @@ class Backend(abc.ABC):
     def crs_of(self, layer: Layer) -> CrsInfo:
         """Report ``layer``'s CRS — used to resolve distances (units.py)."""
 
+    # --- journal echo (concrete; shared by every backend) --------------------
+
+    def render_call(self, algorithm: str, params: dict, *, input_param: str | None = None,
+                    input_layer: Layer | None = None, output_param: str | None = None) -> str:
+        """A copy-pasteable ``processing.run(...)`` string equivalent to the call this
+        op runs — echoed into the journal's machine (jsonl) record. Reconstructs the
+        exact dict ``run``/``run_raw`` hand to ``processing.run``: the input layer
+        rendered as its source path/URI (not a live-object repr), the output sink as
+        ``TEMPORARY_OUTPUT``. ``input_param``/``output_param`` are the curated-verb
+        param names; omit both for the ``run`` escape hatch (INPUT/OUTPUT defaults)."""
+        full = dict(params)
+        if input_param:
+            full[input_param] = self._ref_source(input_layer) if input_layer is not None else None
+        elif input_layer is not None and "INPUT" not in full:
+            full["INPUT"] = self._ref_source(input_layer)
+        full.setdefault(output_param or "OUTPUT", "TEMPORARY_OUTPUT")
+        body = ", ".join(f"{k!r}: {v!r}" for k, v in full.items())
+        return f"processing.run({algorithm!r}, {{{body}}})"
+
+    def _ref_source(self, layer: Layer) -> str:
+        """Render a layer handle as a string source for the journal echo. A string
+        ref (MockBackend, a path) is used as-is; a live QgsMapLayer reports
+        ``.source()``; anything else falls back to the layer's name."""
+        ref = layer.ref
+        if isinstance(ref, str):
+            return ref
+        getter = getattr(ref, "source", None)
+        return getter() if callable(getter) else layer.name
+
 
 class MockBackend(Backend):
     """A QGIS-free double: records every operation in ``calls`` and returns fake

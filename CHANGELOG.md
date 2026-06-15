@@ -7,6 +7,20 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-06-15
+
+### Added
+- **Journal echoes the equivalent `processing.run(...)` call.** Every curated verb and
+  every `run` stage now records a copy-pasteable `processing.run('<algorithm>', {…})`
+  string in the machine-readable `.jsonl` — the exact algorithm id and fully-resolved
+  params (alias defaults, resolved distances, injected `INPUT`/`OUTPUT`) that niva
+  hands to QGIS. This lets you reproduce or script any step verbatim. The
+  human-readable `.log` is unchanged — it stays **one line per operation** (it already
+  shows `[algorithm]`); the full param dict lives in the `.jsonl` only. Built-in verbs
+  (`load`/`save`/`assess`/…) carry no `pyqgis` field. Rendering lives in
+  `Backend.render_call` so it's shared by every backend; layer handles render as their
+  source path/URI rather than a live-object repr.
+
 ## [0.6.0] - 2026-06-15
 
 ### Changed

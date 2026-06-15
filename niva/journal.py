@@ -74,7 +74,7 @@ class Journal:
 
     def record(self, *, text: str, kind: str, algorithm: str | None = None,
                ok: bool = True, summary: str = "", error: str | None = None,
-               duration_ms: int | None = None) -> None:
+               duration_ms: int | None = None, pyqgis: str | None = None) -> None:
         self._n += 1
         if not ok:
             self._failed += 1
@@ -82,6 +82,10 @@ class Journal:
         rec = {"ts": ts, "n": self._n, "kind": kind, "text": text, "ok": ok}
         if algorithm:
             rec["algorithm"] = algorithm
+        # `pyqgis`: a copy-pasteable processing.run(...) equivalent. Machine record
+        # only — the human .log stays one line per op (it already shows [algorithm]).
+        if pyqgis:
+            rec["pyqgis"] = pyqgis
         if summary:
             rec["summary"] = summary
         if error:

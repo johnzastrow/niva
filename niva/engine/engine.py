@@ -30,6 +30,7 @@ class Engine:
         self.journal = journal  # optional run journal (jsonl + human log); see niva.journal
         self.progress = progress  # optional callable(str): live status during a run
         self.cancel = cancel  # optional callable() -> bool: abort the running algorithm
+        self._pending_call = None  # processing.run(...) echo for the stage being run
 
     def _emit(self, message: str) -> None:
         if self.progress is not None:
@@ -103,6 +104,7 @@ class Engine:
             text=text, kind=stage.verb, algorithm=self._algorithm_of(stage),
             summary=self._paths_of(stage), ok=ok, error=error,
             duration_ms=round((time.monotonic() - t0) * 1000),
+            pyqgis=self._pending_call,
         )
 
     def _algorithm_of(self, stage):
@@ -133,6 +135,7 @@ class Engine:
     # --- per-stage dispatch --------------------------------------------------
 
     def _run_stage(self, stage, current: Layer | None, lineage: list) -> Layer | None:
+        self._pending_call = None  # set only when this stage actually runs an algorithm
         verb = stage.verb
         if verb == "load":
             return self._load(stage)
@@ -158,6 +161,10 @@ class Engine:
 
         op = bind(stage, alias)
         params = self._resolve_distances(op.params, current, stage)
+        self._pending_call = self.backend.render_call(
+            op.algorithm, params,
+            input_param=op.input_param, input_layer=current, output_param=op.output_param,
+        )
         return self.backend.run(
             op.algorithm, params,
             input_param=op.input_param, input_layer=current, output_param=op.output_param,
@@ -311,6 +318,7 @@ class Engine:
             )
         algorithm = stage.args[0]
         params = {key: self._expand_value(value, stage) for key, value in stage.options.items()}
+        self._pending_call = self.backend.render_call(algorithm, params, input_layer=current)
         return self.backend.run_raw(algorithm, params, input_layer=current,
                                     progress=self.progress, cancel=self.cancel)
 
