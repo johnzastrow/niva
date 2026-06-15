@@ -72,19 +72,32 @@ class NivaDock(QDockWidget):
         self.editor = QPlainTextEdit(tab)
         self.editor.setPlainText(_SAMPLE)
         self.editor.setFont(_mono())
+        self.editor.setToolTip(
+            "Write a niva flow here: verb stages joined by | , e.g.\n"
+            '  load "data.gpkg|layername=roads" | buffer 100m | save /tmp/out.gpkg\n'
+            "Then click Run to execute it in this QGIS session."
+        )
         layout.addWidget(self.editor, 3)
 
         buttons = QHBoxLayout()
         open_btn = QPushButton("Open…", tab)
+        open_btn.setToolTip("Open a .niva flow file into the editor above")
         open_btn.clicked.connect(self._open)
         self.run_btn = QPushButton("Run", tab)
+        self.run_btn.setToolTip("Execute the flow for real in this QGIS session "
+                                "(runs in the background; output is added to the map)")
         self.run_btn.clicked.connect(self._run)
         self.dry_btn = QPushButton("Dry-run", tab)
+        self.dry_btn.setToolTip("Validate the flow — order, CRS/units, algorithm params — "
+                                "without executing it or touching any data")
         self.dry_btn.clicked.connect(self._dry_run)
-        self.cancel_btn = QPushButton("Cancel", tab)
+        self.cancel_btn = QPushButton("Stop", tab)
+        self.cancel_btn.setToolTip("Stop the running flow (enabled only while a flow is running)")
         self.cancel_btn.clicked.connect(self._cancel)
         self.cancel_btn.setEnabled(False)
         clear_btn = QPushButton("Clear output", tab)
+        clear_btn.setToolTip("Clear the messages in the output panel below "
+                             "(does not affect your flow or data)")
         clear_btn.clicked.connect(self._clear)
         for b in (open_btn, self.run_btn, self.dry_btn, self.cancel_btn, clear_btn):
             buttons.addWidget(b)
@@ -98,6 +111,8 @@ class NivaDock(QDockWidget):
         self.output = QPlainTextEdit(tab)
         self.output.setReadOnly(True)
         self.output.setFont(_mono())
+        self.output.setToolTip("Run messages, progress, and results appear here "
+                               "(read-only)")
         _recede(self.output)
         layout.addWidget(self.output, 2)
         return tab
@@ -122,12 +137,21 @@ class NivaDock(QDockWidget):
 
         erow = QHBoxLayout()
         export_btn = QPushButton("Export Flow → .py", tab)
+        export_btn.setToolTip("Transpile the flow in the Flow tab into a standalone "
+                              "PyQGIS script, shown in the panel below")
         export_btn.clicked.connect(self._export_to_py)
         save_btn = QPushButton("Save .py…", tab)
+        save_btn.setToolTip("Save the script shown below to a .py file")
         save_btn.clicked.connect(self._save_py)
         import_btn = QPushButton("Import .py…", tab)
+        import_btn.setToolTip("Convert a PyQGIS script back into a flow. Uses the "
+                              "script shown below if you just exported/edited one, "
+                              "otherwise prompts for a .py file. Only niva-shaped "
+                              "scripts (a flat list of processing.run calls) import.")
         import_btn.clicked.connect(self._import_from_py)
         self.send_to_flow_btn = QPushButton("Send to Flow tab", tab)
+        self.send_to_flow_btn.setToolTip("Load the imported flow into the Flow tab's "
+                                         "editor so you can run it (enabled after an import)")
         self.send_to_flow_btn.clicked.connect(self._send_to_flow)
         self.send_to_flow_btn.setEnabled(False)
         for b in (export_btn, save_btn, import_btn, self.send_to_flow_btn):
@@ -139,10 +163,17 @@ class NivaDock(QDockWidget):
         # recovered .niva (import). Editable .py here can be re-imported via Import…
         self.convert_view = QPlainTextEdit(tab)
         self.convert_view.setFont(_mono())
+        self.convert_view.setToolTip(
+            "Shows the exported PyQGIS script or the imported flow. You can edit an "
+            "exported script here (add/change processing.run params) and click "
+            "Import .py… to round-trip the changes back into a flow."
+        )
         layout.addWidget(self.convert_view, 1)
 
         self.convert_status = QLabel("", tab)
         self.convert_status.setWordWrap(True)
+        self.convert_status.setToolTip("Status of the last export/import, including "
+                                       "any warnings about parts that could not be imported")
         layout.addWidget(self.convert_status)
 
         self._last_export = ""   # generated .py text, for Save .py…
@@ -158,6 +189,11 @@ class NivaDock(QDockWidget):
         # --- Settings: the per-session run log -------------------------------
         settings = QgsSettings()
         self.log_enabled = QCheckBox("Log each run to one file per QGIS session", tab)
+        self.log_enabled.setToolTip(
+            "When on, each run appends to a per-session journal: a human-readable "
+            ".log (one line per operation) and a machine-readable .jsonl. Off = no "
+            "logging. Credentials and SQL text are never written to the log."
+        )
         self.log_enabled.setChecked(settings.value(_LOG_ENABLED_KEY, True, type=bool))
         self.log_enabled.toggled.connect(self._on_log_enabled)
         layout.addWidget(self.log_enabled)
@@ -167,8 +203,10 @@ class NivaDock(QDockWidget):
         self.log_dir = QLineEdit(
             settings.value(_LOG_DIR_KEY, default_log_dir(), type=str), tab
         )
+        self.log_dir.setToolTip("Folder where the per-session log files are written")
         self.log_dir.editingFinished.connect(self._on_log_dir_edited)
         browse = QPushButton("Browse…", tab)
+        browse.setToolTip("Pick the folder for log files")
         browse.clicked.connect(self._browse_log_dir)
         row.addWidget(self.log_dir)
         row.addWidget(browse)
@@ -178,7 +216,10 @@ class NivaDock(QDockWidget):
         srow.addWidget(QLabel("Session log:", tab))
         self.session_label = QLabel(tab)
         self.session_label.setTextInteractionFlags(self.session_label.textInteractionFlags())
+        self.session_label.setToolTip("The log file the current session is appending to")
         reset = QPushButton("Reset (new file)", tab)
+        reset.setToolTip("Start a fresh log file — subsequent runs append to the new "
+                         "one instead of the current session's file")
         reset.clicked.connect(self._reset_session_log)
         srow.addWidget(self.session_label, 1)
         srow.addWidget(reset)
@@ -187,13 +228,20 @@ class NivaDock(QDockWidget):
 
         # --- the environment report ------------------------------------------
         self.setup_view = QTextBrowser(tab)
+        self.setup_view.setToolTip(
+            "What a launched notebook/flow will actually see: niva version, available "
+            "verbs and algorithms, @ connections, and GDAL/PROJ/GEOS/Qt/QGIS versions"
+        )
         _recede(self.setup_view)  # a read-only report — blend with the dialog
         layout.addWidget(self.setup_view, 1)
 
         row = QHBoxLayout()
         refresh = QPushButton("Refresh", tab)
+        refresh.setToolTip("Rebuild the environment report above")
         refresh.clicked.connect(self._refresh_setup)
         copy = QPushButton("Copy", tab)
+        copy.setToolTip("Copy the environment report to the clipboard "
+                        "(handy for bug reports)")
         copy.clicked.connect(self._copy_setup)
         row.addWidget(refresh)
         row.addWidget(copy)
@@ -373,7 +421,7 @@ class NivaDock(QDockWidget):
         task = getattr(self, "_task", None)
         if task is not None:
             task.cancel()
-            self._log("  canceling…")
+            self._log("  stopping…")
 
     def _execute(self, *, dry_run: bool):
         if getattr(self, "_running", False):  # one flow at a time (Oscar A9)

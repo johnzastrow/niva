@@ -7,6 +7,15 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-06-15
+
+### Changed
+- **The Flow tab's `Cancel` button is now labelled `Stop`** (with a tooltip), matching
+  what it does — stop the running flow. It stays disabled until a flow is running.
+- **Every control in the dock now has an informative tooltip** — across the Flow,
+  Convert, and Setup tabs (buttons, the flow editor, the log checkbox/folder, the
+  environment report, etc.) — explaining what each one does.
+
 ## [0.7.0] - 2026-06-15
 
 ### Added
