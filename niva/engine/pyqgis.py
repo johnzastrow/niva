@@ -354,8 +354,10 @@ class PyqgisBackend(Backend):
     def save(self, layer: Layer, dest: str, lineage: list | None = None) -> Layer:
         # Use QgsVectorFileWriter directly rather than a Processing algorithm: it is
         # the canonical write API, picks the driver from the extension, and does not
-        # depend on the Processing registry being populated.
-        from qgis.core import QgsProject, QgsVectorFileWriter
+        # depend on the Processing registry being populated. We use a standalone
+        # transform context (not QgsProject's) so save is safe to call off the main
+        # thread — niva runs flows in a background QgsTask in the plugin.
+        from qgis.core import QgsCoordinateTransformContext, QgsVectorFileWriter
 
         if layer.facet == "raster":
             raise OpError(
@@ -384,7 +386,7 @@ class PyqgisBackend(Backend):
                     pk += "_"
                 options.layerOptions = [f"FID={pk}"]
         err = QgsVectorFileWriter.writeAsVectorFormatV3(
-            layer.ref, dest, QgsProject.instance().transformContext(), options
+            layer.ref, dest, QgsCoordinateTransformContext(), options
         )
         if err[0] != 0:  # QgsVectorFileWriter.NoError == 0
             raise OpError(

@@ -7,6 +7,21 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-06-15
+
+### Changed
+- **The plugin runs flows in a background thread — the QGIS UI no longer freezes.** A
+  real run now executes in a `QgsTask` off the GUI thread: progress streams in live
+  (via a queued signal), **Cancel responds immediately** (no longer only between
+  progress ticks), and you can keep using QGIS while a long mosaic builds. The result
+  is added to the map on the main thread when the task finishes. Dry-run stays
+  synchronous (it's fast and mock-only). Flows remain **serial — one at a time** (the
+  dock disables Run while one is in flight), honouring the single-QgsApplication rule
+  (Oscar A9).
+- **`save` no longer touches `QgsProject`** (uses a standalone
+  `QgsCoordinateTransformContext`), so it's safe to call off the main thread. Plugin
+  unload cancels any in-flight task. (Engine/grammar unchanged; CLI still synchronous.)
+
 ## [0.5.0] - 2026-06-15
 
 ### Added

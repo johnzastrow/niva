@@ -234,37 +234,59 @@ class NivaDock(QDockWidget):
         self.output.clear()
 
     def _cancel(self):
-        self._cancel_requested = True
-        self._log("  canceling…")
+        task = getattr(self, "_task", None)
+        if task is not None:
+            task.cancel()
+            self._log("  canceling…")
 
     def _execute(self, *, dry_run: bool):
-        if getattr(self, "_running", False):  # don't re-enter while a run is in flight
+        if getattr(self, "_running", False):  # one flow at a time (Oscar A9)
             return
+        text = self.editor.toPlainText()
+
+        if dry_run:  # fast + mock — run synchronously, no background task
+            self._log("$ niva --dry-run")
+            try:
+                result = runner.run_flow(text, file=self.path, dry_run=True)
+            except Exception as exc:  # safety net — never let the dock crash QGIS
+                self._log(f"niva: unexpected error: {exc}")
+                return
+            self._show_result(result)
+            return
+
+        # A real run goes to a background QgsTask so the QGIS UI stays responsive.
+        from qgis.core import QgsApplication
+
+        from .flowtask import NivaFlowTask
+
         self._running = True
-        self._cancel_requested = False
         self.run_btn.setEnabled(False)
         self.dry_btn.setEnabled(False)
-        self.cancel_btn.setEnabled(not dry_run)  # only a real run can be canceled
-        text = self.editor.toPlainText()
-        self._log(f"$ niva {'--dry-run' if dry_run else 'run'}")
-        log_base = None if dry_run else self._session_log_base()
-        result = None
-        try:
-            result = runner.run_flow(text, file=self.path, dry_run=dry_run, log_base=log_base,
-                                     progress=self._on_progress,
-                                     cancel=lambda: self._cancel_requested)
-        except Exception as exc:  # safety net — never let the dock crash QGIS
-            self._log(f"niva: unexpected error: {exc}")
-        finally:
-            self._running = False
-            self.run_btn.setEnabled(True)
-            self.dry_btn.setEnabled(True)
-            self.cancel_btn.setEnabled(False)
-        if result is None:
+        self.cancel_btn.setEnabled(True)
+        self._log("$ niva run")
+        self._task = NivaFlowTask(text, self.path, self._session_log_base())
+        self._task.message.connect(self._on_progress)
+        self._task.taskCompleted.connect(self._on_task_finished)
+        self._task.taskTerminated.connect(self._on_task_finished)
+        QgsApplication.taskManager().addTask(self._task)
+
+    def _on_task_finished(self):
+        """Runs on the main thread when the background flow ends — safe to touch the map."""
+        task = getattr(self, "_task", None)
+        self._running = False
+        self._task = None
+        self.run_btn.setEnabled(True)
+        self.dry_btn.setEnabled(True)
+        self.cancel_btn.setEnabled(False)
+        if task is None or task.result is None:
+            self._log("niva: run produced no result")
             return
+        self._show_result(task.result)
+
+    def _show_result(self, result: dict):
         if result["ok"]:
             self._log(result["summary"])
-            if result["layer"] is not None:
+            if result.get("layer") is not None:
                 self._add_to_map(result["layer"])
         else:
             self._log(f"niva: {result['error']}")
@@ -274,12 +296,8 @@ class NivaDock(QDockWidget):
             self._log(f"  log: {result['log']}")
 
     def _on_progress(self, message: str):
-        """Live status during a run. Repaint so it shows even though the flow runs on
-        the GUI thread — the feedback callbacks interleave with the algorithm."""
-        from qgis.PyQt.QtWidgets import QApplication
-
+        # Delivered on the main thread via the task's queued signal — safe to update.
         self.output.appendPlainText(message)
-        QApplication.processEvents()
 
     # --- map integration -----------------------------------------------------
 

@@ -45,6 +45,9 @@ class NivaPlugin:
 
     def unload(self):  # noqa: N802 — QGIS-required name
         if self.dock is not None:
+            task = getattr(self.dock, "_task", None)
+            if task is not None:  # cancel a background flow before tearing down
+                task.cancel()
             self.iface.removeDockWidget(self.dock)
             self.dock.deleteLater()
             self.dock = None
