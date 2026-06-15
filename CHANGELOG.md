@@ -37,9 +37,11 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   "designed for QGIS 3.0–3.99" because `metadata.txt` had no maximum version (it
   defaults to `<min-major>.99`) and no Qt6 marker. Set `supportsQt6=True`,
   `qgisMaximumVersion=4.99`, `qgisMinimumVersion=3.22`. Rebuild/reinstall the zip.
-- **Plugin: white background on the dock's text panels.** The editor and output now
-  force a light background + dark text regardless of the QGIS theme (a dark theme had
-  made the editor look non-editable).
+- **Plugin: only the input stands out; read-only panels recede.** Instead of forcing
+  white everywhere (which made the dock all-white), the dock now lets the theme style
+  the editable flow editor as a field and paints the read-only output + Setup report
+  with the dialog's window colour (theme-adaptive via the palette — works on light and
+  dark themes). The area you type into is visually distinct from the rest.
 - **Plugin: Qt6 scoped-enum crash opening the dock.** `Qt.RightDockWidgetArea`
   (Qt5) is `Qt.DockWidgetArea.RightDockWidgetArea` in Qt6 (QGIS 4), so the toolbar
   button raised `AttributeError`. Resolved both ways; the `QFont.StyleHint` hint is

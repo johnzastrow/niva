@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import os
 
-from qgis.PyQt.QtGui import QFont
+from qgis.PyQt.QtGui import QFont, QPalette
 from qgis.PyQt.QtWidgets import (
     QDockWidget,
     QFileDialog,
@@ -25,10 +25,6 @@ from qgis.PyQt.QtWidgets import (
 )
 
 from . import environment, runner
-
-# White text panels regardless of the QGIS theme (a dark theme made the editor look
-# non-editable). Hardcode a light background + dark text for both editor and output.
-_PANEL_STYLE = "QPlainTextEdit { background-color: white; color: #1a1a1a; }"
 
 _SAMPLE = """\
 # Edit this flow, then click Run — it executes in this QGIS session.
@@ -54,10 +50,11 @@ class NivaDock(QDockWidget):
         tab = QWidget(self)
         layout = QVBoxLayout(tab)
 
+        # The editor is the only thing you type into — leave it the theme's editable
+        # field color (a white-ish "Base") so it reads as an input.
         self.editor = QPlainTextEdit(tab)
         self.editor.setPlainText(_SAMPLE)
         self.editor.setFont(_mono())
-        self.editor.setStyleSheet(_PANEL_STYLE)
         layout.addWidget(self.editor, 3)
 
         buttons = QHBoxLayout()
@@ -71,10 +68,12 @@ class NivaDock(QDockWidget):
         buttons.addWidget(self.path_label)
         layout.addLayout(buttons)
 
+        # Read-only output recedes into the dialog (window colour) so it doesn't look
+        # like another input — only the editor above stands out as typeable.
         self.output = QPlainTextEdit(tab)
         self.output.setReadOnly(True)
         self.output.setFont(_mono())
-        self.output.setStyleSheet(_PANEL_STYLE)
+        _recede(self.output)
         layout.addWidget(self.output, 2)
         return tab
 
@@ -83,7 +82,7 @@ class NivaDock(QDockWidget):
         layout = QVBoxLayout(tab)
 
         self.setup_view = QTextBrowser(tab)
-        self.setup_view.setStyleSheet("QTextBrowser { background-color: white; color: #1a1a1a; }")
+        _recede(self.setup_view)  # a read-only report — blend with the dialog
         layout.addWidget(self.setup_view, 1)
 
         row = QHBoxLayout()
@@ -186,3 +185,16 @@ def _mono() -> QFont:
     except AttributeError:  # pragma: no cover — Qt5 (QGIS 3)
         font.setStyleHint(QFont.Monospace)
     return font
+
+
+def _recede(widget) -> None:
+    """Make a read-only text widget blend with the dialog: paint its background with
+    the window colour instead of the editable-field (Base) colour. Theme-adaptive —
+    works on light and dark themes — so only the editor reads as an input."""
+    try:
+        base, window = QPalette.ColorRole.Base, QPalette.ColorRole.Window  # Qt6
+    except AttributeError:  # pragma: no cover — Qt5
+        base, window = QPalette.Base, QPalette.Window
+    palette = widget.palette()
+    palette.setColor(base, palette.color(window))
+    widget.setPalette(palette)
