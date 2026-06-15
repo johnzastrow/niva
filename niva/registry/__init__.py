@@ -1,4 +1,4 @@
-"""niva alias registry (planning/07-alias-registry-design.md).
+"""niva alias registry (docs/planning/07-alias-registry-design.md).
 
 Verb → QGIS algorithm mapping (``definitions.CORE``), lookup (``Registry`` /
 ``core_registry``), the declarative model (``Alias`` / ``Arg`` / ``Option`` /

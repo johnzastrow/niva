@@ -64,7 +64,7 @@ CLI and a `niva.flow()` Python API; near-zero runtime dependencies.
   `transform_z` flags (moving `CONVERT_CURVED_GEOMETRIES` out of `forced` so it is
   overridable; both still default off); `join` gains `unmatched=<path>` for the
   `NON_MATCHING` sink (write the input rows that found no match). +2 tests (118 total).
-- **Traceability matrix (`planning/14`) reworked:** the alias table now lists the
+- **Traceability matrix (`docs/planning/14`) reworked:** the alias table now lists the
   verbose original QGIS signature **last**, so the niva-signature and status columns
   stay visible; added a section explaining the `run` escape hatch (how to reach any
   of the installed algorithms — `describe` to find params, auto-filled `INPUT`/
@@ -258,7 +258,7 @@ CLI and a `niva.flow()` Python API; near-zero runtime dependencies.
     prints the parsed structure (the engine/backend aren't built yet).
   - `tests/test_grammar.py` — **21 stdlib-`unittest` tests, all passing**; runs in
     QGIS's own Python with no install (where CI will run them).
-- **Worked verb reference** (`planning/13-verb-reference.md`): the verb model
+- **Worked verb reference** (`docs/planning/13-verb-reference.md`): the verb model
   fully explained (positional/flag/option, defaults, enum-by-word, units,
   input/output threading), three signatures from simple to complex (`reproject` →
   `buffer` → `join`) each with the resulting `processing.run` call, and a composite
@@ -340,7 +340,7 @@ CLI and a `niva.flow()` Python API; near-zero runtime dependencies.
   - **Security & threat model** (`12-security-model.md`).
   Oscar's gap verdict updated: only process/coverage docs (G10–G17) remain, and
   they can wait for code.
-- **Failure register** (`planning/Oscar_the_Grouch.md`): a comprehensive,
+- **Failure register** (`docs/planning/Oscar_the_Grouch.md`): a comprehensive,
   adversarial catalogue of how niva could fail — premise/market, architecture,
   engineering, packaging/environment (incl. breaking QGIS's own Python), data
   correctness (silent wrong results), users, and sustainability — each with a
@@ -352,13 +352,13 @@ CLI and a `niva.flow()` Python API; near-zero runtime dependencies.
   missing specs/process docs); and a **conclusion estimating the probability of
   success of each development phase** (§12: ~60% MVP → ~3% full maturity,
   cumulative, gated by non-technical factors).
-- **Deployment & operation doc** (`planning/09-deployment-and-operation.md`),
+- **Deployment & operation doc** (`docs/planning/09-deployment-and-operation.md`),
   analyst-friendly: niva installs into QGIS's own Python (pip now; QGIS plugin
   later); connects to QGIS tools, files, and databases via QGIS's saved
   connections (`@name`, no stored credentials); the human-interface options
   (`.niva` files, CLI, QGIS console, marimo, later a plugin GUI and service mode);
   where it runs (workstation/headless/CI/service); and a phased maturity table.
-- **PRD reworked** (`planning/01-prd.md`) as the capstone summary of everything
+- **PRD reworked** (`docs/planning/01-prd.md`) as the capstone summary of everything
   decided: the procedural grammar + `call`, the one-grammar-every-surface value
   prop (Processing native-first, expressions, `sql` passthrough), **provenance for
   free** (assess + op-log + lineage), the ~40-verb alias registry, the layer
@@ -379,11 +379,11 @@ CLI and a `niva.flow()` Python API; near-zero runtime dependencies.
   to be almost entirely native, with GRASS reached (via `run`) only for
   cost-surface routing / TSP, which native lacks.
 
-- **Planning materials** (`planning/`): critique & open questions, product
+- **Planning materials** (`docs/planning/`): critique & open questions, product
   requirements for the non-programmer text-pipeline grammar, architecture, MVP
   scope, roadmap, and captured concepts.
-- **QGIS capability surface reference** (`planning/06-qgis-surface-reference.md`
-  + `planning/reference/*.tsv`): a snapshot, enumerated live from QGIS 4.0.3, of
+- **QGIS capability surface reference** (`docs/planning/06-qgis-surface-reference.md`
+  + `docs/planning/reference/*.tsv`): a snapshot, enumerated live from QGIS 4.0.3, of
   everything niva could reach — 769 Processing algorithms (8 providers), 406
   expression functions, SpatiaLite/PostGIS spatial SQL (cross-checked against the
   official SpatiaLite 5.1.0 and PostGIS function references — ~300+ documented
@@ -393,43 +393,43 @@ CLI and a `niva.flow()` Python API; near-zero runtime dependencies.
   against the QGIS Processing manual (framework model, Modeler/batch) and the
   SpatiaLite topics cookbook (Virtual Tables for SQL across heterogeneous
   sources).
-- **Alias registry design** (`planning/07-alias-registry-design.md`): how niva
+- **Alias registry design** (`docs/planning/07-alias-registry-design.md`): how niva
   maps friendly verbs onto QGIS algorithms — the declarative entry schema,
   grammar→parameter binding, type coercion, enum vocabularies, the raw `run`
   escape hatch for full coverage, generation/validation against the live
   registry, and worked examples.
-- **Layer handle contract** in `planning/02-architecture.md`: the value threaded
+- **Layer handle contract** in `docs/planning/02-architecture.md`: the value threaded
   through the `|` pipeline — one `Layer` type with four backing kinds (source /
   live QgsVectorLayer / db_table / memory), its invariants, and the rules for
   **crossing surfaces** (Processing ↔ SQL ↔ expressions) with materialization
   only at boundaries that need it; connections by `@name`; eager-now/lazy-later.
-- **Concepts captured** reworked (`planning/05-concepts-captured.md`): the
+- **Concepts captured** reworked (`docs/planning/05-concepts-captured.md`): the
   disposition table now spans the original exploration plus the surface (06),
   engine/registry (02/07), and provenance (08) concepts — including the
   five-surface model, the three-way name collision and its resolution, the layer
   handle, and provenance-as-byproduct; backends flagged as the one unsettled call.
-- **Roadmap** reworked (`planning/04-roadmap.md`): v0.1 MVP → v2.x sequenced
+- **Roadmap** reworked (`docs/planning/04-roadmap.md`): v0.1 MVP → v2.x sequenced
   across three parallel tracks (grammar/engine, coverage via the registry,
   provenance), reconciled with the ~40-verb set, SQL read-in-v1/writes-in-v2, the
   layer handle contract, and the logging/assess/auto-lineage plan.
-- **Metadata, data quality & lineage surface** in `planning/06-§2.5`: the
+- **Metadata, data quality & lineage surface** in `docs/planning/06-§2.5`: the
   "Metadata tools" algorithms (with signatures) + `QgsLayerMetadata` model, the
   21-algorithm Check-geometry group and profiling stats for quality assessment,
   and proposed niva verbs.
-- **Data quality, provenance & lineage design** (`planning/08-data-quality-
+- **Data quality, provenance & lineage design** (`docs/planning/08-data-quality-
   provenance.md`): the operation log / run journal, the `assess` verb for
   profiling incoming data (CRS/schema/validity/duplicates/nulls), and
   auto-recording data-altering steps as formal metadata lineage
   (`native:addhistorymetadata` → `QgsLayerMetadata.history`) on save — making
   provenance a byproduct of the work.
-- **Initial verb set** in `planning/03-mvp-scope.md`: a curated ~40-verb v1 set
+- **Initial verb set** in `docs/planning/03-mvp-scope.md`: a curated ~40-verb v1 set
   (9 built-ins incl. `sql` read passthrough; Tier 1 + Tier 2 registry aliases),
   every alias mapped to a real, verified QGIS 4.0.3 algorithm id, tied to the
   `use_cases.md` analyst workflow; verb-naming reconciled across docs and the
   out-of-scope/definition-of-done updated (SQL reads in v1; writes/routing v2+).
-- **Brand assets** (`logos/`): the niva mark (`logo.svg` / `logo.png`) and
+- **Brand assets** (`docs/logos/`): the niva mark (`logo.svg` / `logo.png`) and
   wordmark (`logo_text.svg` / `logo_text.png`); earlier logo explorations
-  archived under `logos/OLD/`.
+  archived under `docs/logos/OLD/`.
 - **QGIS plugin stub** (`plugin/`): a minimal plugin that previews the niva logo
   on the toolbar and Plugins menu (no geoprocessing yet), Qt5/Qt6-compatible,
   with a `make package` build for the install zip.

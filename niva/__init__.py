@@ -1,7 +1,7 @@
 """niva — a concise, readable text-pipeline grammar for QGIS geoprocessing.
 
 v0.1 (MVP, under construction). This is the pip package; the design lives in
-``planning/``. Implemented: the **grammar** (lexer + parser), the **registry +
+``docs/planning/``. Implemented: the **grammar** (lexer + parser), the **registry +
 binder** (verb → QGIS algorithm params), the **engine core** (runs a flow over a
 swappable backend), and the **PyQGIS backend** (the real ``processing.run`` adapter).
 

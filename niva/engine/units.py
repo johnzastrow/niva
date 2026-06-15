@@ -1,4 +1,4 @@
-"""Distance → CRS-units resolution (planning/03-§1.1).
+"""Distance → CRS-units resolution (docs/planning/03-§1.1).
 
 The one rule that matters: **niva never silently buffers in degrees and never
 silently reprojects.** A linear distance (``100m``) on a geographic CRS is a hard

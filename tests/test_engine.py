@@ -1,4 +1,4 @@
-"""Engine tests (planning/05). Pure Python via MockBackend — no QGIS needed.
+"""Engine tests (docs/planning/05). Pure Python via MockBackend — no QGIS needed.
 
 Run: ``python -m unittest discover -s tests`` (or ``pytest``).
 """

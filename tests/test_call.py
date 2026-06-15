@@ -1,4 +1,4 @@
-"""`call` execution tests (planning/02, 10). Pure Python via MockBackend.
+"""`call` execution tests (docs/planning/02, 10). Pure Python via MockBackend.
 
 Run: ``python -m unittest discover -s tests`` (or ``pytest``).
 """

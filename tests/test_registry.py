@@ -1,4 +1,4 @@
-"""Registry + binder tests (planning/07). Pure Python — no QGIS needed.
+"""Registry + binder tests (docs/planning/07). Pure Python — no QGIS needed.
 
 Each case parses a one-stage flow, looks the verb up in the core registry, binds
 it, and checks the resulting ``processing.run`` params. Run with

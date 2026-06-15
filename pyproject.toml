@@ -11,7 +11,7 @@ requires-python = ">=3.12"  # QGIS 4.x ships Python 3.12 (OSGeo4W / system); niv
 license = "GPL-3.0-or-later"
 authors = [{ name = "John Zastrow" }]
 keywords = ["qgis", "gis", "geoprocessing", "pyqgis", "dsl"]
-# Near-zero dependencies by design (see planning/Oscar_the_Grouch.md E1): QGIS and
+# Near-zero dependencies by design (see docs/planning/Oscar_the_Grouch.md E1): QGIS and
 # its stack are provided by the host interpreter, never bundled by niva.
 dependencies = []
 

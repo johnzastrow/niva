@@ -1,4 +1,4 @@
-"""The backend seam (planning/05-architecture.md, 06).
+"""The backend seam (docs/planning/05-architecture.md, 06).
 
 The engine never imports QGIS. Everything that touches real geodata goes through a
 ``Backend``: load a source, run an algorithm, save to disk, report a layer's CRS.

@@ -1,4 +1,4 @@
-"""The binder (planning/07-§4–5).
+"""The binder (docs/planning/07-§4–5).
 
 Turn a parsed ``Stage`` plus its ``Alias`` into a ``BoundOp``: the algorithm id and
 a fully-resolved parameter dict for ``processing.run`` — *except* the primary input

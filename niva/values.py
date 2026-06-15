@@ -1,4 +1,4 @@
-"""niva value types (planning/03-§1.1, 07-§5)."""
+"""niva value types (docs/planning/03-§1.1, 07-§5)."""
 
 from __future__ import annotations
 

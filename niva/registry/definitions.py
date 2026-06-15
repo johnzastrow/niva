@@ -1,7 +1,7 @@
-"""The core alias set for v0.1 (planning/04-mvp-scope.md verb set).
+"""The core alias set for v0.1 (docs/planning/04-mvp-scope.md verb set).
 
 Every ``algorithm``/``param`` name here is a real QGIS ``native:*`` algorithm,
-enumerated live from QGIS 4.0.3 (planning/reference/*.tsv). The linter (07-§9,
+enumerated live from QGIS 4.0.3 (docs/planning/reference/*.tsv). The linter (07-§9,
 later increment) re-checks these against the host's installed providers so the set
 fails loud, not silent, when an algorithm or parameter moves.
 

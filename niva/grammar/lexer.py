@@ -1,4 +1,4 @@
-"""Lexical helpers for the niva grammar (planning/10-grammar-spec.md).
+"""Lexical helpers for the niva grammar (docs/planning/10-grammar-spec.md).
 
 Pure Python, no QGIS. These turn raw text into the pieces the parser assembles:
 comment stripping, quote-aware splitting on the pipe, stage tokenization that keeps

@@ -1,4 +1,4 @@
-"""Grammar tests (planning/10-grammar-spec.md). Pure Python — no QGIS needed.
+"""Grammar tests (docs/planning/10-grammar-spec.md). Pure Python — no QGIS needed.
 
 Run: ``python -m unittest discover -s tests`` (or ``pytest`` if installed —
 unittest-style tests run under pytest too).

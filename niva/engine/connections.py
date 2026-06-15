@@ -1,4 +1,4 @@
-"""Connection references (planning/02, use_cases.md).
+"""Connection references (docs/planning/02, use_cases.md).
 
 niva reaches databases through **named QGIS connections** (`@conn`) — the ones the
 user has already configured in QGIS. niva passes only the *name* to the backend,

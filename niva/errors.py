@@ -1,4 +1,4 @@
-"""niva error types (planning/02-architecture.md §6, planning/11-cli-...).
+"""niva error types (docs/planning/02-architecture.md §6, docs/planning/11-cli-...).
 
 Two user-facing categories: a *parse/grammar* problem (``FlowError``, exit 2) and a
 *runtime* problem from an algorithm/SQL (``OpError``, exit 1). Both carry enough

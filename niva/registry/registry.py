@@ -1,4 +1,4 @@
-"""Registry lookup (planning/07-§3). Verb → ``Alias``, with duplicate detection."""
+"""Registry lookup (docs/planning/07-§3). Verb → ``Alias``, with duplicate detection."""
 
 from __future__ import annotations
 

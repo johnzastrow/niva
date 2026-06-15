@@ -1,4 +1,4 @@
-"""`@conn` loading and `sql` tests (planning/02, connections.py). Mock-backed.
+"""`@conn` loading and `sql` tests (docs/planning/02, connections.py). Mock-backed.
 
 Run: ``python -m unittest discover -s tests`` (or ``pytest``).
 """

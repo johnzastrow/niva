@@ -1,4 +1,4 @@
-"""niva CLI entry point (planning/11-cli-and-api-reference.md).
+"""niva CLI entry point (docs/planning/11-cli-and-api-reference.md).
 
 Modes:
 - default — **execute** the flow for real via the PyQGIS backend (needs QGIS;

@@ -1,4 +1,4 @@
-"""The niva grammar layer — lexer + parser (planning/10-grammar-spec.md)."""
+"""The niva grammar layer — lexer + parser (docs/planning/10-grammar-spec.md)."""
 
 from .parser import Call, Flow, Stage, Statement, parse
 

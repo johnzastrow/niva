@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate planning/14-traceability-matrix.md from the registry + live QGIS.
+"""Generate docs/planning/14-traceability-matrix.md from the registry + live QGIS.
 
 Run on QGIS's Python so the original signatures can be introspected:
 
@@ -14,7 +14,7 @@ import os
 import sys
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-OUT = os.path.join(REPO, "planning", "14-traceability-matrix.md")
+OUT = os.path.join(REPO, "docs", "planning", "14-traceability-matrix.md")
 
 BUILTINS = [
     ("load", '`load <file>` · `load "<file>\\|layername=<layer>"` · `load @conn[.schema].table`',

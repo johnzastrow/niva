@@ -1,4 +1,4 @@
-"""The declarative alias model (planning/07-alias-registry-design.md §3).
+"""The declarative alias model (docs/planning/07-alias-registry-design.md §3).
 
 An ``Alias`` maps one niva verb to one QGIS algorithm: which positional args it
 takes, which ``key=value`` options, which boolean flags, and any values forced on

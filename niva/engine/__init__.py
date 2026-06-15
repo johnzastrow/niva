@@ -1,4 +1,4 @@
-"""niva execution engine (planning/05-architecture.md).
+"""niva execution engine (docs/planning/05-architecture.md).
 
 The QGIS-free orchestration core: ``Engine`` runs a parsed program over a
 ``Backend`` (``MockBackend`` for tests/dry-runs; ``PyqgisBackend`` — a later

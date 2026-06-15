@@ -1,4 +1,4 @@
-"""The layer handle and CRS info (planning/05-architecture.md, 06-§ layer contract).
+"""The layer handle and CRS info (docs/planning/05-architecture.md, 06-§ layer contract).
 
 ``Layer`` is a *handle*, not the data: one type with a backing ``kind`` (where the
 bytes live) and a ``facet`` (vector vs raster). The engine passes handles between

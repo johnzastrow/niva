@@ -1,4 +1,4 @@
-"""The PyQGIS backend (planning/05-architecture.md).
+"""The PyQGIS backend (docs/planning/05-architecture.md).
 
 The adapter that makes niva actually *do* geoprocessing: it implements the four
 ``Backend`` methods against QGIS's ``processing.run`` and ``QgsMapLayer`` API. All

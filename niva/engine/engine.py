@@ -1,4 +1,4 @@
-"""The engine (planning/05-architecture.md).
+"""The engine (docs/planning/05-architecture.md).
 
 Walks a parsed program and runs it stage by stage, threading one layer handle down
 each flow's pipe. It owns the *orchestration* — built-in vs alias routing, feeding

@@ -1,4 +1,4 @@
-"""PyQGIS backend smoke tests (planning/05).
+"""PyQGIS backend smoke tests (docs/planning/05).
 
 These need a working QGIS — they **skip cleanly** when ``qgis`` cannot be imported
 or initialised, so the suite still runs green on a plain interpreter. To exercise

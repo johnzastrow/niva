@@ -1,9 +1,9 @@
-"""The niva grammar parser (planning/10-grammar-spec.md).
+"""The niva grammar parser (docs/planning/10-grammar-spec.md).
 
 Turns ``.niva`` source (or an inline flow string) into a **Program**: an ordered
 list of ``Flow`` and ``Call`` statements, executed procedurally. Pure Python, no
 QGIS — the registry binds a parsed stage's args/options to algorithm parameters in
-a later layer (planning/07-alias-registry-design.md).
+a later layer (docs/planning/07-alias-registry-design.md).
 
 A ``Stage`` carries ``verb``, ``args`` (ordered bare terms — *positionals or
 flags*, which the registry resolves), and ``options`` (``key=value``). The parser

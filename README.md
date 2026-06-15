@@ -1,132 +1,80 @@
 # niva
 
-**A concise, readable text-pipeline grammar for QGIS geoprocessing — for people
-who don't want to write PyQGIS.**
+**A concise, readable text-pipeline grammar for QGIS geoprocessing — for people who
+don't want to write PyQGIS.** *Easy wins every time.*
 
-### Our Motto, "Easy wins every time"
+<img src="docs/logos/logo_text.png" width="320" alt="niva">
 
-<img src="logos/logo_text.png" width="320" alt="niva">
-
-> ⚠️ **Early days, but it runs.** The design is worked out in
-> [`planning/`](planning/) and the **v0.1 MVP now executes real geoprocessing.**
-> The full path works end to end — grammar → registry/binder → engine → **PyQGIS
-> backend** — so inside QGIS's Python you can already do:
->
-> ```python
-> import niva
-> niva.flow("load roads.gpkg | filter \"type = 'primary'\" | buffer 100m dissolve | save out.gpkg")
-> ```
->
-> Verified on QGIS 4.0.3 (73 tests pass under QGIS's Python; 68 on bare Python).
-> Multi-file flows compose via `call` (resolved relative to the calling file, with
-> cycle detection); the `run <algorithm> KEY=value` escape hatch reaches **any**
-> QGIS algorithm; databases are reached through named QGIS connections
-> (`load @conn.table`, `sql @conn "SELECT …"`) — credentials stay in QGIS, niva
-> never sees them; `metadata set` and `assess` make provenance/quality a byproduct.
-> Still thin: a starter verb set (buffer, clip, dissolve, reproject, join,
-> zonalstats, filter, fix, explode, centroid, …) that will grow, plus more API/CLI
-> surface. The grammar and architecture are largely settled; expect additions.
-
-## The idea
-
-Automating geoprocessing in QGIS today means writing PyQGIS — initialize a
-`QgsApplication`, memorize algorithm IDs like `native:buffer`, build `ALL_CAPS`
-parameter dicts, juggle `TEMPORARY_OUTPUT`, and thread each tool's output into
-the next. That is a *programming* task, which puts everyday automation out of
-reach for the GUI-first analysts who most need it — and is tedious even for
-those who can.
-
-niva's answer is a **short, readable text grammar** — a whole pipeline on one
-line that a non-programmer can write *and* read:
+Write a whole pipeline on one line — friendly verbs running on QGIS's own Processing
+algorithms underneath:
 
 ```
-load roads.gpkg | buffer 100 dissolve | clip city.gpkg | save roads_local.gpkg
+load roads.gpkg | buffer 100m dissolve | clip city.gpkg | save roads_local.gpkg
 ```
 
-…running on QGIS's own Processing algorithms underneath.
+niva turns QGIS automation from a PyQGIS programming task into a line of text a
+GUI-first analyst can write *and* read. It runs in QGIS's own Python, reaches **any**
+of its ~769 algorithms, talks to your databases, and records provenance as it goes —
+with near-zero dependencies. **v0.1.0 runs real geoprocessing**, validated on real
+data (122 unit + 19 integration checks on QGIS 4.0.3).
 
-## Goals
+## Quick start
 
-- **Readable over powerful.** Favor a grammar a non-programmer can pick up — not
-  a new programming language.
-- **Thin over clever.** A wrapper over PyQGIS / QGIS Processing (friendly alias
-  names → `native:*` algorithms), not a reimplementation of GIS.
-- **Meet people where they are.** Surfaces under exploration: the text-pipeline
-  grammar, a Python chain API (`niva.chain(x).buffer().clip()`), a CLI, and YAML
-  flows for reproducible pipelines.
-- **One backend first.** In-process PyQGIS for v1; headless `qgis_process` later
-  for batch.
-- **Clean-room.** The grammar is derived from QGIS Processing's own model and
-  plain readability — not from any proprietary GIS scripting language.
+### In QGIS — no install needed (easiest)
 
-## Status & open questions
+1. Get `niva_qgis.zip` — download it from the
+   [latest release](https://github.com/johnzastrow/niva/releases/latest), or build it
+   with `plugin/build_plugin.sh`.
+2. In QGIS: **Plugins ▸ Manage and Install Plugins ▸ Install from ZIP** → pick the
+   zip. (Enable *"Show also experimental plugins"* if it doesn't appear.)
+3. Click the **niva** toolbar button, type a flow, hit **Run** — results land on the
+   map. The plugin bundles niva, so there's no pip step on Windows, macOS, or Linux.
 
-This is a **thought exercise**; the hard parts are deliberately still unsolved.
-The thinking lives in [`planning/`](planning/):
+### As a package — CLI + Python
 
-| Doc | What it covers |
-|-----|----------------|
-| `use_cases.md` | the driving example — a GIS analyst's end-to-end, multi-source workflow (Youngstown cat-canvassing) that the design is tested against |
-| `00-critique-and-open-questions.md` | what's strong, what's risky, decisions pending (historical — superseded items flagged) |
-| `01-prd.md` | **product requirements** — the top-level summary of everything decided: the grammar, native-first verb set, SQL & provenance value props, v1 goals/non-goals, success criteria, risks |
-| `02-architecture.md` | proposed architecture — layering, lex→parse→run pipeline, backends, and the **layer handle contract** (the value threaded through `\|`, and how it bridges Processing ↔ SQL ↔ expression surfaces) |
-| `03-mvp-scope.md` | what a first cut would (and wouldn't) include — the **initial ~40-verb set** (built-ins + Tier 1/2 aliases to real algorithm ids), SQL read passthrough in v1, and the definition of done |
-| `04-roadmap.md` | phased direction — v0.1 MVP → v2.x across three tracks (grammar/engine, coverage/registry, provenance), reconciled with the verb set, SQL, and lineage plans |
-| `05-concepts-captured.md` | every concept with its disposition — the original exploration **plus** the surface/registry/handle/provenance work — and what was deliberately rejected |
-| `06-qgis-surface-reference.md` | **reference**: the full QGIS capability surface niva could reach — 769 Processing algorithms, 406 expression functions, SpatiaLite/PostGIS spatial SQL, SQL drivers, the version stack — with before/after niva examples (machine-readable inventories in `planning/reference/`) |
-| `07-alias-registry-design.md` | the **alias registry** — how niva maps friendly verbs onto QGIS algorithms: entry schema, grammar→parameter binding, type coercion, enum vocab, the raw `run` escape hatch, and validation against the live registry |
-| `08-data-quality-provenance.md` | **logging, lineage & data quality** — the operation log, the `assess` verb for profiling incoming data, and auto-recording processing steps as formal metadata lineage (provenance as a byproduct of the work) |
-| `09-deployment-and-operation.md` | **deployment & operation** (analyst-friendly) — how niva installs into QGIS's Python, connects to QGIS/databases/files, the human-interface options (CLI, `.niva`, console, marimo, plugin GUI), and how it matures in phases |
-| `10-grammar-spec.md` | the **formal grammar** — EBNF + lexical rules (tokens, quoting/escaping, comments, line-continuation, stage binding, reserved words) |
-| `11-cli-and-api-reference.md` | the **CLI & Python-API reference** — commands, global flags, exit codes, the `niva.*`/`Layer`/`Result` surface, env vars |
-| `12-security-model.md` | the **security & threat model** — trust boundaries, threats + controls (SQL/`run`/credentials/untrusted flows), safe defaults |
-| `13-verb-reference.md` | a **worked verb reference** — the verb model fully explained, three signatures simple→complex (`reproject`/`buffer`/`join`), a composite flow, and the design issues that writing them surfaced |
-| `Oscar_the_Grouch.md` | the **failure register** — a comprehensive, adversarial catalogue of every way niva could fail (premise, architecture, engineering, packaging/environment, data correctness, users, sustainability) with severities and mitigations |
+Install into **QGIS's own Python** (niva runs on QGIS's Processing):
 
-Notable undecided questions: library vs CLI as the *primary* surface; whether the
-text DSL earns its keep next to a Python chain + YAML; and the output/layer
-lifecycle (what does a step return — a file path, a `QgsVectorLayer`, a niva
-wrapper?). None of these are settled.
+```bash
+<qgis-python> -m pip install git+https://github.com/johnzastrow/niva.git
+```
 
-## What's actually here today
+Then run flows from the shell or Python:
 
-- **`planning/`** — the design exploration and open decisions.
-- **`logos/`** — the niva brand (`logo.svg`, `logo_text.svg`; earlier concepts in
-  `OLD/`).
-- **`niva/`** — the **package** (v0.1, in progress). Implemented + tested:
-  - the **grammar** (`niva/grammar/` lexer + parser, `10-grammar-spec.md`);
-  - the **registry + binder** (`niva/registry/`, `07-alias-registry-design.md`) that
-    maps verbs like `buffer`/`join`/`zonalstats` to real `native:*` algorithms and
-    resolves a stage into the exact `processing.run` params;
-  - the **engine core** (`niva/engine/`, `02-architecture.md`) — runs a parsed flow
-    over a swappable `Backend`, threading one `Layer` handle down the pipe and
-    resolving distances against the layer CRS;
-  - the **PyQGIS backend** (`niva/engine/pyqgis.py`) — drives `processing.run`
-    inside QGIS's interpreter; this is what makes niva actually run geoprocessing;
-  - the **Python API** (`niva.flow`, `niva.run_file`) and a **CLI** (`niva/cli/`):
-    executes for real by default, with `--dry-run` (mock backend) and `--explain`
-    (plan only) both QGIS-free.
+```bash
+niva run myflow.niva                              # execute a .niva file
+niva "load a.gpkg | buffer 100m | save b.gpkg"    # a one-liner
+niva describe buffer                              # how a verb maps to a QGIS algorithm
+niva "load a.gpkg | buffer 100m | save b.gpkg" --dry-run   # validate — no QGIS needed
+```
 
-  **Tests:** `scripts/run_tests.sh` runs the unit suite (116 tests under QGIS's
-  Python, incl. PyQGIS smoke tests; the PyQGIS ones skip cleanly on plain Python).
-  `tests/integration/run.sh` runs the integration suite — which is written **in niva
-  itself** (`tests/integration/flows/*.niva`), executed via the real `niva run` CLI
-  against real GIS data and verified by grepping the `assess` reports niva produces
-  (19 checks; non-destructive; skips if QGIS or the data is absent).
-- **`examples/`** — an **illustrative** niva flow
-  ([`youngstown_cat_canvassing.niva`](examples/youngstown_cat_canvassing.niva))
-  that performs the `use_cases.md` workflow end to end in the proposed grammar.
-  Not runnable yet — a design artifact to review the grammar against a real task.
-- **`plugin/`** — the **QGIS plugin**: a dock to write/open a `.niva` flow and run
-  it in the current QGIS session (results land on the map), plus a dry-run. It
-  **vendors niva and runs in-process**, so it installs with **no pip step** on
-  Windows/macOS/Linux. Build with `plugin/build_plugin.sh` → `niva_qgis.zip`, then
-  QGIS ▸ *Install from ZIP*. See [`plugin/README.md`](plugin/README.md).
+```python
+import niva
+niva.flow('load "data.gpkg|layername=roads" | buffer 100m dissolve | save out.gpkg')
+```
 
-niva is released as **v0.1.0** — `pip install` the package (zero runtime deps), or
-install the QGIS plugin zip (no pip needed).
+> A GeoPackage holds many layers — name one with `|layername=…`. Databases:
+> `load @conn.table` and `sql @conn "SELECT …"` (credentials stay in QGIS).
+
+## What it does
+
+- **Friendly verbs → real QGIS algorithms** (`buffer`, `clip`, `dissolve`,
+  `reproject`, `join`, `zonalstats`, …); `run <id>` reaches any of the ~769 with no
+  alias, `describe` shows their parameters.
+- **Databases** via named QGIS connections — `@conn` tables and `sql @conn "…"` —
+  credentials never leave QGIS.
+- **Provenance for free** — every `save` records lineage; `assess` writes data-quality
+  reports.
+- **Composable** — chain stages with `|`, compose files with `call`.
+
+## Docs
+
+- [About & goals](docs/about.md) · [Plugin](plugin/README.md) ·
+  [Verb ↔ algorithm map](docs/planning/14-traceability-matrix.md)
+- [Design & risk docs](docs/planning/) — PRD, architecture, grammar, security, the
+  `Oscar` failure register
+- [CHANGELOG](CHANGELOG.md)
 
 ## License
 
-[GPLv3](LICENSE) — consistent with the QGIS ecosystem (niva builds on PyQGIS, a
-GPL library).
+[GPLv3](LICENSE) — consistent with the QGIS ecosystem (niva builds on PyQGIS, a GPL
+library). Not yet on PyPI; install from source or the plugin zip.
