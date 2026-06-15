@@ -1,15 +1,16 @@
 [general]
-name=niva (logo demo)
+name=niva
 qgisMinimumVersion=3.0
-description=Stub plugin that previews the niva logo on the QGIS toolbar and menu.
-version=0.0.1
+description=Run niva flows — a concise text pipeline for QGIS geoprocessing — from a dock.
+version=0.1.0
 author=John Zastrow
 email=br8kwall@gmail.com
-about=A minimal stub: it adds a toolbar button and a Plugins ▸ niva menu entry
-    using the niva logo, and shows the logo in a dialog when clicked. niva is a
-    planned PyQGIS wrapper for higher-level scripting of geoprocessing; this stub
-    exists to preview the branding in the QGIS UI and as a starting point if niva
-    becomes a full QGIS plugin.
+about=niva is a concise, readable text-pipeline grammar for QGIS geoprocessing
+    (load … | buffer 100m dissolve | save …). This plugin adds a dock where you
+    write or open a .niva flow and run it in the current QGIS session; results land
+    on the map. niva is bundled with the plugin (zero-dependency, pure Python), so
+    there is no separate install step on Windows, macOS, or Linux. It runs in-process
+    on QGIS's own Python and Processing algorithms.
 tracker=https://github.com/johnzastrow/niva/issues
 repository=https://github.com/johnzastrow/niva
 homepage=https://github.com/johnzastrow/niva

@@ -1,0 +1,135 @@
+"""The niva dock — a flow editor with Run / Dry-run, output, and map integration.
+
+All Qt access goes through ``qgis.PyQt`` so it works on QGIS 3 (Qt5) and QGIS 4
+(Qt6). Flows run in-process on the GUI thread (v0.1): fine for interactive work;
+long jobs block the UI — threading is a later increment (cf. Oscar A9: flows are
+serial within a process anyway).
+"""
+
+from __future__ import annotations
+
+import os
+
+from qgis.PyQt.QtCore import Qt
+from qgis.PyQt.QtGui import QFont
+from qgis.PyQt.QtWidgets import (
+    QDockWidget,
+    QFileDialog,
+    QHBoxLayout,
+    QLabel,
+    QPlainTextEdit,
+    QPushButton,
+    QVBoxLayout,
+    QWidget,
+)
+
+from . import runner
+
+_SAMPLE = """\
+# Edit this flow, then click Run — it executes in this QGIS session.
+# A GeoPackage holds many layers, so name one with |layername=.
+# Example:
+#   load "/path/to/data.gpkg|layername=roads" | buffer 100m dissolve | save /tmp/out.gpkg
+"""
+
+
+class NivaDock(QDockWidget):
+    def __init__(self, iface):
+        super().__init__("niva", iface.mainWindow())
+        self.iface = iface
+        self.path = None  # the .niva file currently open, if any (for relative paths)
+        self.setObjectName("NivaDock")
+
+        root = QWidget(self)
+        layout = QVBoxLayout(root)
+
+        self.editor = QPlainTextEdit(root)
+        self.editor.setPlainText(_SAMPLE)
+        self.editor.setFont(_mono())
+        layout.addWidget(self.editor, 3)
+
+        buttons = QHBoxLayout()
+        self.path_label = QLabel("(unsaved flow)", root)
+        for text, slot in (("Open…", self._open), ("Run", self._run),
+                           ("Dry-run", self._dry_run), ("Clear output", self._clear)):
+            b = QPushButton(text, root)
+            b.clicked.connect(slot)
+            buttons.addWidget(b)
+        buttons.addStretch(1)
+        buttons.addWidget(self.path_label)
+        layout.addLayout(buttons)
+
+        self.output = QPlainTextEdit(root)
+        self.output.setReadOnly(True)
+        self.output.setFont(_mono())
+        layout.addWidget(self.output, 2)
+
+        self.setWidget(root)
+
+    # --- actions -------------------------------------------------------------
+
+    def _open(self):
+        path, _ = QFileDialog.getOpenFileName(
+            self, "Open a .niva flow", "", "niva flows (*.niva);;All files (*)"
+        )
+        if not path:
+            return
+        try:
+            with open(path, encoding="utf-8") as fh:
+                self.editor.setPlainText(fh.read())
+        except OSError as exc:
+            self._log(f"could not open {path}: {exc}")
+            return
+        self.path = path
+        self.path_label.setText(os.path.basename(path))
+
+    def _run(self):
+        self._execute(dry_run=False)
+
+    def _dry_run(self):
+        self._execute(dry_run=True)
+
+    def _clear(self):
+        self.output.clear()
+
+    def _execute(self, *, dry_run: bool):
+        text = self.editor.toPlainText()
+        self._log(f"$ niva {'--dry-run' if dry_run else 'run'}")
+        try:
+            result = runner.run_flow(text, file=self.path, dry_run=dry_run)
+        except Exception as exc:  # safety net — never let the dock crash QGIS
+            self._log(f"niva: unexpected error: {exc}")
+            return
+        if result["ok"]:
+            self._log(result["summary"])
+            if result["layer"] is not None:
+                self._add_to_map(result["layer"])
+        else:
+            self._log(f"niva: {result['error']}")
+
+    # --- map integration -----------------------------------------------------
+
+    def _add_to_map(self, layer):
+        """Add the flow's final layer to the project so results land on the map."""
+        from qgis.core import QgsProject, QgsRasterLayer, QgsVectorLayer
+
+        ref = getattr(layer, "ref", None)
+        added = None
+        if isinstance(ref, str):  # a saved file path
+            name = os.path.splitext(os.path.basename(ref))[0]
+            vec = QgsVectorLayer(ref, name, "ogr")
+            added = vec if vec.isValid() else QgsRasterLayer(ref, name)
+        elif ref is not None and getattr(ref, "isValid", lambda: False)():
+            added = ref
+        if added is not None and added.isValid():
+            QgsProject.instance().addMapLayer(added)
+            self._log(f"  added to map: {added.name()}")
+
+    def _log(self, message: str):
+        self.output.appendPlainText(message)
+
+
+def _mono() -> QFont:
+    font = QFont("monospace")
+    font.setStyleHint(QFont.StyleHint.Monospace)
+    return font

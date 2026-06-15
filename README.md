@@ -117,12 +117,14 @@ wrapper?). None of these are settled.
   ([`youngstown_cat_canvassing.niva`](examples/youngstown_cat_canvassing.niva))
   that performs the `use_cases.md` workflow end to end in the proposed grammar.
   Not runnable yet — a design artifact to review the grammar against a real task.
-- **`plugin/`** — a minimal **QGIS plugin stub** that previews the niva logo on
-  the toolbar and Plugins menu. It does **no geoprocessing yet** — it's a
-  skeleton + branding preview for if niva becomes a QGIS plugin. See
-  [`plugin/README.md`](plugin/README.md).
+- **`plugin/`** — the **QGIS plugin**: a dock to write/open a `.niva` flow and run
+  it in the current QGIS session (results land on the map), plus a dry-run. It
+  **vendors niva and runs in-process**, so it installs with **no pip step** on
+  Windows/macOS/Linux. Build with `plugin/build_plugin.sh` → `niva_qgis.zip`, then
+  QGIS ▸ *Install from ZIP*. See [`plugin/README.md`](plugin/README.md).
 
-There is **no installable niva package** yet.
+niva is released as **v0.1.0** — `pip install` the package (zero runtime deps), or
+install the QGIS plugin zip (no pip needed).
 
 ## License
 

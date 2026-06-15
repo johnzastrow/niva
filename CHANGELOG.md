@@ -7,6 +7,22 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Added
+- **QGIS plugin on-ramp** (`plugin/`). A dock to write or open a `.niva` flow and
+  **Run** it in the current QGIS session — a saved output lands on the map; a
+  **Dry-run** button validates the flow over the mock backend (no geoprocessing) and
+  prints the operation sequence. **Cross-platform with no install step:** niva
+  (zero-dependency, pure Python) is **vendored** into the plugin and runs
+  **in-process** — no `pip`, no subprocess, no interpreter detection — so it behaves
+  identically on Windows (OSGeo4W), macOS, and Linux, sidestepping the install
+  friction Oscar flags as the top adoption risk (E2/E3). The plugin prefers a
+  `pip`-installed `niva` if present, else the vendored `libs/niva`.
+  `plugin/build_plugin.sh` vendors niva and builds `niva_qgis.zip` (top-level folder
+  `niva_qgis`, so it never shadows the vendored `niva` package). `plugin.py` /
+  `dock.py` / `runner.py` go through `qgis.PyQt` (Qt5 + Qt6). Verified on the
+  installed layout (repo off `sys.path`): the vendored import resolves with no
+  collision and a real flow runs through the dock's runner.
+
 ## [0.1.0] - 2026-06-15
 
 First working release — niva runs real geoprocessing. The pipeline is complete end
