@@ -26,11 +26,14 @@ __all__ = [
 ]
 
 
-def flow(text: str, *, backend=None, file: str | None = None):
+def flow(text: str, *, backend=None, file: str | None = None, log=None):
     """Parse and execute a niva flow, returning the final layer handle.
 
     ``backend`` defaults to the real :class:`PyqgisBackend` (which requires QGIS);
     pass a ``MockBackend`` to dry-run a flow without QGIS.
+
+    ``log`` is a base path for the run journal; ``<log>.jsonl`` (machine) and
+    ``<log>.log`` (human) are written. Falls back to the ``NIVA_LOG`` env var.
     """
     import os
 
@@ -39,7 +42,20 @@ def flow(text: str, *, backend=None, file: str | None = None):
 
     program = parse(text, file=file)
     base_dir = os.path.dirname(os.path.abspath(file)) if file else None
-    return Engine(backend or _default_backend()).execute(program, base_dir=base_dir)
+
+    journal = None
+    log = log or os.environ.get("NIVA_LOG")
+    if log:
+        from .journal import Journal
+
+        journal = Journal(log).open(flow=file or "<inline>", niva_version=__version__)
+    try:
+        return Engine(backend or _default_backend(), journal=journal).execute(
+            program, base_dir=base_dir
+        )
+    finally:
+        if journal is not None:
+            journal.close()
 
 
 def run_file(path: str, *, backend=None):

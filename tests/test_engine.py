@@ -192,21 +192,28 @@ class TestAssess(unittest.TestCase):
 
 
 class TestLineage(unittest.TestCase):
+    @staticmethod
+    def _texts(lineage):
+        # each entry is "<ISO-timestamp> <stage text>"; strip the timestamp prefix
+        return [e.split(" ", 1)[1] for e in lineage]
+
     def test_save_receives_build_lineage(self):
         backend, _ = run("load roads.gpkg | reproject EPSG:2262 | buffer 100m dissolve | save out.gpkg")
         self.assertEqual(
-            backend.last_lineage,
+            self._texts(backend.last_lineage),
             ["load roads.gpkg", "reproject EPSG:2262", "buffer 100m dissolve"],
         )
+        # entries are timestamped (ISO 8601, starts with a year)
+        self.assertRegex(backend.last_lineage[0], r"^20\d\d-\d\d-\d\dT")
 
     def test_lineage_excludes_the_save_stage_itself(self):
         backend, _ = run("load a.gpkg | save b.gpkg")
-        self.assertEqual(backend.last_lineage, ["load a.gpkg"])
+        self.assertEqual(self._texts(backend.last_lineage), ["load a.gpkg"])
 
     def test_second_save_accumulates_intermediate_stages(self):
         backend, _ = run("load a.gpkg | save b.gpkg\n\nload c.gpkg | buffer 5m | save d.gpkg")
         # last_lineage reflects the most recent save (second flow)
-        self.assertEqual(backend.last_lineage, ["load c.gpkg", "buffer 5m"])
+        self.assertEqual(self._texts(backend.last_lineage), ["load c.gpkg", "buffer 5m"])
 
 
 class TestErrors(unittest.TestCase):

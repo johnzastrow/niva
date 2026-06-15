@@ -111,6 +111,8 @@ class NivaDock(QDockWidget):
                 self._add_to_map(result["layer"])
         else:
             self._log(f"niva: {result['error']}")
+        if result.get("log"):
+            self._log(f"  log: {result['log']}")
 
     # --- map integration -----------------------------------------------------
 

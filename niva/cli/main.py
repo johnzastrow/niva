@@ -36,6 +36,11 @@ def main(argv=None) -> int:
         if flag in argv:
             argv = [a for a in argv if a != flag]
             mode = flag[2:]
+    log = None
+    if "--log" in argv:  # --log <base> → write <base>.jsonl + <base>.log
+        i = argv.index("--log")
+        log = argv[i + 1] if i + 1 < len(argv) else None
+        del argv[i:i + 2]
     if not argv or argv[0] in ("-h", "--help"):
         print(_USAGE)
         return 0
@@ -56,7 +61,7 @@ def main(argv=None) -> int:
             _print_plan(program, source)
             _dry_run(program, base_dir)
         else:
-            return _execute(program, base_dir)
+            return _execute(program, base_dir, source=source, log=log)
     except FlowError as exc:
         print(f"niva: {exc}", file=sys.stderr)
         return 2
@@ -108,7 +113,7 @@ def _describe(args) -> int:
     return code
 
 
-def _execute(program, base_dir=None) -> int:
+def _execute(program, base_dir=None, *, source="<inline>", log=None) -> int:
     from ..engine import Engine
     from ..engine.pyqgis import PyqgisBackend, ensure_qgis
 
@@ -121,9 +126,18 @@ def _execute(program, base_dir=None) -> int:
             file=sys.stderr,
         )
         return 3
+
+    journal = None
+    log = log or os.environ.get("NIVA_LOG")
+    if log:
+        from .. import __version__
+        from ..journal import Journal
+
+        journal = Journal(log).open(flow=source, niva_version=__version__)
+
     code = 0
     try:
-        result = Engine(PyqgisBackend()).execute(program, base_dir=base_dir)
+        result = Engine(PyqgisBackend(), journal=journal).execute(program, base_dir=base_dir)
         _print_result(result)
     except FlowError as exc:
         print(f"niva: {exc}", file=sys.stderr)
@@ -131,6 +145,9 @@ def _execute(program, base_dir=None) -> int:
     except OpError as exc:
         print(f"niva: {exc}", file=sys.stderr)
         code = 1
+    if journal is not None:
+        journal.close()
+        print(f"# log: {os.path.abspath(journal.log_path)}")
     if owns:
         # Standalone run: tear QGIS down and hard-exit with our code before the
         # Python GC races QGIS's C++ teardown at interpreter shutdown (it segfaults,

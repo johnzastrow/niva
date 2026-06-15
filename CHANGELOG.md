@@ -7,6 +7,25 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Added
+- **Run journal — a timestamped log of every operation** (planning 08-§2), written as
+  **two files** because humans don't read JSON:
+  - `<base>.jsonl` — machine-readable JSON Lines: a versioned header
+    (`niva_journal`/version/flow/started) then one record per op (ts, kind, stage
+    text, algorithm, ok, duration, full output path), plus a footer.
+  - `<base>.log` — plain text a person reads: a header, one timestamped line per op
+    (`<ts>  <stage>  [algorithm]  → <full path>  (12 ms)`), and a `done — N ops` footer.
+  - **Full paths everywhere** — outputs are logged as **absolute** paths (resolved
+    against the run's cwd), so you can always find what a flow wrote (the fix for the
+    relative-path confusion).
+  - **The plugin auto-logs every run** to the OS temp dir (`…/niva_logs/niva-<ts>.log`)
+    and shows the path in the dock. CLI: `niva run flow.niva --log <base>`; both honor
+    the `NIVA_LOG` env var; `niva.flow(text, log=<base>)` in Python.
+  - Kept alongside the existing per-`save` lineage in `QgsLayerMetadata.history`
+    (**now timestamped too**) — you get *both* the layer's embedded history and the
+    run log. Only stage text + resolved paths are logged; never params or credentials.
+  - **6 new journal tests** (128 total, all green).
+
 ### Fixed
 - **Plugin: white background on the dock's text panels.** The editor and output now
   force a light background + dark text regardless of the QGIS theme (a dark theme had

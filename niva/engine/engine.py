@@ -9,8 +9,10 @@ delegates everything that touches geodata to a ``Backend``. No QGIS import here.
 from __future__ import annotations
 
 import os
+import time
+from datetime import datetime, timezone
 
-from ..errors import FlowError
+from ..errors import FlowError, NivaError
 from ..grammar import Call, Flow, parse
 from ..registry import bind, core_registry
 from ..values import Distance
@@ -21,9 +23,10 @@ from .units import resolve_distance
 
 
 class Engine:
-    def __init__(self, backend: Backend, registry=None):
+    def __init__(self, backend: Backend, registry=None, journal=None):
         self.backend = backend
         self.registry = registry or core_registry()
+        self.journal = journal  # optional run journal (jsonl + human log); see niva.journal
 
     def execute(self, program: list, *, base_dir: str | None = None,
                 _stack: tuple = ()) -> Layer | None:
@@ -50,6 +53,8 @@ class Engine:
         if path in stack:
             chain = " → ".join(os.path.basename(p) for p in (*stack, path))
             raise FlowError(f"`call` cycle detected: {chain}", line=call.line, stage=call.raw)
+        if self.journal is not None:
+            self.journal.record(text=(call.raw or f"call {target}").strip(), kind="call")
         try:
             with open(path, encoding="utf-8") as fh:
                 text = fh.read()
@@ -65,9 +70,51 @@ class Engine:
         current: Layer | None = None
         lineage: list = []  # niva stages that built `current`, for save → history
         for stage in flow.stages:
-            current = self._run_stage(stage, current, lineage)
-            lineage.append((stage.raw or stage.verb).strip())
+            text = (stage.raw or stage.verb).strip()
+            t0 = time.monotonic()
+            try:
+                current = self._run_stage(stage, current, lineage)
+            except NivaError as exc:
+                self._record(stage, text, ok=False, error=str(exc), t0=t0)
+                raise
+            self._record(stage, text, ok=True, t0=t0)
+            # history lineage entries are timestamped too (planning 08-§3)
+            lineage.append(f"{_now()} {text}")
         return current
+
+    def _record(self, stage, text, *, ok, t0, error=None) -> None:
+        if self.journal is None:
+            return
+        self.journal.record(
+            text=text, kind=stage.verb, algorithm=self._algorithm_of(stage),
+            summary=self._paths_of(stage), ok=ok, error=error,
+            duration_ms=round((time.monotonic() - t0) * 1000),
+        )
+
+    def _algorithm_of(self, stage):
+        if stage.verb == "run":
+            return stage.args[0] if stage.args else None
+        alias = self.registry.get(stage.verb)
+        return alias.algorithm if alias is not None else None
+
+    def _paths_of(self, stage) -> str:
+        """The file path(s) a stage reads/writes, as **absolute** paths — so the log
+        always tells you where a file actually went (a relative path resolves against
+        the process cwd, which is where niva wrote it). Connection refs (@conn) are
+        not file paths and are left out."""
+        verb, paths = stage.verb, []
+        if verb in ("load", "save") and stage.args and not stage.args[0].startswith("@"):
+            paths.append(stage.args[0].split("|", 1)[0])
+        elif verb == "assess":
+            rest = [a for a in stage.args if a.lstrip("-") != "deep"]
+            if len(rest) == 2 and rest[0] == "to":
+                paths.append(rest[1])
+        elif verb == "run":
+            # just the produced file — the inputs are already in the command text
+            value = stage.options.get("OUTPUT")
+            if isinstance(value, str) and value and not value.startswith("@"):
+                paths.append(value.split("|", 1)[0])
+        return ", ".join(os.path.abspath(p) for p in paths)
 
     # --- per-stage dispatch --------------------------------------------------
 
@@ -254,6 +301,10 @@ class Engine:
 
 
 _METADATA_FIELDS = {"title", "abstract", "keywords", "identifier", "license"}
+
+
+def _now() -> str:
+    return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
 def _format_assessment(profile: dict, deep: bool) -> str:

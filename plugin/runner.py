@@ -38,13 +38,27 @@ def run_flow(text: str, *, file: str | None = None, dry_run: bool = False) -> di
             for c in backend.calls
         ]
         body = "\n".join(lines) or "(no operations)"
-        return {"ok": True, "mode": "dry-run", "summary": body, "layer": None, "error": None}
+        return {"ok": True, "mode": "dry-run", "summary": body, "layer": None,
+                "error": None, "log": None}
 
+    # Auto-log every real run to a timestamped journal in the OS temp dir. niva writes
+    # <base>.jsonl (machine) and <base>.log (human); we surface the .log to the user.
+    import tempfile
+    from datetime import datetime
+
+    log_base = os.path.join(
+        tempfile.gettempdir(), "niva_logs",
+        "niva-" + datetime.now().strftime("%Y%m%d-%H%M%S-%f"),
+    )
+    log_path = log_base + ".log"
     try:
-        layer = niva.flow(text, file=file)  # in-process; reuses the running QGIS
+        layer = niva.flow(text, file=file, log=log_base)  # in-process; reuses the running QGIS
     except NivaError as exc:
-        return _fail("run", exc)
-    return {"ok": True, "mode": "run", "summary": _describe(layer), "layer": layer, "error": None}
+        result = _fail("run", exc)
+        result["log"] = log_path  # the journal recorded the failure before raising
+        return result
+    return {"ok": True, "mode": "run", "summary": _describe(layer), "layer": layer,
+            "error": None, "log": log_path}
 
 
 def _fail(mode: str, exc: Exception) -> dict:
@@ -55,6 +69,13 @@ def _describe(layer) -> str:
     if layer is None:
         return "done — no output layer."
     ref = getattr(layer, "ref", None)
+    # Always show a FULL path: a saved file's ref is its path; a live layer exposes
+    # its data source (which includes the absolute path).
+    if isinstance(ref, str):
+        where = os.path.abspath(ref)
+    else:
+        source = getattr(ref, "source", None)
+        where = source() if callable(source) else (getattr(layer, "name", "") or str(ref))
     counter = getattr(ref, "featureCount", None)
     count = ""
     if callable(counter):
@@ -62,4 +83,4 @@ def _describe(layer) -> str:
             count = f", {counter()} feature(s)"
         except Exception:
             count = ""
-    return f"done — {getattr(layer, 'name', '') or ref}{count}."
+    return f"done — {where}{count}."
