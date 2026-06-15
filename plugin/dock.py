@@ -18,11 +18,13 @@ from qgis.PyQt.QtWidgets import (
     QLabel,
     QPlainTextEdit,
     QPushButton,
+    QTabWidget,
+    QTextBrowser,
     QVBoxLayout,
     QWidget,
 )
 
-from . import runner
+from . import environment, runner
 
 # White text panels regardless of the QGIS theme (a dark theme made the editor look
 # non-editable). Hardcode a light background + dark text for both editor and output.
@@ -43,33 +45,74 @@ class NivaDock(QDockWidget):
         self.path = None  # the .niva file currently open, if any (for relative paths)
         self.setObjectName("NivaDock")
 
-        root = QWidget(self)
-        layout = QVBoxLayout(root)
+        tabs = QTabWidget(self)
+        tabs.addTab(self._build_flow_tab(), "Flow")
+        tabs.addTab(self._build_setup_tab(), "Setup")
+        self.setWidget(tabs)
 
-        self.editor = QPlainTextEdit(root)
+    def _build_flow_tab(self) -> QWidget:
+        tab = QWidget(self)
+        layout = QVBoxLayout(tab)
+
+        self.editor = QPlainTextEdit(tab)
         self.editor.setPlainText(_SAMPLE)
         self.editor.setFont(_mono())
         self.editor.setStyleSheet(_PANEL_STYLE)
         layout.addWidget(self.editor, 3)
 
         buttons = QHBoxLayout()
-        self.path_label = QLabel("(unsaved flow)", root)
+        self.path_label = QLabel("(unsaved flow)", tab)
         for text, slot in (("Open…", self._open), ("Run", self._run),
                            ("Dry-run", self._dry_run), ("Clear output", self._clear)):
-            b = QPushButton(text, root)
+            b = QPushButton(text, tab)
             b.clicked.connect(slot)
             buttons.addWidget(b)
         buttons.addStretch(1)
         buttons.addWidget(self.path_label)
         layout.addLayout(buttons)
 
-        self.output = QPlainTextEdit(root)
+        self.output = QPlainTextEdit(tab)
         self.output.setReadOnly(True)
         self.output.setFont(_mono())
         self.output.setStyleSheet(_PANEL_STYLE)
         layout.addWidget(self.output, 2)
+        return tab
 
-        self.setWidget(root)
+    def _build_setup_tab(self) -> QWidget:
+        tab = QWidget(self)
+        layout = QVBoxLayout(tab)
+
+        self.setup_view = QTextBrowser(tab)
+        self.setup_view.setStyleSheet("QTextBrowser { background-color: white; color: #1a1a1a; }")
+        layout.addWidget(self.setup_view, 1)
+
+        row = QHBoxLayout()
+        refresh = QPushButton("Refresh", tab)
+        refresh.clicked.connect(self._refresh_setup)
+        copy = QPushButton("Copy", tab)
+        copy.clicked.connect(self._copy_setup)
+        row.addWidget(refresh)
+        row.addWidget(copy)
+        row.addStretch(1)
+        layout.addLayout(row)
+
+        self._refresh_setup()
+        return tab
+
+    def _refresh_setup(self):
+        try:
+            report = environment.report_markdown()
+        except Exception as exc:  # safety net — never crash the dock
+            self.setup_view.setPlainText(f"could not build environment report: {exc}")
+            return
+        try:
+            self.setup_view.setMarkdown(report)  # Qt 5.14+ / Qt6 renders headings & bold
+        except (AttributeError, TypeError):  # pragma: no cover — old Qt5
+            self.setup_view.setPlainText(report)
+
+    def _copy_setup(self):
+        self.setup_view.selectAll()
+        self.setup_view.copy()
 
     # --- actions -------------------------------------------------------------
 

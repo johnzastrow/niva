@@ -8,6 +8,12 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ## [Unreleased]
 
 ### Added
+- **Plugin: a Setup tab** showing the environment a niva user cares about — niva
+  version + where it's imported from (bundled vs pip), built-in + aliased verbs, the
+  number of algorithms `run` can reach + the Processing providers, the available
+  database connections (the `@conn` names), QGIS/Qt/GDAL/PROJ/GEOS versions,
+  Python/platform, and where run journals land. Rendered as markdown with Refresh +
+  Copy buttons (`plugin/environment.py`; the dock is now a Flow + Setup tab widget).
 - **Run journal — a timestamped log of every operation** (planning 08-§2), written as
   **two files** because humans don't read JSON:
   - `<base>.jsonl` — machine-readable JSON Lines: a versioned header
@@ -27,6 +33,10 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   - **6 new journal tests** (128 total, all green).
 
 ### Fixed
+- **Plugin: QGIS 4 / Qt6 compatibility metadata.** QGIS 4 flagged the plugin as
+  "designed for QGIS 3.0–3.99" because `metadata.txt` had no maximum version (it
+  defaults to `<min-major>.99`) and no Qt6 marker. Set `supportsQt6=True`,
+  `qgisMaximumVersion=4.99`, `qgisMinimumVersion=3.22`. Rebuild/reinstall the zip.
 - **Plugin: white background on the dock's text panels.** The editor and output now
   force a light background + dark text regardless of the QGIS theme (a dark theme had
   made the editor look non-editable).
