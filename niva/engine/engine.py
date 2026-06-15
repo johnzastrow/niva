@@ -24,10 +24,16 @@ from .units import resolve_distance
 
 
 class Engine:
-    def __init__(self, backend: Backend, registry=None, journal=None):
+    def __init__(self, backend: Backend, registry=None, journal=None, progress=None, cancel=None):
         self.backend = backend
         self.registry = registry or core_registry()
         self.journal = journal  # optional run journal (jsonl + human log); see niva.journal
+        self.progress = progress  # optional callable(str): live status during a run
+        self.cancel = cancel  # optional callable() -> bool: abort the running algorithm
+
+    def _emit(self, message: str) -> None:
+        if self.progress is not None:
+            self.progress(message)
 
     def execute(self, program: list, *, base_dir: str | None = None,
                 _stack: tuple = ()) -> Layer | None:
@@ -77,6 +83,7 @@ class Engine:
         lineage: list = []  # niva stages that built `current`, for save → history
         for stage in flow.stages:
             text = (stage.raw or stage.verb).strip()
+            self._emit(f"▶ {text}")
             t0 = time.monotonic()
             try:
                 current = self._run_stage(stage, current, lineage)
@@ -84,6 +91,7 @@ class Engine:
                 self._record(stage, text, ok=False, error=str(exc), t0=t0)
                 raise
             self._record(stage, text, ok=True, t0=t0)
+            self._emit(f"  ✓ {_fmt_elapsed(time.monotonic() - t0)}")
             # history lineage entries are timestamped too (planning 08-§3)
             lineage.append(f"{_now()} {text}")
         return current
@@ -153,6 +161,7 @@ class Engine:
         return self.backend.run(
             op.algorithm, params,
             input_param=op.input_param, input_layer=current, output_param=op.output_param,
+            progress=self.progress, cancel=self.cancel,
         )
 
     # --- built-in verbs ------------------------------------------------------
@@ -302,7 +311,8 @@ class Engine:
             )
         algorithm = stage.args[0]
         params = {key: self._expand_value(value, stage) for key, value in stage.options.items()}
-        return self.backend.run_raw(algorithm, params, input_layer=current)
+        return self.backend.run_raw(algorithm, params, input_layer=current,
+                                    progress=self.progress, cancel=self.cancel)
 
     def _expand_value(self, value: str, stage):
         """A `run` option value, with **`~` and glob expansion**. A `;`-joined value
@@ -350,6 +360,16 @@ _FILE_EXTS = (".gpkg", ".shp", ".geojson", ".json", ".tif", ".tiff", ".sqlite",
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+
+def _fmt_elapsed(seconds: float) -> str:
+    """Human elapsed time: '450 ms', '3.2 s', or '1m 05s'."""
+    if seconds < 1:
+        return f"{round(seconds * 1000)} ms"
+    if seconds < 60:
+        return f"{seconds:.1f} s"
+    m, s = divmod(int(seconds), 60)
+    return f"{m}m {s:02d}s"
 
 
 def _format_assessment(profile: dict, deep: bool) -> str:

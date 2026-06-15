@@ -76,6 +76,12 @@ class TestJournal(unittest.TestCase):
                  if "FAILED" in ln]
         self.assertEqual(len(lines), 1)  # the failure is a single line
 
+    def test_footer_reports_elapsed(self):
+        self._run("load a.gpkg | save out.gpkg")
+        self.assertRegex(open(self.base + ".log").read(), r"# done:.* in .*(ms|s)")
+        recs = [json.loads(x) for x in open(self.base + ".jsonl") if x.strip()]
+        self.assertIn("elapsed_s", recs[-1])
+
     def test_timestamps_present(self):
         self._run("load a.gpkg | save out.gpkg")
         text = open(self.base + ".log").read()

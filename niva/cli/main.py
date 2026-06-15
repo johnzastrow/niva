@@ -135,10 +135,19 @@ def _execute(program, base_dir=None, *, source="<inline>", log=None) -> int:
 
         journal = Journal(log).open(flow=source, niva_version=__version__)
 
+    import time
+
+    from ..engine.engine import _fmt_elapsed
+
     code = 0
+    t0 = time.monotonic()
     try:
-        result = Engine(PyqgisBackend(), journal=journal).execute(program, base_dir=base_dir)
+        progress = lambda msg: print(msg, file=sys.stderr, flush=True)  # noqa: E731
+        result = Engine(PyqgisBackend(), journal=journal, progress=progress).execute(
+            program, base_dir=base_dir
+        )
         _print_result(result)
+        print(f"# done in {_fmt_elapsed(time.monotonic() - t0)}")
     except FlowError as exc:
         print(f"niva: {exc}", file=sys.stderr)
         code = 2

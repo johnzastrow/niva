@@ -243,6 +243,38 @@ class TestLineage(unittest.TestCase):
         self.assertEqual(self._texts(backend.last_lineage), ["load c.gpkg", "buffer 5m"])
 
 
+class TestProgress(unittest.TestCase):
+    def test_emits_a_stage_start_event_per_stage(self):
+        from niva import flow
+
+        msgs = []
+        flow("load a.gpkg | buffer 100m dissolve | save out.gpkg",
+             backend=MockBackend(), progress=msgs.append)
+        self.assertEqual(
+            [m for m in msgs if m.startswith("▶")],
+            ["▶ load a.gpkg", "▶ buffer 100m dissolve", "▶ save out.gpkg"],
+        )
+
+    def test_no_progress_callback_is_fine(self):
+        from niva import flow
+
+        flow("load a.gpkg | save b.gpkg", backend=MockBackend())  # progress=None → no-op
+
+    def test_emits_elapsed_after_each_stage(self):
+        from niva import flow
+
+        msgs = []
+        flow("load a.gpkg | buffer 5m | save b.gpkg", backend=MockBackend(), progress=msgs.append)
+        done = [m for m in msgs if m.strip().startswith("✓")]
+        self.assertEqual(len(done), 3)  # one ✓ per stage, with its elapsed
+
+    def test_accepts_cancel_callback(self):
+        from niva import flow
+
+        # cancel is a real-QGIS abort hook; with the mock it must just be a no-op
+        flow("load a.gpkg | save b.gpkg", backend=MockBackend(), cancel=lambda: False)
+
+
 class TestErrors(unittest.TestCase):
     def test_unknown_verb(self):
         with self.assertRaises(FlowError) as ctx:

@@ -13,7 +13,7 @@ import os
 
 
 def run_flow(text: str, *, file: str | None = None, dry_run: bool = False,
-             log_base: str | None = None) -> dict:
+             log_base: str | None = None, progress=None, cancel=None) -> dict:
     """Execute ``text`` (or dry-run it). Returns a result dict:
 
     ``{ok: bool, mode: str, summary: str, layer, error: str | None, log}``
@@ -22,10 +22,13 @@ def run_flow(text: str, *, file: str | None = None, dry_run: bool = False,
     is the journal base path; the plugin passes one **session** base so all runs
     append to a single log. ``None`` disables logging.
     """
+    import time
+
     import niva
     from niva.errors import NivaError
 
     base = os.path.dirname(os.path.abspath(file)) if file else None
+    t0 = time.monotonic()
 
     if dry_run:
         from niva.engine import Engine, MockBackend
@@ -35,26 +38,31 @@ def run_flow(text: str, *, file: str | None = None, dry_run: bool = False,
         try:
             Engine(backend).execute(parse(text, file=file), base_dir=base)
         except NivaError as exc:
-            return _fail("dry-run", exc)
-        lines = [
-            f"{c[0]} {c[1]}" + (f"  {c[2]}" if len(c) > 2 else "")
-            for c in backend.calls
-        ]
-        body = "\n".join(lines) or "(no operations)"
-        return {"ok": True, "mode": "dry-run", "summary": body, "layer": None,
-                "error": None, "log": None}
+            result = _fail("dry-run", exc)
+        else:
+            lines = [
+                f"{c[0]} {c[1]}" + (f"  {c[2]}" if len(c) > 2 else "")
+                for c in backend.calls
+            ]
+            result = {"ok": True, "mode": "dry-run", "summary": "\n".join(lines) or "(no operations)",
+                      "layer": None, "error": None, "log": None}
+        result["elapsed"] = time.monotonic() - t0
+        return result
 
     # Append every real run to the session journal (one file per QGIS session).
     # niva writes <base>.jsonl (machine) and <base>.log (human); we surface the .log.
     log_path = (log_base + ".log") if log_base else None
     try:
-        layer = niva.flow(text, file=file, log=log_base, log_append=True)
+        layer = niva.flow(text, file=file, log=log_base, log_append=True,
+                          progress=progress, cancel=cancel)
     except NivaError as exc:
         result = _fail("run", exc)
-        result["log"] = log_path  # the journal recorded the failure before raising
-        return result
-    return {"ok": True, "mode": "run", "summary": _describe(layer), "layer": layer,
-            "error": None, "log": log_path}
+    else:
+        result = {"ok": True, "mode": "run", "summary": _describe(layer), "layer": layer,
+                  "error": None}
+    result["log"] = log_path  # the journal records even a failed run before raising
+    result["elapsed"] = time.monotonic() - t0
+    return result
 
 
 def _fail(mode: str, exc: Exception) -> dict:

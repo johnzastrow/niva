@@ -52,6 +52,52 @@ def ensure_qgis(prefix: str | None = None):
     return app, owns
 
 
+def _feedback(progress, cancel=None):
+    """A QgsProcessingFeedback that forwards algorithm progress to ``progress`` (a
+    ``callable(str)``) and asks ``cancel`` (a ``callable() -> bool``) whether to abort
+    the running algorithm. Returns None if neither is given. Progress % is throttled
+    to every 5%; the algorithm's own info/error messages are passed through."""
+    if progress is None and cancel is None:
+        return None
+    from qgis.core import QgsProcessingFeedback
+
+    class _NivaFeedback(QgsProcessingFeedback):
+        def __init__(self):
+            super().__init__(False)  # don't log to stdout
+            self._last = -5
+
+        def setProgress(self, value):  # noqa: N802 — Qt override (virtual; fires periodically)
+            # QgsFeedback.isCanceled() is NOT virtual, so we can't intercept the poll —
+            # instead, when the caller asks to cancel we call cancel() here to set the
+            # internal flag the algorithm checks (it then stops and returns empty).
+            # setProgress is the periodic hook on the algorithm's thread.
+            if cancel and cancel():
+                if not self.isCanceled():
+                    if progress is not None:
+                        progress("   canceling…")
+                    self.cancel()
+                return
+            super().setProgress(value)
+            if progress is None:
+                return
+            pct = int(value)
+            if pct >= self._last + 5:
+                self._last = pct
+                progress(f"   {pct}%")
+
+        def pushInfo(self, info):  # noqa: N802 — Qt override
+            super().pushInfo(info)
+            if progress is not None and info.strip():
+                progress(f"   {info.strip()}")
+
+        def reportError(self, error, fatalError=False):  # noqa: N802
+            super().reportError(error, fatalError)
+            if progress is not None:
+                progress(f"   ! {error.strip()}")
+
+    return _NivaFeedback()
+
+
 def owned_app():
     """The QgsApplication niva created (standalone), or None if it reuses a running
     QGIS. The CLI uses this to tear down cleanly before a hard exit."""
@@ -149,23 +195,33 @@ class PyqgisBackend(Backend):
             algorithm="load", params={"source": source}, backend="pyqgis",
         )
 
+    @staticmethod
+    def _run_error(algorithm, params, cancel, exc):
+        """Wrap a processing failure as OpError — as a cancellation if one was asked."""
+        if cancel and cancel():
+            return OpError(f"`{algorithm}` canceled", algorithm=algorithm, params={}, backend="pyqgis")
+        return OpError(str(exc), algorithm=algorithm, params=params, backend="pyqgis")
+
     def run(self, algorithm: str, params: dict, *, input_param: str,
-            input_layer: Layer, output_param: str) -> Layer:
+            input_layer: Layer, output_param: str, progress=None, cancel=None) -> Layer:
         import processing
 
         full = dict(params)
         full[input_param] = input_layer.ref
         full[output_param] = "TEMPORARY_OUTPUT"
         try:
-            result = processing.run(algorithm, full)
+            result = processing.run(algorithm, full, feedback=_feedback(progress, cancel))
         except Exception as exc:  # QgsProcessingException and friends
-            raise OpError(str(exc), algorithm=algorithm, params=full, backend="pyqgis") from exc
+            raise self._run_error(algorithm, full, cancel, exc)
+        if cancel and cancel():  # canceled algorithms return an empty result, not an error
+            raise OpError(f"`{algorithm}` canceled", algorithm=algorithm, params={}, backend="pyqgis")
         out = result.get(output_param)
         if isinstance(out, str):  # a path/uri rather than a live layer — wrap it
             out = self.load(out).ref
         return Layer(MEMORY, out, facet=self._facet(out), name=algorithm)
 
-    def run_raw(self, algorithm: str, params: dict, *, input_layer: Layer | None = None):
+    def run_raw(self, algorithm: str, params: dict, *, input_layer: Layer | None = None,
+                progress=None, cancel=None):
         import processing
 
         full = dict(params)
@@ -173,9 +229,11 @@ class PyqgisBackend(Backend):
             full["INPUT"] = input_layer.ref
         full.setdefault("OUTPUT", "TEMPORARY_OUTPUT")
         try:
-            result = processing.run(algorithm, full)
+            result = processing.run(algorithm, full, feedback=_feedback(progress, cancel))
         except Exception as exc:
-            raise OpError(str(exc), algorithm=algorithm, params=full, backend="pyqgis") from exc
+            raise self._run_error(algorithm, full, cancel, exc)
+        if cancel and cancel():  # canceled algorithms return an empty result, not an error
+            raise OpError(f"`{algorithm}` canceled", algorithm=algorithm, params={}, backend="pyqgis")
         out = result.get("OUTPUT")
         if out is None:  # no pipeable output (e.g. a folder/PDF export) — terminal
             return None

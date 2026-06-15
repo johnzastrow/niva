@@ -7,6 +7,23 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-06-15
+
+### Added
+- **Live progress, elapsed time, and cancel.** niva now emits status as a flow runs:
+  - **Progress** — a `▶ <stage>` line as each stage starts, throttled **algorithm
+    progress %** during long operations (via QGIS's processing feedback), and a
+    per-stage `✓ <elapsed>`. Shown live in the plugin dock (it repaints mid-run, so a
+    minutes-long mosaic streams `5% 10% …` instead of freezing silently) and on the
+    CLI (stderr). API: `niva.flow(progress=callable)`.
+  - **Elapsed time** — per stage in the progress, a **total when the job's done** (dock
+    + CLI `# done in …`), and in the run-journal footer (`# done: … in 2.3 s`).
+  - **Cancel** — a **Cancel** button in the dock aborts the running operation
+    (`niva.flow(cancel=callable)`; the dock disables Run while a flow is in flight).
+    In-process native algorithms abort promptly; gdal subprocess ops are best-effort
+    (a fast one may finish first). A canceled run is reported as `… canceled`.
+  - **+5 tests** (141 total); verified live progress %, elapsed, and real cancellation.
+
 ## [0.4.0] - 2026-06-15
 
 ### Added

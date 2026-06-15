@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import json
 import os
+import time
 from datetime import datetime, timezone
 
 SCHEMA = 1
@@ -27,6 +28,15 @@ SCHEMA = 1
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+
+def _fmt_elapsed(seconds: float) -> str:
+    if seconds < 1:
+        return f"{round(seconds * 1000)} ms"
+    if seconds < 60:
+        return f"{seconds:.1f} s"
+    m, s = divmod(int(seconds), 60)
+    return f"{m}m {s:02d}s"
 
 
 class Journal:
@@ -45,6 +55,7 @@ class Journal:
         parent = os.path.dirname(self.base)
         if parent:
             os.makedirs(parent, exist_ok=True)
+        self._t0 = time.monotonic()
         mode = "a" if self.append else "w"
         existing = self.append and os.path.exists(self.log_path) and os.path.getsize(self.log_path) > 0
         self._jsonl = open(self.jsonl_path, mode, encoding="utf-8")
@@ -94,13 +105,17 @@ class Journal:
         self._log.flush()
 
     def close(self) -> None:
+        elapsed = time.monotonic() - getattr(self, "_t0", time.monotonic())
         if self._log is not None:
             outcome = "ok" if self._failed == 0 else f"{self._failed} failed"
-            self._log.write(f"# done: {self._n} operation(s), {outcome}  ({_now()})\n")
+            self._log.write(
+                f"# done: {self._n} operation(s), {outcome}, in {_fmt_elapsed(elapsed)}  ({_now()})\n"
+            )
             self._log.close()
             self._log = None
         if self._jsonl is not None:
-            self._emit_json({"run_finished": _now(), "operations": self._n, "failed": self._failed})
+            self._emit_json({"run_finished": _now(), "operations": self._n,
+                             "failed": self._failed, "elapsed_s": round(elapsed, 3)})
             self._jsonl.close()
             self._jsonl = None
 

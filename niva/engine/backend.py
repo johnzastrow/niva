@@ -32,13 +32,15 @@ class Backend(abc.ABC):
 
     @abc.abstractmethod
     def run(self, algorithm: str, params: dict, *, input_param: str,
-            input_layer: Layer, output_param: str) -> Layer:
+            input_layer: Layer, output_param: str, progress=None, cancel=None) -> Layer:
         """Run ``algorithm`` with ``params``, feeding ``input_layer`` into
         ``input_param`` and a temporary sink into ``output_param``; return the
-        output as a new handle. Failures raise ``OpError``."""
+        output as a new handle. Failures raise ``OpError``. ``progress`` is an
+        optional ``callable(str)`` for live status (algorithm progress %)."""
 
     @abc.abstractmethod
-    def run_raw(self, algorithm: str, params: dict, *, input_layer: Layer | None = None):
+    def run_raw(self, algorithm: str, params: dict, *, input_layer: Layer | None = None,
+                progress=None, cancel=None):
         """The `run` escape hatch: pass ``params`` to ``algorithm`` verbatim. The
         backend injects ``INPUT`` from ``input_layer`` if absent (piped use) and a
         temporary ``OUTPUT`` if absent, then returns the output as a handle, or
@@ -83,13 +85,14 @@ class MockBackend(Backend):
         return Layer(SOURCE, source, facet=facet, name=source)
 
     def run(self, algorithm: str, params: dict, *, input_param: str,
-            input_layer: Layer, output_param: str) -> Layer:
+            input_layer: Layer, output_param: str, progress=None, cancel=None) -> Layer:
         self.calls.append(("run", algorithm, params))
         self._n += 1
         return Layer(MEMORY, f"result-{self._n}", facet=input_layer.facet,
                      name=f"{algorithm}#{self._n}")
 
-    def run_raw(self, algorithm: str, params: dict, *, input_layer: Layer | None = None):
+    def run_raw(self, algorithm: str, params: dict, *, input_layer: Layer | None = None,
+                progress=None, cancel=None):
         self.calls.append(("run", algorithm, params))
         self._n += 1
         facet = input_layer.facet if input_layer is not None else "vector"

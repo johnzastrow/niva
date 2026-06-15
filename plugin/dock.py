@@ -74,13 +74,21 @@ class NivaDock(QDockWidget):
         layout.addWidget(self.editor, 3)
 
         buttons = QHBoxLayout()
-        self.path_label = QLabel("(unsaved flow)", tab)
-        for text, slot in (("Open…", self._open), ("Run", self._run),
-                           ("Dry-run", self._dry_run), ("Clear output", self._clear)):
-            b = QPushButton(text, tab)
-            b.clicked.connect(slot)
+        open_btn = QPushButton("Open…", tab)
+        open_btn.clicked.connect(self._open)
+        self.run_btn = QPushButton("Run", tab)
+        self.run_btn.clicked.connect(self._run)
+        self.dry_btn = QPushButton("Dry-run", tab)
+        self.dry_btn.clicked.connect(self._dry_run)
+        self.cancel_btn = QPushButton("Cancel", tab)
+        self.cancel_btn.clicked.connect(self._cancel)
+        self.cancel_btn.setEnabled(False)
+        clear_btn = QPushButton("Clear output", tab)
+        clear_btn.clicked.connect(self._clear)
+        for b in (open_btn, self.run_btn, self.dry_btn, self.cancel_btn, clear_btn):
             buttons.addWidget(b)
         buttons.addStretch(1)
+        self.path_label = QLabel("(unsaved flow)", tab)
         buttons.addWidget(self.path_label)
         layout.addLayout(buttons)
 
@@ -225,14 +233,34 @@ class NivaDock(QDockWidget):
     def _clear(self):
         self.output.clear()
 
+    def _cancel(self):
+        self._cancel_requested = True
+        self._log("  canceling…")
+
     def _execute(self, *, dry_run: bool):
+        if getattr(self, "_running", False):  # don't re-enter while a run is in flight
+            return
+        self._running = True
+        self._cancel_requested = False
+        self.run_btn.setEnabled(False)
+        self.dry_btn.setEnabled(False)
+        self.cancel_btn.setEnabled(not dry_run)  # only a real run can be canceled
         text = self.editor.toPlainText()
         self._log(f"$ niva {'--dry-run' if dry_run else 'run'}")
         log_base = None if dry_run else self._session_log_base()
+        result = None
         try:
-            result = runner.run_flow(text, file=self.path, dry_run=dry_run, log_base=log_base)
+            result = runner.run_flow(text, file=self.path, dry_run=dry_run, log_base=log_base,
+                                     progress=self._on_progress,
+                                     cancel=lambda: self._cancel_requested)
         except Exception as exc:  # safety net — never let the dock crash QGIS
             self._log(f"niva: unexpected error: {exc}")
+        finally:
+            self._running = False
+            self.run_btn.setEnabled(True)
+            self.dry_btn.setEnabled(True)
+            self.cancel_btn.setEnabled(False)
+        if result is None:
             return
         if result["ok"]:
             self._log(result["summary"])
@@ -240,8 +268,18 @@ class NivaDock(QDockWidget):
                 self._add_to_map(result["layer"])
         else:
             self._log(f"niva: {result['error']}")
+        if result.get("elapsed") is not None:
+            self._log(f"  ({_fmt_secs(result['elapsed'])})")
         if result.get("log"):
             self._log(f"  log: {result['log']}")
+
+    def _on_progress(self, message: str):
+        """Live status during a run. Repaint so it shows even though the flow runs on
+        the GUI thread — the feedback callbacks interleave with the algorithm."""
+        from qgis.PyQt.QtWidgets import QApplication
+
+        self.output.appendPlainText(message)
+        QApplication.processEvents()
 
     # --- map integration -----------------------------------------------------
 
@@ -263,6 +301,15 @@ class NivaDock(QDockWidget):
 
     def _log(self, message: str):
         self.output.appendPlainText(message)
+
+
+def _fmt_secs(seconds: float) -> str:
+    if seconds < 1:
+        return f"{round(seconds * 1000)} ms"
+    if seconds < 60:
+        return f"{seconds:.1f} s"
+    m, s = divmod(int(seconds), 60)
+    return f"{m}m {s:02d}s"
 
 
 def _mono() -> QFont:
