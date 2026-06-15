@@ -118,6 +118,33 @@ class TestRunEscapeHatch(unittest.TestCase):
         self.assertEqual(params["INPUT"], ["a.tif", "b.tif", "c.tif"])
         self.assertEqual(params["DATA_TYPE"], 5)
 
+    def test_run_glob_expands_to_sorted_files(self):
+        import os
+        import tempfile
+
+        d = tempfile.mkdtemp()
+        for name in ("b.jp2", "a.jp2", "c.tif"):  # c.tif must NOT match *.jp2
+            open(os.path.join(d, name), "w").close()
+        backend, _ = run(f'run gdal:buildvirtualraster INPUT="{d}/*.jp2" OUTPUT=/tmp/x.vrt')
+        params = next(c for c in backend.calls if c[0] == "run")[2]
+        self.assertEqual(params["INPUT"], [os.path.join(d, "a.jp2"), os.path.join(d, "b.jp2")])
+
+    def test_run_glob_no_match_is_error(self):
+        with self.assertRaises(FlowError) as ctx:
+            run('run x:y INPUT="/no/such/dir/*.jp2"')
+        self.assertIn("no files match", str(ctx.exception))
+
+    def test_run_does_not_glob_an_expression(self):
+        backend, _ = run('load a | run native:fieldcalculator FORMULA="area * 2"')
+        params = next(c for c in backend.calls if c[0] == "run")[2]
+        self.assertEqual(params["FORMULA"], "area * 2")  # `*` in an expression is left alone
+
+    def test_load_expands_home(self):
+        import os
+
+        backend, _ = run("load ~/foo.gpkg | save out.gpkg")
+        self.assertEqual(backend.calls[0], ("load", os.path.expanduser("~/foo.gpkg")))
+
     def test_explode_alias(self):
         backend, _ = run("load roads.gpkg | explode | save e.gpkg")
         self.assertEqual(backend.calls[1][1], "native:multiparttosingleparts")

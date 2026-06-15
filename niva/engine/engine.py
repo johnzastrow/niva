@@ -8,6 +8,7 @@ delegates everything that touches geodata to a ``Backend``. No QGIS import here.
 
 from __future__ import annotations
 
+import glob
 import os
 import time
 from datetime import datetime, timezone
@@ -36,13 +37,18 @@ class Engine:
         calling file's directory, or the cwd for an inline program). ``_stack`` is
         the chain of files currently being executed, for cycle detection."""
         base_dir = base_dir or os.getcwd()
-        result: Layer | None = None
-        for stmt in program:
-            if isinstance(stmt, Call):
-                result = self._run_call(stmt, base_dir, _stack)
-            else:
-                result = self.run_flow(stmt)
-        return result
+        prev_base = getattr(self, "_base_dir", None)
+        self._base_dir = base_dir  # relative globs/paths resolve against this
+        try:
+            result: Layer | None = None
+            for stmt in program:
+                if isinstance(stmt, Call):
+                    result = self._run_call(stmt, base_dir, _stack)
+                else:
+                    result = self.run_flow(stmt)
+            return result
+        finally:
+            self._base_dir = prev_base
 
     # --- call (file composition, planning 10/02) -----------------------------
 
@@ -180,7 +186,7 @@ class Engine:
                     line=stage.line, stage=stage.raw,
                 )
             return self.backend.load_table(conn, schema, table)
-        return self.backend.load(source)
+        return self.backend.load(os.path.expanduser(source))
 
     def _sql(self, stage) -> Layer:
         if len(stage.args) != 2 or stage.options:
@@ -213,7 +219,7 @@ class Engine:
                 "`save` takes one destination: `save <path>`",
                 line=stage.line, stage=stage.raw,
             )
-        return self.backend.save(current, stage.args[0], lineage=lineage)
+        return self.backend.save(current, os.path.expanduser(stage.args[0]), lineage=lineage)
 
     def _metadata(self, stage, current: Layer | None) -> Layer:
         # `metadata set key=value …` — attach descriptive metadata to the current
@@ -267,7 +273,7 @@ class Engine:
                 "`assess` needs an output: `assess [deep] to <report.md>`",
                 line=stage.line, stage=stage.raw,
             )
-        dest = rest[1]
+        dest = os.path.expanduser(rest[1])
         profile = self.backend.profile(current, deep)
         report = _format_assessment(profile, deep)
         parent = os.path.dirname(dest)
@@ -295,8 +301,33 @@ class Engine:
                 line=stage.line, stage=stage.raw,
             )
         algorithm = stage.args[0]
-        params = {key: _run_value(value) for key, value in stage.options.items()}
+        params = {key: self._expand_value(value, stage) for key, value in stage.options.items()}
         return self.backend.run_raw(algorithm, params, input_layer=current)
+
+    def _expand_value(self, value: str, stage):
+        """A `run` option value, with **`~` and glob expansion**. A `;`-joined value
+        is a list (QGIS's layer separator); a path segment containing `*`/`?`/`[` is
+        globbed (relative to the flow's directory) into the sorted matching files — so
+        `INPUT="tiles/*.jp2"` reaches every tile without listing them. A glob that
+        matches nothing is a clear error. Non-path values (e.g. an expression with `*`)
+        are left alone."""
+        base = getattr(self, "_base_dir", None) or os.getcwd()
+        items, globbed = [], False
+        for seg in (s.strip() for s in value.split(";") if s.strip()):
+            seg = os.path.expanduser(seg)
+            is_path_glob = any(c in seg for c in "*?[") and ("/" in seg or os.sep in seg or " " not in seg)
+            if is_path_glob:
+                pattern = seg if os.path.isabs(seg) else os.path.join(base, seg)
+                matches = sorted(glob.glob(pattern))
+                if not matches:
+                    raise FlowError(f"no files match `{seg}`", line=stage.line, stage=stage.raw)
+                items.extend(matches)
+                globbed = True
+            else:
+                items.append(_scalar(seg))
+        if globbed or len(items) > 1:
+            return items
+        return items[0] if items else value
 
     # --- distance resolution -------------------------------------------------
 
@@ -392,15 +423,6 @@ def _format_assessment(profile: dict, deep: bool) -> str:
         lines += ["_Run `assess deep to …` for geometry-validity and null checks._", ""]
 
     return "\n".join(lines)
-
-
-def _run_value(value: str):
-    """A `run` option value. A `;`-joined value becomes a list — QGIS's own layer-list
-    separator — so multilayer params (e.g. `gdal:merge INPUT="a.tif;b.tif"`) work;
-    otherwise a single scalar."""
-    if ";" in value:
-        return [_scalar(part.strip()) for part in value.split(";") if part.strip()]
-    return _scalar(value)
 
 
 def _scalar(value: str):

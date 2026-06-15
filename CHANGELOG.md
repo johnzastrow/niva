@@ -7,6 +7,19 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-06-15
+
+### Added
+- **Wildcards and `~` in paths — no more listing every file.** A `run` option value
+  that contains a path glob (`*`, `?`, `[…]`) is expanded to the **sorted matching
+  files**, so `run gdal:buildvirtualraster INPUT="tiles/*.jp2" …` reaches every tile
+  without naming them. Relative globs resolve against the flow's directory; `;`-lists
+  still work and combine with globs; a glob that matches nothing is a clear error; and
+  a value that just happens to contain `*` (e.g. an expression `area * 2`) is left
+  alone. `~` (home) is expanded in `run` values and in `load`/`save`/`assess` paths.
+  **+4 tests** (136 total). Note: a glob in the *output's own folder* can match the
+  output — use a specific pattern (e.g. `w_*.jp2`, not `*.jp2`).
+
 ## [0.3.1] - 2026-06-15
 
 ### Added
