@@ -12,6 +12,44 @@ once it has releases.
 
 ## [Unreleased]
 
+### Changed
+- **`run` reaches multilayer params; fixed a GeoPackage save bug** (both surfaced by
+  real raster/vector data):
+  - A `run` option value containing `;` is now split into a **list** — QGIS's own
+    layer-list separator — so multilayer params work, e.g.
+    `run gdal:merge INPUT="a.tif;b.tif;c.tif" …`. (Enabled merging 13 DEM tiles +
+    clipping to an AOI entirely via `run`; see `build_ytown_dem.niva`.)
+  - **`save` to GeoPackage no longer fails when the layer carries an `fid` field**
+    (`UNIQUE constraint failed: fid` — common in `pointsalonglines`, `intersection`,
+    joins). niva tells GDAL to mint a fresh primary key and keeps the source `fid`
+    as an ordinary attribute (no data loss). +2 tests (122 total).
+- **Traceability matrix: ten verified `run`-only pipelines.** Added a "Proof" section
+  with **10 multi-stage, alias-free pipelines (built-ins + `run` only)**, each
+  **executed against the real Youngstown dataset** with recorded feature counts — the
+  concrete evidence behind the Oscar verdict (answers "I don't see the concrete
+  tests"). Plus the cross-provider raster build (`gdal:merge` → `gdal:clip…`).
+- **Multi-layer sources handled explicitly.** A GeoPackage/SpatiaLite holds many
+  layers, tables, and views — niva no longer silently loads the first. `load` of a
+  multi-layer source **without** a layer name is now a clear error listing the
+  available layers; pick one with `load "file.gpkg|layername=<name>"` (selects a
+  layer, attribute table, or view), or a DB table with `load @conn[.schema].table`.
+  Single-layer files load unchanged. +2 PyQGIS smoke tests (120 total). The
+  traceability matrix gains a "Multi-layer sources" section (and a save caveat:
+  one layer per file today; multi-layer write is planned, 03-§2.5).
+- **Widened `reproject` and `join` aliases** to expose previously-hidden QGIS params
+  (surfaced by the traceability matrix): `reproject` gains `convert_curved` and
+  `transform_z` flags (moving `CONVERT_CURVED_GEOMETRIES` out of `forced` so it is
+  overridable; both still default off); `join` gains `unmatched=<path>` for the
+  `NON_MATCHING` sink (write the input rows that found no match). +2 tests (118 total).
+- **Traceability matrix (`planning/14`) reworked:** the alias table now lists the
+  verbose original QGIS signature **last**, so the niva-signature and status columns
+  stay visible; added a section explaining the `run` escape hatch (how to reach any
+  of the installed algorithms — `describe` to find params, auto-filled `INPUT`/
+  `OUTPUT`, `KEY=value` for the rest) with **8 worked native examples** verified
+  against the live registry; and a section **proving `run` meets Oscar's success
+  bar** (defuses Top-7 #6 registry-rot and #7 scope/bus-factor, softens #5 the cliff;
+  zero deps, no injection surface). Regenerate with `scripts/gen_traceability_matrix.py`.
+
 ### Added
 - **`assess` now reports existing metadata/lineage and checks duplicate geometries.**
   The report gains a **Metadata** section (title, abstract, keywords, and the

@@ -111,6 +111,13 @@ class TestRunEscapeHatch(unittest.TestCase):
         with self.assertRaises(FlowError):
             run("load a | run native:slope native:aspect")
 
+    def test_run_semicolon_value_becomes_list(self):
+        # multilayer params (e.g. gdal:merge INPUT) need a list — `;` splits it
+        backend, _ = run('run gdal:merge INPUT="a.tif;b.tif;c.tif" DATA_TYPE=5 | save x.tif')
+        params = next(c for c in backend.calls if c[0] == "run")[2]
+        self.assertEqual(params["INPUT"], ["a.tif", "b.tif", "c.tif"])
+        self.assertEqual(params["DATA_TYPE"], 5)
+
     def test_explode_alias(self):
         backend, _ = run("load roads.gpkg | explode | save e.gpkg")
         self.assertEqual(backend.calls[1][1], "native:multiparttosingleparts")

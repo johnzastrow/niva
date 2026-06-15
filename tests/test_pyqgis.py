@@ -228,5 +228,86 @@ class TestPyqgisConnections(unittest.TestCase):
             niva.flow(f"load @no_such_conn_xyz.homes | save {self.tmp}/x.gpkg")
 
 
+class TestFidCollisionSave(unittest.TestCase):
+    """Saving a layer that carries an `fid` field to GeoPackage must not fail on the
+    primary-key UNIQUE constraint — niva mints a fresh PK and keeps `fid` as data."""
+
+    def test_save_layer_with_duplicate_fid(self):
+        from qgis.core import QgsFeature, QgsGeometry, QgsPointXY, QgsVectorLayer
+
+        from niva.engine.layer import MEMORY, Layer
+        from niva.engine.pyqgis import PyqgisBackend
+
+        tmp = tempfile.mkdtemp(prefix="niva_fid_")
+        vl = QgsVectorLayer("Point?crs=EPSG:3857&field=fid:integer&field=name:string",
+                            "t", "memory")
+        pr = vl.dataProvider()
+        for i in range(3):
+            f = QgsFeature()
+            f.setGeometry(QgsGeometry.fromPointXY(QgsPointXY(i, i)))
+            f.setAttributes([1, "x"])  # duplicate fid=1 across all three
+            pr.addFeature(f)
+        vl.updateExtents()
+
+        out = os.path.join(tmp, "fid.gpkg")
+        PyqgisBackend().save(Layer(MEMORY, vl, facet="vector"), out)  # must not raise
+
+        saved = QgsVectorLayer(f"{out}|layername=fid", "s", "ogr")
+        self.assertTrue(saved.isValid())
+        self.assertEqual(saved.featureCount(), 3)
+        self.assertIn("fid", [f.name() for f in saved.fields()])  # source fid preserved
+
+
+class TestMultiLayerLoad(unittest.TestCase):
+    """A GeoPackage holds many layers — niva must not silently grab the first."""
+
+    def setUp(self):
+        from qgis.core import (QgsFeature, QgsGeometry, QgsPointXY, QgsProject,
+                               QgsVectorFileWriter, QgsVectorLayer)
+
+        self.tmp = tempfile.mkdtemp(prefix="niva_multi_")
+        self.gpkg = os.path.join(self.tmp, "multi.gpkg")
+        action = QgsVectorFileWriter.ActionOnExistingFile
+
+        def add(layername, on_existing):
+            vl = QgsVectorLayer("Point?crs=EPSG:3857&field=id:integer", layername, "memory")
+            pr = vl.dataProvider()
+            f = QgsFeature()
+            f.setGeometry(QgsGeometry.fromPointXY(QgsPointXY(0, 0)))
+            f.setAttributes([1])
+            pr.addFeature(f)
+            vl.updateExtents()
+            opts = QgsVectorFileWriter.SaveVectorOptions()
+            opts.driverName = "GPKG"
+            opts.layerName = layername
+            opts.actionOnExistingFile = on_existing
+            QgsVectorFileWriter.writeAsVectorFormatV3(
+                vl, self.gpkg, QgsProject.instance().transformContext(), opts
+            )
+
+        add("roads", action.CreateOrOverwriteFile)
+        add("rivers", action.CreateOrOverwriteLayer)
+
+    def test_ambiguous_load_lists_the_layers(self):
+        import niva
+        from niva.errors import OpError
+
+        with self.assertRaises(OpError) as ctx:
+            niva.flow(f"load {self.gpkg} | save {self.tmp}/x.gpkg")
+        msg = str(ctx.exception)
+        self.assertIn("2 layers", msg)
+        self.assertIn("roads", msg)
+        self.assertIn("rivers", msg)
+        self.assertIn("layername=", msg)
+
+    def test_named_layer_loads(self):
+        import niva
+        from qgis.core import QgsVectorLayer
+
+        out = os.path.join(self.tmp, "out.gpkg")
+        niva.flow(f'load "{self.gpkg}|layername=rivers" | save {out}')
+        self.assertTrue(QgsVectorLayer(f"{out}|layername=out", "o", "ogr").isValid())
+
+
 if __name__ == "__main__":
     unittest.main()

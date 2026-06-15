@@ -118,10 +118,26 @@ def _init_processing():
 
 class PyqgisBackend(Backend):
     def load(self, source: str, *, facet: str = "vector") -> Layer:
-        from qgis.core import QgsRasterLayer, QgsVectorLayer
+        from qgis.core import QgsProviderRegistry, QgsRasterLayer, QgsVectorLayer
 
         src = str(source)
+        # A GeoPackage / SpatiaLite / etc. holds many layers, tables, and views. If the
+        # caller did not name one, refuse to silently grab the first — list them and
+        # tell them how to pick (a quiet wrong-layer is exactly the kind of silent error
+        # niva exists to prevent; cf. Oscar D-series).
+        if "|layername=" not in src and "|layerid=" not in src:
+            subs = QgsProviderRegistry.instance().querySublayers(src)
+            if len(subs) > 1:
+                names = ", ".join(s.name() for s in subs)
+                base = os.path.basename(src)
+                raise OpError(
+                    f"`{source}` holds {len(subs)} layers — name one with "
+                    f'`load "{base}|layername=<name>"`. Available: {names}',
+                    algorithm="load", params={"source": source}, backend="pyqgis",
+                )
         name = os.path.basename(src.split("|", 1)[0]) or src
+        if "layername=" in src:
+            name = src.split("layername=", 1)[1].split("|", 1)[0] or name
         vl = QgsVectorLayer(src, name, "ogr")
         if vl.isValid():
             return Layer(SOURCE, vl, facet="vector", name=name)
@@ -298,6 +314,17 @@ class PyqgisBackend(Backend):
             options.driverName = driver
         if multilayer:  # a known layer name is needed to persist metadata later
             options.layerName = name
+            # If the layer carries an `fid` field (many QGIS outputs do — e.g.
+            # points-along-lines, intersection, joins), its values can collide with the
+            # GeoPackage primary key → "UNIQUE constraint failed: fid". Tell GDAL to mint
+            # a fresh PK and keep the source `fid` as an ordinary attribute (no data loss).
+            fields = layer.ref.fields() if hasattr(layer.ref, "fields") else []
+            names = {f.name().lower() for f in fields}
+            if "fid" in names:
+                pk = "gpkg_fid"
+                while pk.lower() in names:
+                    pk += "_"
+                options.layerOptions = [f"FID={pk}"]
         err = QgsVectorFileWriter.writeAsVectorFormatV3(
             layer.ref, dest, QgsProject.instance().transformContext(), options
         )

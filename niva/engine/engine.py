@@ -238,7 +238,7 @@ class Engine:
                 line=stage.line, stage=stage.raw,
             )
         algorithm = stage.args[0]
-        params = {key: _scalar(value) for key, value in stage.options.items()}
+        params = {key: _run_value(value) for key, value in stage.options.items()}
         return self.backend.run_raw(algorithm, params, input_layer=current)
 
     # --- distance resolution -------------------------------------------------
@@ -327,6 +327,15 @@ def _format_assessment(profile: dict, deep: bool) -> str:
         lines += ["_Run `assess deep to …` for geometry-validity and null checks._", ""]
 
     return "\n".join(lines)
+
+
+def _run_value(value: str):
+    """A `run` option value. A `;`-joined value becomes a list — QGIS's own layer-list
+    separator — so multilayer params (e.g. `gdal:merge INPUT="a.tif;b.tif"`) work;
+    otherwise a single scalar."""
+    if ";" in value:
+        return [_scalar(part.strip()) for part in value.split(";") if part.strip()]
+    return _scalar(value)
 
 
 def _scalar(value: str):

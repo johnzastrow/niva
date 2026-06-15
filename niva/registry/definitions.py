@@ -57,7 +57,12 @@ CORE = [
         "Reproject a layer to a target CRS.",
         args=[Arg("target_crs", "TARGET_CRS", "crs")],
         options={"operation": Option("OPERATION", "string")},
-        forced={"CONVERT_CURVED_GEOMETRIES": False},
+        # Both default False (flags default off), preserving prior behaviour, but now
+        # overridable: `reproject EPSG:2262 convert_curved transform_z`.
+        flags={
+            "convert_curved": Flag("CONVERT_CURVED_GEOMETRIES"),
+            "transform_z": Flag("TRANSFORM_Z"),
+        },
     ),
     Alias(
         "filter",
@@ -83,6 +88,8 @@ CORE = [
             "fields": Option("FIELDS_TO_COPY", "fields"),
             "prefix": Option("PREFIX", "string"),
             "method": Option("METHOD", "enum", "one-to-one", {"one-to-many": 0, "one-to-one": 1}),
+            # optional: write the input features that found no match to this file
+            "unmatched": Option("NON_MATCHING", "string"),
         },
         flags={"discard": Flag("DISCARD_NONMATCHING")},
     ),

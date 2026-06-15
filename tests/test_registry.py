@@ -66,10 +66,16 @@ class TestBinder(unittest.TestCase):
         self.assertEqual(op.algorithm, "native:clip")
         self.assertEqual(op.params["OVERLAY"], "city.gpkg")
 
-    def test_reproject_crs_and_forced(self):
+    def test_reproject_crs_and_flag_defaults(self):
         op = bound("reproject EPSG:2262")
         self.assertEqual(op.params["TARGET_CRS"], "EPSG:2262")
-        self.assertEqual(op.params["CONVERT_CURVED_GEOMETRIES"], False)  # forced
+        self.assertEqual(op.params["CONVERT_CURVED_GEOMETRIES"], False)  # flag default
+        self.assertEqual(op.params["TRANSFORM_Z"], False)               # flag default
+
+    def test_reproject_flags_settable(self):
+        op = bound("reproject EPSG:2262 convert_curved transform_z")
+        self.assertEqual(op.params["CONVERT_CURVED_GEOMETRIES"], True)
+        self.assertEqual(op.params["TRANSFORM_Z"], True)
 
     def test_dissolve_optional_positional_omitted(self):
         op = bound("dissolve")
@@ -87,6 +93,11 @@ class TestBinder(unittest.TestCase):
         self.assertEqual(op.params["PREFIX"], "cen_")
         self.assertEqual(op.params["DISCARD_NONMATCHING"], True)
         self.assertEqual(op.params["METHOD"], 1)    # default one-to-one
+        self.assertNotIn("NON_MATCHING", op.params)  # unmatched omitted by default
+
+    def test_join_unmatched_sink(self):
+        op = bound("join with=c.csv field=a field2=b unmatched=leftovers.gpkg")
+        self.assertEqual(op.params["NON_MATCHING"], "leftovers.gpkg")
 
     def test_zonalstats_enumlist(self):
         op = bound("zonalstats raster=dem.tif band=2 stats=mean,min,max prefix=elev_")
