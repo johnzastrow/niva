@@ -7,6 +7,17 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-06-15
+
+### Fixed
+- **Plugin: `flow() got an unexpected keyword argument 'log'` after reinstalling
+  without restarting QGIS.** Python caches modules in `sys.modules` across plugin
+  reloads, so a reinstalled plugin kept running the *old* vendored niva. The entry
+  point now **purges cached `niva` modules and loads the bundled copy first**, so a
+  reinstall + reload picks up the new code with no QGIS restart. The plugin now always
+  uses its own vendored niva (matching its runner) rather than preferring an external
+  one — no version skew.
+
 ## [0.2.0] - 2026-06-15
 
 Plugin maturity + observability: a Setup tab, a timestamped run journal (human +
