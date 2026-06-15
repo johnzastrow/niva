@@ -41,6 +41,14 @@ class TestLoadConnection(unittest.TestCase):
         backend, _ = run("load @pg.public.roads")
         self.assertEqual(backend.calls[0], ("load_table", "pg", "public", "roads"))
 
+    def test_at_ref_that_looks_like_a_file_hints_the_path_form(self):
+        # `@example.gpkg` is a common slip — `@` is for connections, files use a path
+        with self.assertRaises(FlowError) as ctx:
+            run("load @example.gpkg")
+        msg = str(ctx.exception)
+        self.assertIn("looks like a file", msg)
+        self.assertIn("layername=", msg)
+
     def test_load_bare_connection_is_error(self):
         with self.assertRaises(FlowError) as ctx:
             run("load @cats_pg")

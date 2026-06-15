@@ -159,6 +159,16 @@ class Engine:
             )
         source = stage.args[0]
         if is_connection_ref(source):
+            # `@` is for SAVED database connections, not files. `@example.gpkg` is a
+            # common slip — catch a filename-looking ref and point at the path form.
+            if source.lower().endswith(_FILE_EXTS):
+                path = source[1:]
+                raise FlowError(
+                    f"`{source}` looks like a file, but `@` is for saved QGIS database "
+                    f"connections. Load a file by path instead (GeoPackages hold many "
+                    f'layers, so name one): `load "{path}|layername=<layer>"`.',
+                    line=stage.line, stage=stage.raw,
+                )
             try:
                 conn, schema, table = parse_connection_ref(source)
             except ValueError as exc:
@@ -301,6 +311,10 @@ class Engine:
 
 
 _METADATA_FIELDS = {"title", "abstract", "keywords", "identifier", "license"}
+
+# Extensions that mean "this `@ref` is really a file, not a connection name".
+_FILE_EXTS = (".gpkg", ".shp", ".geojson", ".json", ".tif", ".tiff", ".sqlite",
+              ".db", ".gml", ".kml", ".csv", ".gpx", ".fgb", ".parquet")
 
 
 def _now() -> str:

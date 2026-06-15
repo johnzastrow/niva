@@ -7,6 +7,14 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-06-15
+
+### Added
+- **Friendlier error for `load @file.ext`.** `@` is for *saved database connections*,
+  but `load @example.gpkg` is a common slip (it searched for a connection named
+  `example`). niva now detects a `@`-ref that ends in a known file extension and points
+  at the path form: ``load "example.gpkg|layername=<layer>"``. +1 test (132 total).
+
 ## [0.3.0] - 2026-06-15
 
 ### Changed
