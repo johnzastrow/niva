@@ -7,6 +7,41 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-06-16
+
+### Added
+- **`reproject` is collection-safe and lossless — "both, per layer".** A layer that
+  mixes geometry types (e.g. an Overture polygon theme with a few Polygon+LineString
+  `GeometryCollection` features) used to make `reproject` fail / skip the layer, because
+  `native:reprojectlayer` writes a single-typed output sink. niva now tries the typed
+  path first (clean layers stay cleanly typed) and, only when QGIS rejects a feature on
+  a geometry-type mismatch, falls back to a **lossless generic-geometry reprojection**
+  (GDAL `VectorTranslate -nlt GEOMETRY`, via the bundled `osgeo.gdal` — no new
+  dependency) that keeps every feature's native type. So clean layers stay typed and
+  only the genuinely-mixed ones become generic, with **nothing dropped**. (`save` was
+  already lossless.) This removes the need for a lossy `fix` before `reproject`.
+- **Encrypted secret storage for `email`/`notify` (QGIS auth store).** The Setup tab can
+  now **Save secrets to QGIS encrypted store** and **Load secrets from QGIS store**: the
+  SMTP password and ntfy token are kept in QGIS's `QgsAuthManager` (AES-encrypted
+  `qgis-auth.db`, unlocked by the QGIS master password), and only the non-secret config
+  IDs are stored in settings. No new dependency, no custom crypto — niva never writes the
+  secrets to its own files. Loading pushes them into the environment for the verbs.
+- **Automatic GeoPackage compaction after a batch.** When an `each` batch writes layers
+  into a `.gpkg`/`.sqlite`, niva `VACUUM`s each container once at the end (via
+  `Backend.compact`, stdlib `sqlite3`) to reclaim the free pages multi-layer appends
+  leave behind.
+- **JP2 save defaults to `QUALITY=25`** (GDAL's own default, now set explicitly) so a
+  `.jp2` save is never accidentally written near-lossless. Override per format/quality
+  with `run gdal:translate … CREATION_OPTIONS=…`.
+
+### Notes
+- **Dirty/`GeometryCollection` geometry → use `fix`.** Source layers (e.g. Overture
+  themes) can carry stray `GeometryCollection` features that QGIS won't write into a
+  typed output, so `reproject`/`clip` would skip those layers. The remedy is the existing
+  **`fix`** verb (`native:fixgeometries`), which repairs them into the layer's own type
+  (a no-op for clean layers): `each "<dir>" | fix | reproject EPSG:6346 | save out.gpkg`.
+  `examples/analyst_plan.niva` now uses this and recovers every layer (0 skips).
+
 ## [0.11.0] - 2026-06-16
 
 ### Added

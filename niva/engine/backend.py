@@ -78,6 +78,10 @@ class Backend(abc.ABC):
         backend overrides this when it can introspect containers."""
         return []
 
+    def compact(self, path: str) -> None:
+        """Reclaim free pages in a GeoPackage/SpatiaLite container (SQLite ``VACUUM``)
+        after multi-layer writes. No-op by default; the real backend implements it."""
+
     # --- journal echo (concrete; shared by every backend) --------------------
 
     def render_call(self, algorithm: str, params: dict, *, input_param: str | None = None,
@@ -123,6 +127,9 @@ class MockBackend(Backend):
 
     def sublayers(self, source: str) -> list:
         return list(self.sublayer_map.get(source, []))
+
+    def compact(self, path: str) -> None:
+        self.calls.append(("compact", path))
 
     def load(self, source: str, *, facet: str = "vector") -> Layer:
         self.calls.append(("load", source))

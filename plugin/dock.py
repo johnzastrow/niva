@@ -55,6 +55,10 @@ _ENV_FIELDS = [
     ("NIVA_SMTP_PASSWORD", "Password / App Password", True, "Gmail: an App Password"),
 ]
 _ENV_SETTINGS_PREFIX = "niva/env/"
+# QgsAuthManager config IDs for the persisted secrets (the secrets live encrypted in
+# QGIS's auth DB; only these non-secret IDs are kept in QgsSettings).
+_SMTP_AUTHCFG_KEY = "niva/smtp_authcfg"
+_NTFY_AUTHCFG_KEY = "niva/ntfy_authcfg"
 
 
 def default_log_dir() -> str:
@@ -255,8 +259,10 @@ class NivaDock(QDockWidget):
             "<b>Gmail:</b> just set <i>SMTP user</i>/<i>From</i> to your address and "
             "<i>Password</i> to a Gmail <b>App Password</b> (host is filled in "
             "automatically). Non-secret fields are remembered; the <b>password and "
-            "token are kept for this QGIS session only and never saved to disk</b> — "
-            "for a permanent setup, export the matching environment variable in your OS.",
+            "token can be saved to QGIS's <b>encrypted store</b> (button below, unlocked "
+            "by your QGIS master password) — or, if you don't save them, they apply for "
+            "this session only and are never written to disk. Non-secret fields are "
+            "remembered as plain settings.",
             tab,
         )
         note.setWordWrap(True)
@@ -301,6 +307,22 @@ class NivaDock(QDockWidget):
             btnrow.addWidget(b)
         btnrow.addStretch(1)
         layout.addLayout(btnrow)
+
+        storerow = QHBoxLayout()
+        save_store = QPushButton("Save secrets to QGIS encrypted store", tab)
+        save_store.setToolTip("Encrypt the password and token into QGIS's auth database "
+                              "(qgis-auth.db, unlocked by your QGIS master password). "
+                              "Only a non-secret config ID is kept in settings.")
+        save_store.clicked.connect(self._save_secrets_to_authstore)
+        load_store = QPushButton("Load secrets from QGIS store", tab)
+        load_store.setToolTip("Decrypt the saved password/token from QGIS's encrypted "
+                              "store into the fields and apply them (prompts for your "
+                              "QGIS master password).")
+        load_store.clicked.connect(self._load_secrets_from_authstore)
+        for b in (save_store, load_store):
+            storerow.addWidget(b)
+        storerow.addStretch(1)
+        layout.addLayout(storerow)
 
         self.env_status = QLabel("", tab)
         self.env_status.setWordWrap(True)
@@ -429,6 +451,86 @@ class NivaDock(QDockWidget):
             self.env_status.setText(f"email test failed: {exc}")
             return
         self.env_status.setText(f"Sent a test email to {to}. Check that inbox.")
+
+    # --- encrypted secret storage (QgsAuthManager) ---------------------------
+
+    def _save_secrets_to_authstore(self) -> None:
+        """Encrypt the password/token into QGIS's auth DB (qgis-auth.db, AES, unlocked
+        by the QGIS master password) and keep only the non-secret config IDs in
+        settings. niva never writes the secrets to its own files."""
+        from qgis.core import QgsApplication, QgsAuthMethodConfig, QgsSettings
+
+        am = QgsApplication.authManager()
+        # storing prompts QGIS to set/enter the master password if needed
+        if hasattr(am, "setMasterPassword") and not am.masterPasswordIsSet():
+            if not am.setMasterPassword(True):
+                self.env_status.setText("Master password not set — secrets not saved.")
+                return
+        settings = QgsSettings()
+        smtp_pw = self._env_fields["NIVA_SMTP_PASSWORD"][0].text().strip()
+        smtp_user = self._env_fields["NIVA_SMTP_USER"][0].text().strip()
+        ntfy_tok = self._env_fields["NIVA_NTFY_TOKEN"][0].text().strip()
+        saved = []
+        if smtp_pw:
+            cfg = QgsAuthMethodConfig()
+            cfg.setName("niva SMTP")
+            cfg.setMethod("Basic")
+            cfg.setConfig("username", smtp_user)
+            cfg.setConfig("password", smtp_pw)
+            if am.storeAuthenticationConfig(cfg) and cfg.id():
+                settings.setValue(_SMTP_AUTHCFG_KEY, cfg.id())
+                saved.append("SMTP password")
+        if ntfy_tok:
+            cfg = QgsAuthMethodConfig()
+            cfg.setName("niva ntfy")
+            cfg.setMethod("Basic")
+            cfg.setConfig("password", ntfy_tok)
+            if am.storeAuthenticationConfig(cfg) and cfg.id():
+                settings.setValue(_NTFY_AUTHCFG_KEY, cfg.id())
+                saved.append("ntfy token")
+        self.env_status.setText(
+            ("Saved to QGIS encrypted store: " + ", ".join(saved) +
+             ". Use 'Load secrets from QGIS store' after a restart.")
+            if saved else "Nothing to save — enter a password or token first."
+        )
+
+    def _load_secrets_from_authstore(self) -> None:
+        """Decrypt the saved secrets from QGIS's store into the fields + environment
+        (prompts for the QGIS master password)."""
+        from qgis.core import QgsApplication, QgsAuthMethodConfig, QgsSettings
+
+        am = QgsApplication.authManager()
+        settings = QgsSettings()
+        loaded = []
+
+        def fetch(authcfg_id):
+            cfg = QgsAuthMethodConfig()
+            am.loadAuthenticationConfig(authcfg_id, cfg, True)  # full=True → secrets
+            return cfg
+
+        smtp_id = settings.value(_SMTP_AUTHCFG_KEY, "", type=str)
+        if smtp_id:
+            cfg = fetch(smtp_id)
+            pw = cfg.config("password")
+            if pw:
+                self._env_fields["NIVA_SMTP_PASSWORD"][0].setText(pw)
+                user = cfg.config("username")
+                if user and not self._env_fields["NIVA_SMTP_USER"][0].text().strip():
+                    self._env_fields["NIVA_SMTP_USER"][0].setText(user)
+                loaded.append("SMTP password")
+        ntfy_id = settings.value(_NTFY_AUTHCFG_KEY, "", type=str)
+        if ntfy_id:
+            tok = fetch(ntfy_id).config("password")
+            if tok:
+                self._env_fields["NIVA_NTFY_TOKEN"][0].setText(tok)
+                loaded.append("ntfy token")
+        if loaded:
+            self._apply_env()  # push the loaded secrets (and fields) into the environment
+            self.env_status.setText("Loaded from QGIS encrypted store and applied: "
+                                    + ", ".join(loaded) + ".")
+        else:
+            self.env_status.setText("No saved secrets found (or master password "
+                                    "not entered). Save them first.")
 
     # --- actions -------------------------------------------------------------
 

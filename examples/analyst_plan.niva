@@ -33,7 +33,11 @@ load "/home/jcz/Downloads/twn_Porter_sp24/porter_ortho.jp2" | assess to "/home/j
 
 # Directories / multi-layer GeoPackages -> one multi-layer GeoPackage each.
 # `each` iterates every vector layer found; `save` collects them into one .gpkg.
-# (Any raster encountered by `reproject` is skipped — see the raster lines below.)
+# `reproject` is collection-safe: a clean layer is reprojected as its normal typed
+# layer, but a layer that mixes geometry types (e.g. an Overture polygon theme with a
+# few Polygon+LineString GeometryCollection features) is reprojected LOSSLESSLY into a
+# generic-geometry layer instead of dropping the odd parts — "both, per layer". No
+# `fix` needed here. (Any raster encountered by `reproject` is skipped — see below.)
 each "/home/jcz/Downloads/NiagaraBasemap"  | reproject EPSG:6346 | save "/home/jcz/Github/niva/data/basemap.gpkg"
 each "/home/jcz/Downloads/NiagaraOverture" | reproject EPSG:6346 | save "/home/jcz/Github/niva/data/overture.gpkg"
 each "/home/jcz/Github/marimo_qgis/example/example.gpkg" | reproject EPSG:6346 | save "/home/jcz/Github/niva/data/collected.gpkg"
@@ -54,10 +58,11 @@ load "/home/jcz/Downloads/twn_Porter_sp24/porter_ortho.jp2" | warp EPSG:6346 | s
 # Build the study-area bounding box once (dissolve AOISM to one feature -> its bbox):
 load "/home/jcz/Github/marimo_qgis/example/example.gpkg|layername=AOISM" | dissolve | boundingbox | save "/home/jcz/Github/niva/data/study_area_bbox.gpkg"
 
-# Clip every layer of each reprojected GeoPackage to that bbox (batch + per-layer):
-each "/home/jcz/Github/niva/data/basemap.gpkg"   | clip "/home/jcz/Github/niva/data/study_area_bbox.gpkg" | save "/home/jcz/Github/niva/data/basemap_clip.gpkg"
-each "/home/jcz/Github/niva/data/overture.gpkg"  | clip "/home/jcz/Github/niva/data/study_area_bbox.gpkg" | save "/home/jcz/Github/niva/data/overture_clip.gpkg"
-each "/home/jcz/Github/niva/data/collected.gpkg" | clip "/home/jcz/Github/niva/data/study_area_bbox.gpkg" | save "/home/jcz/Github/niva/data/collected_clip.gpkg"
+# Clip every layer of each reprojected GeoPackage to that bbox (batch + per-layer).
+# `fix` again guards the typed clip output against any stray collection geometry.
+each "/home/jcz/Github/niva/data/basemap.gpkg"   | fix | clip "/home/jcz/Github/niva/data/study_area_bbox.gpkg" | save "/home/jcz/Github/niva/data/basemap_clip.gpkg"
+each "/home/jcz/Github/niva/data/overture.gpkg"  | fix | clip "/home/jcz/Github/niva/data/study_area_bbox.gpkg" | save "/home/jcz/Github/niva/data/overture_clip.gpkg"
+each "/home/jcz/Github/niva/data/collected.gpkg" | fix | clip "/home/jcz/Github/niva/data/study_area_bbox.gpkg" | save "/home/jcz/Github/niva/data/collected_clip.gpkg"
 
 # Clip the reprojected DEM (raster) to the bbox:
 load "/home/jcz/Github/niva/data/dem.tif" | clipraster "/home/jcz/Github/niva/data/study_area_bbox.gpkg" | save "/home/jcz/Github/niva/data/dem_clip.tif"

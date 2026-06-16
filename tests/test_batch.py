@@ -85,6 +85,14 @@ class TestEachBatch(unittest.TestCase):
         with self.assertRaises(FlowError):
             flow(f'each "{root}/*.shp" | save out.gpkg', backend=MockBackend())
 
+    def test_batch_compacts_gpkg_targets_once(self):
+        root = self._dir_with("a.geojson", "b.geojson")
+        mb = MockBackend()
+        flow(f'each "{root}/*.geojson" | save out.gpkg', backend=mb)
+        # the container is VACUUMed exactly once at the end (not per item)
+        compacts = [c for c in mb.calls if c[0] == "compact"]
+        self.assertEqual(compacts, [("compact", "out.gpkg")])
+
     def test_each_must_be_first_stage(self):
         with self.assertRaises(FlowError):
             flow('load a.gpkg | each "x/*.shp"', backend=MockBackend())

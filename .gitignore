@@ -222,3 +222,4 @@ starting_materials/
 
 # local plugin build artifact
 plugin/*.zip
+data/

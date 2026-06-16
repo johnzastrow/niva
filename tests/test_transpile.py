@@ -147,3 +147,17 @@ class TestImport(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestGeometryTypeErrorMatcher(unittest.TestCase):
+    """The collection-safe reproject fallback triggers on this specific QGIS error."""
+
+    def test_matches_typed_sink_rejection(self):
+        from niva.engine.pyqgis import _is_geometry_type_error as m
+        self.assertTrue(m(Exception("Could not add feature with geometry type "
+                                    "GeometryCollection to layer of type MultiPolygon")))
+
+    def test_ignores_unrelated_errors(self):
+        from niva.engine.pyqgis import _is_geometry_type_error as m
+        self.assertFalse(m(Exception("connection refused")))
+        self.assertFalse(m(Exception("Could not write feature")))  # no 'geometry type'

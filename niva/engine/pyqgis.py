@@ -98,6 +98,13 @@ def _feedback(progress, cancel=None):
     return _NivaFeedback()
 
 
+def _is_geometry_type_error(exc) -> bool:
+    """True if ``exc`` is QGIS refusing to write a feature whose geometry type does not
+    match a typed output sink (e.g. a GeometryCollection into a MultiPolygon layer)."""
+    msg = str(exc).lower()
+    return "could not" in msg and "feature" in msg and "geometry type" in msg
+
+
 def owned_app():
     """The QgsApplication niva created (standalone), or None if it reuses a running
     QGIS. The CLI uses this to tear down cleanly before a hard exit."""
@@ -212,6 +219,15 @@ class PyqgisBackend(Backend):
         try:
             result = processing.run(algorithm, full, feedback=_feedback(progress, cancel))
         except Exception as exc:  # QgsProcessingException and friends
+            # `reproject` uses a typed output sink; a source that mixes geometry types
+            # (a few GeometryCollection features in a polygon layer) makes it fail. Rather
+            # than drop those features (what `fix` would do), reproject losslessly into a
+            # GENERIC-geometry layer — only the genuinely-mixed layers take this path, so
+            # clean layers stay cleanly typed ("both, per layer").
+            if algorithm == "native:reprojectlayer" and _is_geometry_type_error(exc):
+                lossless = self._reproject_lossless(input_layer, full.get("TARGET_CRS"))
+                if lossless is not None:
+                    return lossless
             raise self._run_error(algorithm, full, cancel, exc)
         if cancel and cancel():  # canceled algorithms return an empty result, not an error
             raise OpError(f"`{algorithm}` canceled", algorithm=algorithm, params={}, backend="pyqgis")
@@ -415,6 +431,66 @@ class PyqgisBackend(Backend):
         except Exception:
             return []
 
+    def _reproject_lossless(self, layer: Layer, target_crs) -> Layer | None:
+        """Reproject a mixed-geometry layer to ``target_crs`` WITHOUT dropping any part,
+        by writing a GENERIC-geometry layer via GDAL (``-nlt GEOMETRY`` keeps each
+        feature's native type). Returns a handle to the result, or None if it can't be
+        done (e.g. a non-file source) so the caller re-raises the original error.
+
+        Uses ``osgeo.gdal`` (ships with QGIS — no extra dependency)."""
+        if not target_crs:
+            return None
+        ref = getattr(layer, "ref", None)
+        source = ref.source() if hasattr(ref, "source") else None
+        if not source:
+            return None
+        # A QGIS source is "path" or "path|layername=NAME" (and may carry more |opts).
+        path = source.split("|", 1)[0]
+        layer_name = None
+        for part in source.split("|")[1:]:
+            if part.startswith("layername="):
+                layer_name = part.split("=", 1)[1]
+        if not os.path.isfile(path):
+            return None
+        try:
+            from osgeo import gdal
+
+            out = self._temp_path(".gpkg")
+            opts = gdal.VectorTranslateOptions(
+                dstSRS=str(target_crs), geometryType=["GEOMETRY"],
+                layers=[layer_name] if layer_name else None,
+            )
+            gdal.UseExceptions()
+            ds = gdal.VectorTranslate(out, path, options=opts)
+            ds = None  # flush/close
+        except Exception:  # GDAL unavailable or failed — let the original error stand
+            return None
+        loaded = self.load(out)
+        return Layer(MEMORY, loaded.ref, facet="vector", name=layer.name)
+
+    @staticmethod
+    def _temp_path(suffix: str) -> str:
+        import tempfile
+
+        fd, path = tempfile.mkstemp(suffix=suffix, prefix="niva_")
+        os.close(fd)
+        os.remove(path)  # GDAL wants to create it
+        return path
+
+    def compact(self, path: str) -> None:
+        """VACUUM a GeoPackage/SpatiaLite container to reclaim free pages left by
+        multi-layer appends. A GeoPackage is a SQLite database, so stdlib ``sqlite3``
+        does it with no extra dependency. Best effort — raised errors are caught by
+        the engine (a failed VACUUM never fails the flow)."""
+        import sqlite3
+
+        con = sqlite3.connect(path)
+        try:
+            con.execute("VACUUM")
+            con.commit()
+        finally:
+            con.close()
+
     def _save_raster(self, layer: Layer, dest: str) -> Layer:
         """Write a raster result to ``dest`` via ``gdal:translate`` — it picks the
         driver from the extension and converts as needed. Runs on the same (worker)
@@ -430,8 +506,14 @@ class PyqgisBackend(Backend):
         if parent:
             os.makedirs(parent, exist_ok=True)
         params = {"INPUT": layer.ref, "OUTPUT": dest}
-        if os.path.splitext(dest)[1].lower() in (".tif", ".tiff"):
+        ext = os.path.splitext(dest)[1].lower()
+        if ext in (".tif", ".tiff"):
             params["CREATION_OPTIONS"] = self._raster_creation_options(layer.ref)
+        elif ext == ".jp2":
+            # JP2OpenJPEG with no options writes near-lossless and balloons (a mosaic
+            # can dwarf its inputs). Default to QUALITY=25 — a sensible visually-lossless
+            # ratio for imagery. Override via `run gdal:translate … CREATION_OPTIONS=…`.
+            params["CREATION_OPTIONS"] = "QUALITY=25"
         try:
             result = processing.run("gdal:translate", params)
         except Exception as exc:

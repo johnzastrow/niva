@@ -32,6 +32,7 @@ class Engine:
         self.cancel = cancel  # optional callable() -> bool: abort the running algorithm
         self._pending_call = None  # processing.run(...) echo for the stage being run
         self._batch_item = None  # current item name while running an `each` batch
+        self._batch_gpkgs = None  # GeoPackage targets written during a batch, to compact
 
     def _emit(self, message: str) -> None:
         if self.progress is not None:
@@ -120,6 +121,7 @@ class Engine:
                 line=each_stage.line, stage=each_stage.raw,
             )
         items = self._resolve_each(each_stage)
+        self._batch_gpkgs = set()  # collect .gpkg/.sqlite targets to compact at the end
         self._emit(f"▶ {each_stage.raw}  → {len(items)} item(s)")
         if self.journal is not None:
             self.journal.record(text=each_stage.raw, kind="each",
@@ -146,6 +148,15 @@ class Engine:
             # item identically, so it is NOT caught here: it propagates and aborts the
             # batch rather than silently doing nothing.
         self._batch_item = None
+        # Multi-layer append leaves free pages; compact each container once at the end
+        # so the GeoPackage isn't bloated (rather than VACUUMing after every layer).
+        for gpkg in sorted(self._batch_gpkgs):
+            try:
+                self.backend.compact(gpkg)
+                self._emit(f"  compacted {os.path.basename(gpkg)}")
+            except Exception as exc:  # best effort — a failed VACUUM is not fatal
+                self._emit(f"  (could not compact {os.path.basename(gpkg)}: {exc})")
+        self._batch_gpkgs = None
         self._emit(f"  batch done: {done}/{len(items)} item(s)")
         return None
 
@@ -397,6 +408,8 @@ class Engine:
                 line=stage.line, stage=stage.raw,
             )
         append = is_container and layer_name is not None
+        if self._batch_gpkgs is not None and is_container:
+            self._batch_gpkgs.add(dest)  # compact this container when the batch ends
         return self.backend.save(current, dest, lineage=lineage,
                                  layer_name=layer_name, append=append)
 
