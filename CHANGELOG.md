@@ -7,6 +7,27 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.12.1] - 2026-06-16
+
+### Changed / clarified — mixed-geometry handling across operations and formats
+- **Target formats:** lossless mixed/`GeometryCollection` geometry is preserved when the
+  target supports a generic geometry column — **GeoPackage** and **SpatiaLite** (verified
+  round-trip), and **PostGIS** (same generic-geometry support, when used as a target).
+  **Shapefile cannot** — it stores a single geometry type, so a mixed layer can't be
+  written to `.shp`. niva now raises a **clear error** ("Shapefile stores a single
+  geometry type … save to .gpkg or .sqlite") instead of letting GDAL silently drop the
+  odd parts.
+- **Which operations are lossless:** `reproject` preserves mixed geometry losslessly
+  (typed path for clean layers; generic-geometry GDAL path for mixed ones). Other
+  typed-output operations behave differently and were investigated:
+  - `clip`, `dissolve`, and the overlay ops (`intersect`/`union`/`difference`/…) **choose
+    their output geometry type from the operation, not the input** (a clip/dissolve of
+    polygons yields polygons), and they **coerce silently without error** — so there is no
+    failure to catch and no general lossless reimplementation. This is QGIS's intended
+    behaviour; for those, the odd non-matching parts are dropped by design. If an op ever
+    *does* reject mixed geometry, niva now raises a clear message telling you to `fix`
+    first. (Internal: the reproject fallback was refactored to `_lossless_retry`.)
+
 ## [0.12.0] - 2026-06-16
 
 ### Added

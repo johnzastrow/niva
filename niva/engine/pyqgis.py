@@ -219,15 +219,15 @@ class PyqgisBackend(Backend):
         try:
             result = processing.run(algorithm, full, feedback=_feedback(progress, cancel))
         except Exception as exc:  # QgsProcessingException and friends
-            # `reproject` uses a typed output sink; a source that mixes geometry types
-            # (a few GeometryCollection features in a polygon layer) makes it fail. Rather
-            # than drop those features (what `fix` would do), reproject losslessly into a
-            # GENERIC-geometry layer — only the genuinely-mixed layers take this path, so
-            # clean layers stay cleanly typed ("both, per layer").
-            if algorithm == "native:reprojectlayer" and _is_geometry_type_error(exc):
-                lossless = self._reproject_lossless(input_layer, full.get("TARGET_CRS"))
-                if lossless is not None:
-                    return lossless
+            # A typed output sink rejects features whose geometry type doesn't match
+            # (e.g. a stray GeometryCollection in a polygon layer). For the operations
+            # that have a lossless GDAL equivalent we redo the op keeping a GENERIC
+            # geometry (so nothing is dropped); otherwise we raise a clear, actionable
+            # error telling the user to `fix` first. See _lossless_retry.
+            if _is_geometry_type_error(exc):
+                retried = self._lossless_retry(algorithm, input_layer, full)
+                if retried is not None:
+                    return retried
             raise self._run_error(algorithm, full, cancel, exc)
         if cancel and cancel():  # canceled algorithms return an empty result, not an error
             raise OpError(f"`{algorithm}` canceled", algorithm=algorithm, params={}, backend="pyqgis")
@@ -412,8 +412,15 @@ class PyqgisBackend(Backend):
             layer.ref, dest, QgsCoordinateTransformContext(), options
         )
         if err[0] != 0:  # QgsVectorFileWriter.NoError == 0
+            hint = ""
+            if ext.lower() == ".shp":
+                # Shapefile stores ONE geometry type per file; mixed/collection geometry
+                # (kept losslessly through reproject/clip) can't be written to it.
+                hint = (" — Shapefile stores a single geometry type, so it can't hold "
+                        "mixed/GeometryCollection geometry; save to .gpkg or .sqlite "
+                        "instead.")
             raise OpError(
-                f"could not write `{dest}`: {err[1]}",
+                f"could not write `{dest}`: {err[1]}{hint}",
                 algorithm="save", params={"dest": dest}, backend="pyqgis",
             )
         self._persist_metadata(layer, dest, name, multilayer, lineage)
@@ -431,42 +438,74 @@ class PyqgisBackend(Backend):
         except Exception:
             return []
 
-    def _reproject_lossless(self, layer: Layer, target_crs) -> Layer | None:
-        """Reproject a mixed-geometry layer to ``target_crs`` WITHOUT dropping any part,
-        by writing a GENERIC-geometry layer via GDAL (``-nlt GEOMETRY`` keeps each
-        feature's native type). Returns a handle to the result, or None if it can't be
-        done (e.g. a non-file source) so the caller re-raises the original error.
+    def _lossless_retry(self, algorithm: str, layer: Layer, full: dict):
+        """Redo a typed-sink op that choked on mixed geometry, keeping a GENERIC output
+        (``-nlt GEOMETRY``) so nothing is dropped. Operations with a GDAL equivalent
+        (reproject, clip) are redone via ``osgeo.gdal`` (ships with QGIS, no extra dep);
+        for the rest we raise a clear, actionable error pointing at `fix`. Returns a new
+        Layer, or None to let the caller re-raise the original error (e.g. a non-file
+        source)."""
+        src = self._file_source(layer)
+        if src is None:
+            return None  # not file-backed (mid-pipe memory layer) — can't GDAL it
+        path, layer_name = src
 
-        Uses ``osgeo.gdal`` (ships with QGIS — no extra dependency)."""
-        if not target_crs:
-            return None
+        if algorithm == "native:reprojectlayer":
+            # Reprojection is a pure, geometry-preserving transform with a clean GDAL
+            # equivalent, so we can redo it losslessly into a generic-geometry layer.
+            target = full.get("TARGET_CRS")
+            if not target:
+                return None
+            out = self._gdal_generic(path, layer_name, dstSRS=str(target))
+            if out is None:
+                return None
+            return Layer(MEMORY, self.load(out).ref, facet="vector", name=algorithm)
+        # Other operations that reject a mixed geometry have no lossless reimplementation
+        # here — surface a clear, actionable error rather than guess.
+        raise OpError(
+            f"`{algorithm}` can't write this layer's mixed geometry (it has "
+            "GeometryCollection features). Insert `fix` before it to coerce them into "
+            "one type (drops the non-matching parts).",
+            algorithm=algorithm, params={}, backend="pyqgis",
+        )
+
+    @staticmethod
+    def _file_source(layer: Layer):
+        """(path, layer_name|None) for a file-backed layer, else None."""
         ref = getattr(layer, "ref", None)
         source = ref.source() if hasattr(ref, "source") else None
+        return PyqgisBackend._split_source(source)
+
+    @staticmethod
+    def _split_source(source):
         if not source:
             return None
-        # A QGIS source is "path" or "path|layername=NAME" (and may carry more |opts).
-        path = source.split("|", 1)[0]
+        path = str(source).split("|", 1)[0]
         layer_name = None
-        for part in source.split("|")[1:]:
+        for part in str(source).split("|")[1:]:
             if part.startswith("layername="):
                 layer_name = part.split("=", 1)[1]
-        if not os.path.isfile(path):
-            return None
+        return (path, layer_name) if os.path.isfile(path) else None
+
+    def _gdal_generic(self, path, layer_name, *, dstSRS=None):
+        """Run GDAL VectorTranslate writing a GENERIC-geometry GeoPackage (``-nlt
+        GEOMETRY`` keeps each feature's native type), optionally reprojecting
+        (``dstSRS``). Returns the output path, or None on any failure."""
         try:
             from osgeo import gdal
 
-            out = self._temp_path(".gpkg")
-            opts = gdal.VectorTranslateOptions(
-                dstSRS=str(target_crs), geometryType=["GEOMETRY"],
-                layers=[layer_name] if layer_name else None,
-            )
             gdal.UseExceptions()
-            ds = gdal.VectorTranslate(out, path, options=opts)
-            ds = None  # flush/close
-        except Exception:  # GDAL unavailable or failed — let the original error stand
+            out = self._temp_path(".gpkg")
+            kwargs = {"geometryType": ["GEOMETRY"]}
+            if layer_name:
+                kwargs["layers"] = [layer_name]
+            if dstSRS:
+                kwargs["dstSRS"] = dstSRS
+                kwargs["reproject"] = True
+            gdal.VectorTranslate(out, path, options=gdal.VectorTranslateOptions(**kwargs))
+            return out
+        except Exception:  # GDAL unavailable / option unsupported — re-raise original
             return None
-        loaded = self.load(out)
-        return Layer(MEMORY, loaded.ref, facet="vector", name=layer.name)
 
     @staticmethod
     def _temp_path(suffix: str) -> str:
