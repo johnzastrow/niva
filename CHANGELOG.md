@@ -7,6 +7,26 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-06-15
+
+### Added
+- **Curated verb set expanded from ~12 to ~45**, every alias validated against the
+  installed QGIS:
+  - *Geometry*: `simplify`, `smooth`, `convexhull`, `boundingbox`, `minrect`,
+    `pointonsurface`, `vertices`, `densify`, `subdivide`, `offset`, `swapxy`, `forcerhr`.
+  - *Attributes*: `promote`, `collect`, `renamefield`, `dropfields`, `keepfields`,
+    `countpoints`.
+  - *Overlay / relate*: `union`, `symdifference`, `spatialjoin`, `selectloc`.
+  - *Selection*: `snap`, `sample`.
+  - *Creation*: `voronoi`, `delaunay`, `pointsalong`.
+  - *Raster*: `warp`, `clipraster`, `hillshade`, `slope`, `aspect`, `polygonize`.
+- **`save` now writes rasters** as well as vectors — raster results go through
+  `gdal:translate` (driver chosen by extension); use `run gdal:translate` for
+  format-specific creation options (e.g. JP2 `QUALITY`).
+- **`scripts/lint_registry.py`** — the registry linter (planning 07-§9): checks every
+  alias's algorithm id and parameter names against the live QGIS Processing registry,
+  so the registry fails loud, not silent, when an algorithm or parameter moves.
+
 ## [0.7.1] - 2026-06-15
 
 ### Changed

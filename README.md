@@ -15,8 +15,10 @@ load roads.gpkg | buffer 100m dissolve | clip city.gpkg | save roads_local.gpkg
 niva turns QGIS automation from a PyQGIS programming task into a line of text a
 GUI-first analyst can write *and* read. It runs in QGIS's own Python, reaches **any**
 of its ~769 algorithms, talks to your databases, and records provenance as it goes —
-with near-zero dependencies. **v0.2.0 runs real geoprocessing**, validated on real
-data (122 unit + 19 integration checks on QGIS 4.0.3).
+with near-zero dependencies. **v0.7.1 runs real geoprocessing**, validated on real
+data (156 tests on QGIS 4.0.3). The QGIS plugin runs flows in the **background** with
+a **Stop** button, logs provenance per session, and can **export a flow to a
+standalone PyQGIS script** (and import niva-shaped scripts back).
 
 ## Quick start
 
@@ -57,14 +59,22 @@ niva.flow('load "data.gpkg|layername=roads" | buffer 100m dissolve | save out.gp
 
 ## What it does
 
-- **Friendly verbs → real QGIS algorithms** (`buffer`, `clip`, `dissolve`,
-  `reproject`, `join`, `zonalstats`, …); `run <id>` reaches any of the ~769 with no
-  alias, `describe` shows their parameters.
+- **~45 friendly verbs → real QGIS algorithms**, across vector geometry (`buffer`,
+  `simplify`, `smooth`, `convexhull`, `centroid`, `densify`, `offset`, …), overlay
+  (`clip`, `intersect`, `union`, `difference`, `dissolve`, `spatialjoin`,
+  `selectloc`, …), attributes (`renamefield`, `dropfields`, `keepfields`,
+  `countpoints`, …), and **raster** (`warp`, `clipraster`, `hillshade`, `slope`,
+  `aspect`, `polygonize`, …). `run <id>` reaches any of the ~769 with no alias;
+  `describe` shows their parameters. Every alias is validated against the installed
+  QGIS by `scripts/lint_registry.py`.
+- **Raster and vector output** — `save` writes either (rasters via `gdal:translate`,
+  vectors via `QgsVectorFileWriter`, driver chosen by extension).
 - **Databases** via named QGIS connections — `@conn` tables and `sql @conn "…"` —
   credentials never leave QGIS.
 - **Provenance for free** — every `save` records lineage; `assess` writes data-quality
-  reports.
-- **Composable** — chain stages with `|`, compose files with `call`.
+  reports; the run journal echoes the exact `processing.run(…)` for each step.
+- **Composable** — chain stages with `|`, compose files with `call`, and **export a
+  flow to a standalone PyQGIS script** (`niva export`) or import one back.
 
 ## Docs
 

@@ -33,6 +33,33 @@ class TestRegistry(unittest.TestCase):
         # core_registry() would raise on a duplicate; reaching here means it didn't.
         self.assertEqual(len(REG.verbs()), len(set(REG.verbs())))
 
+    def test_expanded_verb_set_present(self):
+        # The v0.8 breadth pass: geometry, attributes, overlay, selection, creation,
+        # and raster verbs. (Param names are validated against live QGIS by the
+        # registry linter; here we just assert the verbs are registered.)
+        for verb in ("simplify", "smooth", "convexhull", "boundingbox", "minrect",
+                     "pointonsurface", "vertices", "densify", "subdivide", "offset",
+                     "swapxy", "forcerhr", "promote", "collect", "renamefield",
+                     "dropfields", "keepfields", "countpoints", "union",
+                     "symdifference", "spatialjoin", "selectloc", "snap", "sample",
+                     "voronoi", "delaunay", "pointsalong", "warp", "clipraster",
+                     "hillshade", "slope", "aspect", "polygonize"):
+            self.assertIn(verb, REG, f"{verb!r} should be a registered verb")
+
+    def test_new_verbs_bind_to_expected_algorithms(self):
+        cases = {
+            "simplify 5m method=area": ("native:simplifygeometries", "METHOD", 2),
+            "warp EPSG:3857 resampling=bilinear": ("gdal:warpreproject", "RESAMPLING", 1),
+            "slope percent": ("gdal:slope", "AS_PERCENT", True),
+            "selectloc r.gpkg predicate=within,touch": ("native:extractbylocation",
+                                                        "PREDICATE", [6, 4]),
+            "dropfields a,b,c": ("native:deletecolumn", "COLUMN", ["a", "b", "c"]),
+        }
+        for text, (alg, key, val) in cases.items():
+            op = bound(text)
+            self.assertEqual(op.algorithm, alg, text)
+            self.assertEqual(op.params[key], val, text)
+
 
 class TestBinder(unittest.TestCase):
     # --- the full spread: positionals, flags, options, enums, defaults -------

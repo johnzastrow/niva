@@ -21,6 +21,25 @@ flowchart LR
 > pipeline), **Coverage** (verbs via the registry), and **Provenance** (logging,
 > assessment, lineage). The MVP delivers a thin slice of all three.
 
+## Status snapshot (v0.8.0 — 2026-06-15)
+
+The milestone *numbering* below predates how the work actually sequenced — the
+front-end/provenance tracks ran ahead. Where things really stand:
+
+- **Shipped (ahead of the original plan):** the QGIS **plugin** (Flow/Convert/Setup
+  tabs) with **background `QgsTask` runs + a Stop button** (was slated v2.x); the run
+  **journal** (human `.log` + machine `.jsonl`) that **echoes the equivalent
+  `processing.run(…)`**; auto-**lineage** on save; **`assess`** incl. `--deep`;
+  **`.niva ↔ .py` export/import** (transpile); the `run` escape hatch (all ~769
+  algorithms); the **registry linter** (`scripts/lint_registry.py`, planning 07-§9).
+- **Now in progress — v0.2 "breadth + raster":** the curated verb set grew from ~12
+  to **~45** (geometry, attributes, overlay, selection, creation, **raster**), all
+  validated against live QGIS; **`save` now writes rasters** as well as vectors.
+- **Next:** a class of **utility verbs not backed by QGIS** — `notify` (ntfy),
+  `email`, and `catalog` (recursive geospatial-data inventory → text report).
+- **Still ahead:** richer `filter` (IN/LIKE/NULL), `qgis_process` backend, grammar
+  freeze + PyPI (v1.0), named intermediates / SQL writes / quality rules (v2.0).
+
 ## v0.1 — Grammar + engine (MVP)
 
 The foundation. Get the grammar, the chain model, and the **layer handle

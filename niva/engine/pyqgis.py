@@ -360,10 +360,7 @@ class PyqgisBackend(Backend):
         from qgis.core import QgsCoordinateTransformContext, QgsVectorFileWriter
 
         if layer.facet == "raster":
-            raise OpError(
-                "saving raster results is not supported yet in v0.1",
-                algorithm="save", params={"dest": dest}, backend="pyqgis",
-            )
+            return self._save_raster(layer, str(dest))
         dest = str(dest)
         ext = os.path.splitext(dest)[1]
         name = os.path.splitext(os.path.basename(dest))[0]
@@ -395,6 +392,25 @@ class PyqgisBackend(Backend):
             )
         self._persist_metadata(layer, dest, name, multilayer, lineage)
         return Layer(SOURCE, dest, facet="vector", name=os.path.basename(dest))
+
+    def _save_raster(self, layer: Layer, dest: str) -> Layer:
+        """Write a raster result to ``dest`` via ``gdal:translate`` — it picks the
+        driver from the extension and converts as needed. Runs on the same (worker)
+        thread as the rest of the flow, like every other processing.run call here.
+        For format-specific creation options (e.g. JP2 QUALITY) use `run gdal:translate`
+        directly; this is the plain, sensible-default write."""
+        import processing
+
+        parent = os.path.dirname(dest)
+        if parent:
+            os.makedirs(parent, exist_ok=True)
+        try:
+            result = processing.run("gdal:translate", {"INPUT": layer.ref, "OUTPUT": dest})
+        except Exception as exc:
+            raise OpError(f"could not write raster `{dest}`: {exc}",
+                          algorithm="save", params={"dest": dest}, backend="pyqgis")
+        out = result.get("OUTPUT") or dest
+        return Layer(SOURCE, out, facet="raster", name=os.path.basename(dest))
 
     def _persist_metadata(self, layer: Layer, dest: str, name: str,
                           multilayer: bool, lineage: list | None) -> None:
