@@ -218,6 +218,8 @@ class Engine:
     def _algorithm_of(self, stage):
         if stage.verb == "run":
             return stage.args[0] if stage.args else None
+        if stage.verb == "split":
+            return "native:filterbygeometry"
         alias = self.registry.get(stage.verb)
         return alias.algorithm if alias is not None else None
 
@@ -268,6 +270,8 @@ class Engine:
             return self._email(stage, current)
         if verb == "catalog":
             return self._catalog(stage)
+        if verb == "split":
+            return self._split(stage, current)
         if verb == "each":
             raise FlowError(
                 "`each` must be the first stage of a flow — `each \"<dir>\" | … | save out.gpkg`",
@@ -531,6 +535,37 @@ class Engine:
         )
         self._emit(f"  emailed → {recipient}")
         return current
+
+    # The geometry kinds `split` understands → the native:filterbygeometry output sink.
+    _SPLIT_SINKS = {"point": "POINTS", "points": "POINTS", "line": "LINES",
+                    "lines": "LINES", "polygon": "POLYGONS", "polygons": "POLYGONS"}
+
+    def _split(self, stage, current: Layer | None) -> Layer | None:
+        """`split <point|line|polygon>` — keep only the features of one geometry type
+        (via native:filterbygeometry), so a mixed-geometry layer can be separated and
+        each type processed on its own. Pipe-friendly: one type out per call, e.g.
+        `load mixed.gpkg | split line | save lines.gpkg`. Note: whole multipart
+        features are preserved; `GeometryCollection` features are not decomposed by
+        this filter (they route to none of the single-type sinks)."""
+        if current is None:
+            raise FlowError("`split` needs an input layer — load one first",
+                            line=stage.line, stage=stage.raw)
+        if len(stage.args) != 1 or stage.options:
+            raise FlowError("`split` takes one geometry type: `split <point|line|polygon>`",
+                            line=stage.line, stage=stage.raw)
+        kind = stage.args[0].lower()
+        sink = self._SPLIT_SINKS.get(kind)
+        if sink is None:
+            raise FlowError(
+                f"`split` geometry type must be point, line or polygon (got `{stage.args[0]}`)",
+                line=stage.line, stage=stage.raw)
+        self._pending_call = self.backend.render_call(
+            "native:filterbygeometry", {}, input_param="INPUT",
+            input_layer=current, output_param=sink)
+        return self.backend.run(
+            "native:filterbygeometry", {}, input_param="INPUT",
+            input_layer=current, output_param=sink,
+            progress=self.progress, cancel=self.cancel)
 
     def _catalog(self, stage) -> Layer | None:
         """`catalog <dir> [to=<out.md>]` — recurse a directory, inventory every

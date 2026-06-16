@@ -7,6 +7,18 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-06-16
+
+### Added
+- **`split <point|line|polygon>`** — separate a mixed-geometry layer by geometry type,
+  keeping only the features of the requested type (via `native:filterbygeometry`).
+  Pipe-friendly (one type out per call), so you can process each type on its own:
+  `load mixed.gpkg | split line | save lines.gpkg`. This is the way to handle a
+  mixed layer through operations that homogenise (like `clip`) without losing the other
+  types — split first, process each, keep both outputs. Multipart features are
+  preserved; note that whole `GeometryCollection` features are not decomposed by this
+  filter (they match none of the single-type sinks).
+
 ## [0.12.1] - 2026-06-16
 
 ### Changed / clarified — mixed-geometry handling across operations and formats

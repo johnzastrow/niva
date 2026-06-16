@@ -104,3 +104,24 @@ class TestEachBatch(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestSplit(unittest.TestCase):
+    def test_split_dispatches_to_filterbygeometry(self):
+        mb = MockBackend()
+        flow("load a.gpkg | split polygon | save polys.gpkg", backend=mb)
+        self.assertIn(("run", "native:filterbygeometry", {}), mb.calls)
+
+    def test_split_accepts_singular_and_plural(self):
+        for kind in ("point", "points", "line", "lines", "polygon", "polygons"):
+            mb = MockBackend()
+            flow(f"load a.gpkg | split {kind} | save out.gpkg", backend=mb)
+            self.assertIn(("run", "native:filterbygeometry", {}), mb.calls)
+
+    def test_split_rejects_unknown_type(self):
+        with self.assertRaises(FlowError):
+            flow("load a.gpkg | split blobs | save out.gpkg", backend=MockBackend())
+
+    def test_split_needs_a_type(self):
+        with self.assertRaises(FlowError):
+            flow("load a.gpkg | split | save out.gpkg", backend=MockBackend())
