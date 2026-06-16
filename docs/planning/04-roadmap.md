@@ -35,8 +35,10 @@ front-end/provenance tracks ran ahead. Where things really stand:
 - **Now in progress — v0.2 "breadth + raster":** the curated verb set grew from ~12
   to **~45** (geometry, attributes, overlay, selection, creation, **raster**), all
   validated against live QGIS; **`save` now writes rasters** as well as vectors.
-- **Next:** a class of **utility verbs not backed by QGIS** — `notify` (ntfy),
-  `email`, and `catalog` (recursive geospatial-data inventory → text report).
+- **Shipped — utility verbs not backed by QGIS:** `notify` (ntfy push), `email`
+  (SMTP, Gmail-aware; secrets from the environment, TLS enforced, fail-closed), and
+  `catalog` (recurse a directory and inventory every geospatial dataset — including
+  per-layer for multi-layer GeoPackages — to a Markdown report).
 - **Still ahead:** richer `filter` (IN/LIKE/NULL), `qgis_process` backend, grammar
   freeze + PyPI (v1.0), named intermediates / SQL writes / quality rules (v2.0).
 

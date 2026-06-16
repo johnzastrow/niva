@@ -130,7 +130,12 @@ class Engine:
             value = stage.options.get("OUTPUT")
             if isinstance(value, str) and value and not value.startswith("@"):
                 paths.append(value.split("|", 1)[0])
-        return ", ".join(os.path.abspath(p) for p in paths)
+        elif verb == "catalog":
+            out = stage.options.get("to")
+            root = stage.args[0] if stage.args else None
+            paths.append(out if out else (os.path.join(root, "catalog.md") if root else ""))
+            paths = [p for p in paths if p]
+        return ", ".join(os.path.abspath(os.path.expanduser(p)) for p in paths)
 
     # --- per-stage dispatch --------------------------------------------------
 
@@ -149,6 +154,12 @@ class Engine:
             return self._assess(stage, current)
         if verb == "run":
             return self._run_raw(stage, current)
+        if verb == "notify":
+            return self._notify(stage, current)
+        if verb == "email":
+            return self._email(stage, current)
+        if verb == "catalog":
+            return self._catalog(stage)
 
         alias = self.registry.get(verb)
         if alias is None:
@@ -321,6 +332,88 @@ class Engine:
         self._pending_call = self.backend.render_call(algorithm, params, input_layer=current)
         return self.backend.run_raw(algorithm, params, input_layer=current,
                                     progress=self.progress, cancel=self.cancel)
+
+    # --- utility verbs (side effects; not QGIS algorithms, see niva.utilities) ---
+
+    def _notify(self, stage, current: Layer | None) -> Layer | None:
+        """`notify "message" [to=<topic>] [title=…] [priority=…] [server=…] [tags=…]`
+        — push a message via ntfy. Pass-through: returns the upstream layer so it
+        chains, e.g. `… | save out.gpkg | notify "done"`."""
+        from ..utilities import send_ntfy
+
+        message = stage.args[0] if stage.args else stage.options.get("message", "")
+        if not message:
+            raise FlowError('notify needs a message: `notify "your message" to=<topic>`',
+                            line=stage.line, stage=stage.raw)
+        opts = stage.options
+        target = send_ntfy(
+            message, topic=opts.get("to"), server=opts.get("server"),
+            title=opts.get("title"), priority=opts.get("priority"), tags=opts.get("tags"),
+        )
+        self._emit(f"  notified → {target}")
+        return current
+
+    def _email(self, stage, current: Layer | None) -> Layer | None:
+        """`email to=<address> [subject=…] [body=…] [attach=<file>]` — send an email
+        via SMTP (config + credentials from the environment). Pass-through."""
+        from ..utilities import send_email
+
+        opts = stage.options
+        to = opts.get("to") or (stage.args[0] if stage.args else None)
+        recipient = send_email(
+            to=to, subject=opts.get("subject", ""), body=opts.get("body", ""),
+            attach=os.path.expanduser(opts["attach"]) if opts.get("attach") else None,
+        )
+        self._emit(f"  emailed → {recipient}")
+        return current
+
+    def _catalog(self, stage) -> Layer | None:
+        """`catalog <dir> [to=<out.md>]` — recurse a directory, inventory every
+        geospatial dataset found (CRS, extent, geometry/fields or raster bands), and
+        write a Markdown report. Terminal: produces a report, not a pipeable layer."""
+        from ..utilities import CATALOG_MULTILAYER_EXTS, facet_for_ext, format_catalog
+
+        if not stage.args:
+            raise FlowError("catalog needs a directory: `catalog <dir> [to=out.md]`",
+                            line=stage.line, stage=stage.raw)
+        root = os.path.expanduser(stage.args[0])
+        if not os.path.isdir(root):
+            raise FlowError(f"catalog: not a directory: {root}",
+                            line=stage.line, stage=stage.raw)
+        out = stage.options.get("to")
+        out = os.path.expanduser(out) if out else os.path.join(root, "catalog.md")
+
+        entries = []
+        for dirpath, _dirs, files in os.walk(root):
+            for fn in sorted(files):
+                ext = os.path.splitext(fn)[1]
+                facet = facet_for_ext(ext)
+                if facet is None:
+                    continue
+                path = os.path.join(dirpath, fn)
+                rel = os.path.relpath(path, root)
+                # A multi-layer container (GeoPackage, …) becomes one entry per layer.
+                targets = [(rel, path)]
+                if facet == "vector" and ext.lower() in CATALOG_MULTILAYER_EXTS:
+                    names = self.backend.sublayers(path)
+                    if names:
+                        targets = [(f"{rel} :: {n}", f"{path}|layername={n}") for n in names]
+                for display, source in targets:
+                    try:
+                        layer = self.backend.load(source, facet=facet)
+                        entries.append((display, facet, self.backend.profile(layer), None))
+                    except Exception as exc:  # unreadable / locked / unsupported — note it
+                        entries.append((display, facet, None, str(exc)))
+                    self._emit(f"  catalog: {display}")
+
+        report = format_catalog(root, entries)
+        parent = os.path.dirname(out)
+        if parent:
+            os.makedirs(parent, exist_ok=True)
+        with open(out, "w", encoding="utf-8") as fh:
+            fh.write(report)
+        self._emit(f"  catalogued {len(entries)} dataset(s) → {out}")
+        return None  # terminal
 
     def _expand_value(self, value: str, stage):
         """A `run` option value, with **`~` and glob expansion**. A `;`-joined value

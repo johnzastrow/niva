@@ -75,6 +75,10 @@ niva.flow('load "data.gpkg|layername=roads" | buffer 100m dissolve | save out.gp
   reports; the run journal echoes the exact `processing.run(…)` for each step.
 - **Composable** — chain stages with `|`, compose files with `call`, and **export a
   flow to a standalone PyQGIS script** (`niva export`) or import one back.
+- **Utility verbs beyond QGIS** — `notify` (ntfy push when a long job finishes),
+  `email` (SMTP, Gmail-aware), and `catalog` (recurse a directory and inventory every
+  geospatial dataset — CRS, extent, fields, bands — to a Markdown report). Credentials
+  for `notify`/`email` come **only from the environment**, never the flow text.
 
 ## Docs
 

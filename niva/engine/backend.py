@@ -68,6 +68,12 @@ class Backend(abc.ABC):
     def crs_of(self, layer: Layer) -> CrsInfo:
         """Report ``layer``'s CRS — used to resolve distances (units.py)."""
 
+    def sublayers(self, source: str) -> list:
+        """List the layer names inside a multi-layer container (e.g. a GeoPackage),
+        for ``catalog``. Returns ``[]`` for a single-layer source (the default) — a
+        backend overrides this when it can introspect containers."""
+        return []
+
     # --- journal echo (concrete; shared by every backend) --------------------
 
     def render_call(self, algorithm: str, params: dict, *, input_param: str | None = None,

@@ -393,6 +393,18 @@ class PyqgisBackend(Backend):
         self._persist_metadata(layer, dest, name, multilayer, lineage)
         return Layer(SOURCE, dest, facet="vector", name=os.path.basename(dest))
 
+    def sublayers(self, source: str) -> list:
+        """Vector layer names inside a container, via the provider registry. Returns
+        ``[]`` when there's only one (so callers take the plain single-layer path)."""
+        try:
+            from qgis.core import QgsProviderRegistry
+
+            details = QgsProviderRegistry.instance().querySublayers(source)
+            names = [d.name() for d in details if d.name()]
+            return names if len(names) > 1 else []
+        except Exception:
+            return []
+
     def _save_raster(self, layer: Layer, dest: str) -> Layer:
         """Write a raster result to ``dest`` via ``gdal:translate`` — it picks the
         driver from the extension and converts as needed. Runs on the same (worker)

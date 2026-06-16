@@ -7,6 +7,29 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-06-16
+
+### Added
+- **Utility verbs — side effects that aren't QGIS algorithms** (`niva/utilities.py`):
+  - **`notify "message" [to=<topic>] [title=…] [priority=…] [server=…]`** — push via
+    ntfy. Server/topic/token resolve from the flow then the environment
+    (`NIVA_NTFY_SERVER` default `https://ntfy.sh`, `NIVA_NTFY_TOPIC`, `NIVA_NTFY_TOKEN`).
+    Pass-through, so `… | save out.gpkg | notify "done"` chains.
+  - **`email to=<address> [subject=…] [body=…] [attach=<file>]`** — send via SMTP.
+    Connection + credentials come **only** from the environment (`NIVA_SMTP_HOST`,
+    `NIVA_SMTP_PORT` default 587, `NIVA_SMTP_USER`, `NIVA_SMTP_PASSWORD`,
+    `NIVA_SMTP_FROM`); TLS is required (STARTTLS, or implicit TLS on 465); fails closed
+    if unconfigured. **Gmail-aware:** a `@gmail.com` sender with no host defaults to
+    `smtp.gmail.com:587` — set `NIVA_SMTP_PASSWORD` to a Gmail **App Password**.
+  - **`catalog <dir> [to=<out.md>]`** — recurse a directory and inventory every
+    geospatial dataset (CRS, extent, geometry/fields for vectors; bands for rasters)
+    into a Markdown report. Multi-layer GeoPackages are enumerated per layer. Mirrors
+    the open-gis-metadata-builder idea.
+- Security: secrets for `notify`/`email` are read from the environment only, never the
+  flow text, and are never logged or echoed in errors (zero third-party deps — stdlib
+  `urllib`/`smtplib`/`ssl`).
+- `Backend.sublayers()` — lists layers inside a container (GeoPackage) for `catalog`.
+
 ## [0.8.0] - 2026-06-15
 
 ### Added
