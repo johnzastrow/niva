@@ -21,9 +21,15 @@
 #                                  explicit `to=<topic>` only to override that topic.)
 #                                  `notify` is a standalone step here, so it isn't run
 #                                  per-layer inside the `each` batches.
+#                                  Variables in the message: {elapsed} total job time,
+#                                  {last} previous step's time, {now}, {started}, {ops},
+#                                  {errors}.
+# Auto-alerts: tick "Notify on errors" / "Notify on warnings" in the Setup tab
+# (NIVA_NTFY_ON_ERROR / NIVA_NTFY_ON_WARNING) and niva will ntfy on a failed run and on
+# warnings (mixed geometry, datum-transform notices, skipped batch items) automatically.
 # =============================================================================
 
-notify "niva analyst plan: starting"
+notify "niva analyst plan: starting at {now} and started {started} and ops {ops}" priority=high
 
 # --- Task 1: create /home/jcz/Github/niva/data -------------------------------
 # No `mkdir` verb is needed: every save/catalog/assess below auto-creates /data
@@ -37,7 +43,7 @@ catalog "/home/jcz/Github/marimo_qgis/example" to="/home/jcz/Github/niva/data/ca
 load "~/Downloads/ytown_dem_deflate.tif" | assess to "/home/jcz/Github/niva/data/catalog_dem.md"
 load "/home/jcz/Downloads/twn_Porter_sp24/porter_ortho.jp2" | assess to "/home/jcz/Github/niva/data/catalog_orthophoto.md"
 
-notify "niva: Task 2 done — data sources catalogued"
+notify "niva: Task 2 done — data sources catalogued ({elapsed} elapsed)"
 
 # --- Task 3: reproject / warp everything to EPSG:6346 into /data -------------
 
@@ -55,6 +61,7 @@ each "/home/jcz/Github/marimo_qgis/example/example.gpkg" | reproject EPSG:6346 |
 # Single rasters -> reprojected copies (GeoTIFF output is lossless-compressed).
 load "~/Downloads/ytown_dem_deflate.tif" | warp EPSG:6346 | save "/home/jcz/Github/niva/data/dem.tif"
 
+
 # Orthophoto -> orthophoto.jp2.
 # !! ALERT — niva defaults compression for GeoTIFF only; a `.jp2` save uses the JP2
 # driver's defaults (can be large). The warp is fine; for a controlled JP2 use:
@@ -62,7 +69,7 @@ load "~/Downloads/ytown_dem_deflate.tif" | warp EPSG:6346 | save "/home/jcz/Gith
 #   run gdal:translate INPUT=/tmp/ortho6346.tif OUTPUT="/home/jcz/Github/niva/data/orthophoto.jp2" CREATION_OPTIONS="QUALITY=25"
 load "/home/jcz/Downloads/twn_Porter_sp24/porter_ortho.jp2" | warp EPSG:6346 | save "/home/jcz/Github/niva/data/orthophoto.jp2"
 
-notify "niva: Task 3 done — everything reprojected/warped to EPSG:6346"
+notify "niva: Task 3 done — reprojected/warped to EPSG:6346 ({elapsed} elapsed) and last {last} and ops {ops}"
 
 # --- Task 4: clip everything in /data to the study-area bbox (AOISM) ---------
 
@@ -78,7 +85,8 @@ each "/home/jcz/Github/niva/data/collected.gpkg" | fix | clip "/home/jcz/Github/
 # Clip the reprojected DEM (raster) to the bbox:
 load "/home/jcz/Github/niva/data/dem.tif" | clipraster "/home/jcz/Github/niva/data/study_area_bbox.gpkg" | save "/home/jcz/Github/niva/data/dem_clip.tif"
 
-notify "niva: Task 4 done — clipped to the study area"notify "niva analyst plan: complete ✓ — outputs in /home/jcz/Github/niva/data" to=niva-analyst priority=high
+notify "niva: Task 4 done — clipped to the study area ({elapsed} elapsed)"
+notify "niva analyst plan: complete ✓ in {elapsed} — outputs in /home/jcz/Github/niva/data" priority=high
 
 
 # --- Task 5: copy QGIS project files and repoint layers ----------------------

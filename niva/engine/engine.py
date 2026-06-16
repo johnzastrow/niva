@@ -33,6 +33,13 @@ class Engine:
         self._pending_call = None  # processing.run(...) echo for the stage being run
         self._batch_item = None  # current item name while running an `each` batch
         self._batch_gpkgs = None  # GeoPackage targets written during a batch, to compact
+        # Run state, for `notify` message variables and auto-alerts:
+        self._run_t0 = None       # monotonic clock at run start (total elapsed)
+        self._run_started = ""    # ISO datetime of run start
+        self._last_elapsed = 0.0  # seconds the previous stage took ({last})
+        self._op_count = 0        # operations recorded so far ({ops})
+        self._err_count = 0       # failures so far ({errors})
+        self._alerted = set()     # warning messages already alerted (dedup per run)
 
     def _emit(self, message: str) -> None:
         if self.progress is not None:
@@ -49,10 +56,15 @@ class Engine:
         prev_base = getattr(self, "_base_dir", None)
         self._base_dir = base_dir  # relative globs/paths resolve against this
         top_level = not _stack
-        if top_level:  # stamp the niva version + wall-clock start at the top of each run
+        if top_level:  # stamp the niva version + wall-clock start; reset run state
             from .. import __version__
 
-            self._emit(f"niva {__version__} — run started {_now()}")
+            self._run_t0 = time.monotonic()
+            self._run_started = _now()
+            self._last_elapsed = 0.0
+            self._op_count = self._err_count = 0
+            self._alerted = set()
+            self._emit(f"niva {__version__} — run started {self._run_started}")
         try:
             result: Layer | None = None
             for stmt in program:
@@ -61,6 +73,10 @@ class Engine:
                 else:
                     result = self.run_flow(stmt)
             return result
+        except NivaError as exc:
+            if top_level:  # the run aborted — optionally ping ntfy (NIVA_NTFY_ON_ERROR)
+                self._alert_error(exc)
+            raise
         finally:
             self._base_dir = prev_base
             if top_level:
@@ -109,8 +125,9 @@ class Engine:
         except NivaError as exc:
             self._record(stage, text, ok=False, error=str(exc), t0=t0)
             raise
+        self._last_elapsed = time.monotonic() - t0  # for the `{last}` notify variable
         self._record(stage, text, ok=True, t0=t0)
-        self._emit(f"  ✓ {_fmt_elapsed(time.monotonic() - t0)}")
+        self._emit(f"  ✓ {_fmt_elapsed(self._last_elapsed)}")
         # history lineage entries are timestamped too (planning 08-§3)
         lineage.append(f"{_now()} {text}")
         return current
@@ -148,6 +165,8 @@ class Engine:
                 done += 1
             except OpError as exc:  # this item's data failed — skip it, keep going
                 self._emit(f"    skipped {name}: {exc}")
+                self._err_count += 1
+                self._alert_warning(f"batch skipped {name}: {exc}")
                 if self.journal is not None:
                     self.journal.record(text=f"each item {name}", kind="each",
                                         ok=False, error=str(exc))
@@ -213,14 +232,19 @@ class Engine:
         return items
 
     def _record(self, stage, text, *, ok, t0, error=None) -> None:
-        if self.journal is None:
-            return
-        self.journal.record(
-            text=text, kind=stage.verb, algorithm=self._algorithm_of(stage),
-            summary=self._paths_of(stage), ok=ok, error=error,
-            duration_ms=round((time.monotonic() - t0) * 1000),
-            pyqgis=self._pending_call, note=getattr(self.backend, "_note", None),
-        )
+        note = getattr(self.backend, "_note", None)
+        self._op_count += 1
+        if not ok:
+            self._err_count += 1
+        if note:  # surface handling notices (mixed geometry, datum transform) via ntfy
+            self._alert_warning(note)
+        if self.journal is not None:
+            self.journal.record(
+                text=text, kind=stage.verb, algorithm=self._algorithm_of(stage),
+                summary=self._paths_of(stage), ok=ok, error=error,
+                duration_ms=round((time.monotonic() - t0) * 1000),
+                pyqgis=self._pending_call, note=note,
+            )
 
     def _algorithm_of(self, stage):
         if stage.verb == "run":
@@ -525,11 +549,57 @@ class Engine:
                             line=stage.line, stage=stage.raw)
         opts = stage.options
         target = send_ntfy(
-            message, topic=opts.get("to"), server=opts.get("server"),
+            self._interpolate(message), topic=opts.get("to"), server=opts.get("server"),
             title=opts.get("title"), priority=opts.get("priority"), tags=opts.get("tags"),
         )
         self._emit(f"  notified → {target}")
         return current
+
+    def _interpolate(self, message: str) -> str:
+        """Substitute job variables in a notify message: ``{elapsed}`` (total job time),
+        ``{last}`` (the previous stage's time), ``{now}``, ``{started}``, ``{ops}``
+        (operations so far), ``{errors}`` (failures so far)."""
+        if "{" not in message:
+            return message
+        total = (time.monotonic() - self._run_t0) if self._run_t0 else 0.0
+        values = {
+            "elapsed": _fmt_elapsed(total),
+            "last": _fmt_elapsed(self._last_elapsed),
+            "now": _now(),
+            "started": self._run_started,
+            "ops": str(self._op_count),
+            "errors": str(self._err_count),
+        }
+        for key, value in values.items():
+            message = message.replace("{" + key + "}", value)
+        return message
+
+    # --- ntfy auto-alerts on errors / warnings (opt-in via env flags) --------
+
+    def _alert(self, message: str, *, kind: str, priority: str | None = None) -> None:
+        """Best-effort ntfy alert, gated by an env flag. ``kind`` is "error" or
+        "warning"; warnings are de-duplicated per run so a batch can't spam. Never
+        raises — an alert must not break (or abort) the run."""
+        flag = "NIVA_NTFY_ON_ERROR" if kind == "error" else "NIVA_NTFY_ON_WARNING"
+        if str(os.environ.get(flag, "")).strip().lower() not in ("1", "true", "yes", "on"):
+            return
+        if kind == "warning":
+            if message in self._alerted:
+                return
+            self._alerted.add(message)
+        try:
+            from ..utilities import send_ntfy
+
+            send_ntfy(message, priority=priority)
+        except Exception:  # no topic configured, network error, … — stay silent
+            pass
+
+    def _alert_error(self, exc) -> None:
+        total = _fmt_elapsed((time.monotonic() - self._run_t0) if self._run_t0 else 0.0)
+        self._alert(f"niva ERROR after {total}: {exc}", kind="error", priority="high")
+
+    def _alert_warning(self, note: str) -> None:
+        self._alert(f"niva warning: {note}", kind="warning")
 
     def _email(self, stage, current: Layer | None) -> Layer | None:
         """`email to=<address> [subject=…] [body=…] [attach=<file>]` — send an email

@@ -7,6 +7,32 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.15.0] - 2026-06-16
+
+### Added
+- **`notify` message variables.** A notify message can interpolate job values:
+  `{elapsed}` (total job time so far), `{last}` (the previous stage's time), `{now}`,
+  `{started}`, `{ops}` (operations so far), `{errors}` (failures so far). E.g.
+  `notify "done in {elapsed}"`.
+- **Auto-alerts on errors and warnings.** Tick **Notify on errors** / **Notify on
+  warnings** in the Setup tab (env `NIVA_NTFY_ON_ERROR` / `NIVA_NTFY_ON_WARNING`) and
+  niva pushes an ntfy message automatically: a high-priority alert when a run fails
+  (with the error and elapsed time), and a message on warnings (mixed-geometry and
+  datum-transform notices, skipped batch items) — **de-duplicated per run** so a batch
+  can't spam. Best-effort: an alert can never break or abort the run.
+
+### Changed
+- **Detailed UI tooltips** across every control on all three tabs — each now explains
+  what it does, how/when to use it, and any caveat (not just a label restatement).
+
+### Fixed
+- **A flow's `notify` could go to the wrong topic / not arrive.** In
+  `examples/analyst_plan.niva` the Task-4 and completion `notify` statements had become
+  joined on one line with a stale `to=niva-analyst`, so the Task-4 message was sent to
+  that topic (which you weren't subscribed to) instead of your `NIVA_NTFY_TOPIC` — the
+  cause of "Task 3 notified but Task 4 didn't". Split into separate lines using the
+  configured topic, and added `{elapsed}` to each.
+
 ## [0.14.0] - 2026-06-16
 
 ### Added

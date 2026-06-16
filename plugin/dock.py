@@ -41,18 +41,36 @@ except AttributeError:  # pragma: no cover — Qt5 path
     _PW_ECHO = QLineEdit.Password
 
 # The environment the `email` / `notify` verbs read (niva.utilities). Each row is
-# (env var, label, secret?, placeholder). Non-secret values are remembered in
-# QgsSettings; secrets (password/token) are applied for the session only — never
-# written to disk — to keep credentials out of the QGIS config files.
+# (env var, label, secret?, placeholder, detailed tooltip). Non-secret values are
+# remembered in QgsSettings; secrets (password/token) are applied for the session
+# only — never written to disk — to keep credentials out of the QGIS config files.
 _ENV_FIELDS = [
-    ("NIVA_NTFY_TOPIC", "ntfy topic", False, "my-niva-topic"),
-    ("NIVA_NTFY_SERVER", "ntfy server", False, "https://ntfy.sh"),
-    ("NIVA_NTFY_TOKEN", "ntfy token", True, "(optional, for protected topics)"),
-    ("NIVA_SMTP_HOST", "SMTP host", False, "smtp.gmail.com (auto for @gmail.com)"),
-    ("NIVA_SMTP_PORT", "SMTP port", False, "587"),
-    ("NIVA_SMTP_USER", "SMTP user", False, "you@gmail.com"),
-    ("NIVA_SMTP_FROM", "From address", False, "you@gmail.com"),
-    ("NIVA_SMTP_PASSWORD", "Password / App Password", True, "Gmail: an App Password"),
+    ("NIVA_NTFY_TOPIC", "ntfy topic", False, "my-niva-topic",
+     "The ntfy topic a `notify` step publishes to. Subscribe to this same topic in the "
+     "ntfy app or at <server>/<topic> to receive the messages. A flow's `notify` uses "
+     "this unless it sets its own `to=`."),
+    ("NIVA_NTFY_SERVER", "ntfy server", False, "https://ntfy.sh",
+     "The ntfy server base URL. Leave as https://ntfy.sh for the public service, or "
+     "point at your self-hosted ntfy. Messages POST to <server>/<topic>."),
+    ("NIVA_NTFY_TOKEN", "ntfy token", True, "(optional, for protected topics)",
+     "Optional bearer token for a protected/private ntfy topic. Sent as an "
+     "Authorization header; never logged. Session-only — not written to disk (use the "
+     "QGIS encrypted store below to persist it)."),
+    ("NIVA_SMTP_HOST", "SMTP host", False, "smtp.gmail.com (auto for @gmail.com)",
+     "SMTP server hostname for the `email` verb. Leave blank for Gmail — a @gmail.com "
+     "From/User auto-selects smtp.gmail.com:587."),
+    ("NIVA_SMTP_PORT", "SMTP port", False, "587",
+     "SMTP port. 587 (STARTTLS) is the default; 465 uses implicit TLS. TLS is always "
+     "required — niva will not send over an unencrypted connection."),
+    ("NIVA_SMTP_USER", "SMTP user", False, "you@gmail.com",
+     "Username to authenticate to the SMTP server (usually your full email address)."),
+    ("NIVA_SMTP_FROM", "From address", False, "you@gmail.com",
+     "The From address on sent mail. Defaults to the SMTP user if left blank. A "
+     "@gmail.com value here also triggers the Gmail host auto-default."),
+    ("NIVA_SMTP_PASSWORD", "Password / App Password", True, "Gmail: an App Password",
+     "SMTP password. For Gmail this must be an App Password (with 2-Step Verification "
+     "on), NOT your account password. Never logged; session-only unless saved to the "
+     "QGIS encrypted store below."),
 ]
 _ENV_SETTINGS_PREFIX = "niva/env/"
 # QgsAuthManager config IDs for the persisted secrets (the secrets live encrypted in
@@ -99,31 +117,49 @@ class NivaDock(QDockWidget):
         self.editor.setPlainText(_SAMPLE)
         self.editor.setFont(_mono())
         self.editor.setToolTip(
-            "Write a niva flow here: verb stages joined by | , e.g.\n"
-            '  load "data.gpkg|layername=roads" | buffer 100m | save /tmp/out.gpkg\n'
-            "Then click Run to execute it in this QGIS session."
+            "Write a niva flow here. A flow is a chain of verb stages joined by | , read "
+            "left to right; each stage's output feeds the next. Example:\n"
+            '  load "data.gpkg|layername=roads" | buffer 100m dissolve | save /tmp/out.gpkg\n'
+            "Multiple flows: one per line (blank line separates). A line starting with # "
+            "is a comment. `each \"dir\"` runs the rest once per file/layer; `run <id> "
+            "KEY=value` reaches any QGIS algorithm. Click Run to execute, or Dry-run to "
+            "validate without touching data."
         )
         layout.addWidget(self.editor, 3)
 
         buttons = QHBoxLayout()
         open_btn = QPushButton("Open…", tab)
-        open_btn.setToolTip("Open a .niva flow file into the editor above")
+        open_btn.setToolTip("Open a .niva flow file from disk into the editor above, "
+                            "replacing its contents (e.g. examples/analyst_plan.niva). "
+                            "Then edit it or click Run.")
         open_btn.clicked.connect(self._open)
         self.run_btn = QPushButton("Run", tab)
-        self.run_btn.setToolTip("Execute the flow for real in this QGIS session "
-                                "(runs in the background; output is added to the map)")
+        self.run_btn.setToolTip(
+            "Execute the flow for real against your data, in this QGIS session. Runs in "
+            "the background so QGIS stays responsive; progress streams to the output "
+            "panel below and the final output layer is added to the map. Disabled while "
+            "a run is in progress (one flow at a time). The Setup-tab email/notify "
+            "settings are applied just before the run.")
         self.run_btn.clicked.connect(self._run)
         self.dry_btn = QPushButton("Dry-run", tab)
-        self.dry_btn.setToolTip("Validate the flow — order, CRS/units, algorithm params — "
-                                "without executing it or touching any data")
+        self.dry_btn.setToolTip(
+            "Validate the flow without executing it or writing any data: parses every "
+            "stage, resolves each verb to its QGIS algorithm + parameters, checks "
+            "CRS/units, and lists what it would run. Fast and safe — check a flow before "
+            "a real Run.")
         self.dry_btn.clicked.connect(self._dry_run)
         self.cancel_btn = QPushButton("Stop", tab)
-        self.cancel_btn.setToolTip("Stop the running flow (enabled only while a flow is running)")
+        self.cancel_btn.setToolTip(
+            "Stop the flow that is currently running. Enabled only during a run; cancels "
+            "the background task as soon as the running algorithm next checks for "
+            "cancellation (a single long GDAL step can take a moment to stop). Any "
+            "partial output already written stays on disk.")
         self.cancel_btn.clicked.connect(self._cancel)
         self.cancel_btn.setEnabled(False)
         clear_btn = QPushButton("Clear output", tab)
-        clear_btn.setToolTip("Clear the messages in the output panel below "
-                             "(does not affect your flow or data)")
+        clear_btn.setToolTip("Clear the text in the output panel below. On-screen only — "
+                             "it does not affect your flow, your data, or the on-disk "
+                             "run log.")
         clear_btn.clicked.connect(self._clear)
         for b in (open_btn, self.run_btn, self.dry_btn, self.cancel_btn, clear_btn):
             buttons.addWidget(b)
@@ -163,11 +199,15 @@ class NivaDock(QDockWidget):
 
         erow = QHBoxLayout()
         export_btn = QPushButton("Export Flow → .py", tab)
-        export_btn.setToolTip("Transpile the flow in the Flow tab into a standalone "
-                              "PyQGIS script, shown in the panel below")
+        export_btn.setToolTip("Transpile the flow in the Flow tab into an equivalent, "
+                              "runnable standalone PyQGIS script (one processing.run per "
+                              "step), shown in the panel below. niva's 'eject hatch' — "
+                              "learn the PyQGIS, customise it, or hand it off.")
         export_btn.clicked.connect(self._export_to_py)
         save_btn = QPushButton("Save .py…", tab)
-        save_btn.setToolTip("Save the script shown below to a .py file")
+        save_btn.setToolTip("Save the PyQGIS script shown in the panel below to a .py "
+                            "file on disk. Run the saved script with QGIS's own Python, "
+                            "or hand it to a developer to customise.")
         save_btn.clicked.connect(self._save_py)
         import_btn = QPushButton("Import .py…", tab)
         import_btn.setToolTip("Convert a PyQGIS script back into a flow. Uses the "
@@ -229,10 +269,13 @@ class NivaDock(QDockWidget):
         self.log_dir = QLineEdit(
             settings.value(_LOG_DIR_KEY, default_log_dir(), type=str), tab
         )
-        self.log_dir.setToolTip("Folder where the per-session log files are written")
+        self.log_dir.setToolTip("Folder where the per-session run log is written "
+                                "(<session>.log human-readable + <session>.jsonl "
+                                "machine-readable). Edit the path or use Browse…")
         self.log_dir.editingFinished.connect(self._on_log_dir_edited)
         browse = QPushButton("Browse…", tab)
-        browse.setToolTip("Pick the folder for log files")
+        browse.setToolTip("Choose the folder where per-session run logs are written, "
+                          "via a folder picker (fills in the Log folder field).")
         browse.clicked.connect(self._browse_log_dir)
         row.addWidget(self.log_dir)
         row.addWidget(browse)
@@ -269,14 +312,15 @@ class NivaDock(QDockWidget):
         layout.addWidget(note)
 
         self._env_fields = {}  # env var -> (QLineEdit, secret?)
-        for env, label, secret, placeholder in _ENV_FIELDS:
+        for env, label, secret, placeholder, help_text in _ENV_FIELDS:
             erow = QHBoxLayout()
             lbl = QLabel(label + ":", tab)
             lbl.setMinimumWidth(150)
             le = QLineEdit(tab)
             le.setPlaceholderText(placeholder)
-            le.setToolTip(f"Sets the {env} environment variable"
-                          + (" (session only — not saved to disk)" if secret else ""))
+            le.setToolTip(f"{help_text}\n\n(Sets the {env} environment variable"
+                          + (", session only — not written to disk.)" if secret
+                             else ", remembered across sessions.)"))
             if secret:
                 le.setEchoMode(_PW_ECHO)
             # Prefill from the live environment; non-secrets fall back to saved
@@ -292,16 +336,42 @@ class NivaDock(QDockWidget):
             erow.addWidget(le, 1)
             layout.addLayout(erow)
 
+        # Boolean alert flags → ntfy a message automatically on errors / warnings.
+        self._env_flags = {}  # env var -> QCheckBox
+        frow = QHBoxLayout()
+        for env, label, tip in (
+            ("NIVA_NTFY_ON_ERROR", "Notify on errors",
+             "Send a high-priority ntfy message if a run fails"),
+            ("NIVA_NTFY_ON_WARNING", "Notify on warnings",
+             "Send an ntfy message on warnings (mixed geometry, datum-transform, "
+             "skipped batch items) — de-duplicated per run"),
+        ):
+            cb = QCheckBox(label, tab)
+            cb.setToolTip(tip + f" (sets {env})")
+            on = os.environ.get(env, "") or settings.value(_ENV_SETTINGS_PREFIX + env, "", type=str)
+            checked = str(on).strip().lower() in ("1", "true", "yes", "on")
+            cb.setChecked(checked)
+            if checked:
+                os.environ[env] = "1"
+            self._env_flags[env] = cb
+            frow.addWidget(cb)
+        frow.addStretch(1)
+        layout.addLayout(frow)
+
         btnrow = QHBoxLayout()
         apply_btn = QPushButton("Apply for this session", tab)
         apply_btn.setToolTip("Set these environment variables in the running QGIS so "
                              "the email/notify verbs can use them now")
         apply_btn.clicked.connect(self._apply_env)
         test_ntfy = QPushButton("Send test notification", tab)
-        test_ntfy.setToolTip("Apply the fields, then send a test ntfy push to your topic")
+        test_ntfy.setToolTip("Apply the fields above, then send a one-off test message "
+                             "to your ntfy topic — confirms the server/topic/token work "
+                             "before you rely on `notify` in a flow.")
         test_ntfy.clicked.connect(self._test_ntfy)
         test_email = QPushButton("Send test email", tab)
-        test_email.setToolTip("Apply the fields, then send a test email to your From address")
+        test_email.setToolTip("Apply the fields above, then send a test email to your "
+                              "From address — confirms the SMTP host/port/user/password "
+                              "(and TLS) work before `email` is used in a flow.")
         test_email.clicked.connect(self._test_email)
         for b in (apply_btn, test_ntfy, test_email):
             btnrow.addWidget(b)
@@ -339,7 +409,9 @@ class NivaDock(QDockWidget):
 
         row = QHBoxLayout()
         refresh = QPushButton("Refresh", tab)
-        refresh.setToolTip("Rebuild the environment report above")
+        refresh.setToolTip("Rebuild the environment report above — re-reads the niva "
+                           "version, available verbs/algorithms, @ connections and "
+                           "library versions as they are right now.")
         refresh.clicked.connect(self._refresh_setup)
         copy = QPushButton("Copy", tab)
         copy.setToolTip("Copy the environment report to the clipboard "
@@ -420,6 +492,13 @@ class NivaDock(QDockWidget):
                 os.environ.pop(env, None)
             if not secret:  # remember non-secrets; never write password/token to disk
                 settings.setValue(_ENV_SETTINGS_PREFIX + env, text)
+        for env, cb in getattr(self, "_env_flags", {}).items():  # boolean alert flags
+            on = "1" if cb.isChecked() else ""
+            if on:
+                os.environ[env] = on
+            else:
+                os.environ.pop(env, None)
+            settings.setValue(_ENV_SETTINGS_PREFIX + env, on)
         self.env_status.setText(
             "Applied for this session. Saved the non-secret fields; the password and "
             "token are kept in memory only (not written to disk)."
