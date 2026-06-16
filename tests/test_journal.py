@@ -122,3 +122,41 @@ class TestJournal(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestRunMetadata(unittest.TestCase):
+    """Version + wall-clock start/end (shown in output) and the per-op note field."""
+
+    def setUp(self):
+        import tempfile, os
+        self.base = os.path.join(tempfile.mkdtemp(prefix="niva_meta_"), "run")
+
+    def test_log_header_carries_niva_version(self):
+        import niva
+        from niva.engine import MockBackend
+        niva.flow("load a.gpkg | buffer 100m | save out.gpkg",
+                  backend=MockBackend(), log=self.base)
+        header = open(self.base + ".log").readline()
+        self.assertIn(f"niva {niva.__version__}", header)
+        self.assertIn("started", header)
+
+    def test_run_emits_version_and_start_finish(self):
+        import niva
+        from niva.engine import MockBackend
+        lines = []
+        niva.flow("load a.gpkg | save out.gpkg", backend=MockBackend(),
+                  progress=lines.append)
+        joined = "\n".join(lines)
+        self.assertIn(f"niva {niva.__version__} — run started", joined)
+        self.assertIn("run finished", joined)
+
+    def test_record_note_appears_in_both_files(self):
+        import json
+        from niva.journal import Journal
+        j = Journal(self.base).open(flow="<t>", niva_version="9.9.9")
+        j.record(text="reproject EPSG:6346", kind="reproject", note="mixed geometry kept")
+        j.close()
+        log = open(self.base + ".log").read()
+        self.assertIn("⚠ mixed geometry kept", log)
+        recs = [json.loads(x) for x in open(self.base + ".jsonl") if x.strip()]
+        self.assertTrue(any(r.get("note") == "mixed geometry kept" for r in recs))

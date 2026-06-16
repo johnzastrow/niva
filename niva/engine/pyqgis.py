@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import os
 import sys
+from contextlib import contextmanager
 
 from ..errors import OpError
 from .backend import Backend
@@ -96,6 +97,47 @@ def _feedback(progress, cancel=None):
                 progress(f"   ! {error.strip()}")
 
     return _NivaFeedback()
+
+
+@contextmanager
+def _capture_qgis_messages(progress):
+    """Forward QGIS message-log Warnings/Criticals emitted during a run (e.g.
+    "Cannot use preferred transform between EPSG:… — grid file not available") to
+    ``progress`` and collect them, so they land in the human output and the journal
+    instead of vanishing into the QGIS log panel. Best-effort; never fatal. Yields the
+    list of captured message strings."""
+    captured: list = []
+    if progress is None:
+        yield captured
+        return
+    try:
+        from qgis.core import QgsApplication
+    except Exception:
+        yield captured
+        return
+    log = QgsApplication.messageLog()
+
+    def handler(message, tag, level):
+        try:
+            if int(level) >= 1 and message and message.strip():  # Warning(1)/Critical(2)
+                text = message.strip()
+                progress(f"   [QGIS:{tag}] {text}")
+                captured.append(text)
+        except Exception:
+            pass
+
+    try:
+        log.messageReceived.connect(handler)
+    except Exception:
+        yield captured
+        return
+    try:
+        yield captured
+    finally:
+        try:
+            log.messageReceived.disconnect(handler)
+        except Exception:
+            pass
 
 
 def _is_geometry_type_error(exc) -> bool:
@@ -203,6 +245,45 @@ class PyqgisBackend(Backend):
         )
 
     @staticmethod
+    def _transform_note(input_layer, target_crs):
+        """If the *preferred* (most accurate) datum transform from the layer's CRS to
+        ``target_crs`` is unavailable because a grid file is missing — so a less
+        accurate transform is used — return a one-line notice (with the missing grids
+        and download URL). This is what QGIS's GUI shows as "Cannot use preferred
+        transform …"; we surface it into the log too. Returns None when the preferred
+        transform is available. Best-effort; never raises."""
+        try:
+            from qgis.core import QgsCoordinateReferenceSystem, QgsDatumTransform
+
+            src = input_layer.ref.crs()
+            dst = QgsCoordinateReferenceSystem(str(target_crs))
+            if not (src.isValid() and dst.isValid()):
+                return None
+            ops = QgsDatumTransform.operations(src, dst)
+            if not ops or ops[0].isAvailable:
+                return None  # the preferred operation is usable — nothing to warn about
+            preferred, used = ops[0], next((o for o in ops if o.isAvailable), None)
+            grids = []
+            for g in getattr(preferred, "grids", []):
+                if not g.isAvailable:
+                    grids.append(getattr(g, "url", "") or g.shortName)
+            grid_txt = ("; install: " + ", ".join(dict.fromkeys(grids))) if grids else ""
+            used_acc = f"±{used.accuracy} m" if used and used.accuracy and used.accuracy > 0 else "a fallback"
+            pref_acc = f"±{preferred.accuracy} m" if preferred.accuracy and preferred.accuracy > 0 else "a more accurate"
+            return (f"datum transform {src.authid()}→{dst.authid()}: the preferred "
+                    f"transform ({pref_acc}) needs a grid not installed, so {used_acc} "
+                    f"was used{grid_txt}")
+        except Exception:
+            return None
+
+    def _note_qgis_messages(self, captured) -> None:
+        """Fold any captured QGIS warnings (e.g. a preferred-transform notice) into the
+        per-op journal note, unless a more specific note (mixed geometry) was set."""
+        if captured and not getattr(self, "_note", None):
+            uniq = list(dict.fromkeys(captured))
+            self._note = "QGIS: " + " | ".join(uniq)[:400]
+
+    @staticmethod
     def _run_error(algorithm, params, cancel, exc):
         """Wrap a processing failure as OpError — as a cancellation if one was asked."""
         if cancel and cancel():
@@ -216,19 +297,35 @@ class PyqgisBackend(Backend):
         full = dict(params)
         full[input_param] = input_layer.ref
         full[output_param] = "TEMPORARY_OUTPUT"
-        try:
-            result = processing.run(algorithm, full, feedback=_feedback(progress, cancel))
-        except Exception as exc:  # QgsProcessingException and friends
-            # A typed output sink rejects features whose geometry type doesn't match
-            # (e.g. a stray GeometryCollection in a polygon layer). For the operations
-            # that have a lossless GDAL equivalent we redo the op keeping a GENERIC
-            # geometry (so nothing is dropped); otherwise we raise a clear, actionable
-            # error telling the user to `fix` first. See _lossless_retry.
-            if _is_geometry_type_error(exc):
-                retried = self._lossless_retry(algorithm, input_layer, full)
-                if retried is not None:
-                    return retried
-            raise self._run_error(algorithm, full, cancel, exc)
+        with _capture_qgis_messages(progress) as captured:
+            try:
+                result = processing.run(algorithm, full, feedback=_feedback(progress, cancel))
+            except Exception as exc:  # QgsProcessingException and friends
+                # A typed output sink rejects features whose geometry type doesn't match
+                # (e.g. a stray GeometryCollection in a polygon layer). For the operations
+                # that have a lossless GDAL equivalent we redo the op keeping a GENERIC
+                # geometry (so nothing is dropped); otherwise we raise a clear, actionable
+                # error telling the user to `fix` first. See _lossless_retry.
+                if _is_geometry_type_error(exc):
+                    retried = self._lossless_retry(algorithm, input_layer, full)
+                    if retried is not None:
+                        note = ("mixed geometry encountered (GeometryCollection): reprojected "
+                                "LOSSLESSLY into a generic-geometry layer, keeping every part. "
+                                "Note: a single-type target like Shapefile can't store this, and "
+                                "homogenising ops (clip/dissolve) would drop the odd parts — use "
+                                "`split` to separate by type if you need them kept.")
+                        self._note = note
+                        if progress:
+                            progress("   ⚠ " + note)
+                        return retried
+                raise self._run_error(algorithm, full, cancel, exc)
+        self._note_qgis_messages(captured)
+        if algorithm == "native:reprojectlayer" and not getattr(self, "_note", None):
+            tnote = self._transform_note(input_layer, full.get("TARGET_CRS"))
+            if tnote:
+                self._note = tnote
+                if progress:
+                    progress("   ⚠ " + tnote)
         if cancel and cancel():  # canceled algorithms return an empty result, not an error
             raise OpError(f"`{algorithm}` canceled", algorithm=algorithm, params={}, backend="pyqgis")
         out = result.get(output_param)
@@ -244,10 +341,12 @@ class PyqgisBackend(Backend):
         if "INPUT" not in full and input_layer is not None:
             full["INPUT"] = input_layer.ref
         full.setdefault("OUTPUT", "TEMPORARY_OUTPUT")
-        try:
-            result = processing.run(algorithm, full, feedback=_feedback(progress, cancel))
-        except Exception as exc:
-            raise self._run_error(algorithm, full, cancel, exc)
+        with _capture_qgis_messages(progress) as captured:
+            try:
+                result = processing.run(algorithm, full, feedback=_feedback(progress, cancel))
+            except Exception as exc:
+                raise self._run_error(algorithm, full, cancel, exc)
+        self._note_qgis_messages(captured)
         if cancel and cancel():  # canceled algorithms return an empty result, not an error
             raise OpError(f"`{algorithm}` canceled", algorithm=algorithm, params={}, backend="pyqgis")
         out = result.get("OUTPUT")

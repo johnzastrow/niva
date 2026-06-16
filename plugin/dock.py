@@ -667,6 +667,11 @@ class NivaDock(QDockWidget):
             self._show_result(result)
             return
 
+        # Push the Setup-tab email/notify config into the environment first, so a
+        # `notify`/`email` step in the flow uses the same server/topic/token as the
+        # Setup tab's "Send test" buttons (the worker thread shares this process env).
+        self._apply_env()
+
         # A real run goes to a background QgsTask so the QGIS UI stays responsive.
         from qgis.core import QgsApplication
 

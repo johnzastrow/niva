@@ -68,13 +68,14 @@ class Journal:
             "started": started,
         })
         sep = "\n" if existing else ""  # blank line between runs in a session log
-        self._log.write(f"{sep}# run: {flow}  ({started})\n")
+        self._log.write(f"{sep}# run: {flow}  (niva {niva_version}, started {started})\n")
         self._log.flush()
         return self
 
     def record(self, *, text: str, kind: str, algorithm: str | None = None,
                ok: bool = True, summary: str = "", error: str | None = None,
-               duration_ms: int | None = None, pyqgis: str | None = None) -> None:
+               duration_ms: int | None = None, pyqgis: str | None = None,
+               note: str | None = None) -> None:
         self._n += 1
         if not ok:
             self._failed += 1
@@ -82,6 +83,8 @@ class Journal:
         rec = {"ts": ts, "n": self._n, "kind": kind, "text": text, "ok": ok}
         if algorithm:
             rec["algorithm"] = algorithm
+        if note:  # a warning/notice about how this op was handled (e.g. mixed geometry)
+            rec["note"] = note
         # `pyqgis`: a copy-pasteable processing.run(...) equivalent. Machine record
         # only — the human .log stays one line per op (it already shows [algorithm]).
         if pyqgis:
@@ -102,6 +105,8 @@ class Journal:
             parts.append(f"  → {summary}")
         if duration_ms is not None:
             parts.append(f"  ({duration_ms} ms)")
+        if note:
+            parts.append(f"  ⚠ {' '.join(note.split())}")
         if not ok:
             flat = " ".join((error or "failed").split())
             parts.append(f"  ✗ FAILED: {flat[:200]}")

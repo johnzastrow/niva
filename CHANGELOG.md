@@ -7,6 +7,32 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-06-16
+
+### Added
+- **Each run stamps the niva version and wall-clock start/end** — shown at the top of
+  the run output (`niva X.Y.Z — run started <time>` … `run finished <time>`) and in the
+  journal `.log` header (`# run: … (niva X.Y.Z, started <time>)`) and footer.
+- **GeometryCollection / mixed-geometry handling is logged.** When `reproject` keeps a
+  mixed layer losslessly (generic-geometry fallback), it emits a clear notice to the run
+  output *and* the journal — what happened and the limitations (Shapefile can't store it;
+  `clip`/`dissolve` would drop the odd parts; use `split`). The journal gains a per-op
+  `note` field (one line in the `.log`, a field in the `.jsonl`).
+- **Datum-transform quality notice.** Before/after a `reproject`, niva checks
+  `QgsDatumTransform.operations`: if the *preferred* (most accurate) transform needs a
+  grid that isn't installed — so a less accurate one is used — it logs which grid is
+  missing and the download URL (the same info QGIS's GUI shows as "Cannot use preferred
+  transform …"), into the output and journal. Works headless, not just in the GUI. niva
+  also forwards QGIS message-log warnings emitted during a run.
+
+### Fixed
+- **ntfy notifications in a flow now use the configured topic.** `examples/analyst_plan.niva`
+  no longer hard-codes `to=niva-analyst` (a topic you weren't subscribed to); `notify`
+  steps use `NIVA_NTFY_TOPIC`/`NIVA_NTFY_SERVER`/`NIVA_NTFY_TOKEN` — the same config as
+  the Setup tab's "Send test notification". The plugin now **applies the Setup email/
+  notify config to the environment before a run**, so a flow's `notify`/`email` steps
+  behave exactly like the Setup test buttons.
+
 ## [0.13.0] - 2026-06-16
 
 ### Added

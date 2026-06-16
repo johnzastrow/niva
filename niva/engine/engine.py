@@ -48,6 +48,11 @@ class Engine:
         base_dir = base_dir or os.getcwd()
         prev_base = getattr(self, "_base_dir", None)
         self._base_dir = base_dir  # relative globs/paths resolve against this
+        top_level = not _stack
+        if top_level:  # stamp the niva version + wall-clock start at the top of each run
+            from .. import __version__
+
+            self._emit(f"niva {__version__} — run started {_now()}")
         try:
             result: Layer | None = None
             for stmt in program:
@@ -58,6 +63,8 @@ class Engine:
             return result
         finally:
             self._base_dir = prev_base
+            if top_level:
+                self._emit(f"niva — run finished {_now()}")
 
     # --- call (file composition, planning 10/02) -----------------------------
 
@@ -212,7 +219,7 @@ class Engine:
             text=text, kind=stage.verb, algorithm=self._algorithm_of(stage),
             summary=self._paths_of(stage), ok=ok, error=error,
             duration_ms=round((time.monotonic() - t0) * 1000),
-            pyqgis=self._pending_call,
+            pyqgis=self._pending_call, note=getattr(self.backend, "_note", None),
         )
 
     def _algorithm_of(self, stage):
@@ -251,6 +258,8 @@ class Engine:
 
     def _run_stage(self, stage, current: Layer | None, lineage: list) -> Layer | None:
         self._pending_call = None  # set only when this stage actually runs an algorithm
+        if hasattr(self.backend, "_note"):
+            self.backend._note = None  # a per-op handling notice (e.g. mixed geometry)
         verb = stage.verb
         if verb == "load":
             return self._load(stage)
