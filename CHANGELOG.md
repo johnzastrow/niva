@@ -7,6 +7,19 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-06-16
+
+### Added
+- **Setup tab guides you through the `email`/`notify` environment.** A new "Email &
+  notifications" section with fields for the ntfy (`NIVA_NTFY_*`) and SMTP
+  (`NIVA_SMTP_*`) variables, an **Apply for this session** button (sets them in the
+  running QGIS so the verbs work immediately), and **Send test notification** / **Send
+  test email** buttons for instant feedback. Gmail-friendly placeholders call out the
+  App Password. Security: **non-secret fields are remembered** in QGIS settings, but
+  the **password and token are applied for the session only and never written to
+  disk**; saved non-secret values are pushed into the environment on load. All new
+  controls carry tooltips.
+
 ## [0.9.0] - 2026-06-16
 
 ### Added

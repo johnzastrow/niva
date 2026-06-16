@@ -34,6 +34,28 @@ from . import environment, runner
 _LOG_ENABLED_KEY = "niva/log_enabled"
 _LOG_DIR_KEY = "niva/log_dir"
 
+# Mask password/token fields. Qt6 scopes the enum; Qt5 exposes it flat.
+try:
+    _PW_ECHO = QLineEdit.EchoMode.Password
+except AttributeError:  # pragma: no cover — Qt5 path
+    _PW_ECHO = QLineEdit.Password
+
+# The environment the `email` / `notify` verbs read (niva.utilities). Each row is
+# (env var, label, secret?, placeholder). Non-secret values are remembered in
+# QgsSettings; secrets (password/token) are applied for the session only — never
+# written to disk — to keep credentials out of the QGIS config files.
+_ENV_FIELDS = [
+    ("NIVA_NTFY_TOPIC", "ntfy topic", False, "my-niva-topic"),
+    ("NIVA_NTFY_SERVER", "ntfy server", False, "https://ntfy.sh"),
+    ("NIVA_NTFY_TOKEN", "ntfy token", True, "(optional, for protected topics)"),
+    ("NIVA_SMTP_HOST", "SMTP host", False, "smtp.gmail.com (auto for @gmail.com)"),
+    ("NIVA_SMTP_PORT", "SMTP port", False, "587"),
+    ("NIVA_SMTP_USER", "SMTP user", False, "you@gmail.com"),
+    ("NIVA_SMTP_FROM", "From address", False, "you@gmail.com"),
+    ("NIVA_SMTP_PASSWORD", "Password / App Password", True, "Gmail: an App Password"),
+]
+_ENV_SETTINGS_PREFIX = "niva/env/"
+
 
 def default_log_dir() -> str:
     return os.path.join(tempfile.gettempdir(), "niva_logs")
@@ -226,6 +248,64 @@ class NivaDock(QDockWidget):
         layout.addLayout(srow)
         self._update_session_label()
 
+        # --- Email & notifications (the env the email/notify verbs read) -----
+        layout.addWidget(_section_label("Email &amp; notifications", tab))
+        note = QLabel(
+            "Fill these in to use the <code>email</code> and <code>notify</code> verbs. "
+            "<b>Gmail:</b> just set <i>SMTP user</i>/<i>From</i> to your address and "
+            "<i>Password</i> to a Gmail <b>App Password</b> (host is filled in "
+            "automatically). Non-secret fields are remembered; the <b>password and "
+            "token are kept for this QGIS session only and never saved to disk</b> — "
+            "for a permanent setup, export the matching environment variable in your OS.",
+            tab,
+        )
+        note.setWordWrap(True)
+        layout.addWidget(note)
+
+        self._env_fields = {}  # env var -> (QLineEdit, secret?)
+        for env, label, secret, placeholder in _ENV_FIELDS:
+            erow = QHBoxLayout()
+            lbl = QLabel(label + ":", tab)
+            lbl.setMinimumWidth(150)
+            le = QLineEdit(tab)
+            le.setPlaceholderText(placeholder)
+            le.setToolTip(f"Sets the {env} environment variable"
+                          + (" (session only — not saved to disk)" if secret else ""))
+            if secret:
+                le.setEchoMode(_PW_ECHO)
+            # Prefill from the live environment; non-secrets fall back to saved
+            # settings (and are pushed live so saved config works before "Apply").
+            value = os.environ.get(env, "")
+            if not value and not secret:
+                value = settings.value(_ENV_SETTINGS_PREFIX + env, "", type=str)
+                if value:
+                    os.environ[env] = value
+            le.setText(value)
+            self._env_fields[env] = (le, secret)
+            erow.addWidget(lbl)
+            erow.addWidget(le, 1)
+            layout.addLayout(erow)
+
+        btnrow = QHBoxLayout()
+        apply_btn = QPushButton("Apply for this session", tab)
+        apply_btn.setToolTip("Set these environment variables in the running QGIS so "
+                             "the email/notify verbs can use them now")
+        apply_btn.clicked.connect(self._apply_env)
+        test_ntfy = QPushButton("Send test notification", tab)
+        test_ntfy.setToolTip("Apply the fields, then send a test ntfy push to your topic")
+        test_ntfy.clicked.connect(self._test_ntfy)
+        test_email = QPushButton("Send test email", tab)
+        test_email.setToolTip("Apply the fields, then send a test email to your From address")
+        test_email.clicked.connect(self._test_email)
+        for b in (apply_btn, test_ntfy, test_email):
+            btnrow.addWidget(b)
+        btnrow.addStretch(1)
+        layout.addLayout(btnrow)
+
+        self.env_status = QLabel("", tab)
+        self.env_status.setWordWrap(True)
+        layout.addWidget(self.env_status)
+
         # --- the environment report ------------------------------------------
         self.setup_view = QTextBrowser(tab)
         self.setup_view.setToolTip(
@@ -302,6 +382,53 @@ class NivaDock(QDockWidget):
     def _copy_setup(self):
         self.setup_view.selectAll()
         self.setup_view.copy()
+
+    def _apply_env(self) -> None:
+        """Push the field values into the running QGIS process's environment so the
+        email/notify verbs can read them now. Non-secret values are also remembered
+        in QgsSettings; secrets are applied for the session only (never persisted)."""
+        from qgis.core import QgsSettings
+
+        settings = QgsSettings()
+        for env, (le, secret) in self._env_fields.items():
+            text = le.text().strip()
+            if text:
+                os.environ[env] = text
+            else:
+                os.environ.pop(env, None)
+            if not secret:  # remember non-secrets; never write password/token to disk
+                settings.setValue(_ENV_SETTINGS_PREFIX + env, text)
+        self.env_status.setText(
+            "Applied for this session. Saved the non-secret fields; the password and "
+            "token are kept in memory only (not written to disk)."
+        )
+
+    def _test_ntfy(self) -> None:
+        self._apply_env()
+        try:
+            from niva.utilities import send_ntfy
+
+            target = send_ntfy("niva test notification ✔", title="niva")
+        except Exception as exc:  # FlowError (no topic) / OpError (network)
+            self.env_status.setText(f"ntfy test failed: {exc}")
+            return
+        self.env_status.setText(f"Sent a test notification to {target}.")
+
+    def _test_email(self) -> None:
+        self._apply_env()
+        to = os.environ.get("NIVA_SMTP_FROM") or os.environ.get("NIVA_SMTP_USER")
+        if not to:
+            self.env_status.setText("Set a From address (or SMTP user) first, then test.")
+            return
+        try:
+            from niva.utilities import send_email
+
+            send_email(to=to, subject="niva test email",
+                       body="This is a test message sent by niva from the Setup tab.")
+        except Exception as exc:
+            self.env_status.setText(f"email test failed: {exc}")
+            return
+        self.env_status.setText(f"Sent a test email to {to}. Check that inbox.")
 
     # --- actions -------------------------------------------------------------
 
@@ -521,6 +648,13 @@ def _mono() -> QFont:
     except AttributeError:  # pragma: no cover — Qt5 (QGIS 3)
         font.setStyleHint(QFont.Monospace)
     return font
+
+
+def _section_label(text: str, parent) -> QLabel:
+    """A bold section heading for the Setup tab."""
+    lbl = QLabel(f"<b>{text}</b>", parent)
+    lbl.setContentsMargins(0, 8, 0, 0)
+    return lbl
 
 
 def _recede(widget) -> None:
