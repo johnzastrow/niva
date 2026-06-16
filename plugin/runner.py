@@ -37,7 +37,7 @@ def run_flow(text: str, *, file: str | None = None, dry_run: bool = False,
         backend = MockBackend()
         try:
             Engine(backend).execute(parse(text, file=file), base_dir=base)
-        except NivaError as exc:
+        except Exception as exc:  # noqa: BLE001 — never let it escape the worker thread
             result = _fail("dry-run", exc)
         else:
             lines = [
@@ -55,7 +55,8 @@ def run_flow(text: str, *, file: str | None = None, dry_run: bool = False,
     try:
         layer = niva.flow(text, file=file, log=log_base, log_append=True,
                           progress=progress, cancel=cancel)
-    except NivaError as exc:
+    except Exception as exc:  # noqa: BLE001 — a worker-thread exception escaping into
+        # the QgsTask can destabilise QGIS; always return a result dict instead.
         result = _fail("run", exc)
     else:
         result = {"ok": True, "mode": "run", "summary": _describe(layer), "layer": layer,
@@ -66,7 +67,12 @@ def run_flow(text: str, *, file: str | None = None, dry_run: bool = False,
 
 
 def _fail(mode: str, exc: Exception) -> dict:
-    return {"ok": False, "mode": mode, "summary": "", "layer": None, "error": str(exc)}
+    from niva.errors import NivaError
+
+    # niva's own errors carry user-facing messages; label anything else as unexpected.
+    msg = str(exc) if isinstance(exc, NivaError) \
+        else f"unexpected error: {type(exc).__name__}: {exc}"
+    return {"ok": False, "mode": mode, "summary": "", "layer": None, "error": msg}
 
 
 def _describe(layer) -> str:

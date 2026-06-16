@@ -59,10 +59,14 @@ class Backend(abc.ABC):
         return it (a pass-through). Persisted to disk by the next ``save``."""
 
     @abc.abstractmethod
-    def save(self, layer: Layer, dest: str, lineage: list | None = None) -> Layer:
+    def save(self, layer: Layer, dest: str, lineage: list | None = None, *,
+             layer_name: str | None = None, append: bool = False) -> Layer:
         """Write ``layer`` to ``dest`` and return a handle to the written file.
         ``lineage`` is the list of niva stages that built the layer; the backend
-        records them into the output's metadata history (08-§3)."""
+        records them into the output's metadata history (08-§3). ``layer_name`` names
+        the written layer (for multi-layer containers); ``append`` adds/replaces just
+        that layer in an existing container instead of overwriting the whole file —
+        so many ``save … as <layer>`` calls accumulate layers in one GeoPackage."""
 
     @abc.abstractmethod
     def crs_of(self, layer: Layer) -> CrsInfo:
@@ -113,7 +117,12 @@ class MockBackend(Backend):
         self.crs = crs or CrsInfo("EPSG:3857", is_geographic=False, units_to_meters=1.0)
         self.calls: list = []
         self.last_lineage: list = []
+        self.saves: list = []  # one dict per save: {dest, layer_name, append}
+        self.sublayer_map: dict = {}  # source path -> [layer names], for `each` tests
         self._n = 0
+
+    def sublayers(self, source: str) -> list:
+        return list(self.sublayer_map.get(source, []))
 
     def load(self, source: str, *, facet: str = "vector") -> Layer:
         self.calls.append(("load", source))
@@ -164,8 +173,10 @@ class MockBackend(Backend):
         self.calls.append(("metadata", fields))
         return layer
 
-    def save(self, layer: Layer, dest: str, lineage: list | None = None) -> Layer:
+    def save(self, layer: Layer, dest: str, lineage: list | None = None, *,
+             layer_name: str | None = None, append: bool = False) -> Layer:
         self.calls.append(("save", dest))
+        self.saves.append({"dest": dest, "layer_name": layer_name, "append": append})
         self.last_lineage = list(lineage) if lineage else []
         return Layer(SOURCE, dest, facet=layer.facet, name=dest)
 

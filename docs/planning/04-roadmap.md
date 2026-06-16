@@ -34,11 +34,24 @@ front-end/provenance tracks ran ahead. Where things really stand:
   algorithms); the **registry linter** (`scripts/lint_registry.py`, planning 07-§9).
 - **Now in progress — v0.2 "breadth + raster":** the curated verb set grew from ~12
   to **~45** (geometry, attributes, overlay, selection, creation, **raster**), all
-  validated against live QGIS; **`save` now writes rasters** as well as vectors.
+  validated against live QGIS; **`save` now writes rasters** as well as vectors
+  (lossless-compressed by default).
+- **Shipped — multi-layer write + batch:** `save <gpkg> as <layer>` accumulates
+  layers in one GeoPackage (append, not overwrite); **`each "<dir|glob|gpkg>"`**
+  iterates files/layers and runs the rest of the flow per item, naming each output
+  after its source (into one `.gpkg`, or to a `{name}` path template). Together they
+  do directory-wide reproject/clip into a single GeoPackage.
 - **Shipped — utility verbs not backed by QGIS:** `notify` (ntfy push), `email`
   (SMTP, Gmail-aware; secrets from the environment, TLS enforced, fail-closed), and
   `catalog` (recurse a directory and inventory every geospatial dataset — including
   per-layer for multi-layer GeoPackages — to a Markdown report).
+- **Planned — project & layer file manipulation (new scope):** bring QGIS project and
+  layer files into niva's remit — copy/rewrite `.qgs`/`.qgz` projects and **repoint
+  their layer datasources** (e.g. to freshly clipped data), and read/write/apply layer
+  sidecars (`.qml` styles, `.qmd` metadata). This is the missing piece for "compile a
+  region" workflows (analyst-plan Task 5), today out of scope. Likely via the
+  `QgsProject` / `QgsMapLayer.setDataSource` APIs behind new verbs (e.g. `project`,
+  `style`), keeping it declarative and safe (never silently break a project file).
 - **Still ahead:** richer `filter` (IN/LIKE/NULL), `qgis_process` backend, grammar
   freeze + PyPI (v1.0), named intermediates / SQL writes / quality rules (v2.0).
 

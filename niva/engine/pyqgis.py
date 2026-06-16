@@ -351,7 +351,8 @@ class PyqgisBackend(Backend):
         layer.ref.setMetadata(md)
         return layer
 
-    def save(self, layer: Layer, dest: str, lineage: list | None = None) -> Layer:
+    def save(self, layer: Layer, dest: str, lineage: list | None = None, *,
+             layer_name: str | None = None, append: bool = False) -> Layer:
         # Use QgsVectorFileWriter directly rather than a Processing algorithm: it is
         # the canonical write API, picks the driver from the extension, and does not
         # depend on the Processing registry being populated. We use a standalone
@@ -363,7 +364,7 @@ class PyqgisBackend(Backend):
             return self._save_raster(layer, str(dest))
         dest = str(dest)
         ext = os.path.splitext(dest)[1]
-        name = os.path.splitext(os.path.basename(dest))[0]
+        name = layer_name or os.path.splitext(os.path.basename(dest))[0]
         multilayer = ext.lower() in (".gpkg", ".sqlite", ".db")
         options = QgsVectorFileWriter.SaveVectorOptions()
         driver = QgsVectorFileWriter.driverForExtension(ext)
@@ -371,6 +372,15 @@ class PyqgisBackend(Backend):
             options.driverName = driver
         if multilayer:  # a known layer name is needed to persist metadata later
             options.layerName = name
+            # Append only once the container exists: the FIRST layer creates the file
+            # (the default CreateOrOverwriteFile), later layers add to it
+            # (CreateOrOverwriteLayer) — so a batch accumulates layers in one .gpkg.
+            if append and os.path.exists(dest):
+                try:  # Qt6 scopes the enum; Qt5 exposes it flat
+                    options.actionOnExistingFile = \
+                        QgsVectorFileWriter.ActionOnExistingFile.CreateOrOverwriteLayer
+                except AttributeError:  # pragma: no cover — Qt5 path
+                    options.actionOnExistingFile = QgsVectorFileWriter.CreateOrOverwriteLayer
             # If the layer carries an `fid` field (many QGIS outputs do — e.g.
             # points-along-lines, intersection, joins), its values can collide with the
             # GeoPackage primary key → "UNIQUE constraint failed: fid". Tell GDAL to mint

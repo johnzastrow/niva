@@ -7,6 +7,32 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-06-16
+
+### Added
+- **Directory iteration — `each "<dir|glob|file.gpkg>"`.** Starts a *batch* flow: the
+  remaining stages run once per source (every file in a directory/glob, or every layer
+  of a GeoPackage). A failing item is skipped (an `OpError`) so one bad file can't
+  abort the run; a usage error (`FlowError`) still stops, rather than silently doing
+  nothing.
+- **Multi-layer write — `save <gpkg> as <layer>`, and batch-aware `save`.** Writes a
+  named layer into a GeoPackage, *appending* (the first layer creates the file, later
+  ones add to it) instead of overwriting — so many saves accumulate layers in one
+  `.gpkg`. Inside an `each` batch, plain `save out.gpkg` names each layer after its
+  source; a `save "out/{name}.tif"` path template handles per-item raster outputs.
+  Together these do directory-wide reproject/clip into a single GeoPackage (verified:
+  every layer of a 25-layer GeoPackage reprojected into one output).
+
+### Changed
+- **Hardened against crashing QGIS.** The CLI's standalone runs now route *every* exit
+  path — success, handled error, unexpected exception, or Ctrl-C — through
+  `QgsApplication.exitQgis()` + `os._exit` in a `finally`, so an unexpected error can
+  no longer unwind into QGIS's C++ teardown (a segfault). The plugin's background
+  `run_flow` now catches *all* exceptions and returns a result dict, so nothing escapes
+  the `QgsTask` worker thread into QGIS. (Audit confirmed niva otherwise never
+  `chdir`s, re-inits Processing/Qt inside a live QGIS, or mutates the project beyond
+  adding the result layer on the main thread.)
+
 ## [0.10.1] - 2026-06-16
 
 ### Fixed

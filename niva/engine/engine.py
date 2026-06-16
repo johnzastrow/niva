@@ -13,7 +13,7 @@ import os
 import time
 from datetime import datetime, timezone
 
-from ..errors import FlowError, NivaError
+from ..errors import FlowError, NivaError, OpError
 from ..grammar import Call, Flow, parse
 from ..registry import bind, core_registry
 from ..values import Distance
@@ -31,6 +31,7 @@ class Engine:
         self.progress = progress  # optional callable(str): live status during a run
         self.cancel = cancel  # optional callable() -> bool: abort the running algorithm
         self._pending_call = None  # processing.run(...) echo for the stage being run
+        self._batch_item = None  # current item name while running an `each` batch
 
     def _emit(self, message: str) -> None:
         if self.progress is not None:
@@ -80,22 +81,118 @@ class Engine:
         return self.execute(sub_program, base_dir=os.path.dirname(path), _stack=(*stack, path))
 
     def run_flow(self, flow: Flow) -> Layer | None:
+        # A flow that begins with `each` is a batch: the remaining stages run once
+        # per source (file/layer). Otherwise it is a single linear pass.
+        if flow.stages and flow.stages[0].verb == "each":
+            return self._run_batch(flow.stages)
         current: Layer | None = None
         lineage: list = []  # niva stages that built `current`, for save → history
         for stage in flow.stages:
-            text = (stage.raw or stage.verb).strip()
-            self._emit(f"▶ {text}")
-            t0 = time.monotonic()
-            try:
-                current = self._run_stage(stage, current, lineage)
-            except NivaError as exc:
-                self._record(stage, text, ok=False, error=str(exc), t0=t0)
-                raise
-            self._record(stage, text, ok=True, t0=t0)
-            self._emit(f"  ✓ {_fmt_elapsed(time.monotonic() - t0)}")
-            # history lineage entries are timestamped too (planning 08-§3)
-            lineage.append(f"{_now()} {text}")
+            current = self._execute_stage(stage, current, lineage)
         return current
+
+    def _execute_stage(self, stage, current: Layer | None, lineage: list) -> Layer | None:
+        """Run one stage: announce it, time it, dispatch, journal it, extend lineage."""
+        text = (stage.raw or stage.verb).strip()
+        self._emit(f"▶ {text}")
+        t0 = time.monotonic()
+        try:
+            current = self._run_stage(stage, current, lineage)
+        except NivaError as exc:
+            self._record(stage, text, ok=False, error=str(exc), t0=t0)
+            raise
+        self._record(stage, text, ok=True, t0=t0)
+        self._emit(f"  ✓ {_fmt_elapsed(time.monotonic() - t0)}")
+        # history lineage entries are timestamped too (planning 08-§3)
+        lineage.append(f"{_now()} {text}")
+        return current
+
+    def _run_batch(self, stages) -> Layer | None:
+        """Run `each <source> | …` once per resolved source. `save` inside a batch
+        names each output after its source: into a multi-layer `.gpkg` (one layer per
+        item) or to a path with a `{name}` placeholder. A failing item is skipped (the
+        batch continues), so one bad file can't abort the whole run."""
+        each_stage, rest = stages[0], stages[1:]
+        if not rest:
+            raise FlowError(
+                '`each` needs stages after it, e.g. '
+                '`each "dir/*.shp" | reproject EPSG:6346 | save out.gpkg`',
+                line=each_stage.line, stage=each_stage.raw,
+            )
+        items = self._resolve_each(each_stage)
+        self._emit(f"▶ {each_stage.raw}  → {len(items)} item(s)")
+        if self.journal is not None:
+            self.journal.record(text=each_stage.raw, kind="each",
+                                summary=f"{len(items)} item(s)")
+        done = 0
+        for i, (name, uri) in enumerate(items, 1):
+            if self.cancel and self.cancel():
+                self._emit("  batch canceled")
+                break
+            self._batch_item = name
+            self._emit(f"  [{i}/{len(items)}] {name}")
+            try:
+                current = self.backend.load(uri)
+                lineage = [f"{_now()} each {name}"]
+                for st in rest:
+                    current = self._execute_stage(st, current, lineage)
+                done += 1
+            except OpError as exc:  # this item's data failed — skip it, keep going
+                self._emit(f"    skipped {name}: {exc}")
+                if self.journal is not None:
+                    self.journal.record(text=f"each item {name}", kind="each",
+                                        ok=False, error=str(exc))
+            # A FlowError (usage/config — e.g. a bad save target) would fail every
+            # item identically, so it is NOT caught here: it propagates and aborts the
+            # batch rather than silently doing nothing.
+        self._batch_item = None
+        self._emit(f"  batch done: {done}/{len(items)} item(s)")
+        return None
+
+    def _resolve_each(self, stage) -> list:
+        """Resolve `each <source>` to an ordered list of (name, load-uri): a glob of
+        files, a directory (recursed), or a single file. Multi-layer containers
+        (GeoPackages) expand to one item per layer."""
+        from ..utilities import CATALOG_MULTILAYER_EXTS, facet_for_ext
+
+        if not stage.args:
+            raise FlowError('`each` needs a source: `each "<dir>"`, `each "<glob>"`, '
+                            "or `each <file.gpkg>`", line=stage.line, stage=stage.raw)
+        raw = os.path.expanduser(stage.args[0])
+        items: list = []
+
+        def add(path):
+            ext = os.path.splitext(path)[1]
+            if facet_for_ext(ext) is None:
+                return
+            if ext.lower() in CATALOG_MULTILAYER_EXTS:
+                names = self.backend.sublayers(path)
+                if names:
+                    items.extend((n, f"{path}|layername={n}") for n in names)
+                    return
+            items.append((os.path.splitext(os.path.basename(path))[0], path))
+
+        if any(c in raw for c in "*?["):  # glob pattern
+            matches = sorted(glob.glob(raw))
+            if not matches:
+                raise FlowError(f"`each`: no files match `{stage.args[0]}`",
+                                line=stage.line, stage=stage.raw)
+            for m in matches:
+                if os.path.isfile(m):
+                    add(m)
+        elif os.path.isdir(raw):  # recurse a directory
+            for dirpath, _dirs, files in os.walk(raw):
+                for fn in sorted(files):
+                    add(os.path.join(dirpath, fn))
+        elif os.path.isfile(raw):  # a single file (maybe multi-layer)
+            add(raw)
+        else:
+            raise FlowError(f"`each`: no such file or directory: {raw}",
+                            line=stage.line, stage=stage.raw)
+        if not items:
+            raise FlowError(f"`each`: no geospatial datasets found in `{stage.args[0]}`",
+                            line=stage.line, stage=stage.raw)
+        return items
 
     def _record(self, stage, text, *, ok, t0, error=None) -> None:
         if self.journal is None:
@@ -160,6 +257,11 @@ class Engine:
             return self._email(stage, current)
         if verb == "catalog":
             return self._catalog(stage)
+        if verb == "each":
+            raise FlowError(
+                "`each` must be the first stage of a flow — `each \"<dir>\" | … | save out.gpkg`",
+                line=stage.line, stage=stage.raw,
+            )
 
         alias = self.registry.get(verb)
         if alias is None:
@@ -241,12 +343,62 @@ class Engine:
                 "`save` has nothing to save — the flow has not loaded a layer yet",
                 line=stage.line, stage=stage.raw,
             )
-        if len(stage.args) != 1 or stage.options:
+        if stage.options:
             raise FlowError(
-                "`save` takes one destination: `save <path>`",
+                "`save` takes no key=value options — `save <path>` or "
+                "`save <path> as <layer>`",
                 line=stage.line, stage=stage.raw,
             )
-        return self.backend.save(current, os.path.expanduser(stage.args[0]), lineage=lineage)
+        args = stage.args
+        explicit_name = None
+        if len(args) == 3 and args[1] == "as":  # save <path> as <layer>
+            path, explicit_name = args[0], args[2]
+        elif len(args) == 1:
+            path = args[0]
+        else:
+            raise FlowError(
+                "`save` takes `save <path>` or `save <path> as <layer>`",
+                line=stage.line, stage=stage.raw,
+            )
+
+        batch = self._batch_item
+        dest = os.path.expanduser(path)
+        templated = "{name}" in dest
+        if templated and not batch:
+            raise FlowError(
+                "`{name}` in a save path only works inside an `each` batch",
+                line=stage.line, stage=stage.raw,
+            )
+        if templated:
+            dest = dest.replace("{name}", _safe_name(batch))
+        # `{name}` is also honoured in an explicit `as <layer>` so `save out.gpkg as
+        # {name}` does the obvious thing inside a batch.
+        if explicit_name and "{name}" in explicit_name:
+            if not batch:
+                raise FlowError("`{name}` only works inside an `each` batch",
+                                line=stage.line, stage=stage.raw)
+            explicit_name = explicit_name.replace("{name}", batch)
+
+        # The layer name to write: explicit `as`, else the batch item's name.
+        layer_name = explicit_name or (batch if (batch and not templated) else None)
+        ext = os.path.splitext(dest)[1].lower()
+        is_container = ext in (".gpkg", ".sqlite", ".db")
+
+        if explicit_name and not is_container:
+            raise FlowError(
+                "`save … as <layer>` writes a named layer into a multi-layer "
+                "container — use a .gpkg/.sqlite path",
+                line=stage.line, stage=stage.raw,
+            )
+        if batch and not templated and not is_container:
+            raise FlowError(
+                "a batch (`each`) save needs a multi-layer .gpkg target (one layer per "
+                "item) or a `{name}` placeholder in the path, e.g. `save \"out/{name}.tif\"`",
+                line=stage.line, stage=stage.raw,
+            )
+        append = is_container and layer_name is not None
+        return self.backend.save(current, dest, lineage=lineage,
+                                 layer_name=layer_name, append=append)
 
     def _metadata(self, stage, current: Layer | None) -> Layer:
         # `metadata set key=value …` — attach descriptive metadata to the current
@@ -457,6 +609,12 @@ _METADATA_FIELDS = {"title", "abstract", "keywords", "identifier", "license"}
 # Extensions that mean "this `@ref` is really a file, not a connection name".
 _FILE_EXTS = (".gpkg", ".shp", ".geojson", ".json", ".tif", ".tiff", ".sqlite",
               ".db", ".gml", ".kml", ".csv", ".gpx", ".fgb", ".parquet")
+
+
+def _safe_name(name: str) -> str:
+    """Make a batch item name safe to drop into a file path (`{name}` template)."""
+    out = "".join(c if (c.isalnum() or c in "-_.") else "_" for c in name)
+    return out.strip("._") or "item"
 
 
 def _now() -> str:

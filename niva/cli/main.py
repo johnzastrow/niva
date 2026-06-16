@@ -148,16 +148,20 @@ def _describe(args) -> int:
     except ImportError as exc:
         print(f"niva: describing an algorithm needs QGIS's Python [{exc}]", file=sys.stderr)
         code = 3
-    # If describing an algorithm bootstrapped a standalone QGIS, tear it down and
-    # hard-exit with our code to dodge the interpreter-shutdown segfault (ensure_qgis).
-    from ..engine.pyqgis import owned_app
+    except BaseException as exc:  # noqa: BLE001 — must still reach the safe teardown
+        print(f"niva: unexpected error: {type(exc).__name__}: {exc}", file=sys.stderr)
+        code = 1
+    finally:
+        # If describing an algorithm bootstrapped a standalone QGIS, tear it down and
+        # hard-exit (every path) to dodge the interpreter-shutdown segfault.
+        from ..engine.pyqgis import owned_app
 
-    app = owned_app()
-    if app is not None:
-        sys.stdout.flush()
-        sys.stderr.flush()
-        app.exitQgis()
-        os._exit(code)
+        app = owned_app()
+        if app is not None:
+            sys.stdout.flush()
+            sys.stderr.flush()
+            app.exitQgis()
+            os._exit(code)
     return code
 
 
@@ -202,17 +206,24 @@ def _execute(program, base_dir=None, *, source="<inline>", log=None) -> int:
     except OpError as exc:
         print(f"niva: {exc}", file=sys.stderr)
         code = 1
-    if journal is not None:
-        journal.close()
-        print(f"# log: {os.path.abspath(journal.log_path)}")
-    if owns:
-        # Standalone run: tear QGIS down and hard-exit with our code before the
-        # Python GC races QGIS's C++ teardown at interpreter shutdown (it segfaults,
-        # which would otherwise clobber the exit code). Flush user output first.
-        sys.stdout.flush()
-        sys.stderr.flush()
-        app.exitQgis()
-        os._exit(code)
+    except BaseException as exc:  # noqa: BLE001 — incl. KeyboardInterrupt: must still
+        # reach the safe teardown below, or interpreter shutdown races QGIS's C++
+        # teardown and segfaults. Surface a generic message; never leak past `finally`.
+        print(f"niva: unexpected error: {type(exc).__name__}: {exc}", file=sys.stderr)
+        code = 1
+    finally:
+        if journal is not None:
+            journal.close()
+            print(f"# log: {os.path.abspath(journal.log_path)}")
+        if owns:
+            # Standalone run: tear QGIS down and hard-exit with our code before the
+            # Python GC races QGIS's C++ teardown at interpreter shutdown (it
+            # segfaults, clobbering the exit code). This runs for EVERY exit path —
+            # success, handled error, or unexpected exception. Flush user output first.
+            sys.stdout.flush()
+            sys.stderr.flush()
+            app.exitQgis()
+            os._exit(code)
     return code
 
 
