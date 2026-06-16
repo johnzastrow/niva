@@ -295,6 +295,10 @@ CORE = [
     ),
 
     # --------------------------------------------------------------------- raster
+    # NOTE: raster verbs default CREATION_OPTIONS to lossless DEFLATE + tiling so
+    # intermediate/written rasters aren't left uncompressed (and far larger than their
+    # inputs). The final product's compression is governed by `save` (which also picks
+    # a data-type-aware PREDICTOR); for custom options use `run gdal:* CREATION_OPTIONS=…`.
     Alias(
         "warp",
         "gdal:warpreproject",
@@ -309,6 +313,7 @@ CORE = [
             "nodata": Option("NODATA", "number"),
             "resolution": Option("TARGET_RESOLUTION", "number"),
         },
+        forced={"CREATION_OPTIONS": "COMPRESS=DEFLATE|TILED=YES"},
     ),
     Alias(
         "clipraster",
@@ -316,6 +321,7 @@ CORE = [
         "Clip a raster to the shape of a mask layer.",
         args=[Arg("mask", "MASK", "layer")],
         options={"nodata": Option("NODATA", "number")},
+        forced={"CREATION_OPTIONS": "COMPRESS=DEFLATE|TILED=YES"},
     ),
     Alias(
         "hillshade",
@@ -326,6 +332,7 @@ CORE = [
             "azimuth": Option("AZIMUTH", "number", "300"),
             "altitude": Option("V_ANGLE", "number", "40"),
         },
+        forced={"CREATION_OPTIONS": "COMPRESS=DEFLATE|TILED=YES"},
     ),
     Alias(
         "slope",
@@ -333,6 +340,7 @@ CORE = [
         "Compute a slope raster from a DEM.",
         options={"band": Option("BAND", "int", "1"), "scale": Option("SCALE", "number", "1")},
         flags={"percent": Flag("AS_PERCENT")},
+        forced={"CREATION_OPTIONS": "COMPRESS=DEFLATE|TILED=YES"},
     ),
     Alias(
         "aspect",
@@ -340,6 +348,7 @@ CORE = [
         "Compute an aspect raster from a DEM.",
         options={"band": Option("BAND", "int", "1")},
         flags={"trig": Flag("TRIG_ANGLE"), "zero_flat": Flag("ZERO_FLAT")},
+        forced={"CREATION_OPTIONS": "COMPRESS=DEFLATE|TILED=YES"},
     ),
     Alias(
         "polygonize",

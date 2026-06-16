@@ -409,20 +409,46 @@ class PyqgisBackend(Backend):
         """Write a raster result to ``dest`` via ``gdal:translate`` — it picks the
         driver from the extension and converts as needed. Runs on the same (worker)
         thread as the rest of the flow, like every other processing.run call here.
-        For format-specific creation options (e.g. JP2 QUALITY) use `run gdal:translate`
-        directly; this is the plain, sensible-default write."""
+
+        For GeoTIFF output we default to **lossless DEFLATE + tiling** (with the
+        PREDICTOR matched to the data type) so products aren't left uncompressed and
+        far larger than their inputs. Override with `run gdal:translate … CREATION_OPTIONS=…`
+        for other formats/options (e.g. JP2 QUALITY)."""
         import processing
 
         parent = os.path.dirname(dest)
         if parent:
             os.makedirs(parent, exist_ok=True)
+        params = {"INPUT": layer.ref, "OUTPUT": dest}
+        if os.path.splitext(dest)[1].lower() in (".tif", ".tiff"):
+            params["CREATION_OPTIONS"] = self._raster_creation_options(layer.ref)
         try:
-            result = processing.run("gdal:translate", {"INPUT": layer.ref, "OUTPUT": dest})
+            result = processing.run("gdal:translate", params)
         except Exception as exc:
             raise OpError(f"could not write raster `{dest}`: {exc}",
                           algorithm="save", params={"dest": dest}, backend="pyqgis")
         out = result.get("OUTPUT") or dest
         return Layer(SOURCE, out, facet="raster", name=os.path.basename(dest))
+
+    @staticmethod
+    def _raster_creation_options(ref) -> str:
+        """Sensible lossless GeoTIFF creation options for ``ref``: DEFLATE + tiling,
+        with the right PREDICTOR for the data type (3 for floats, 2 for other
+        integers, none for Byte). Falls back to plain DEFLATE if the type can't be
+        read. Pipe-separated, as QGIS's GDAL algorithms expect."""
+        opts = ["COMPRESS=DEFLATE", "TILED=YES"]
+        try:
+            from qgis.core import Qgis
+
+            dt = ref.dataProvider().dataType(1)
+            data_types = Qgis.DataType
+            if dt in (data_types.Float32, data_types.Float64):
+                opts.append("PREDICTOR=3")
+            elif dt != data_types.Byte:
+                opts.append("PREDICTOR=2")
+        except Exception:  # unknown type / API shift — DEFLATE alone is still safe
+            pass
+        return "|".join(opts)
 
     def _persist_metadata(self, layer: Layer, dest: str, name: str,
                           multilayer: bool, lineage: list | None) -> None:

@@ -7,6 +7,18 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.10.1] - 2026-06-16
+
+### Fixed
+- **Raster outputs are no longer left uncompressed.** Raster `save` to GeoTIFF now
+  defaults to lossless **DEFLATE + tiling**, with the `PREDICTOR` matched to the data
+  type (3 for floats, 2 for other integers, none for Byte); the raster verbs
+  (`warp`, `clipraster`, `hillshade`, `slope`, `aspect`) default their
+  `CREATION_OPTIONS` the same way so intermediates compress too. Previously products
+  were written uncompressed and were often far larger than their inputs (e.g. a 9.4 MB
+  DEM tile round-tripped to 1.0 MB after the fix — ~9× smaller, lossless). Override
+  with `run gdal:translate … CREATION_OPTIONS=…` for other formats/options.
+
 ## [0.10.0] - 2026-06-16
 
 ### Added
