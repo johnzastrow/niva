@@ -223,3 +223,7 @@ starting_materials/
 # local plugin build artifact
 plugin/*.zip
 data/
+
+# Editor settings and local QGIS artifacts
+.vscode/
+symbology-style.db
