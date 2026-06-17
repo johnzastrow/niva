@@ -82,8 +82,9 @@ each "/home/jcz/Github/niva/data/basemap.gpkg"   | fix | clip "/home/jcz/Github/
 each "/home/jcz/Github/niva/data/overture.gpkg"  | fix | clip "/home/jcz/Github/niva/data/study_area_bbox.gpkg" | save "/home/jcz/Github/niva/data/overture_clip.gpkg"
 each "/home/jcz/Github/niva/data/collected.gpkg" | fix | clip "/home/jcz/Github/niva/data/study_area_bbox.gpkg" | save "/home/jcz/Github/niva/data/collected_clip.gpkg"
 
-# Clip the reprojected DEM (raster) to the bbox:
+# Clip the reprojected rasters (DEM + orthophoto) to the bbox:
 load "/home/jcz/Github/niva/data/dem.tif" | clipraster "/home/jcz/Github/niva/data/study_area_bbox.gpkg" | save "/home/jcz/Github/niva/data/dem_clip.tif"
+load "/home/jcz/Github/niva/data/orthophoto.jp2" | clipraster "/home/jcz/Github/niva/data/study_area_bbox.gpkg" | save "/home/jcz/Github/niva/data/orthophoto_clip.jp2"
 
 notify "niva: Task 4 done — clipped to the study area ({elapsed} elapsed)"
 notify "niva analyst plan: complete ✓ in {elapsed} — outputs in /home/jcz/Github/niva/data" priority=high
