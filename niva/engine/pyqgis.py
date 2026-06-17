@@ -17,6 +17,7 @@ Two ways niva gets a QGIS context (``ensure_qgis``):
 from __future__ import annotations
 
 import os
+import re
 import sys
 import tempfile
 from contextlib import contextmanager
@@ -24,6 +25,23 @@ from contextlib import contextmanager
 from ..errors import OpError
 from .backend import Backend
 from .layer import DB_TABLE, MEMORY, SOURCE, CrsInfo, Layer
+
+# A GDAL/OGR processing algorithm runs an external command; on a nonzero exit QGIS's
+# GdalUtils reports "Process returned error code N" through the feedback but does NOT
+# raise from processing.run — so without this check a failed warp/clip/translate would
+# look like success. We treat a nonzero code here as a hard failure.
+_GDAL_ERRCODE_RE = re.compile(r"returned error code\s+(\d+)")
+
+
+def _command_failure(errors):
+    """The error line proving an algorithm's external command exited nonzero (a
+    "Process returned error code N" with N != 0), or None. Pure helper shared by the
+    feedback and the engine so it's unit-testable without QGIS."""
+    for e in errors:
+        m = _GDAL_ERRCODE_RE.search(e)
+        if m and m.group(1) != "0":
+            return e
+    return None
 
 
 def scratch_dir() -> str:
@@ -102,16 +120,28 @@ def ensure_qgis(prefix: str | None = None):
 def _feedback(progress, cancel=None):
     """A QgsProcessingFeedback that forwards algorithm progress to ``progress`` (a
     ``callable(str)``) and asks ``cancel`` (a ``callable() -> bool``) whether to abort
-    the running algorithm. Returns None if neither is given. Progress % is throttled
-    to every 5%; the algorithm's own info/error messages are passed through."""
-    if progress is None and cancel is None:
-        return None
+    the running algorithm. Progress % is throttled to every 5%; the algorithm's own
+    info/error messages are passed through.
+
+    Always returns an instance (never None) so callers can also inspect it for a
+    command failure afterwards: some providers — notably the GDAL/OGR algorithms — run
+    an external command that can exit nonzero yet still return a result dict from
+    ``processing.run`` without raising. The feedback records those error lines so
+    ``run``/``run_raw`` can detect the "Process returned error code N" sentinel and fail
+    the step instead of reporting a false success (see ``command_failure``)."""
     from qgis.core import QgsProcessingFeedback
 
     class _NivaFeedback(QgsProcessingFeedback):
         def __init__(self):
             super().__init__(False)  # don't log to stdout
             self._last = -5
+            self.errors: list[str] = []  # error lines the algorithm reported
+
+        def command_failure(self):
+            """The error line proving the algorithm's external command failed (a nonzero
+            "Process returned error code N"), or None. This is the signal that a GDAL/OGR
+            op did *not* really succeed even though ``processing.run`` returned a result."""
+            return _command_failure(self.errors)
 
         def setProgress(self, value):  # noqa: N802 — Qt override (virtual; fires periodically)
             # QgsFeedback.isCanceled() is NOT virtual, so we can't intercept the poll —
@@ -139,8 +169,11 @@ def _feedback(progress, cancel=None):
 
         def reportError(self, error, fatalError=False):  # noqa: N802
             super().reportError(error, fatalError)
-            if progress is not None:
-                progress(f"   ! {error.strip()}")
+            text = (error or "").strip()
+            if text:
+                self.errors.append(text)
+            if progress is not None and text:
+                progress(f"   ! {text}")
 
     return _NivaFeedback()
 
@@ -361,6 +394,21 @@ class PyqgisBackend(Backend):
             return OpError(f"`{algorithm}` canceled", algorithm=algorithm, params={}, backend="pyqgis")
         return OpError(str(exc), algorithm=algorithm, params=params, backend="pyqgis")
 
+    @staticmethod
+    def _raise_on_command_failure(algorithm, params, feedback):
+        """Fail the step if the algorithm's external command exited nonzero.
+
+        ``processing.run`` returns a result dict for the GDAL/OGR algorithms even when
+        their command failed (e.g. a truncated raster: gdalwarp prints "Process returned
+        error code 1" and writes an empty output). Without this, niva would report a
+        false success and hand on a blank/partial result. ``feedback`` is the
+        ``_NivaFeedback`` we passed in; ``command_failure`` returns the proving line."""
+        err = feedback.command_failure() if feedback is not None else None
+        if err:
+            raise OpError(f"`{algorithm}` failed — the underlying command did not complete "
+                          f"({err}). The input may be corrupt or truncated.",
+                          algorithm=algorithm, params=params, backend="pyqgis")
+
     def run(self, algorithm: str, params: dict, *, input_param: str,
             input_layer: Layer, output_param: str, progress=None, cancel=None) -> Layer:
         import processing
@@ -379,9 +427,10 @@ class PyqgisBackend(Backend):
             self._scratch.append(out_path)
         else:
             full[output_param] = "TEMPORARY_OUTPUT"
+        feedback = _feedback(progress, cancel)
         with _capture_qgis_messages(progress) as captured:
             try:
-                result = processing.run(algorithm, full, feedback=_feedback(progress, cancel))
+                result = processing.run(algorithm, full, feedback=feedback)
             except Exception as exc:  # QgsProcessingException and friends
                 # A typed output sink rejects features whose geometry type doesn't match
                 # (e.g. a stray GeometryCollection in a polygon layer). For the operations
@@ -401,6 +450,7 @@ class PyqgisBackend(Backend):
                             progress("   ⚠ " + note)
                         return retried
                 raise self._run_error(algorithm, full, cancel, exc)
+        self._raise_on_command_failure(algorithm, full, feedback)
         self._note_qgis_messages(captured)
         if algorithm == "native:reprojectlayer" and not getattr(self, "_note", None):
             tnote = self._transform_note(input_layer, full.get("TARGET_CRS"))
@@ -423,11 +473,13 @@ class PyqgisBackend(Backend):
         if "INPUT" not in full and input_layer is not None:
             full["INPUT"] = input_layer.ref
         full.setdefault("OUTPUT", "TEMPORARY_OUTPUT")
+        feedback = _feedback(progress, cancel)
         with _capture_qgis_messages(progress) as captured:
             try:
-                result = processing.run(algorithm, full, feedback=_feedback(progress, cancel))
+                result = processing.run(algorithm, full, feedback=feedback)
             except Exception as exc:
                 raise self._run_error(algorithm, full, cancel, exc)
+        self._raise_on_command_failure(algorithm, full, feedback)
         self._note_qgis_messages(captured)
         if cancel and cancel():  # canceled algorithms return an empty result, not an error
             raise OpError(f"`{algorithm}` canceled", algorithm=algorithm, params={}, backend="pyqgis")
@@ -732,11 +784,13 @@ class PyqgisBackend(Backend):
             # can dwarf its inputs). Default to QUALITY=25 — a sensible visually-lossless
             # ratio for imagery. Override via `run gdal:translate … CREATION_OPTIONS=…`.
             params["CREATION_OPTIONS"] = "QUALITY=25"
+        feedback = _feedback(None)  # captures a nonzero "returned error code" from gdal_translate
         try:
-            result = processing.run("gdal:translate", params)
+            result = processing.run("gdal:translate", params, feedback=feedback)
         except Exception as exc:
             raise OpError(f"could not write raster `{dest}`: {exc}",
                           algorithm="save", params={"dest": dest}, backend="pyqgis")
+        self._raise_on_command_failure("save", {"dest": dest}, feedback)
         out = result.get("OUTPUT") or dest
         return Layer(SOURCE, out, facet="raster", name=os.path.basename(dest))
 

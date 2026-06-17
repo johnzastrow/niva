@@ -7,6 +7,19 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.16.1] - 2026-06-17
+
+### Fixed
+- **A failed GDAL/OGR step no longer reports success.** The GDAL algorithms (`warp`,
+  `clipraster`, raster `save`, …) run an external command that can exit nonzero — e.g.
+  on a truncated/corrupt raster, gdalwarp prints `Process returned error code 1` and
+  writes an empty output — yet `processing.run` still returns a result dict without
+  raising. niva was forwarding those errors to the log but marking the step ✓ and
+  handing on the blank result. It now inspects the algorithm's feedback and raises a
+  clear error (`… the underlying command did not complete … the input may be corrupt
+  or truncated`) instead of a false success. Surfaced while verifying 0.16.0 against an
+  orthophoto that the earlier disk-quota crash had left truncated.
+
 ## [0.16.0] - 2026-06-17
 
 ### Fixed

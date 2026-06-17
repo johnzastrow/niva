@@ -11,7 +11,8 @@ import tempfile
 import unittest
 
 from niva.engine.layer import SOURCE, Layer
-from niva.engine.pyqgis import PyqgisBackend, scratch_dir
+from niva.engine.pyqgis import PyqgisBackend, _command_failure, scratch_dir
+from niva.errors import OpError
 
 
 class TestScratchDir(unittest.TestCase):
@@ -85,6 +86,42 @@ class TestPurgeScratch(unittest.TestCase):
         be._scratch = [os.path.join(tempfile.gettempdir(), "niva-does-not-exist.tif")]
         be.purge_scratch(keep=None)  # must not raise
         self.assertEqual(be._scratch, [])
+
+
+class _FakeFeedback:
+    """Duck-typed stand-in for _NivaFeedback (which needs QGIS to construct)."""
+
+    def __init__(self, err):
+        self._err = err
+
+    def command_failure(self):
+        return self._err
+
+
+class TestCommandFailureDetection(unittest.TestCase):
+    """A GDAL/OGR algorithm can exit nonzero yet still return a result from
+    processing.run; niva must treat 'Process returned error code N' as a failure
+    rather than reporting a false success (the orthophoto-clip corruption case)."""
+
+    def test_detects_nonzero_gdal_exit(self):
+        errors = ["ERROR 1: Stream too short", "Process returned error code 1"]
+        self.assertEqual(_command_failure(errors), "Process returned error code 1")
+
+    def test_ignores_zero_exit_and_plain_errors(self):
+        self.assertIsNone(_command_failure([]))
+        self.assertIsNone(_command_failure(["Process returned error code 0"]))
+        self.assertIsNone(_command_failure(["ERROR 1: some recoverable warning"]))
+
+    def test_raise_on_command_failure_raises_for_nonzero(self):
+        with self.assertRaises(OpError) as ctx:
+            PyqgisBackend._raise_on_command_failure(
+                "gdal:warpreproject", {"x": 1},
+                _FakeFeedback("Process returned error code 1"))
+        self.assertIn("did not complete", str(ctx.exception))
+
+    def test_raise_on_command_failure_is_quiet_when_clean(self):
+        PyqgisBackend._raise_on_command_failure("gdal:warpreproject", {}, _FakeFeedback(None))
+        PyqgisBackend._raise_on_command_failure("gdal:warpreproject", {}, None)  # no feedback
 
 
 if __name__ == "__main__":
