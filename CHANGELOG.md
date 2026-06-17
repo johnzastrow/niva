@@ -7,6 +7,14 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.15.1] - 2026-06-16
+
+### Changed
+- **Friendlier timestamps in notifications and run output.** The `{now}` / `{started}`
+  notify variables and the "run started/finished" output lines now read
+  `YYYY-MM-DD HH:MM:SS` in local time (e.g. `2026-06-16 18:48:51`) instead of ISO
+  `2026-06-16T22:45:04+00:00`. The machine journal (`.jsonl`/`.log`) keeps ISO 8601 UTC.
+
 ## [0.15.0] - 2026-06-16
 
 ### Added

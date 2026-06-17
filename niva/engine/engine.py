@@ -60,7 +60,7 @@ class Engine:
             from .. import __version__
 
             self._run_t0 = time.monotonic()
-            self._run_started = _now()
+            self._run_started = _human_time()
             self._last_elapsed = 0.0
             self._op_count = self._err_count = 0
             self._alerted = set()
@@ -80,7 +80,7 @@ class Engine:
         finally:
             self._base_dir = prev_base
             if top_level:
-                self._emit(f"niva — run finished {_now()}")
+                self._emit(f"niva — run finished {_human_time()}")
 
     # --- call (file composition, planning 10/02) -----------------------------
 
@@ -565,7 +565,7 @@ class Engine:
         values = {
             "elapsed": _fmt_elapsed(total),
             "last": _fmt_elapsed(self._last_elapsed),
-            "now": _now(),
+            "now": _human_time(),
             "started": self._run_started,
             "ops": str(self._op_count),
             "errors": str(self._err_count),
@@ -746,6 +746,12 @@ def _safe_name(name: str) -> str:
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+
+def _human_time() -> str:
+    """A friendly local timestamp for output/notifications: ``YYYY-MM-DD HH:MM:SS``
+    (no ``T``/timezone clutter, unlike the ISO form used in the machine journal)."""
+    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 
 def _fmt_elapsed(seconds: float) -> str:
