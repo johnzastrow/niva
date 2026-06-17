@@ -25,7 +25,6 @@ def run_flow(text: str, *, file: str | None = None, dry_run: bool = False,
     import time
 
     import niva
-    from niva.errors import NivaError
 
     base = os.path.dirname(os.path.abspath(file)) if file else None
     t0 = time.monotonic()

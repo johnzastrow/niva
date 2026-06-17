@@ -7,6 +7,27 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.16.0] - 2026-06-17
+
+### Fixed
+- **Big raster pipelines no longer exhaust a small `/tmp` and crash mid-run.** Raster
+  steps (`warp`, `clipraster`, `hillshade`, …) write a full intermediate raster —
+  often gigabytes — before `save` re-encodes it. These used QGIS's `TEMPORARY_OUTPUT`
+  sentinel, which lands in the system temp dir; on many setups that is a small,
+  RAM-backed **tmpfs** (e.g. a 16 GB `/tmp`), so a long imagery pipeline could fill it
+  and abort with "disk quota exceeded" even when the real disk had hundreds of GB free.
+  Niva now writes raster intermediates to a relocatable scratch dir and **deletes them
+  when the run ends** — including after a failed run, so a crash no longer strands
+  gigabytes of scratch behind it. The run's final layer is spared, so a terminal
+  `warp`/`clipraster` with no `save` still resolves on the map.
+
+### Added
+- **`NIVA_TMPDIR` — choose where big raster scratch goes.** Set it to a roomy,
+  disk-backed folder to keep intermediate rasters (and GDAL's own `CPL_TMPDIR` scratch)
+  off a small tmpfs. Unset, behaviour is unchanged (the system temp dir is used). The
+  plugin's **Setup tab** gains a *"Raster scratch"* folder field that defaults to a
+  disk-backed dir under the QGIS profile (never the tmpfs) and sets `NIVA_TMPDIR` live.
+
 ## [0.15.1] - 2026-06-16
 
 ### Changed

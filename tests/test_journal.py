@@ -109,7 +109,6 @@ class TestJournal(unittest.TestCase):
     def test_timestamps_present(self):
         self._run("load a.gpkg | save out.gpkg")
         text = open(self.base + ".log").read()
-        import re
         self.assertRegex(text, r"20\d\d-\d\d-\d\dT\d\d:\d\d:\d\d")
 
     def test_failure_is_recorded(self):
@@ -128,7 +127,8 @@ class TestRunMetadata(unittest.TestCase):
     """Version + wall-clock start/end (shown in output) and the per-op note field."""
 
     def setUp(self):
-        import tempfile, os
+        import os
+        import tempfile
         self.base = os.path.join(tempfile.mkdtemp(prefix="niva_meta_"), "run")
 
     def test_log_header_carries_niva_version(self):

@@ -65,8 +65,8 @@ class Engine:
             self._op_count = self._err_count = 0
             self._alerted = set()
             self._emit(f"niva {__version__} — run started {self._run_started}")
+        result: Layer | None = None
         try:
-            result: Layer | None = None
             for stmt in program:
                 if isinstance(stmt, Call):
                     result = self._run_call(stmt, base_dir, _stack)
@@ -74,12 +74,18 @@ class Engine:
                     result = self.run_flow(stmt)
             return result
         except NivaError as exc:
+            result = None  # the run failed — keep nothing, free every scratch file
             if top_level:  # the run aborted — optionally ping ntfy (NIVA_NTFY_ON_ERROR)
                 self._alert_error(exc)
             raise
         finally:
             self._base_dir = prev_base
             if top_level:
+                # Delete this run's raster scratch (sparing the final layer's own file).
+                # Runs even on failure, so a crash mid-pipeline strands no gigabytes.
+                purge = getattr(self.backend, "purge_scratch", None)
+                if callable(purge):
+                    purge(keep=result)
                 self._emit(f"niva — run finished {_human_time()}")
 
     # --- call (file composition, planning 10/02) -----------------------------
@@ -775,7 +781,7 @@ def _format_assessment(profile: dict, deep: bool) -> str:
     lines += ["## Overview", ""]
     if profile.get("facet") == "raster":
         lines += [
-            f"- **Type:** raster",
+            "- **Type:** raster",
             f"- **Size:** {profile.get('width')} × {profile.get('height')} px, "
             f"{profile.get('bands')} band(s)",
         ]

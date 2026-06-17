@@ -33,6 +33,7 @@ from . import environment, runner
 # Persisted settings keys (QgsSettings) and the default run-log folder.
 _LOG_ENABLED_KEY = "niva/log_enabled"
 _LOG_DIR_KEY = "niva/log_dir"
+_SCRATCH_DIR_KEY = "niva/scratch_dir"  # sets NIVA_TMPDIR — where big raster scratch goes
 
 # Mask password/token fields. Qt6 scopes the enum; Qt5 exposes it flat.
 try:
@@ -81,6 +82,23 @@ _NTFY_AUTHCFG_KEY = "niva/ntfy_authcfg"
 
 def default_log_dir() -> str:
     return os.path.join(tempfile.gettempdir(), "niva_logs")
+
+
+def default_scratch_dir() -> str:
+    """A disk-backed folder for niva's big raster scratch (sets ``NIVA_TMPDIR``).
+
+    Deliberately *not* the system temp dir: on many setups that is a small, RAM-backed
+    tmpfs (e.g. a 16 GB ``/tmp``), and a large raster pipeline — warp/clip/resample of
+    multi-gigabyte imagery — can exhaust it and abort the run with "disk quota
+    exceeded" even when the real disk has plenty of room. The QGIS profile dir is
+    always on real disk, so default there."""
+    try:
+        from qgis.core import QgsApplication
+
+        base = QgsApplication.qgisSettingsDirPath()
+    except Exception:  # noqa: BLE001 — QGIS not ready; home is always a safe disk dir
+        base = os.path.expanduser("~")
+    return os.path.join(base, "niva_scratch")
 
 _SAMPLE = """\
 # Edit this flow, then click Run — it executes in this QGIS session.
@@ -295,6 +313,37 @@ class NivaDock(QDockWidget):
         layout.addLayout(srow)
         self._update_session_label()
 
+        # --- Scratch folder for big raster steps (sets NIVA_TMPDIR) ----------
+        # Prefer a NIVA_TMPDIR already set in the environment (a shell override), then
+        # the saved setting, then the disk-backed default. Push it live before any Run.
+        scratch = (os.environ.get("NIVA_TMPDIR")
+                   or settings.value(_SCRATCH_DIR_KEY, default_scratch_dir(), type=str))
+        os.environ["NIVA_TMPDIR"] = scratch
+        crow = QHBoxLayout()
+        crow.addWidget(QLabel("Raster scratch:", tab))
+        self.scratch_dir = QLineEdit(scratch, tab)
+        self.scratch_dir.setToolTip(
+            "Where niva writes its large intermediate raster files. Each raster step "
+            "(warp / clipraster / resample) writes a full GeoTIFF here — often several "
+            "gigabytes — before `save` re-encodes it to your chosen format.\n\n"
+            "Why this setting exists: by default GDAL puts that scratch in the system "
+            "temp dir, which on many systems is a small, RAM-backed tmpfs (e.g. a 16 GB "
+            "/tmp). A multi-gigabyte imagery pipeline can fill it and abort the run with "
+            "'disk quota exceeded' even when your real disk has hundreds of GB free. "
+            "Pointing scratch at a roomy, disk-backed folder avoids that.\n\n"
+            "The default lives under your QGIS profile (always on real disk). This sets "
+            "the NIVA_TMPDIR environment variable; niva also routes GDAL's own scratch "
+            "(CPL_TMPDIR) here and deletes everything it wrote when each run finishes."
+        )
+        self.scratch_dir.editingFinished.connect(self._on_scratch_dir_edited)
+        cbrowse = QPushButton("Browse…", tab)
+        cbrowse.setToolTip("Choose the raster scratch folder via a folder picker. Pick a "
+                           "drive with plenty of free space — not a small RAM-backed /tmp.")
+        cbrowse.clicked.connect(self._browse_scratch_dir)
+        crow.addWidget(self.scratch_dir)
+        crow.addWidget(cbrowse)
+        layout.addLayout(crow)
+
         # --- Email & notifications (the env the email/notify verbs read) -----
         layout.addWidget(_section_label("Email &amp; notifications", tab))
         note = QLabel(
@@ -442,6 +491,23 @@ class NivaDock(QDockWidget):
 
         QgsSettings().setValue(_LOG_DIR_KEY, self.log_dir.text())
         self._update_session_label()
+
+    def _browse_scratch_dir(self):
+        chosen = QFileDialog.getExistingDirectory(
+            self, "Raster scratch folder", self.scratch_dir.text())
+        if chosen:
+            self.scratch_dir.setText(chosen)
+            self._on_scratch_dir_edited()
+
+    def _on_scratch_dir_edited(self):
+        from qgis.core import QgsSettings
+
+        path = self.scratch_dir.text().strip()
+        QgsSettings().setValue(_SCRATCH_DIR_KEY, path)
+        if path:  # push live so the next Run writes raster scratch here
+            os.environ["NIVA_TMPDIR"] = path
+        else:
+            os.environ.pop("NIVA_TMPDIR", None)
 
     def _reset_session_log(self):
         """Start a fresh session log (the next run writes to a new file)."""

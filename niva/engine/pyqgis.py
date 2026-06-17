@@ -18,11 +18,57 @@ from __future__ import annotations
 
 import os
 import sys
+import tempfile
 from contextlib import contextmanager
 
 from ..errors import OpError
 from .backend import Backend
 from .layer import DB_TABLE, MEMORY, SOURCE, CrsInfo, Layer
+
+
+def scratch_dir() -> str:
+    """Directory for niva's large intermediate GDAL/Processing scratch.
+
+    Big raster steps (``warp``, ``clipraster``, ``hillshade``, …) write a full
+    intermediate raster — often gigabytes — before ``save`` re-encodes it to the
+    user's chosen format. By default that scratch lands in the system temp dir,
+    which on many setups is a small, quota'd **tmpfs** (RAM-backed ``/tmp``): a long
+    raster pipeline can exhaust it and abort the run mid-flight with a "disk quota
+    exceeded" error even when the real disk has hundreds of gigabytes free.
+
+    Set ``NIVA_TMPDIR`` to a roomy, disk-backed folder to keep that scratch off the
+    tmpfs. When it is set (and creatable), niva writes raster intermediates there and
+    points GDAL's own internal scratch (``CPL_TMPDIR``) at the same place. When it is
+    unset, behaviour is unchanged — the system temp dir is used.
+    """
+    d = os.environ.get("NIVA_TMPDIR")
+    if d:
+        try:
+            os.makedirs(d, exist_ok=True)
+            os.environ.setdefault("CPL_TMPDIR", d)  # GDAL internal scratch, too
+            return d
+        except OSError:  # not creatable/writable — fall back rather than fail the run
+            pass
+    return tempfile.gettempdir()
+
+
+def _layer_source_path(layer):
+    """The absolute on-disk path backing ``layer`` (a :class:`Layer` or None), or None.
+
+    Used to spare a run's final raster from scratch cleanup. Handles both a path-string
+    ref (a saved file) and a live ``QgsMapLayer`` ref (whose ``source()`` carries the
+    path, possibly with a ``|layername=…`` suffix)."""
+    ref = getattr(layer, "ref", None)
+    if ref is None:
+        return None
+    if isinstance(ref, str):
+        src = ref
+    else:
+        source = getattr(ref, "source", None)
+        src = source() if callable(source) else None
+    if not src:
+        return None
+    return os.path.abspath(src.split("|", 1)[0])
 
 # Retained module-side so neither object is garbage-collected after creation:
 # a dropped QgsApplication tears down the whole Processing registry, and a dropped
@@ -212,6 +258,31 @@ def _init_processing():
 
 
 class PyqgisBackend(Backend):
+    def __init__(self):
+        self._note = None        # per-op handling notice (e.g. mixed geometry), read by Engine
+        self._scratch: list[str] = []  # raster intermediates to delete when the run ends
+
+    def purge_scratch(self, keep=None) -> None:
+        """Delete the raster intermediates this run created in the scratch dir.
+
+        ``keep`` is the run's final :class:`Layer` (or ``None``): its on-disk source is
+        spared so a terminal ``warp``/``clipraster`` with no ``save`` still resolves on
+        the map. Called from the engine's top-level ``finally`` — including after a
+        failed run, so a crash no longer strands gigabytes of scratch behind it.
+        Best-effort: a file that cannot be removed is left, never raised."""
+        keep_src = _layer_source_path(keep)
+        survivors = []
+        for path in self._scratch:
+            if keep_src and os.path.abspath(path) == keep_src:
+                survivors.append(path)
+                continue
+            for f in (path, path + ".aux.xml", path + ".ovr"):
+                try:
+                    os.remove(f)
+                except OSError:  # already gone / in use — leave it
+                    pass
+        self._scratch = survivors
+
     def load(self, source: str, *, facet: str = "vector") -> Layer:
         from qgis.core import QgsProviderRegistry, QgsRasterLayer, QgsVectorLayer
 
@@ -296,7 +367,18 @@ class PyqgisBackend(Backend):
 
         full = dict(params)
         full[input_param] = input_layer.ref
-        full[output_param] = "TEMPORARY_OUTPUT"
+        # Raster intermediates can be gigabytes. QGIS's ``TEMPORARY_OUTPUT`` sentinel
+        # writes them into the system temp dir — often a small, quota'd tmpfs that a
+        # long raster pipeline exhausts. Give raster ops an explicit GeoTIFF path in
+        # niva's scratch dir (relocatable off the tmpfs via NIVA_TMPDIR) and track it
+        # so the engine can delete it once the run ends. Vector ops, which are far
+        # smaller, keep the default sink. See ``scratch_dir``.
+        if input_layer.facet == "raster":
+            out_path = self._temp_path(".tif")
+            full[output_param] = out_path
+            self._scratch.append(out_path)
+        else:
+            full[output_param] = "TEMPORARY_OUTPUT"
         with _capture_qgis_messages(progress) as captured:
             try:
                 result = processing.run(algorithm, full, feedback=_feedback(progress, cancel))
@@ -608,9 +690,7 @@ class PyqgisBackend(Backend):
 
     @staticmethod
     def _temp_path(suffix: str) -> str:
-        import tempfile
-
-        fd, path = tempfile.mkstemp(suffix=suffix, prefix="niva_")
+        fd, path = tempfile.mkstemp(suffix=suffix, prefix="niva_", dir=scratch_dir())
         os.close(fd)
         os.remove(path)  # GDAL wants to create it
         return path
