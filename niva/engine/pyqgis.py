@@ -295,14 +295,19 @@ class PyqgisBackend(Backend):
         self._note = None        # per-op handling notice (e.g. mixed geometry), read by Engine
         self._scratch: list[str] = []  # raster intermediates to delete when the run ends
 
-    def purge_scratch(self, keep=None) -> None:
-        """Delete the raster intermediates this run created in the scratch dir.
+    def purge_scratch(self, keep=None, remove_dir=False) -> None:
+        """Delete the intermediates this run created in the scratch dir.
 
         ``keep`` is the run's final :class:`Layer` (or ``None``): its on-disk source is
         spared so a terminal ``warp``/``clipraster`` with no ``save`` still resolves on
         the map. Called from the engine's top-level ``finally`` — including after a
         failed run, so a crash no longer strands gigabytes of scratch behind it.
-        Best-effort: a file that cannot be removed is left, never raised."""
+        Best-effort: a file that cannot be removed is left, never raised.
+
+        ``remove_dir`` (set only on a clean, successful run) additionally removes the
+        niva-owned scratch *directory* itself — but only when ``NIVA_TMPDIR`` was set
+        (never the shared system temp fallback) and only if it is now empty, so a user
+        dir holding other files is never touched. ``scratch_dir`` recreates it next run."""
         keep_src = _layer_source_path(keep)
         survivors = []
         for path in self._scratch:
@@ -315,6 +320,13 @@ class PyqgisBackend(Backend):
                 except OSError:  # already gone / in use — leave it
                     pass
         self._scratch = survivors
+        if remove_dir and not survivors:
+            d = os.environ.get("NIVA_TMPDIR")
+            if d:
+                try:
+                    os.rmdir(d)  # only succeeds if empty — safe for a shared/user dir
+                except OSError:  # non-empty or in use — leave it
+                    pass
 
     def load(self, source: str, *, facet: str = "vector") -> Layer:
         from qgis.core import QgsProviderRegistry, QgsRasterLayer, QgsVectorLayer
@@ -422,9 +434,7 @@ class PyqgisBackend(Backend):
         # so the engine can delete it once the run ends. Vector ops, which are far
         # smaller, keep the default sink. See ``scratch_dir``.
         if input_layer.facet == "raster":
-            out_path = self._temp_path(".tif")
-            full[output_param] = out_path
-            self._scratch.append(out_path)
+            full[output_param] = self._temp_path(".tif")
         else:
             full[output_param] = "TEMPORARY_OUTPUT"
         feedback = _feedback(progress, cancel)
@@ -740,11 +750,15 @@ class PyqgisBackend(Backend):
         except Exception:  # GDAL unavailable / option unsupported — re-raise original
             return None
 
-    @staticmethod
-    def _temp_path(suffix: str) -> str:
+    def _temp_path(self, suffix: str) -> str:
+        """A fresh path in the scratch dir for an intermediate niva writes itself — a
+        raster op's explicit output, or a lossless-retry GeoPackage. Tracked in
+        ``_scratch`` so ``purge_scratch`` deletes it when the run ends (these are
+        consumed by the next stage; only the run's final layer is spared)."""
         fd, path = tempfile.mkstemp(suffix=suffix, prefix="niva_", dir=scratch_dir())
         os.close(fd)
         os.remove(path)  # GDAL wants to create it
+        self._scratch.append(path)
         return path
 
     def compact(self, path: str) -> None:

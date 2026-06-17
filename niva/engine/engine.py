@@ -66,12 +66,14 @@ class Engine:
             self._alerted = set()
             self._emit(f"niva {__version__} — run started {self._run_started}")
         result: Layer | None = None
+        ok = False
         try:
             for stmt in program:
                 if isinstance(stmt, Call):
                     result = self._run_call(stmt, base_dir, _stack)
                 else:
                     result = self.run_flow(stmt)
+            ok = True
             return result
         except NivaError as exc:
             result = None  # the run failed — keep nothing, free every scratch file
@@ -81,11 +83,12 @@ class Engine:
         finally:
             self._base_dir = prev_base
             if top_level:
-                # Delete this run's raster scratch (sparing the final layer's own file).
-                # Runs even on failure, so a crash mid-pipeline strands no gigabytes.
+                # Delete this run's scratch (sparing the final layer's own file). Runs
+                # even on failure, so a crash mid-pipeline strands no gigabytes; on a
+                # clean run (``ok``) the empty scratch *directory* is removed too.
                 purge = getattr(self.backend, "purge_scratch", None)
                 if callable(purge):
-                    purge(keep=result)
+                    purge(keep=result, remove_dir=ok)
                 self._emit(f"niva — run finished {_human_time()}")
 
     # --- call (file composition, planning 10/02) -----------------------------

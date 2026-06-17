@@ -7,6 +7,24 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.16.2] - 2026-06-17
+
+### Fixed
+- **Lossless-retry GeoPackages no longer leak into the scratch dir.** When a layer
+  mixes geometry types (e.g. an Overture theme with a stray GeometryCollection), niva
+  reprojects it losslessly via a temporary GeoPackage. Those temp files (and the
+  raster intermediates) are allocated by `_temp_path`, which wasn't tracked for
+  cleanup — so a batch over mixed-geometry data left several `niva_*.gpkg` behind each
+  run (previously in the system temp dir; since 0.16.0, in `NIVA_TMPDIR`). `_temp_path`
+  now records every allocation so `purge_scratch` removes it when the run ends (the
+  run's final layer is still spared). Surfaced by running the full analyst plan.
+- **The scratch directory itself is removed after a clean run.** Previously only the
+  scratch *files* were deleted, leaving an empty `NIVA_TMPDIR` behind. On a successful
+  run niva now also removes the scratch directory — but only when `NIVA_TMPDIR` was set
+  (never the shared system temp), and only if it is empty, so a directory holding other
+  files is never touched. It is recreated on the next run. On a *failed* run the files
+  are still freed but the directory is left in place.
+
 ## [0.16.1] - 2026-06-17
 
 ### Fixed

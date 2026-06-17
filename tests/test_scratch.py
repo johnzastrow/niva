@@ -87,6 +87,60 @@ class TestPurgeScratch(unittest.TestCase):
         be.purge_scratch(keep=None)  # must not raise
         self.assertEqual(be._scratch, [])
 
+    def test_remove_dir_drops_empty_niva_scratch_dir_on_success(self):
+        with tempfile.TemporaryDirectory() as parent:
+            scratch = os.path.join(parent, "niva_scratch")
+            os.makedirs(scratch)
+            f = os.path.join(scratch, "a.tif")
+            with open(f, "w") as fh:
+                fh.write("x")
+            os.environ["NIVA_TMPDIR"] = scratch
+            try:
+                be = PyqgisBackend()
+                be._scratch = [f]
+                be.purge_scratch(keep=None, remove_dir=True)  # clean, successful run
+            finally:
+                os.environ.pop("NIVA_TMPDIR", None)
+            self.assertFalse(os.path.exists(scratch))  # empty niva dir removed too
+
+    def test_remove_dir_never_touches_a_nonempty_or_system_dir(self):
+        with tempfile.TemporaryDirectory() as scratch:
+            mine = os.path.join(scratch, "mine.tif")
+            other = os.path.join(scratch, "user-file.txt")  # not niva's
+            for p in (mine, other):
+                with open(p, "w") as fh:
+                    fh.write("x")
+            os.environ["NIVA_TMPDIR"] = scratch
+            try:
+                be = PyqgisBackend()
+                be._scratch = [mine]
+                be.purge_scratch(keep=None, remove_dir=True)
+            finally:
+                os.environ.pop("NIVA_TMPDIR", None)
+            self.assertTrue(os.path.isdir(scratch))      # not removed — still has user-file
+            self.assertTrue(os.path.exists(other))       # the unrelated file is untouched
+
+    def test_remove_dir_no_op_without_niva_tmpdir(self):
+        # NIVA_TMPDIR unset → scratch is the shared system temp; must never be rmdir'd.
+        os.environ.pop("NIVA_TMPDIR", None)
+        be = PyqgisBackend()
+        be._scratch = []
+        be.purge_scratch(keep=None, remove_dir=True)  # must not raise / must be harmless
+        self.assertTrue(os.path.isdir(tempfile.gettempdir()))
+
+    def test_temp_path_is_tracked_so_it_gets_purged(self):
+        # Every niva-allocated intermediate (raster output AND lossless-retry .gpkg)
+        # must be tracked, else it leaks into the scratch dir (the mixed-geometry case).
+        be = PyqgisBackend()
+        with tempfile.TemporaryDirectory() as d:
+            os.environ["NIVA_TMPDIR"] = d
+            try:
+                p = be._temp_path(".gpkg")
+            finally:
+                os.environ.pop("NIVA_TMPDIR", None)
+            self.assertIn(p, be._scratch)
+            self.assertEqual(os.path.dirname(p), d)
+
 
 class _FakeFeedback:
     """Duck-typed stand-in for _NivaFeedback (which needs QGIS to construct)."""
