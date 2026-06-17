@@ -40,6 +40,27 @@ Niva turns QGIS automation from PyQGIS code into a readable single lines of text
   geospatial dataset — CRS, extent, fields, bands — to a Markdown report). Credentials
   for `notify`/`email` come **only from the environment**, never the flow text.
 
+## Screenshots
+
+### Setup
+<img src="docs/screenshots/setup.png" width="250" alt="Plugin setup">
+*Install the plugin from ZIP and enable the niva toolbar button in QGIS.*
+
+### Run niva
+<img src="docs/screenshots/run_niva.png" width="250" alt="Run niva flow">
+*Enter a flow and execute it directly from the plugin UI.*
+
+### Export to PyQGIS
+<img src="docs/screenshots/export_to_pyqis.png" width="250" alt="Export to PyQGIS">
+*Export a flow to a standalone PyQGIS script for automation or sharing.*
+
+### niva panel
+<img src="docs/screenshots/dot_niva.png" width="250" alt="niva plugin panel">
+*The niva plugin integrates commands and workflow controls into QGIS.*
+
+
+
+
 
 ## Quick start
 
