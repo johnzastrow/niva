@@ -3,7 +3,7 @@
 **A concise, readable text-pipeline grammar for QGIS geoprocessing — for people who
 don't want to write PyQGIS.** *Easy wins every time.*
 
-<img src="docs/logos/logo_text.png" width="320" alt="niva">
+<img src="docs/logos/logo_text.png" width="240" alt="niva">
 
 Write a whole pipeline on one line — friendly verbs running on QGIS's own Processing
 algorithms underneath:
@@ -12,13 +12,34 @@ algorithms underneath:
 load roads.gpkg | buffer 100m dissolve | clip city.gpkg | save roads_local.gpkg
 ```
 
-niva turns QGIS automation from a PyQGIS programming task into a line of text a
-GUI-first analyst can write *and* read. It runs in QGIS's own Python, reaches **any**
-of its ~769 algorithms, talks to your databases, and records provenance as it goes —
-with near-zero dependencies. **v0.7.1 runs real geoprocessing**, validated on real
-data (156 tests on QGIS 4.0.3). The QGIS plugin runs flows in the **background** with
-a **Stop** button, logs provenance per session, and can **export a flow to a
-standalone PyQGIS script** (and import niva-shaped scripts back).
+## What it does
+
+Niva turns QGIS automation from PyQGIS code into a readable single lines of text. 
+
+* **Runs in QGIS's own Python**
+* Reaches **any** of its ~769 algorithms
+* **Near-zero dependencies**
+* **~45 friendly verbs → real QGIS algorithms**, across vector geometry (`buffer`,
+  `simplify`, `smooth`, `convexhull`, `centroid`, `densify`, `offset`, …), overlay
+  (`clip`, `intersect`, `union`, `difference`, `dissolve`, `spatialjoin`,
+  `selectloc`, …), attributes (`renamefield`, `dropfields`, `keepfields`,
+  `countpoints`, …), and **raster** (`warp`, `clipraster`, `hillshade`, `slope`,
+  `aspect`, `polygonize`, …). `run <id>` reaches any of the ~769 with no alias;
+  `describe` shows their parameters. Every alias is validated against the installed
+  QGIS by `scripts/lint_registry.py`.
+* **Raster and vector output** — `save` writes either (rasters via `gdal:translate`,
+  vectors via `QgsVectorFileWriter`, driver chosen by extension).
+* **Databases** via named QGIS connections — `@conn` tables and `sql @conn "…"` —
+  credentials never leave QGIS.
+* **Provenance for free** — every `save` records lineage; `assess` writes data-quality
+  reports; the run journal echoes the exact `processing.run(…)` for each step.
+* **Composable** — chain stages with `|`, compose files with `call`, and **export a
+  flow to a standalone PyQGIS script** (`niva export`) or import one back.
+* **Utility verbs beyond QGIS** — `notify` (ntfy push when a long job finishes),
+  `email` (SMTP, Gmail-aware), and `catalog` (recurse a directory and inventory every
+  geospatial dataset — CRS, extent, fields, bands — to a Markdown report). Credentials
+  for `notify`/`email` come **only from the environment**, never the flow text.
+
 
 ## Quick start
 
@@ -57,28 +78,7 @@ niva.flow('load "data.gpkg|layername=roads" | buffer 100m dissolve | save out.gp
 > A GeoPackage holds many layers — name one with `|layername=…`. Databases:
 > `load @conn.table` and `sql @conn "SELECT …"` (credentials stay in QGIS).
 
-## What it does
 
-- **~45 friendly verbs → real QGIS algorithms**, across vector geometry (`buffer`,
-  `simplify`, `smooth`, `convexhull`, `centroid`, `densify`, `offset`, …), overlay
-  (`clip`, `intersect`, `union`, `difference`, `dissolve`, `spatialjoin`,
-  `selectloc`, …), attributes (`renamefield`, `dropfields`, `keepfields`,
-  `countpoints`, …), and **raster** (`warp`, `clipraster`, `hillshade`, `slope`,
-  `aspect`, `polygonize`, …). `run <id>` reaches any of the ~769 with no alias;
-  `describe` shows their parameters. Every alias is validated against the installed
-  QGIS by `scripts/lint_registry.py`.
-- **Raster and vector output** — `save` writes either (rasters via `gdal:translate`,
-  vectors via `QgsVectorFileWriter`, driver chosen by extension).
-- **Databases** via named QGIS connections — `@conn` tables and `sql @conn "…"` —
-  credentials never leave QGIS.
-- **Provenance for free** — every `save` records lineage; `assess` writes data-quality
-  reports; the run journal echoes the exact `processing.run(…)` for each step.
-- **Composable** — chain stages with `|`, compose files with `call`, and **export a
-  flow to a standalone PyQGIS script** (`niva export`) or import one back.
-- **Utility verbs beyond QGIS** — `notify` (ntfy push when a long job finishes),
-  `email` (SMTP, Gmail-aware), and `catalog` (recurse a directory and inventory every
-  geospatial dataset — CRS, extent, fields, bands — to a Markdown report). Credentials
-  for `notify`/`email` come **only from the environment**, never the flow text.
 
 ## Docs
 
