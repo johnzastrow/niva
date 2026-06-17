@@ -86,6 +86,11 @@ each "/home/jcz/Github/niva/data/collected.gpkg" | fix | clip "/home/jcz/Github/
 load "/home/jcz/Github/niva/data/dem.tif" | clipraster "/home/jcz/Github/niva/data/study_area_bbox.gpkg" | save "/home/jcz/Github/niva/data/dem_clip.tif"
 load "/home/jcz/Github/niva/data/orthophoto.jp2" | clipraster "/home/jcz/Github/niva/data/study_area_bbox.gpkg" | save "/home/jcz/Github/niva/data/orthophoto_clip.jp2"
 
+# Resample the clipped orthophoto to 5 m pixels. `warp` to the same CRS with
+# resolution=5 sets the output pixel size; `average` resampling is the right choice for
+# *down*-sampling imagery (mean of the source pixels) rather than the default nearest.
+load "/home/jcz/Github/niva/data/orthophoto_clip.jp2" | warp EPSG:6346 resolution=5 resampling=average | save "/home/jcz/Github/niva/data/orthophoto_clip_5m.jp2"
+
 notify "niva: Task 4 done — clipped to the study area ({elapsed} elapsed)"
 notify "niva analyst plan: complete ✓ in {elapsed} — outputs in /home/jcz/Github/niva/data" priority=high
 
