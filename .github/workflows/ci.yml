@@ -51,8 +51,12 @@ jobs:
       # The PyQGIS tier exercises the real backend (GeoPackage, SpatiaLite, PostGIS, and
       # QgsProject repointing) — the layer the pure-Python suite cannot reach. The PostGIS
       # tests run against the service above; the rest use files / SpatiaLite.
+      # NOTE: headless QGIS can segfault during interpreter teardown *after* the tests
+      # pass (exit 139), so we gate on unittest's OK/FAILED marker, not the exit code.
       - name: Run the live-QGIS + PostGIS suite
-        run: python3 -m unittest tests.test_pyqgis -v
+        run: |
+          python3 -m unittest tests.test_pyqgis -v 2>&1 | tee /tmp/qgis-tests.log || true
+          grep -qE '^OK' /tmp/qgis-tests.log
 
   build:
     name: build wheel + smoke-test the install
