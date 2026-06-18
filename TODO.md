@@ -1,9 +1,20 @@
 # TODO
 
-Parked work, to pick up after the current tangent. See
-[`docs/planning/04-roadmap.md`](docs/planning/04-roadmap.md) and
-[`docs/planning/15-postgis-and-project-design.md`](docs/planning/15-postgis-and-project-design.md)
-for context.
+Parked work. See [`docs/planning/04-roadmap.md`](docs/planning/04-roadmap.md),
+[`docs/planning/15-postgis-and-project-design.md`](docs/planning/15-postgis-and-project-design.md),
+and [`docs/planning/16-anatomy-of-a-verb.md`](docs/planning/16-anatomy-of-a-verb.md) for context.
+
+- [ ] **Test-hardening pass (agreed; the next thing).** The live-QGIS tier
+  (`tests/test_pyqgis.py`) — which catches the real backend bugs — currently **skips in
+  CI** (`.github/workflows/ci.yml` runs only the pure-Python suite + build). So that tier
+  is a manual habit, not an enforced gate. Do:
+  1. **Wire the live-QGIS tier into CI** — a job on the `qgis/qgis` Docker image running
+     `test_pyqgis.py`. (Validating this needs a push-and-observe loop on GitHub Actions.)
+  2. **Real-Postgres tier** — a Postgres service container in CI so the postgres-specific
+     DB paths (`COMMENT ON TABLE`, schema-qualified writes, `public` default) are tested
+     for real, not only via SpatiaLite.
+  3. **Coverage fill + trivial-test audit** — verbs with thin tests; check for assertions
+     that pass without exercising behaviour.
 
 - [ ] **Raster-layer repointing in `project`.** The `project` verb (v0.18.0) repoints
   *vector* layers and leaves rasters unchanged. Extend it to repoint raster layers too —
