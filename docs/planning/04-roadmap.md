@@ -70,9 +70,14 @@ front-end/provenance tracks ran ahead. Where things really stand:
   optional; `.qgs`↔`.qgz` by extension; `paths=relative|absolute` rewrites datasource paths.
 - **Shipped (v0.25.0) — `project … bookmark=<name>`.** Add a spatial bookmark (union
   extent, or centred via `at=`+`scale=`/`width=`).
-- **More project/layer-file ops planned** (`TODO.md`):
-  `.qgs`↔`.qgz` repackage, and cartographic decoration (bookmarks, map themes, legend,
-  print layouts).
+- **Shipped (v0.26.0) — `project from-template=<name|path> data=<dir>`.** Instantiate a
+  curated `.qgz` template (its print layouts + styled layer slots) against your own data:
+  copy the template, repoint each slot (vector or raster) to the same-named dataset under
+  `data=`, symbology and layouts riding along. Templates resolve by name from
+  `$NIVA_TEMPLATES`/`~/.niva/templates`, or by path. **Supersedes the separate print-layout
+  roadmap items** — a template *is* the layout + styles, applied in one pass.
+- **More project/layer-file ops planned** (`TODO.md`): map themes / legend tweaks (low
+  value standalone), `style apply` to a database-backed layer.
 - **Still ahead:** richer `filter` (IN/LIKE/NULL), `qgis_process` backend, grammar
   freeze + PyPI (v1.0), named intermediates / SQL writes / quality rules (v2.0).
 

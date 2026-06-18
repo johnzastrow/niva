@@ -20,7 +20,9 @@ from typing import Union
 from ..errors import FlowError
 from .lexer import split_pipes, strip_comment, tokenize, unquote
 
-_KEY = re.compile(r"[A-Za-z_][A-Za-z0-9_]*$")
+# Option keys are identifier-like but may contain internal hyphens (e.g. `from-template=`).
+# Only tokens that contain `=` are ever tested, so flags like `-deep` are unaffected.
+_KEY = re.compile(r"[A-Za-z_][A-Za-z0-9_-]*$")
 
 
 @dataclass

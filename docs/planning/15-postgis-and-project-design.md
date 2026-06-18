@@ -143,3 +143,51 @@ flowchart TD
 
 After Phase 2 lands, analyst-plan **Task 5** is de-flagged and the example gains a worked
 `save @conn` + `project` flow.
+
+## 7. Template projects (v0.26.0) — `project from-template=`
+
+`project from-template=<name|path> to=<out> data=<dir|glob> [missing=keep|fail|drop]`.
+A **template** is a curated `.qgz`/`.qgs` carrying **print layouts** and **styled layer
+slots** (layers with symbology, pointing at example data). Instantiating one is *repoint
+turned inside out*: instead of one container holding many same-named layers, we have a
+**directory of separate datasets** and match each template slot to the same-named one.
+
+The key reuse: a repoint with `setDataSource` **already preserves a layer's symbology**
+(verified in live QGIS — opacity survives the 3-arg `setDataSource`), and print layouts are
+**project-level**, untouched by a datasource swap. So "styles + layouts ride along" needs no
+extra code — only a new **target shape**: a `{name: uri}` slot map.
+
+Engine vs. backend split keeps the dir-resolution where it belongs: the **engine** resolves
+`data=` with the same `_resolve_sources` as `each`/`project new` (dir / glob / container →
+ordered `(name, uri)`), builds the `{name: uri}` map, and passes it as `target`. The
+**backend** `repoint_project` learns one new target kind — a `dict` — and in that
+*template mode* matches **both** vector and raster slots against the one map (no separate
+`rasters=`). `missing=` defaults to **`keep`** here (an unmatched slot keeps the template's
+example datasource, preserving the layout's structure), unlike plain repoint's `fail`.
+
+Template **name resolution** (engine `_resolve_template`): a value that looks like a path
+(`/`, a `.qgs`/`.qgz` extension, or an existing file) is used directly; otherwise it's a bare
+name looked up as `<root>/<name>.qgz|.qgs` where `root = $NIVA_TEMPLATES or ~/.niva/templates`
+— an unknown name errors with the available names listed. This needed the grammar to allow
+**internal hyphens in option keys** (`from-template=`); only tokens containing `=` are option
+candidates, so flags like `-deep` are unaffected.
+
+```mermaid
+flowchart TD
+    P["project from-template=atlas to=out.qgz data=clips/"] --> RT["_resolve_template:<br/>path? use it · name? $NIVA_TEMPLATES/&lt;name&gt;.qgz"]
+    P --> RS["_resolve_sources(data=) →<br/>{name: uri} slot map"]
+    RT --> RP["repoint_project(template, out,<br/>target={name:uri}, missing=keep)"]
+    RS --> RP
+    RP --> RD["standalone QgsProject().read(template)<br/>(layouts come along, project-level)"]
+    RD --> LOOP[for each map layer slot]
+    LOOP --> M{slot name in map?}
+    M -- yes, vector --> V["setDataSource(uri, ogr) · style preserved"]
+    M -- yes, raster --> Rr["setDataSource(uri.split('|')[0], gdal)"]
+    M -- no --> K["missing=keep (default) → leave slot;<br/>drop / fail to override"]
+    V --> W["QgsProject.write(out)"]
+    Rr --> W
+    K --> W
+```
+
+This **supersedes the standalone print-layout roadmap items**: a template *is* the layout +
+styles, applied against fresh data in one pass.

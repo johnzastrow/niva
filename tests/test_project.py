@@ -199,5 +199,96 @@ class TestProjectVerb(unittest.TestCase):
         self.assertEqual(backend.calls[-1][0], "repoint_project")
 
 
+class TestProjectFromTemplate(unittest.TestCase):
+    """`project from-template=<name|path> to= data=` — parsing/dispatch (Mock-backed).
+    The real template instantiation runs in test_pyqgis.py::TestPyqgisProject."""
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp(prefix="niva_tmpl_")
+        self.template = os.path.join(self.tmp, "report.qgz")
+        open(self.template, "w").close()
+        self.out = os.path.join(self.tmp, "out.qgz")
+        self.data = os.path.join(self.tmp, "data")
+        os.makedirs(self.data, exist_ok=True)
+        for n in ("roads.gpkg", "parcels.gpkg"):
+            open(os.path.join(self.data, n), "w").close()
+
+    def _run(self, tail):
+        backend = MockBackend()
+        Engine(backend).execute(parse(f"project {tail}"))
+        return backend
+
+    def test_path_template_builds_slot_map(self):
+        backend = self._run(f'from-template="{self.template}" to="{self.out}" data="{self.data}"')
+        call = backend.calls[-1]
+        self.assertEqual(call[0], "repoint_project")
+        self.assertEqual(call[1], self.template)  # src is the template
+        self.assertEqual(call[2], self.out)
+        target = call[3]
+        self.assertIsInstance(target, dict)  # the {name: uri} slot map
+        self.assertEqual(set(target), {"roads", "parcels"})
+        self.assertTrue(target["roads"].endswith("roads.gpkg"))
+
+    def test_default_missing_is_keep(self):
+        # Templates default to keep so unmatched slots preserve layout structure.
+        backend = self._run(f'from-template="{self.template}" to="{self.out}" data="{self.data}"')
+        self.assertEqual(backend.calls[-1][4], "keep")
+
+    def test_missing_override(self):
+        backend = self._run(
+            f'from-template="{self.template}" to="{self.out}" data="{self.data}" missing=drop')
+        self.assertEqual(backend.calls[-1][4], "drop")
+
+    def test_glob_data_source(self):
+        backend = self._run(
+            f'from-template="{self.template}" to="{self.out}" data="{self.data}/*.gpkg"')
+        self.assertEqual(set(backend.calls[-1][3]), {"roads", "parcels"})
+
+    def test_named_template_resolves_from_env(self):
+        lib = os.path.join(self.tmp, "lib")
+        os.makedirs(lib, exist_ok=True)
+        open(os.path.join(lib, "atlas.qgz"), "w").close()
+        os.environ["NIVA_TEMPLATES"] = lib
+        try:
+            backend = self._run(f'from-template=atlas to="{self.out}" data="{self.data}"')
+        finally:
+            del os.environ["NIVA_TEMPLATES"]
+        self.assertTrue(backend.calls[-1][1].endswith("atlas.qgz"))
+
+    def test_unknown_named_template_is_error(self):
+        os.environ["NIVA_TEMPLATES"] = self.tmp  # no .qgz named "ghost" here
+        try:
+            with self.assertRaises(FlowError):
+                self._run(f'from-template=ghost to="{self.out}" data="{self.data}"')
+        finally:
+            del os.environ["NIVA_TEMPLATES"]
+
+    def test_missing_data_is_error(self):
+        with self.assertRaises(FlowError):
+            self._run(f'from-template="{self.template}" to="{self.out}"')
+
+    def test_empty_data_is_error(self):
+        empty = os.path.join(self.tmp, "empty")
+        os.makedirs(empty, exist_ok=True)
+        with self.assertRaises(FlowError):
+            self._run(f'from-template="{self.template}" to="{self.out}" data="{empty}"')
+
+    def test_to_must_be_a_project(self):
+        with self.assertRaises(FlowError):
+            self._run(
+                f'from-template="{self.template}" to="{self.tmp}/o.gpkg" data="{self.data}"')
+
+    def test_template_path_must_be_a_project(self):
+        notproj = os.path.join(self.tmp, "x.gpkg")
+        open(notproj, "w").close()
+        with self.assertRaises(FlowError):
+            self._run(f'from-template="{notproj}" to="{self.out}" data="{self.data}"')
+
+    def test_unexpected_option_is_error(self):
+        with self.assertRaises(FlowError):
+            self._run(
+                f'from-template="{self.template}" to="{self.out}" data="{self.data}" repoint=x')
+
+
 if __name__ == "__main__":
     unittest.main()

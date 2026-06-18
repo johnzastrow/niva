@@ -4,26 +4,10 @@ Parked work. See [`docs/planning/04-roadmap.md`](docs/planning/04-roadmap.md),
 [`docs/planning/15-postgis-and-project-design.md`](docs/planning/15-postgis-and-project-design.md),
 and [`docs/planning/16-anatomy-of-a-verb.md`](docs/planning/16-anatomy-of-a-verb.md) for context.
 
-- [ ] **Real end-to-end run of the analyst plan (now including Task 5).** Run
-  `examples/analyst_plan.niva` against the real data headless (the python3.14 + QGIS
-  recipe), through the new Task 5 `project` lines, and confirm: outputs valid, `/tmp`
-  flat (scratch fix holds), the repointed `.qgs` projects open and resolve to the clips.
-  This is a verification/ops task, not a feature.
-
 ## Project & layer-file operations (new scope)
 
 All use a standalone `QgsProject()` / `QgsMapLayer` off the main thread (per
 `docs/planning/15` §3 and `16`), with two-tier tests (MockBackend + live-QGIS).
-
-**Next up**
-- [ ] **Template projects** — `project from-template=<name|path> to=<out> data=<dir|glob>`.
-  Curate a few stock `.qgz` templates that already contain **print layouts + styled layer
-  slots**; niva instantiates one against the user's data (copy the template, load/repoint
-  the layers, optionally apply styles). This is the *practical* path to print layouts +
-  consistent styling — far better than editing layouts programmatically — and subsumes the
-  print-layout items below. Design: a templates dir convention, name→path resolution, and
-  layer-slot matching (by name, like `project repoint`). **(Agreed: do after the current
-  cartographic set.)**
 
 **Lower priority — assess; minimal forms are low value**
 - [ ] **Map themes** — visibility presets (`project.mapThemeCollection()`). A single
@@ -35,6 +19,9 @@ All use a standalone `QgsProject()` / `QgsMapLayer` off the main thread (per
   layout). Keep only if direct `.qpt` export/import is later wanted.
 
 ## Done
+- [x] **Real end-to-end run of the analyst plan** (v0.25.0) — `examples/analyst_plan.niva`
+  ran headless on the real data through Task 5: outputs valid, `/tmp` flat (scratch fix held),
+  the repointed `.qgs` projects open and resolve to the clips.
 - [x] **Test-hardening pass** (v0.18.3) — live-QGIS + PostGIS tier now gates CI on the
   `qgis/qgis` image with a Postgres service; real-Postgres test tier; found & fixed the
   PostGIS-append PK bug.
@@ -47,6 +34,11 @@ All use a standalone `QgsProject()` / `QgsMapLayer` off the main thread (per
 - [x] **`project` copy/convert + `paths=`** (v0.24.0) — `repoint=` optional, `.qgs`↔`.qgz`,
   relative/absolute path rewrite.
 - [x] **`project … bookmark=<name>`** (v0.25.0) — union-extent or centred (`at=`+`scale=`/`width=`).
+- [x] **Template projects** (v0.26.0) — `project from-template=<name|path> to=<out> data=<dir|glob>`;
+  copies a stock `.qgz` (layouts + styled slots) and repoints each slot (vector or raster) to
+  the same-named dataset under `data=`, style + layout riding along. Templates resolve by name
+  (`$NIVA_TEMPLATES`/`~/.niva/templates`) or path; unmatched slots follow `missing=` (default
+  `keep`). Supersedes the print-layout item below.
 
 ## Roadmap-noted follow-ups (not yet scoped)
 - `project` / `style` `apply` to a **database-backed** layer (DB style table).

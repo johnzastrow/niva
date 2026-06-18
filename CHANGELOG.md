@@ -7,6 +7,24 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.26.0] - 2026-06-18
+
+### Added
+- **`project from-template=<name|path>` — instantiate a stock template against your data.**
+  `project from-template=atlas to=region.qgz data="data/clips/"` copies a curated `.qgz`/`.qgs`
+  template (carrying **print layouts** and **styled layer slots**) and repoints each slot —
+  **vector *or* raster** — to the **same-named dataset** found under `data=` (resolved like
+  `each`/`project new`, matched by the slot's layer name), so the **symbology and layouts ride
+  along** (a repoint preserves a layer's style). Templates resolve by **name** from
+  `$NIVA_TEMPLATES` (or `~/.niva/templates`), or by **path**. Unmatched slots follow `missing=`
+  (default **`keep`**, to preserve layout structure; `drop`/`fail` available). Terminal. This
+  **supersedes the separate print-layout roadmap items** — a template *is* the layout + styles,
+  applied in one pass.
+
+### Changed
+- **Option keys may now contain internal hyphens** (e.g. `from-template=`). Only tokens
+  containing `=` are tested as option candidates, so flags like `-deep` are unaffected.
+
 ## [0.25.0] - 2026-06-18
 
 ### Added

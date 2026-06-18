@@ -653,6 +653,78 @@ class TestPyqgisProject(unittest.TestCase):
         self.assertAlmostEqual(bm.extent().width(), 10.0, places=3)
         self.assertAlmostEqual(bm.extent().center().x(), 0.0, places=6)
 
+    def _template(self, *, opacity=0.42):
+        """A template project: a styled `roads` vector slot + a `dem` raster slot, both
+        pointing at example data under <tmp>/tmpl_src. Returns the template path."""
+        from qgis.core import QgsProject, QgsRasterLayer, QgsVectorLayer
+
+        src = os.path.join(self.tmp, "tmpl_src")
+        os.makedirs(src, exist_ok=True)
+        _write_points(os.path.join(src, "roads.gpkg"), "EPSG:4326", [(0, 0)])
+        _write_raster(os.path.join(src, "dem.tif"))
+        proj = QgsProject()
+        vl = QgsVectorLayer(f"{os.path.join(src, 'roads.gpkg')}|layername=roads", "roads", "ogr")
+        vl.setOpacity(opacity)  # the template's distinctive symbology
+        proj.addMapLayer(vl)
+        proj.addMapLayer(QgsRasterLayer(os.path.join(src, "dem.tif"), "dem"))
+        tmpl = os.path.join(self.tmp, "report.qgz")
+        self.assertTrue(proj.write(tmpl))
+        return tmpl
+
+    def _data_dir(self):
+        """A data dir with same-named `roads.gpkg` (2 features) + `dem.tif` to fill slots."""
+        data = os.path.join(self.tmp, "mydata")
+        os.makedirs(data, exist_ok=True)
+        _write_points(os.path.join(data, "roads.gpkg"), "EPSG:4326", [(5, 5), (6, 6)])
+        _write_raster(os.path.join(data, "dem.tif"))
+        return data
+
+    def test_from_template_repoints_slots_and_keeps_style(self):
+        import niva
+
+        tmpl = self._template(opacity=0.42)
+        data = self._data_dir()
+        out = os.path.join(self.tmp, "instance.qgz")
+        niva.flow(f'project from-template="{tmpl}" to="{out}" data="{data}"')
+        layers = {layer.name(): layer for layer in self._reload(out)}
+        self.assertEqual(set(layers), {"roads", "dem"})
+        roads = layers["roads"]
+        self.assertIn(os.path.join("mydata", "roads.gpkg"), roads.source())  # repointed
+        self.assertEqual(roads.featureCount(), 2)                            # to the user's data
+        self.assertTrue(roads.isValid())
+        self.assertAlmostEqual(roads.opacity(), 0.42, places=3)             # style rode along
+        self.assertIn(os.path.join("mydata", "dem.tif"), layers["dem"].source())  # raster slot
+
+    def test_from_template_named_via_env(self):
+        import niva
+
+        lib = os.path.join(self.tmp, "lib")
+        os.makedirs(lib, exist_ok=True)
+        tmpl = self._template()
+        os.replace(tmpl, os.path.join(lib, "atlas.qgz"))
+        data = self._data_dir()
+        out = os.path.join(self.tmp, "named.qgz")
+        os.environ["NIVA_TEMPLATES"] = lib
+        try:
+            niva.flow(f'project from-template=atlas to="{out}" data="{data}"')
+        finally:
+            del os.environ["NIVA_TEMPLATES"]
+        self.assertIn(os.path.join("mydata", "roads.gpkg"),
+                      {layer.name(): layer.source() for layer in self._reload(out)}["roads"])
+
+    def test_from_template_unmatched_slot_kept_by_default(self):
+        import niva
+
+        tmpl = self._template()
+        # data has only `dem`, not `roads` → the roads slot is unmatched.
+        data = os.path.join(self.tmp, "partial")
+        os.makedirs(data, exist_ok=True)
+        _write_raster(os.path.join(data, "dem.tif"))
+        out = os.path.join(self.tmp, "partial_out.qgz")
+        niva.flow(f'project from-template="{tmpl}" to="{out}" data="{data}"')
+        names = {layer.name() for layer in self._reload(out)}
+        self.assertEqual(names, {"roads", "dem"})  # roads kept (default missing=keep)
+
 
 class TestPyqgisStyle(unittest.TestCase):
     """`style` — apply/save a layer's .qml style (real symbology round-trip)."""

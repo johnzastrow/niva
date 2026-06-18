@@ -796,6 +796,8 @@ class Engine:
             return self._project_new(stage)
         if stage.args and stage.args[0] == "info":
             return self._project_info(stage)
+        if "from-template" in stage.options:
+            return self._project_from_template(stage)
         if len(stage.args) != 1:
             raise FlowError(
                 "`project` takes one source project — "
@@ -994,6 +996,87 @@ class Engine:
             fh.write(report)
         self._emit(f"   project info → {out} ({len(info.get('layers', []))} layer(s))")
         return None  # terminal
+
+    # Where named templates live: `$NIVA_TEMPLATES` (one directory) or `~/.niva/templates`.
+    _TEMPLATES_ENV = "NIVA_TEMPLATES"
+    _TEMPLATES_DEFAULT = "~/.niva/templates"
+
+    def _project_from_template(self, stage) -> Layer | None:
+        """`project from-template=<name|path> to=<out.qgs|qgz> data=<dir|glob> [missing=keep|fail|drop]`
+        — instantiate a stock QGIS template against your own data. A template is a curated
+        `.qgz`/`.qgs` carrying print layouts and styled layer *slots*; niva copies it and
+        repoints each slot (vector or raster) to the same-named dataset found under `data=`,
+        so the symbology and layouts ride along. Templates resolve by name from
+        `$NIVA_TEMPLATES` (or `~/.niva/templates`), or pass a path directly. Unmatched slots
+        follow `missing=` (default `keep`, to preserve layout structure). Terminal."""
+        extra = [k for k in stage.options if k not in ("from-template", "to", "data", "missing")]
+        if stage.args or extra:
+            bad = f"`{extra[0]}=`" if extra else f"`{stage.args[0]}`"
+            raise FlowError(
+                "`project from-template=` takes `to=`, `data=`, `missing=` only — "
+                f"`project from-template=<name|path> to=<out.qgs> data=<dir|glob>` (got {bad})",
+                line=stage.line, stage=stage.raw)
+        template = self._resolve_template(stage.options["from-template"], stage)
+        out = stage.options.get("to")
+        data = stage.options.get("data")
+        missing = stage.options.get("missing", "keep")
+        if not out:
+            raise FlowError("`project from-template` needs an output: `to=<out.qgs>`",
+                            line=stage.line, stage=stage.raw)
+        if not data:
+            raise FlowError("`project from-template` needs `data=<dir|glob>` to fill the "
+                            "template's layer slots", line=stage.line, stage=stage.raw)
+        if missing not in ("fail", "keep", "drop"):
+            raise FlowError(f"`missing={missing}` is not valid — use fail, keep, or drop",
+                            line=stage.line, stage=stage.raw)
+        out = os.path.expanduser(out)
+        if os.path.splitext(out)[1].lower() not in (".qgs", ".qgz"):
+            raise FlowError(f"`project from-template` writes a .qgs or .qgz — `{out}` is neither",
+                            line=stage.line, stage=stage.raw)
+        items = self._resolve_sources(data, verb="project from-template",
+                                      line=stage.line, raw=stage.raw)
+        if not items:
+            raise FlowError(f"`project from-template`: no geospatial datasets found in `{data}`",
+                            line=stage.line, stage=stage.raw)
+        # name → load-uri; last wins on a duplicate slot name (a flat-dir convention).
+        layer_map = {name: uri for name, uri in items}
+        self.backend.repoint_project(template, out, target=layer_map, missing=missing,
+                                     progress=self._emit)
+        return None  # terminal
+
+    def _resolve_template(self, value: str, stage) -> str:
+        """Resolve a `from-template=` value to a project-file path: a direct path
+        (`~`-expanded), or a bare name looked up in the templates library."""
+        expanded = os.path.expanduser(value)
+        looks_like_path = (
+            os.sep in value
+            or (os.altsep and os.altsep in value)
+            or os.path.splitext(value)[1].lower() in (".qgs", ".qgz")
+            or os.path.isfile(expanded)
+        )
+        if looks_like_path:
+            if not os.path.isfile(expanded):
+                raise FlowError(f"`project from-template`: not a file: {expanded}",
+                                line=stage.line, stage=stage.raw)
+            if os.path.splitext(expanded)[1].lower() not in (".qgs", ".qgz"):
+                raise FlowError(
+                    f"`project from-template` reads a .qgs/.qgz — `{expanded}` is not one",
+                    line=stage.line, stage=stage.raw)
+            return expanded
+        root = os.path.expanduser(os.environ.get(self._TEMPLATES_ENV)
+                                  or self._TEMPLATES_DEFAULT)
+        for ext in (".qgz", ".qgs"):
+            cand = os.path.join(root, value + ext)
+            if os.path.isfile(cand):
+                return cand
+        avail = sorted({os.path.splitext(os.path.basename(p))[0]
+                        for p in glob.glob(os.path.join(root, "*.qgz"))
+                        + glob.glob(os.path.join(root, "*.qgs"))}) if os.path.isdir(root) else []
+        hint = (f" — available: {', '.join(avail)}" if avail
+                else f" — none found in {root} (set ${self._TEMPLATES_ENV} or drop "
+                     ".qgz templates there, or pass a path)")
+        raise FlowError(f"`project from-template`: no template named `{value}`{hint}",
+                        line=stage.line, stage=stage.raw)
 
     def _expand_value(self, value: str, stage):
         """A `run` option value, with **`~` and glob expansion**. A `;`-joined value

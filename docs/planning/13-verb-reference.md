@@ -436,6 +436,23 @@ not the vector container/DB, so each raster is repointed to a **same-basename fi
 `rasters=`, raster layers are left unchanged; with it, an unmatched raster follows the same
 `missing=` policy.
 
+**Instantiate a template** — `project from-template=<name|path> to=<out> data=<dir|glob>` (v0.26.0):
+```
+project from-template=atlas to="region_atlas.qgz" data="data/clips/"
+```
+A **template** is a curated `.qgz`/`.qgs` that already carries **print layouts** and **styled
+layer slots** (layers with symbology, pointing at example data). niva copies the template and
+repoints each slot — **vector *or* raster** — to the **same-named dataset** found under
+`data=` (resolved like `each`/`project new`: a directory, glob, or container, matched by the
+slot's layer name), so the **symbology and layouts ride along** (a repoint preserves a layer's
+style). This is "compile a region" with a designed map *and* layout, not just data.
+
+Templates resolve by **name** from `$NIVA_TEMPLATES` (or `~/.niva/templates`) — drop your
+`.qgz` templates there and call them by name — or pass a **path** directly. Unmatched slots
+follow `missing=` (default **`keep`**, so the layout's structure survives; use `drop` to prune
+or `fail` to be strict). Terminal. (Supersedes the separate "print layout" roadmap items: a
+template *is* the layout + styles, applied in one pass.)
+
 **Style a layer** — `style apply <file>` / `style save <file>` (v0.20.0):
 ```
 load roads.gpkg | clip aoi.gpkg | save roads_clip.gpkg | style apply house.qml

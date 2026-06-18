@@ -1082,7 +1082,7 @@ class PyqgisBackend(Backend):
 
     # --- project file repointing (the `project` verb, roadmap §project) ----------
 
-    def repoint_project(self, src: str, dest: str, *, target: str | None, missing: str,
+    def repoint_project(self, src: str, dest: str, *, target, missing: str,
                         rasters: str | None = None, paths: str | None = None,
                         bookmark: str | None = None, progress=None) -> None:
         # Use a STANDALONE QgsProject (never QgsProject.instance()) so this is safe on
@@ -1094,6 +1094,9 @@ class PyqgisBackend(Backend):
             raise OpError(f"could not read project `{src}`",
                           algorithm="project", params={"src": src}, backend="pyqgis")
         # target=None → copy/convert without repointing vectors (still does rasters/paths).
+        # A {name: uri} dict is the `project from-template` slot map: every layer slot —
+        # vector OR raster — is repointed from the one map by name (no separate rasters=).
+        template_mode = isinstance(target, dict)
         resolve, available = self._repoint_target(target) if target else (None, set())
         counts = {"repointed": 0, "kept": 0, "dropped": 0}
 
@@ -1119,8 +1122,20 @@ class PyqgisBackend(Backend):
 
         for lyr in list(proj.mapLayers().values()):
             if isinstance(lyr, QgsRasterLayer):
-                # Rasters are separate files, not inside the vector container/DB. Repoint
-                # them into the `rasters=` directory by basename; without it, leave them.
+                # Template mode: match the raster slot against the data map by name (its
+                # |layername= or file stem), same as the vector slots.
+                if template_mode:
+                    name = self._layer_source_name(lyr)
+                    if name in available:
+                        new_uri, _ = resolve(name)
+                        lyr.setDataSource(new_uri.split("|", 1)[0], lyr.name(), "gdal")
+                        counts["repointed"] += 1
+                        emit(f"   repointed raster `{lyr.name()}` → {name}")
+                    else:
+                        unmatched(lyr, name)
+                    continue
+                # Otherwise rasters are separate files, not inside the vector container/DB.
+                # Repoint them into the `rasters=` directory by basename; else leave them.
                 if rasters is None:
                     counts["kept"] += 1
                     emit(f"   ⚠ left raster `{lyr.name()}` unchanged (no rasters= target)")
@@ -1275,11 +1290,21 @@ class PyqgisBackend(Backend):
                 extent.combineExtentWith(le)
         return extent if extent is not None else QgsRectangle()
 
-    def _repoint_target(self, target: str):
+    def _repoint_target(self, target):
         """Resolve a repoint ``target`` into ``(resolve, available)``: ``resolve(name)``
         returns ``(new_uri, provider)`` for a layer named ``name``, and ``available`` is
-        the set of names the target holds (gpkg layers, or DB tables). Two kinds: a
-        GeoPackage path, or an ``@conn[.schema]`` database connection."""
+        the set of names the target holds. Kinds: a ``{name: uri}`` dict (the
+        `project from-template` slot map); a GeoPackage path; or an ``@conn[.schema]``
+        database connection."""
+        if isinstance(target, dict):
+            available = set(target)
+
+            def resolve(name):
+                # The vector default provider; the raster branch overrides to gdal.
+                return target[name], "ogr"
+
+            return resolve, available
+
         if is_connection_ref(target):
             conn, schema, table = parse_connection_ref(target)
             if schema is not None:  # @conn.schema.table — names a table, not a target

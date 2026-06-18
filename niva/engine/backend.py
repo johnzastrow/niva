@@ -90,17 +90,20 @@ class Backend(abc.ABC):
         """Report ``layer``'s CRS — used to resolve distances (units.py)."""
 
     @abc.abstractmethod
-    def repoint_project(self, src: str, dest: str, *, target: str | None, missing: str,
+    def repoint_project(self, src: str, dest: str, *, target, missing: str,
                         rasters: str | None = None, paths: str | None = None,
                         bookmark: str | None = None, progress=None) -> None:
         """Copy the QGIS project ``src`` to ``dest``, optionally repointing each vector
-        layer's datasource to ``target`` — a GeoPackage path or an ``@conn[.schema]``
-        connection — matched by layer name, preserving subset filters. ``target=None``
-        copies without repointing. Raster layers are repointed to a same-basename file in
-        the ``rasters`` directory when given. ``missing`` (``fail`` | ``keep`` | ``drop``)
-        governs a layer absent from its target. ``paths`` (``relative`` | ``absolute``)
-        rewrites datasource path storage; the output format follows ``dest``'s extension
-        (``.qgs``/``.qgz``). The `project` verb; never silently breaks a project file."""
+        layer's datasource to ``target``, matched by layer name and preserving subset
+        filters and symbology. ``target`` is one of: a GeoPackage path; an
+        ``@conn[.schema]`` connection; ``None`` (copy without repointing); or a
+        ``{name: uri}`` dict (the `project from-template` slot map — each template layer
+        slot, vector *or* raster, is repointed to its same-named dataset). Otherwise raster
+        layers are repointed to a same-basename file in the ``rasters`` directory when given.
+        ``missing`` (``fail`` | ``keep`` | ``drop``) governs a layer absent from its target.
+        ``paths`` (``relative`` | ``absolute``) rewrites datasource path storage; the output
+        format follows ``dest``'s extension (``.qgs``/``.qgz``). The `project` verb; never
+        silently breaks a project file."""
 
     @abc.abstractmethod
     def style_layer(self, layer: Layer, action: str, path: str) -> None:
@@ -220,7 +223,7 @@ class MockBackend(Backend):
         ref = f"@{conn}." + (f"{schema}.{table}" if schema else table)
         return Layer(DB_TABLE, ref, facet="vector", name=table)
 
-    def repoint_project(self, src: str, dest: str, *, target: str | None, missing: str,
+    def repoint_project(self, src: str, dest: str, *, target, missing: str,
                         rasters: str | None = None, paths: str | None = None,
                         bookmark: str | None = None, progress=None) -> None:
         self.calls.append(
