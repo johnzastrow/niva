@@ -605,6 +605,17 @@ class TestPyqgisProject(unittest.TestCase):
         self.assertEqual(self._p.crs().authid(), "EPSG:6346")
         self.assertEqual(self._p.title(), "Region")
 
+    def test_project_info_report(self):
+        import niva
+
+        out = os.path.join(self.tmp, "info.md")
+        niva.flow(f'project info "{self.src}" to="{out}"')
+        text = open(out).read()
+        self.assertIn("roads", text)        # the layer
+        self.assertIn("ogr", text)          # provider
+        self.assertIn("roads.gpkg", text)   # datasource
+        self.assertIn("| Layer |", text)    # the table
+
 
 class TestPyqgisStyle(unittest.TestCase):
     """`style` — apply/save a layer's .qml style (real symbology round-trip)."""

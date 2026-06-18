@@ -1195,6 +1195,26 @@ class PyqgisBackend(Backend):
         if progress:
             progress(f"   created project → {dest} ({added} layer(s))")
 
+    def read_project(self, src: str) -> dict:
+        from qgis.core import QgsProject, QgsVectorLayer
+
+        proj = QgsProject()
+        if not proj.read(src):
+            raise OpError(f"could not read project `{src}`",
+                          algorithm="project", params={"src": src}, backend="pyqgis")
+        layers = []
+        for lyr in proj.mapLayers().values():
+            layers.append({
+                "name": lyr.name(),
+                "source": lyr.source(),
+                "provider": lyr.providerType() or "",
+                "type": "vector" if isinstance(lyr, QgsVectorLayer) else "raster",
+                "crs": lyr.crs().authid(),
+                "valid": lyr.isValid(),
+            })
+        layers.sort(key=lambda d: d["name"])
+        return {"title": proj.title(), "crs": proj.crs().authid(), "layers": layers}
+
     def _repoint_target(self, target: str):
         """Resolve a repoint ``target`` into ``(resolve, available)``: ``resolve(name)``
         returns ``(new_uri, provider)`` for a layer named ``name``, and ``available`` is

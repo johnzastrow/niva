@@ -794,6 +794,8 @@ class Engine:
         pipeable layer (roadmap §"project & layer file manipulation")."""
         if stage.args and stage.args[0] == "new":
             return self._project_new(stage)
+        if stage.args and stage.args[0] == "info":
+            return self._project_info(stage)
         if len(stage.args) != 1:
             raise FlowError(
                 "`project` takes one source project — "
@@ -906,6 +908,36 @@ class Engine:
                                     title=stage.options.get("title"), progress=self._emit)
         return None  # terminal
 
+    def _project_info(self, stage) -> Layer | None:
+        """`project info <src.qgs|qgz> [to=<out.md>]` — inventory a project's layers
+        (name, datasource, provider, CRS, validity) to a Markdown report. Terminal."""
+        if len(stage.args) != 2:
+            raise FlowError("`project info` takes one project — "
+                            "`project info <src.qgs> [to=<out.md>]`",
+                            line=stage.line, stage=stage.raw)
+        src = os.path.expanduser(stage.args[1])
+        if not os.path.isfile(src):
+            raise FlowError(f"`project info`: not a file: {src}",
+                            line=stage.line, stage=stage.raw)
+        if os.path.splitext(src)[1].lower() not in (".qgs", ".qgz"):
+            raise FlowError(f"`project info` reads a .qgs/.qgz — `{src}` is not one",
+                            line=stage.line, stage=stage.raw)
+        extra = [k for k in stage.options if k != "to"]
+        if extra:
+            raise FlowError(f"`project info` takes only `to=` — got `{extra[0]}=`",
+                            line=stage.line, stage=stage.raw)
+        out = stage.options.get("to")
+        out = os.path.expanduser(out) if out else os.path.splitext(src)[0] + "_info.md"
+        info = self.backend.read_project(src)
+        report = _format_project_info(info, src)
+        parent = os.path.dirname(out)
+        if parent:
+            os.makedirs(parent, exist_ok=True)
+        with open(out, "w", encoding="utf-8") as fh:
+            fh.write(report)
+        self._emit(f"   project info → {out} ({len(info.get('layers', []))} layer(s))")
+        return None  # terminal
+
     def _expand_value(self, value: str, stage):
         """A `run` option value, with **`~` and glob expansion**. A `;`-joined value
         is a list (QGIS's layer separator); a path segment containing `*`/`?`/`[` is
@@ -982,6 +1014,29 @@ def _is_query(sql: str) -> bool:
     if not s:
         return False
     return s.split(None, 1)[0].upper() in _QUERY_KEYWORDS
+
+
+def _format_project_info(info: dict, src: str) -> str:
+    """Render `project info` — project title/CRS and a layer table — as Markdown."""
+    lines = [f"# Project: {os.path.basename(src)}", ""]
+    lines.append(f"- **File:** `{os.path.abspath(src)}`")
+    if info.get("title"):
+        lines.append(f"- **Title:** {info['title']}")
+    lines.append(f"- **CRS:** {info.get('crs') or '(none)'}")
+    layers = info.get("layers", [])
+    lines.append(f"- **Layers:** {len(layers)}")
+    lines.append("")
+    if layers:
+        lines.append("| Layer | Type | Provider | CRS | Source | Valid |")
+        lines.append("|---|---|---|---|---|---|")
+        for layer in layers:
+            source = (layer.get("source") or "").replace("|", "\\|")
+            lines.append(
+                f"| {layer.get('name', '')} | {layer.get('type', '')} "
+                f"| {layer.get('provider', '')} | {layer.get('crs', '')} "
+                f"| `{source}` | {'✓' if layer.get('valid') else '✗'} |")
+        lines.append("")
+    return "\n".join(lines)
 
 
 def _now() -> str:

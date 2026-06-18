@@ -7,6 +7,14 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.23.0] - 2026-06-18
+
+### Added
+- **`project info <src.qgs|qgz> [to=<out.md>]` — inventory a project.** Reads a QGIS
+  project and writes a Markdown report of its layers (name, type, provider, CRS,
+  datasource, validity) plus the project title/CRS — a `catalog` for project files, handy
+  for auditing what a `.qgs` points at.
+
 ## [0.22.0] - 2026-06-18
 
 ### Added

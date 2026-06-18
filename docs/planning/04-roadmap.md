@@ -64,7 +64,9 @@ front-end/provenance tracks ran ahead. Where things really stand:
   loading freshly compiled outputs — the complement to repointing an existing one.
 - **Shipped (v0.22.0) — `style save <.sld|.qlr>`.** Export a layer's style as OGC SLD,
   or a portable QGIS Layer Definition (`.qlr`: datasource + style).
-- **More project/layer-file ops planned** (`TODO.md`): `project info`, path rewrite,
+- **Shipped (v0.23.0) — `project info <src.qgs>`.** Inventory a project's layers /
+  datasources / CRS to a Markdown report.
+- **More project/layer-file ops planned** (`TODO.md`): path rewrite,
   `.qgs`↔`.qgz` repackage, and cartographic decoration (bookmarks, map themes, legend,
   print layouts).
 - **Still ahead:** richer `filter` (IN/LIKE/NULL), `qgis_process` backend, grammar

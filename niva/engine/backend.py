@@ -111,6 +111,12 @@ class Backend(abc.ABC):
         """Write a new QGIS project at ``dest`` loading each layer URI in ``layers``,
         optionally setting the project CRS and title. The `project new` form."""
 
+    @abc.abstractmethod
+    def read_project(self, src: str) -> dict:
+        """Inventory the QGIS project ``src``: return
+        ``{title, crs, layers: [{name, source, provider, type, crs, valid}, …]}``.
+        The `project info` form."""
+
     def sublayers(self, source: str) -> list:
         """List the layer names inside a multi-layer container (e.g. a GeoPackage),
         for ``catalog``. Returns ``[]`` for a single-layer source (the default) — a
@@ -221,6 +227,10 @@ class MockBackend(Backend):
     def create_project(self, layers: list, dest: str, *, crs: str | None = None,
                        title: str | None = None, progress=None) -> None:
         self.calls.append(("create_project", list(layers), dest, crs, title))
+
+    def read_project(self, src: str) -> dict:
+        self.calls.append(("read_project", src))
+        return {"title": "", "crs": "", "layers": []}
 
     def profile(self, layer: Layer, deep: bool = False) -> dict:
         self.calls.append(("assess", layer.name, deep))

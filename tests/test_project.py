@@ -96,6 +96,31 @@ class TestProjectVerb(unittest.TestCase):
         with self.assertRaises(FlowError):
             _run(f'project new from="{d}" to="{self.tmp}/x.qgs"')
 
+    def test_info_records_and_writes_report(self):
+        src = os.path.join(self.tmp, "p.qgs")
+        open(src, "w").close()
+        out = os.path.join(self.tmp, "report.md")
+        backend = _run(f'project info "{src}" to="{out}"')
+        self.assertIn(("read_project", src), backend.calls)
+        self.assertTrue(os.path.isfile(out))
+        self.assertIn("# Project", open(out).read())
+
+    def test_info_default_output_path(self):
+        src = os.path.join(self.tmp, "p.qgs")
+        open(src, "w").close()
+        _run(f'project info "{src}"')
+        self.assertTrue(os.path.isfile(os.path.join(self.tmp, "p_info.md")))
+
+    def test_info_bad_src_is_error(self):
+        with self.assertRaises(FlowError):
+            _run(f'project info "{self.tmp}/nope.qgs"')
+
+    def test_info_unknown_option_is_error(self):
+        src = os.path.join(self.tmp, "p.qgs")
+        open(src, "w").close()
+        with self.assertRaises(FlowError):
+            _run(f'project info "{src}" repoint=x.gpkg')
+
     def test_bad_missing_is_error(self):
         with self.assertRaises(FlowError):
             _run(self._flow(f'to="{self.out}" repoint="t.gpkg" missing=maybe'))

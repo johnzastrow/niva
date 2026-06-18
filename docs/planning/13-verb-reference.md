@@ -399,6 +399,14 @@ or multi-layer container — resolved like `each`, GeoPackages expanded per laye
 setting the project CRS and title. The complement to repointing: build a ready-to-open
 project for freshly compiled outputs without needing one to already exist. Terminal.
 
+**Inventory a project** — `project info <src.qgs|qgz> [to=<out.md>]` (v0.23.0):
+```
+project info "region.qgs" to="region_layers.md"
+```
+Reads a project and writes a Markdown report of its layers — name, type, provider, CRS,
+datasource, and validity — plus the project's title and CRS. A `catalog` for project files;
+handy for auditing what a `.qgs` points at. Terminal.
+
 **Repoint a project** — `project <src.qgs|qgz> to=<out> repoint=<target>` (v0.18.0):
 ```
 project "NiagaraBasemap/data.qgs" to="data/basemap.qgs" repoint="data/basemap_clip.gpkg" missing=keep
