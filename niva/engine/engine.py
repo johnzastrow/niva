@@ -798,6 +798,8 @@ class Engine:
             return self._project_info(stage)
         if "from-template" in stage.options:
             return self._project_from_template(stage)
+        if "to-template" in stage.options:
+            return self._project_to_template(stage)
         if len(stage.args) != 1:
             raise FlowError(
                 "`project` takes one source project — "
@@ -997,18 +999,38 @@ class Engine:
         self._emit(f"   project info → {out} ({len(info.get('layers', []))} layer(s))")
         return None  # terminal
 
-    # Where named templates live: `$NIVA_TEMPLATES` (one directory) or `~/.niva/templates`.
+    # Where named templates are looked up, in order: `$NIVA_TEMPLATES` (if set), then the
+    # user library `~/.niva/templates`. A template is just a saved QGIS project — register
+    # an existing one by name with `project to-template=<name> from=<project>`.
     _TEMPLATES_ENV = "NIVA_TEMPLATES"
-    _TEMPLATES_DEFAULT = "~/.niva/templates"
+    _TEMPLATES_USER = "~/.niva/templates"
+
+    def _template_roots(self) -> list:
+        """The ordered directories searched for a named template: env override first,
+        then the user library — so a `$NIVA_TEMPLATES` entry shadows a user one of the
+        same name."""
+        roots = []
+        env = os.environ.get(self._TEMPLATES_ENV)
+        if env:
+            roots.append(os.path.expanduser(env))
+        roots.append(os.path.expanduser(self._TEMPLATES_USER))
+        return roots
+
+    def _template_library(self) -> str:
+        """The directory a `to-template=<name>` registration writes into: `$NIVA_TEMPLATES`
+        if set, else the user library `~/.niva/templates`."""
+        return self._template_roots()[0]
 
     def _project_from_template(self, stage) -> Layer | None:
         """`project from-template=<name|path> to=<out.qgs|qgz> data=<dir|glob> [missing=keep|fail|drop]`
         — instantiate a stock QGIS template against your own data. A template is a curated
         `.qgz`/`.qgs` carrying print layouts and styled layer *slots*; niva copies it and
         repoints each slot (vector or raster) to the same-named dataset found under `data=`,
-        so the symbology and layouts ride along. Templates resolve by name from
-        `$NIVA_TEMPLATES` (or `~/.niva/templates`), or pass a path directly. Unmatched slots
-        follow `missing=` (default `keep`, to preserve layout structure). Terminal."""
+        so the symbology and layouts ride along. The template can be **any existing QGIS
+        project** — pass its `.qgs`/`.qgz` path directly — or a name registered in
+        `$NIVA_TEMPLATES` / the user library `~/.niva/templates` (see `project to-template`).
+        Unmatched slots follow `missing=` (default `keep`, to preserve layout structure).
+        Terminal."""
         extra = [k for k in stage.options if k not in ("from-template", "to", "data", "missing")]
         if stage.args or extra:
             bad = f"`{extra[0]}=`" if extra else f"`{stage.args[0]}`"
@@ -1044,6 +1066,63 @@ class Engine:
                                      progress=self._emit)
         return None  # terminal
 
+    def _project_to_template(self, stage) -> Layer | None:
+        """`project to-template=<name|path> from=<src.qgs|qgz> [paths=relative|absolute]`
+        — register an **existing** QGIS project as a reusable template. A template is just a
+        saved project (its print layouts + styled layer slots), so this copies `from=` into
+        the template library — `$NIVA_TEMPLATES` or `~/.niva/templates` when `to-template=` is
+        a bare **name** (then `from-template=<name>` finds it), or to a **path** when it looks
+        like one. `paths=relative` (recommended for a portable template) rewrites datasource
+        path storage. The slots keep their current data as *example* data, repointed on
+        instantiation. Terminal."""
+        extra = [k for k in stage.options if k not in ("to-template", "from", "paths")]
+        if stage.args or extra:
+            bad = f"`{extra[0]}=`" if extra else f"`{stage.args[0]}`"
+            raise FlowError(
+                "`project to-template=` takes `from=`, `paths=` only — "
+                f"`project to-template=<name|path> from=<src.qgs>` (got {bad})",
+                line=stage.line, stage=stage.raw)
+        src = stage.options.get("from")
+        if not src:
+            raise FlowError("`project to-template` needs the project to register: "
+                            "`from=<src.qgs|qgz>`", line=stage.line, stage=stage.raw)
+        src = os.path.expanduser(src)
+        if not os.path.isfile(src):
+            raise FlowError(f"`project to-template`: not a file: {src}",
+                            line=stage.line, stage=stage.raw)
+        if os.path.splitext(src)[1].lower() not in (".qgs", ".qgz"):
+            raise FlowError(f"`project to-template` reads a .qgs/.qgz — `{src}` is not one",
+                            line=stage.line, stage=stage.raw)
+        paths = stage.options.get("paths")
+        if paths is not None and paths not in ("relative", "absolute"):
+            raise FlowError(f"`paths={paths}` is not valid — use relative or absolute",
+                            line=stage.line, stage=stage.raw)
+        dest = self._resolve_template_dest(stage.options["to-template"], stage)
+        # Reuse the copy/convert path (no repoint): target=None copies the project as-is,
+        # carrying its layouts + styled slots, optionally rewriting path storage.
+        self.backend.repoint_project(src, dest, target=None, missing="keep",
+                                     paths=paths, progress=self._emit)
+        self._emit(f"   registered template → {dest}")
+        return None  # terminal
+
+    def _resolve_template_dest(self, value: str, stage) -> str:
+        """Resolve a `to-template=` value to the destination project path: a direct path
+        (`~`-expanded; must be `.qgs`/`.qgz`), or a bare name written into the template
+        library as `<library>/<name>.qgz`."""
+        looks_like_path = (
+            os.sep in value
+            or (os.altsep and os.altsep in value)
+            or os.path.splitext(value)[1].lower() in (".qgs", ".qgz")
+        )
+        if looks_like_path:
+            dest = os.path.expanduser(value)
+            if os.path.splitext(dest)[1].lower() not in (".qgs", ".qgz"):
+                raise FlowError(
+                    f"`project to-template` writes a .qgs or .qgz — `{dest}` is neither",
+                    line=stage.line, stage=stage.raw)
+            return dest
+        return os.path.join(self._template_library(), value + ".qgz")
+
     def _resolve_template(self, value: str, stage) -> str:
         """Resolve a `from-template=` value to a project-file path: a direct path
         (`~`-expanded), or a bare name looked up in the templates library."""
@@ -1063,18 +1142,19 @@ class Engine:
                     f"`project from-template` reads a .qgs/.qgz — `{expanded}` is not one",
                     line=stage.line, stage=stage.raw)
             return expanded
-        root = os.path.expanduser(os.environ.get(self._TEMPLATES_ENV)
-                                  or self._TEMPLATES_DEFAULT)
-        for ext in (".qgz", ".qgs"):
-            cand = os.path.join(root, value + ext)
-            if os.path.isfile(cand):
-                return cand
+        roots = self._template_roots()
+        for root in roots:
+            for ext in (".qgz", ".qgs"):
+                cand = os.path.join(root, value + ext)
+                if os.path.isfile(cand):
+                    return cand
         avail = sorted({os.path.splitext(os.path.basename(p))[0]
+                        for root in roots
                         for p in glob.glob(os.path.join(root, "*.qgz"))
-                        + glob.glob(os.path.join(root, "*.qgs"))}) if os.path.isdir(root) else []
+                        + glob.glob(os.path.join(root, "*.qgs"))})
         hint = (f" — available: {', '.join(avail)}" if avail
-                else f" — none found in {root} (set ${self._TEMPLATES_ENV} or drop "
-                     ".qgz templates there, or pass a path)")
+                else f" — none found (set ${self._TEMPLATES_ENV}, drop .qgz templates in "
+                     f"{self._TEMPLATES_USER}, or pass a path)")
         raise FlowError(f"`project from-template`: no template named `{value}`{hint}",
                         line=stage.line, stage=stage.raw)
 

@@ -725,6 +725,74 @@ class TestPyqgisProject(unittest.TestCase):
         names = {layer.name() for layer in self._reload(out)}
         self.assertEqual(names, {"roads", "dem"})  # roads kept (default missing=keep)
 
+    def _existing_project(self):
+        """An *existing* real project: a styled slot whose **display name** (`parcels`)
+        differs from its datasource layername (`src`), plus a named print layout — the
+        case where a user reuses one of their own projects as a template."""
+        from qgis.core import (QgsLayoutItemLabel, QgsLayoutItemMap, QgsLayoutPoint,
+                               QgsLayoutSize, QgsPrintLayout, QgsProject, QgsUnitTypes,
+                               QgsVectorLayer)
+
+        srcgpkg = os.path.join(self.tmp, "src.gpkg")
+        _write_points(srcgpkg, "EPSG:4326", [(0, 0)])
+        proj = QgsProject()
+        proj.setTitle("My Report")
+        vl = QgsVectorLayer(f"{srcgpkg}|layername=src", "parcels", "ogr")  # name ≠ layername
+        vl.setOpacity(0.42)
+        proj.addMapLayer(vl)
+        lay = QgsPrintLayout(proj)
+        lay.initializeDefaults()
+        lay.setName("Report")
+        lbl = QgsLayoutItemLabel(lay)
+        lbl.setText("My Report")
+        lbl.attemptMove(QgsLayoutPoint(10, 5, QgsUnitTypes.LayoutMillimeters))
+        lay.addLayoutItem(lbl)
+        mp = QgsLayoutItemMap(lay)
+        mp.attemptMove(QgsLayoutPoint(10, 20, QgsUnitTypes.LayoutMillimeters))
+        mp.attemptResize(QgsLayoutSize(180, 130, QgsUnitTypes.LayoutMillimeters))
+        lay.addLayoutItem(mp)
+        proj.layoutManager().addLayout(lay)
+        path = os.path.join(self.tmp, "existing.qgz")
+        self.assertTrue(proj.write(path))
+        return path
+
+    def test_from_template_existing_project_keeps_layout_and_matches_display_name(self):
+        import niva
+
+        existing = self._existing_project()
+        data = os.path.join(self.tmp, "mydata")
+        os.makedirs(data, exist_ok=True)
+        # user data named for the slot's DISPLAY name (`parcels`), not its old layername.
+        _write_points(os.path.join(data, "parcels.gpkg"), "EPSG:4326", [(5, 5), (6, 6), (7, 7)])
+        out = os.path.join(self.tmp, "instance.qgz")
+        niva.flow(f'project from-template="{existing}" to="{out}" data="{data}"')
+        layers = self._reload(out)
+        self.assertEqual([lay.name() for lay in self._p.layoutManager().layouts()], ["Report"])
+        parcels = {layer.name(): layer for layer in layers}["parcels"]
+        self.assertIn(os.path.join("mydata", "parcels.gpkg"), parcels.source())  # display-name match
+        self.assertEqual(parcels.featureCount(), 3)                              # the user's data
+        self.assertAlmostEqual(parcels.opacity(), 0.42, places=3)               # style preserved
+
+    def test_to_template_then_from_template_by_name(self):
+        import niva
+
+        existing = self._existing_project()
+        lib = os.path.join(self.tmp, "lib")
+        data = os.path.join(self.tmp, "mydata2")
+        os.makedirs(data, exist_ok=True)
+        _write_points(os.path.join(data, "parcels.gpkg"), "EPSG:4326", [(1, 1), (2, 2)])
+        out = os.path.join(self.tmp, "by_name.qgz")
+        os.environ["NIVA_TEMPLATES"] = lib
+        try:
+            niva.flow(f'project to-template=report from="{existing}" paths=relative')
+            self.assertTrue(os.path.isfile(os.path.join(lib, "report.qgz")))  # registered
+            niva.flow(f'project from-template=report to="{out}" data="{data}"')
+        finally:
+            del os.environ["NIVA_TEMPLATES"]
+        layers = {layer.name(): layer for layer in self._reload(out)}  # sets self._p
+        self.assertEqual([lay.name() for lay in self._p.layoutManager().layouts()], ["Report"])
+        self.assertIn(os.path.join("mydata2", "parcels.gpkg"), layers["parcels"].source())
+
 
 class TestPyqgisStyle(unittest.TestCase):
     """`style` — apply/save a layer's .qml style (real symbology round-trip)."""

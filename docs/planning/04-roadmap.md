@@ -71,11 +71,16 @@ front-end/provenance tracks ran ahead. Where things really stand:
 - **Shipped (v0.25.0) — `project … bookmark=<name>`.** Add a spatial bookmark (union
   extent, or centred via `at=`+`scale=`/`width=`).
 - **Shipped (v0.26.0) — `project from-template=<name|path> data=<dir>`.** Instantiate a
-  curated `.qgz` template (its print layouts + styled layer slots) against your own data:
-  copy the template, repoint each slot (vector or raster) to the same-named dataset under
-  `data=`, symbology and layouts riding along. Templates resolve by name from
-  `$NIVA_TEMPLATES`/`~/.niva/templates`, or by path. **Supersedes the separate print-layout
-  roadmap items** — a template *is* the layout + styles, applied in one pass.
+  template (its print layouts + styled layer slots) against your own data: copy the template,
+  repoint each slot (vector or raster) to the same-named dataset under `data=`, symbology and
+  layouts riding along. **Supersedes the separate print-layout roadmap items** — a template
+  *is* the layout + styles, applied in one pass.
+- **Shipped (v0.27.0) — any existing project is a template + `project to-template=`.**
+  `from-template=<path>` reuses **any** existing `.qgs`/`.qgz` (its layouts + styles), and
+  slots now match by the layer's **display name** (fallback: datasource name), so you author
+  templates the normal way in QGIS. `project to-template=<name|path> from=<src> [paths=]`
+  registers an existing project into the library (`$NIVA_TEMPLATES`/`~/.niva/templates`) so
+  `from-template=<name>` finds it.
 - **More project/layer-file ops planned** (`TODO.md`): map themes / legend tweaks (low
   value standalone), `style apply` to a database-backed layer.
 - **Still ahead:** richer `filter` (IN/LIKE/NULL), `qgis_process` backend, grammar

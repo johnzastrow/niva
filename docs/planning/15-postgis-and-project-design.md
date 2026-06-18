@@ -144,13 +144,14 @@ flowchart TD
 After Phase 2 lands, analyst-plan **Task 5** is de-flagged and the example gains a worked
 `save @conn` + `project` flow.
 
-## 7. Template projects (v0.26.0) — `project from-template=`
+## 7. Template projects (v0.26.0–0.27.0) — `project from-template=` / `to-template=`
 
 `project from-template=<name|path> to=<out> data=<dir|glob> [missing=keep|fail|drop]`.
-A **template** is a curated `.qgz`/`.qgs` carrying **print layouts** and **styled layer
-slots** (layers with symbology, pointing at example data). Instantiating one is *repoint
-turned inside out*: instead of one container holding many same-named layers, we have a
-**directory of separate datasets** and match each template slot to the same-named one.
+A **template** is **any** QGIS project (`.qgz`/`.qgs`) — it already carries **print layouts**
+and **styled layers**; its layers are the *slots*. There's no special template format: you
+author one the normal way in QGIS and reuse it. Instantiating one is *repoint turned inside
+out*: instead of one container holding many same-named layers, we have a **directory of
+separate datasets** and match each template slot to the same-named one.
 
 The key reuse: a repoint with `setDataSource` **already preserves a layer's symbology**
 (verified in live QGIS — opacity survives the 3-arg `setDataSource`), and print layouts are
@@ -165,12 +166,26 @@ ordered `(name, uri)`), builds the `{name: uri}` map, and passes it as `target`.
 `rasters=`). `missing=` defaults to **`keep`** here (an unmatched slot keeps the template's
 example datasource, preserving the layout's structure), unlike plain repoint's `fail`.
 
+**Slot matching is by *display name*** (v0.27.0). A repointed layer's *identity* as a template
+slot is the name the author gave it in the layer panel — which often differs from the
+placeholder's datasource name (a slot shown as `parcels` may point at `src.gpkg|layername=src`).
+So *template mode* matches `lyr.name()` against the data map first, falling back to the
+datasource name (`|layername=`/stem). Plain `project repoint` is unchanged — it still keys off
+the datasource name, the right rule for "same layers, new container."
+
 Template **name resolution** (engine `_resolve_template`): a value that looks like a path
 (`/`, a `.qgs`/`.qgz` extension, or an existing file) is used directly; otherwise it's a bare
-name looked up as `<root>/<name>.qgz|.qgs` where `root = $NIVA_TEMPLATES or ~/.niva/templates`
+name looked up across `$NIVA_TEMPLATES` then `~/.niva/templates` as `<root>/<name>.qgz|.qgs`
 — an unknown name errors with the available names listed. This needed the grammar to allow
 **internal hyphens in option keys** (`from-template=`); only tokens containing `=` are option
 candidates, so flags like `-deep` are unaffected.
+
+**Registering a template** (v0.27.0) — `project to-template=<name|path> from=<src> [paths=]`.
+Because a template *is* just a project, "extract a template from an existing project" is a
+**copy** into the library: it reuses the same `repoint_project(src, dest, target=None, …)`
+copy/convert path (no repoint), resolving a bare `to-template=` name to `<library>/<name>.qgz`
+(`$NIVA_TEMPLATES` or `~/.niva/templates`). `paths=relative` makes the saved template portable.
+The slots keep their current data as *example* data, repointed when the template is instantiated.
 
 ```mermaid
 flowchart TD
@@ -180,7 +195,7 @@ flowchart TD
     RS --> RP
     RP --> RD["standalone QgsProject().read(template)<br/>(layouts come along, project-level)"]
     RD --> LOOP[for each map layer slot]
-    LOOP --> M{slot name in map?}
+    LOOP --> M{display name in map?<br/>(else datasource name)}
     M -- yes, vector --> V["setDataSource(uri, ogr) · style preserved"]
     M -- yes, raster --> Rr["setDataSource(uri.split('|')[0], gdal)"]
     M -- no --> K["missing=keep (default) → leave slot;<br/>drop / fail to override"]

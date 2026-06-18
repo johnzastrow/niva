@@ -1120,12 +1120,23 @@ class PyqgisBackend(Backend):
                 counts["kept"] += 1
                 emit(f"   kept `{lyr.name()}` unchanged (not in target)")
 
+        def slot_name(lyr):
+            """The name to match against the target. In *template mode* a slot's identity
+            is its **display name** (what the template author labelled it in the layer
+            panel), so prefer that when it's in the data map; otherwise fall back to the old
+            datasource's name (the plain-repoint rule: `|layername=` or file stem)."""
+            if template_mode:
+                dn = lyr.name()
+                if dn in available:
+                    return dn
+            return self._layer_source_name(lyr)
+
         for lyr in list(proj.mapLayers().values()):
             if isinstance(lyr, QgsRasterLayer):
                 # Template mode: match the raster slot against the data map by name (its
-                # |layername= or file stem), same as the vector slots.
+                # display name, else |layername=/file stem), same as the vector slots.
                 if template_mode:
-                    name = self._layer_source_name(lyr)
+                    name = slot_name(lyr)
                     if name in available:
                         new_uri, _ = resolve(name)
                         lyr.setDataSource(new_uri.split("|", 1)[0], lyr.name(), "gdal")
@@ -1156,7 +1167,7 @@ class PyqgisBackend(Backend):
             if resolve is None:  # no repoint target — leave vector layers as they are
                 counts["kept"] += 1
                 continue
-            name = self._layer_source_name(lyr)
+            name = slot_name(lyr)
             if name not in available:
                 unmatched(lyr, name)
                 continue

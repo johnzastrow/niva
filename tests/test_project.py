@@ -290,5 +290,62 @@ class TestProjectFromTemplate(unittest.TestCase):
                 f'from-template="{self.template}" to="{self.out}" data="{self.data}" repoint=x')
 
 
+class TestProjectToTemplate(unittest.TestCase):
+    """`project to-template=<name|path> from=<src>` — register an existing project as a
+    reusable template (Mock-backed parsing/dispatch)."""
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp(prefix="niva_totmpl_")
+        self.src = os.path.join(self.tmp, "existing.qgz")
+        open(self.src, "w").close()
+        self.lib = os.path.join(self.tmp, "lib")
+
+    def _run(self, tail):
+        backend = MockBackend()
+        Engine(backend).execute(parse(f"project {tail}"))
+        return backend
+
+    def test_name_writes_into_library(self):
+        os.environ["NIVA_TEMPLATES"] = self.lib
+        try:
+            backend = self._run(f'to-template=report from="{self.src}"')
+        finally:
+            del os.environ["NIVA_TEMPLATES"]
+        call = backend.calls[-1]
+        self.assertEqual(call[0], "repoint_project")
+        self.assertEqual(call[1], self.src)               # copy FROM the existing project
+        self.assertEqual(call[2], os.path.join(self.lib, "report.qgz"))  # INTO the library
+        self.assertIsNone(call[3])                        # target=None → copy, no repoint
+
+    def test_path_destination(self):
+        dest = os.path.join(self.tmp, "out", "tmpl.qgz")
+        backend = self._run(f'to-template="{dest}" from="{self.src}"')
+        self.assertEqual(backend.calls[-1][2], dest)
+
+    def test_paths_relative_passed_through(self):
+        backend = self._run(f'to-template="{self.tmp}/t.qgz" from="{self.src}" paths=relative')
+        self.assertEqual(backend.calls[-1][6], "relative")  # paths is the 7th element
+
+    def test_missing_from_is_error(self):
+        with self.assertRaises(FlowError):
+            self._run(f'to-template="{self.tmp}/t.qgz"')
+
+    def test_from_must_exist(self):
+        with self.assertRaises(FlowError):
+            self._run(f'to-template="{self.tmp}/t.qgz" from="{self.tmp}/nope.qgz"')
+
+    def test_path_dest_must_be_a_project(self):
+        with self.assertRaises(FlowError):
+            self._run(f'to-template="{self.tmp}/t.gpkg" from="{self.src}"')
+
+    def test_bad_paths_is_error(self):
+        with self.assertRaises(FlowError):
+            self._run(f'to-template="{self.tmp}/t.qgz" from="{self.src}" paths=sideways')
+
+    def test_unexpected_option_is_error(self):
+        with self.assertRaises(FlowError):
+            self._run(f'to-template="{self.tmp}/t.qgz" from="{self.src}" data=x')
+
+
 if __name__ == "__main__":
     unittest.main()

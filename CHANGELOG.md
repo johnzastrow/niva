@@ -7,6 +7,26 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.27.0] - 2026-06-18
+
+### Added
+- **Any existing QGIS project is a template.** `project from-template="my_project.qgz"` reuses
+  **any** existing `.qgs`/`.qgz` — its print layouts and styled layers — copying it and
+  repointing each layer slot to your same-named data under `data=`. You author templates the
+  normal way in QGIS, then reuse them against fresh data (layouts verified to survive
+  instantiation).
+- **`project to-template=<name|path> from=<src.qgs|qgz> [paths=relative|absolute]` — register
+  an existing project as a reusable template.** A bare **name** copies the project into the
+  template library (`$NIVA_TEMPLATES` or `~/.niva/templates`, so `from-template=<name>` finds
+  it); a **path** writes anywhere; `paths=relative` makes the template portable. The slots keep
+  their current data as *example* data, repointed on instantiation. Terminal.
+
+### Changed
+- **`from-template` slots now match by the layer's *display name*** (what it's labelled in the
+  layer panel), falling back to the datasource name — so a slot shown as `parcels` is filled by
+  `parcels.gpkg` in `data=` regardless of the placeholder it points at. Plain `project repoint`
+  is unchanged (still matches by datasource name).
+
 ## [0.26.0] - 2026-06-18
 
 ### Added

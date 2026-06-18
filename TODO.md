@@ -39,6 +39,11 @@ All use a standalone `QgsProject()` / `QgsMapLayer` off the main thread (per
   the same-named dataset under `data=`, style + layout riding along. Templates resolve by name
   (`$NIVA_TEMPLATES`/`~/.niva/templates`) or path; unmatched slots follow `missing=` (default
   `keep`). Supersedes the print-layout item below.
+- [x] **Existing projects as templates + `project to-template=`** (v0.27.0) — any existing
+  `.qgs`/`.qgz` is a template (layouts verified to survive instantiation); slots match by the
+  layer's **display name** (fallback datasource name). `project to-template=<name|path>
+  from=<src> [paths=]` registers an existing project into the library so `from-template=<name>`
+  finds it.
 
 ## Roadmap-noted follow-ups (not yet scoped)
 - `project` / `style` `apply` to a **database-backed** layer (DB style table).
