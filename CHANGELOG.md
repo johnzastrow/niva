@@ -7,6 +7,15 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.22.0] - 2026-06-18
+
+### Added
+- **`style save` exports `.sld` and `.qlr`.** Beyond `.qml`/`.qmd`, `style save <file>` now
+  writes **SLD** (`.sld` — OGC Styled Layer Descriptor, for GeoServer and other tools) and
+  **QGIS Layer Definition** (`.qlr` — a portable file bundling the layer's *datasource* and
+  style, drag-droppable into any project). Both are export-only; `style apply` stays
+  `.qml`/`.qmd`.
+
 ## [0.21.0] - 2026-06-18
 
 ### Added

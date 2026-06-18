@@ -429,6 +429,11 @@ layer's style/metadata to a sidecar instead. Both are **pass-through**, so `styl
 after `save` (which returns the saved layer). `apply` needs a file-backed layer — save
 first. (`apply` to a database-backed layer isn't supported yet.)
 
+`style save` also exports two more formats (v0.22.0): **`.sld`** (OGC Styled Layer
+Descriptor, for GeoServer/interop) and **`.qlr`** (a portable QGIS *Layer Definition* —
+datasource **+** style in one file, drag-droppable into any project). Both are
+export-only; `apply` stays `.qml`/`.qmd`.
+
 ### Issues this round surfaced
 | # | What surfaced | Verdict |
 |---|---------------|---------|

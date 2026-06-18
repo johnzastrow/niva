@@ -62,9 +62,11 @@ front-end/provenance tracks ran ahead. Where things really stand:
   or a same-basename sidecar. Remaining: `apply` to a database-backed layer.
 - **Shipped (v0.21.0) — `project new from=<dir> to=<out.qgs>`.** Create a fresh project
   loading freshly compiled outputs — the complement to repointing an existing one.
-- **More project/layer-file ops planned** (`TODO.md`): QLR/SLD export, `project info`,
-  path rewrite, `.qgs`↔`.qgz` repackage, and cartographic decoration (bookmarks, map
-  themes, legend, print layouts).
+- **Shipped (v0.22.0) — `style save <.sld|.qlr>`.** Export a layer's style as OGC SLD,
+  or a portable QGIS Layer Definition (`.qlr`: datasource + style).
+- **More project/layer-file ops planned** (`TODO.md`): `project info`, path rewrite,
+  `.qgs`↔`.qgz` repackage, and cartographic decoration (bookmarks, map themes, legend,
+  print layouts).
 - **Still ahead:** richer `filter` (IN/LIKE/NULL), `qgis_process` backend, grammar
   freeze + PyPI (v1.0), named intermediates / SQL writes / quality rules (v2.0).
 

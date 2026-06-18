@@ -1248,22 +1248,45 @@ class PyqgisBackend(Backend):
 
     def style_layer(self, layer: Layer, action: str, path: str) -> None:
         ml = layer.ref
-        is_meta = path.lower().endswith(".qmd")
-        kind = "metadata" if is_meta else "style"
+        ext = os.path.splitext(path)[1].lower()
         if action == "save":
-            msg, ok = ml.saveNamedMetadata(path) if is_meta else ml.saveNamedStyle(path)
-            if not ok:
-                raise OpError(f"could not save {kind} to `{path}`" + (f": {msg}" if msg else ""),
-                              algorithm="style", params={"path": path}, backend="pyqgis")
-            return None
-        # apply: load into the layer, then persist so QGIS picks it up next time.
+            return self._save_style(ml, path, ext)
+        # apply (the engine restricts this to .qml/.qmd): load into the layer, then
+        # persist so QGIS picks it up next time.
+        is_meta = ext == ".qmd"
         res = ml.loadNamedMetadata(path) if is_meta else ml.loadNamedStyle(path)
         ok = res[1] if isinstance(res, tuple) else bool(res)
         msg = res[0] if isinstance(res, tuple) else ""
         if not ok:
+            kind = "metadata" if is_meta else "style"
             raise OpError(f"could not apply {kind} `{path}`" + (f": {msg}" if msg else ""),
                           algorithm="style", params={"path": path}, backend="pyqgis")
         self._persist_style(ml, is_meta)
+        return None
+
+    def _save_style(self, ml, path: str, ext: str) -> None:
+        """Export the layer's style/metadata: ``.qml`` (QGIS style), ``.qmd`` (metadata),
+        ``.sld`` (OGC, for interop), or ``.qlr`` (a portable layer definition — datasource
+        + style)."""
+        if ext == ".qlr":
+            from qgis.core import Qgis, QgsLayerDefinition, QgsLayerTreeLayer
+
+            node = QgsLayerTreeLayer(ml)
+            ok, err = QgsLayerDefinition.exportLayerDefinition(
+                path, [node], Qgis.FilePathType.Absolute)
+            if not ok:
+                raise OpError(f"could not export QLR to `{path}`" + (f": {err}" if err else ""),
+                              algorithm="style", params={"path": path}, backend="pyqgis")
+            return None
+        if ext == ".sld":
+            msg, ok = ml.saveSldStyle(path)
+        elif ext == ".qmd":
+            msg, ok = ml.saveNamedMetadata(path)
+        else:  # .qml
+            msg, ok = ml.saveNamedStyle(path)
+        if not ok:
+            raise OpError(f"could not save to `{path}`" + (f": {msg}" if msg else ""),
+                          algorithm="style", params={"path": path}, backend="pyqgis")
         return None
 
     def _persist_style(self, ml, is_meta: bool) -> None:

@@ -855,9 +855,15 @@ class Engine:
                             line=stage.line, stage=stage.raw)
         action = stage.args[0]
         path = os.path.expanduser(stage.args[1])
-        if os.path.splitext(path)[1].lower() not in (".qml", ".qmd"):
-            raise FlowError("`style` works with a `.qml` (style) or `.qmd` (metadata) file "
-                            f"— `{path}` is neither", line=stage.line, stage=stage.raw)
+        ext = os.path.splitext(path)[1].lower()
+        # `apply` reads a QGIS-native sidecar; `save` also exports SLD (interop) and QLR
+        # (a portable layer-definition: datasource + style).
+        allowed = (".qml", ".qmd", ".sld", ".qlr") if action == "save" else (".qml", ".qmd")
+        if ext not in allowed:
+            hint = (" — `.sld`/`.qlr` are export-only, use `style save`"
+                    if action == "apply" and ext in (".sld", ".qlr") else "")
+            raise FlowError(f"`style {action}` takes {', '.join(allowed)} — `{path}` is not one"
+                            + hint, line=stage.line, stage=stage.raw)
         if action == "apply" and not os.path.isfile(path):
             raise FlowError(f"`style apply`: not a file: {path}",
                             line=stage.line, stage=stage.raw)

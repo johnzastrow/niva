@@ -67,6 +67,19 @@ class TestStyleVerb(unittest.TestCase):
         with self.assertRaises(FlowError):
             _run(self._flow("save"))
 
+    def test_save_sld_and_qlr(self):
+        for ext in ("sld", "qlr"):
+            out = os.path.join(self.tmp, f"x.{ext}")
+            backend = _run(self._flow(f'save "{out}"'))
+            self.assertEqual(backend.calls[-1], ("style", "save", out))
+
+    def test_apply_rejects_export_only_formats(self):
+        for ext in ("sld", "qlr"):
+            f = os.path.join(self.tmp, f"x.{ext}")
+            open(f, "w").close()
+            with self.assertRaises(FlowError):
+                _run(self._flow(f'apply "{f}"'))
+
 
 if __name__ == "__main__":
     unittest.main()

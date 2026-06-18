@@ -656,6 +656,22 @@ class TestPyqgisStyle(unittest.TestCase):
         niva.flow(f'load "{self.gpkg}|layername=roads" | style save "{out}"')
         self.assertTrue(os.path.isfile(out))
 
+    def test_save_sld(self):
+        import niva
+
+        out = os.path.join(self.tmp, "roads.sld")
+        niva.flow(f'load "{self.gpkg}|layername=roads" | style save "{out}"')
+        self.assertTrue(os.path.isfile(out))
+
+    def test_save_qlr_includes_datasource(self):
+        import niva
+
+        out = os.path.join(self.tmp, "roads.qlr")
+        niva.flow(f'load "{self.gpkg}|layername=roads" | style save "{out}"')
+        self.assertTrue(os.path.isfile(out))
+        with open(out) as fh:  # a QLR bundles the datasource, so it names the gpkg
+            self.assertIn("roads.gpkg", fh.read())
+
 
 if __name__ == "__main__":
     unittest.main()
