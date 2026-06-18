@@ -1025,6 +1025,15 @@ class PyqgisBackend(Backend):
         src = layer.ref
         dfields = dest.fields()
         sidx = {f.name(): i for i, f in enumerate(src.fields())}
+        # Don't carry the source's value into a single integer primary key — a GeoPackage
+        # `fid` copied into the table's `fid` PK collides with existing rows (and a plain
+        # PK with no DB default can't be left null). Mint fresh keys past the current max.
+        pk = list(dest.primaryKeyAttributes())
+        mint_idx = pk[0] if len(pk) == 1 and dfields[pk[0]].isNumeric() else None
+        next_pk = None
+        if mint_idx is not None:
+            mx = dest.maximumValue(mint_idx)
+            next_pk = (int(mx) + 1) if mx is not None else 1
         xform = None
         if src.crs() != dest.crs() and src.crs().isValid() and dest.crs().isValid():
             xform = QgsCoordinateTransform(src.crs(), dest.crs(), QgsCoordinateTransformContext())
@@ -1037,6 +1046,10 @@ class PyqgisBackend(Backend):
                 geom.transform(xform)
             nf.setGeometry(geom)
             for di in range(len(dfields)):
+                if di == mint_idx:
+                    nf.setAttribute(di, next_pk)
+                    next_pk += 1
+                    continue
                 si = sidx.get(dfields[di].name())
                 if si is not None:
                     nf.setAttribute(di, sf.attribute(si))

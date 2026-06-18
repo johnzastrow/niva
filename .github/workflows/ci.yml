@@ -23,6 +23,37 @@ jobs:
       - name: Run the unit suite
         run: python -m unittest discover -s tests -t .
 
+  qgis:
+    name: live-QGIS + PostGIS tests (real backend)
+    runs-on: ubuntu-latest
+    container:
+      image: qgis/qgis:stable
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_USER: niva
+          POSTGRES_PASSWORD: niva
+          POSTGRES_DB: niva
+        options: >-
+          --health-cmd "pg_isready -U niva"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      QT_QPA_PLATFORM: offscreen
+      # The job runs in a container, so the service is reachable by its label hostname.
+      NIVA_TEST_PG: "host=postgres port=5432 dbname=niva user=niva password=niva"
+    steps:
+      - uses: actions/checkout@v4
+      - name: QGIS version
+        run: python3 -c "from qgis.core import Qgis; print('QGIS', Qgis.QGIS_VERSION)"
+      # The PyQGIS tier exercises the real backend (GeoPackage, SpatiaLite, PostGIS, and
+      # QgsProject repointing) — the layer the pure-Python suite cannot reach. The PostGIS
+      # tests run against the service above; the rest use files / SpatiaLite.
+      - name: Run the live-QGIS + PostGIS suite
+        run: python3 -m unittest tests.test_pyqgis -v
+
   build:
     name: build wheel + smoke-test the install
     runs-on: ubuntu-latest

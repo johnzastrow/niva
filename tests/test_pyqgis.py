@@ -353,6 +353,116 @@ class TestMultiLayerLoad(unittest.TestCase):
         self.assertTrue(QgsVectorLayer(f"{out}|layername=out", "o", "ogr").isValid())
 
 
+@unittest.skipUnless(
+    os.environ.get("NIVA_TEST_PG"),
+    "set NIVA_TEST_PG='host=… port=… dbname=… user=… password=…' to run the PostGIS tier")
+class TestPyqgisPostgres(unittest.TestCase):
+    """Real PostGIS write/analyse — the postgres-specific paths SpatiaLite can't exercise
+    (COMMENT lineage, schema-qualified writes), plus the create/replace/append modes
+    against a server with a real primary key. Gated on NIVA_TEST_PG; skips otherwise."""
+
+    CONN = "niva_test_pg_ci"
+
+    def setUp(self):
+        from qgis.core import QgsSettings
+
+        params = dict(kv.split("=", 1) for kv in os.environ["NIVA_TEST_PG"].split())
+        s = QgsSettings()
+        base = f"PostgreSQL/connections/{self.CONN}"
+        for key, pg in (("host", "host"), ("port", "port"), ("database", "dbname"),
+                        ("username", "user"), ("password", "password")):
+            s.setValue(f"{base}/{key}", params.get(pg, ""))
+        s.setValue(f"{base}/saveUsername", "true")  # persist creds so the URI can connect
+        s.setValue(f"{base}/savePassword", "true")  # headless (no interactive prompt)
+        s.sync()
+        self._sql_quiet("DROP TABLE IF EXISTS niva_t1, niva_t2")
+        self._sql_quiet("DROP SCHEMA IF EXISTS niva_s CASCADE")
+        self.tmp = tempfile.mkdtemp(prefix="niva_pg_")
+        self.g = os.path.join(self.tmp, "homes.gpkg")
+        _write_points(self.g, "EPSG:4326", [(1, 1), (2, 2)])  # gpkg layer `homes`
+
+    def tearDown(self):
+        from qgis.core import QgsProviderRegistry
+
+        self._sql_quiet("DROP TABLE IF EXISTS niva_t1, niva_t2")
+        self._sql_quiet("DROP SCHEMA IF EXISTS niva_s CASCADE")
+        try:
+            QgsProviderRegistry.instance().providerMetadata("postgres").deleteConnection(self.CONN)
+        except Exception:
+            pass
+
+    def _sql_quiet(self, stmt):
+        import niva
+
+        try:
+            niva.flow(f'sql @{self.CONN} "{stmt}"')
+        except Exception:
+            pass
+
+    def _count(self, table, schema="public"):
+        from qgis.core import QgsVectorLayer
+
+        from niva.engine.pyqgis import PyqgisBackend
+
+        _md, c = PyqgisBackend()._find_connection(self.CONN)
+        return QgsVectorLayer(c.tableUri(schema, table), table, "postgres").featureCount()
+
+    def test_save_round_trip(self):
+        import niva
+
+        niva.flow(f'load "{self.g}" | save @{self.CONN}.public.niva_t1')
+        self.assertEqual(self._count("niva_t1"), 2)
+
+    def test_create_collision_errors(self):
+        import niva
+        from niva.errors import OpError
+
+        niva.flow(f'load "{self.g}" | save @{self.CONN}.public.niva_t1')
+        with self.assertRaises(OpError):
+            niva.flow(f'load "{self.g}" | save @{self.CONN}.public.niva_t1')
+
+    def test_replace(self):
+        import niva
+
+        niva.flow(f'load "{self.g}" | save @{self.CONN}.public.niva_t1')
+        niva.flow(f'load "{self.g}" | save @{self.CONN}.public.niva_t1 mode=replace')
+        self.assertEqual(self._count("niva_t1"), 2)
+
+    def test_append_mints_fresh_keys(self):
+        # The postgres table's `fid` PK has no default; append must mint fresh keys, not
+        # copy the source fid (which would collide). This failed before the fix.
+        import niva
+
+        niva.flow(f'load "{self.g}" | save @{self.CONN}.public.niva_t1')
+        niva.flow(f'load "{self.g}" | save @{self.CONN}.public.niva_t1 mode=append')
+        self.assertEqual(self._count("niva_t1"), 4)
+
+    def test_schema_qualified_write(self):
+        import niva
+
+        niva.flow(f'sql @{self.CONN} "CREATE SCHEMA niva_s"')
+        niva.flow(f'load "{self.g}" | save @{self.CONN}.niva_s.roads')
+        self.assertEqual(self._count("roads", "niva_s"), 2)
+
+    def test_sql_execute_creates_table(self):
+        import niva
+
+        niva.flow(f'load "{self.g}" | save @{self.CONN}.public.niva_t1')
+        niva.flow(f'sql @{self.CONN} "CREATE TABLE niva_t2 AS SELECT * FROM niva_t1"')
+        self.assertEqual(self._count("niva_t2"), 2)
+
+    def test_lineage_written_to_table_comment(self):
+        # The postgres-only path: `save @pg` records the flow's lineage as a COMMENT ON
+        # TABLE. (SpatiaLite has no COMMENT, so this is only testable here.)
+        import niva
+
+        niva.flow(f'load "{self.g}" | save @{self.CONN}.public.niva_t1')
+        layer = niva.flow(
+            f"sql @{self.CONN} \"SELECT obj_description('public.niva_t1'::regclass) AS c\"")
+        comment = next(layer.ref.getFeatures())["c"]
+        self.assertTrue(comment and "load" in comment, f"no lineage comment: {comment!r}")
+
+
 class TestPyqgisProject(unittest.TestCase):
     """`project` — copy a QGIS project and repoint layer datasources (real QgsProject)."""
 

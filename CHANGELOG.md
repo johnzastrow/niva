@@ -7,6 +7,25 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.18.3] - 2026-06-18
+
+### Fixed
+- **`save @conn … mode=append` to PostGIS no longer collides on the primary key.** A
+  GeoPackage source carries an `fid` column; exporting it to a PostGIS table made `fid`
+  the table's primary key (with no auto-default), so appending more rows duplicated the
+  key and failed (`duplicate key value violates unique constraint`). Append now mints
+  fresh values for a single integer primary key instead of copying the source's. (Found
+  by the new real-PostGIS test tier — SpatiaLite couldn't surface it because its export
+  uses a separate auto-increment key.)
+
+### Added
+- **Real-PostGIS test tier + CI.** `tests/test_pyqgis.py` gains a `TestPyqgisPostgres`
+  tier (gated on `NIVA_TEST_PG`; skips otherwise) covering create/replace/append,
+  schema-qualified writes, `sql` execute, and the **PostgreSQL-only `COMMENT ON TABLE`
+  lineage** — paths SpatiaLite can't exercise. CI now runs the **live-QGIS tier on the
+  `qgis/qgis` image with a PostGIS service**, so the real backend (the layer that catches
+  these bugs) is gated, not just run by hand.
+
 ## [0.18.2] - 2026-06-18
 
 ### Changed
