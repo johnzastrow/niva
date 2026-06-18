@@ -91,12 +91,13 @@ class Backend(abc.ABC):
 
     @abc.abstractmethod
     def repoint_project(self, src: str, dest: str, *, target: str, missing: str,
-                        progress=None) -> None:
+                        rasters: str | None = None, progress=None) -> None:
         """Copy the QGIS project ``src`` to ``dest`` and repoint each vector layer's
         datasource to ``target`` — a GeoPackage path or an ``@conn[.schema]`` connection —
-        matched by layer name, preserving subset filters. ``missing`` (``fail`` | ``keep``
-        | ``drop``) governs a layer whose name is absent from the target. The `project`
-        verb; never silently breaks a project file."""
+        matched by layer name, preserving subset filters. Raster layers are repointed to a
+        same-basename file in the ``rasters`` directory when given (else left unchanged).
+        ``missing`` (``fail`` | ``keep`` | ``drop``) governs a layer absent from its
+        target. The `project` verb; never silently breaks a project file."""
 
     def sublayers(self, source: str) -> list:
         """List the layer names inside a multi-layer container (e.g. a GeoPackage),
@@ -199,8 +200,8 @@ class MockBackend(Backend):
         return Layer(DB_TABLE, ref, facet="vector", name=table)
 
     def repoint_project(self, src: str, dest: str, *, target: str, missing: str,
-                        progress=None) -> None:
-        self.calls.append(("repoint_project", src, dest, target, missing))
+                        rasters: str | None = None, progress=None) -> None:
+        self.calls.append(("repoint_project", src, dest, target, missing, rasters))
 
     def profile(self, layer: Layer, deep: bool = False) -> dict:
         self.calls.append(("assess", layer.name, deep))

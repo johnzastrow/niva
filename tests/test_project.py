@@ -46,6 +46,18 @@ class TestProjectVerb(unittest.TestCase):
         backend = _run(self._flow(f'to="{self.out}" repoint=@pg.niagara'))
         self.assertEqual(backend.calls[-1][3], "@pg.niagara")
 
+    def test_rasters_option_recorded(self):
+        backend = _run(self._flow(f'to="{self.out}" repoint="t.gpkg" rasters="{self.tmp}"'))
+        self.assertEqual(backend.calls[-1][5], self.tmp)  # rasters dir is the 6th element
+
+    def test_rasters_defaults_to_none(self):
+        backend = _run(self._flow(f'to="{self.out}" repoint="t.gpkg"'))
+        self.assertIsNone(backend.calls[-1][5])
+
+    def test_rasters_must_be_a_directory(self):
+        with self.assertRaises(FlowError):
+            _run(self._flow(f'to="{self.out}" repoint="t.gpkg" rasters="{self.tmp}/nope"'))
+
     def test_bad_missing_is_error(self):
         with self.assertRaises(FlowError):
             _run(self._flow(f'to="{self.out}" repoint="t.gpkg" missing=maybe'))

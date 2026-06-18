@@ -39,6 +39,19 @@ def _write_points(path, crs, coords):
     PyqgisBackend().save(Layer(MEMORY, vl, facet="vector"), path)
 
 
+def _write_raster(path):
+    """Create a tiny 2x2 GeoTIFF at `path` (for project raster-repoint tests)."""
+    from osgeo import gdal, osr
+
+    ds = gdal.GetDriverByName("GTiff").Create(path, 2, 2, 1, gdal.GDT_Byte)
+    srs = osr.SpatialReference()
+    srs.ImportFromEPSG(4326)
+    ds.SetProjection(srs.ExportToWkt())
+    ds.SetGeoTransform([0, 1, 0, 0, 0, -1])
+    ds.GetRasterBand(1).Fill(7)
+    ds = None
+
+
 class TestPyqgisBackend(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.mkdtemp(prefix="niva_smoke_")
@@ -540,6 +553,42 @@ class TestPyqgisProject(unittest.TestCase):
         layers = self._reload(out)
         self.assertEqual(len(layers), 1)
         self.assertIn("roads.gpkg", layers[0].source())  # unchanged
+
+    def _raster_project(self):
+        """A project with one raster layer at <tmp>/rold/dem.tif, and a sibling <tmp>/rnew
+        holding a same-named dem.tif. Returns (src_project_path, rnew_dir)."""
+        from qgis.core import QgsProject, QgsRasterLayer
+
+        old = os.path.join(self.tmp, "rold")
+        new = os.path.join(self.tmp, "rnew")
+        os.makedirs(old, exist_ok=True)
+        os.makedirs(new, exist_ok=True)
+        _write_raster(os.path.join(old, "dem.tif"))
+        _write_raster(os.path.join(new, "dem.tif"))
+        proj = QgsProject()
+        proj.addMapLayer(QgsRasterLayer(os.path.join(old, "dem.tif"), "DEM"))
+        rsrc = os.path.join(self.tmp, "rp.qgs")
+        self.assertTrue(proj.write(rsrc))
+        return rsrc, new
+
+    def test_repoint_raster_to_dir(self):
+        import niva
+
+        rsrc, new = self._raster_project()
+        out = os.path.join(self.tmp, "rout.qgs")
+        niva.flow(f'project "{rsrc}" to="{out}" repoint="{self.consolidated}" '
+                  f'rasters="{new}" missing=keep')
+        layer = self._reload(out)[0]
+        self.assertIn(os.path.join("rnew", "dem.tif"), layer.source())
+        self.assertTrue(layer.isValid())
+
+    def test_raster_left_unchanged_without_rasters_option(self):
+        import niva
+
+        rsrc, _new = self._raster_project()
+        out = os.path.join(self.tmp, "rout2.qgs")
+        niva.flow(f'project "{rsrc}" to="{out}" repoint="{self.consolidated}" missing=keep')
+        self.assertIn(os.path.join("rold", "dem.tif"), self._reload(out)[0].source())
 
 
 if __name__ == "__main__":

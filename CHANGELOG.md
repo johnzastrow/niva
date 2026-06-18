@@ -7,6 +7,17 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.19.0] - 2026-06-18
+
+### Added
+- **`project … rasters=<dir>` — repoint raster layers too.** The `project` verb repointed
+  vector layers and left rasters alone; it can now repoint **raster** layers (DEM,
+  orthophoto, …) as well. Since rasters live in separate files (not the vector
+  container/DB), each raster layer is repointed to a **same-basename file in `<dir>`**
+  (e.g. a project's `dem.tif` → `<dir>/dem.tif`) via the `gdal` provider. Without
+  `rasters=`, raster layers are left unchanged (as before); with it, an unmatched raster
+  follows the same `missing=fail|keep|drop` policy as vectors.
+
 ## [0.18.3] - 2026-06-18
 
 ### Fixed

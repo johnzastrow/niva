@@ -797,14 +797,15 @@ class Engine:
             raise FlowError(f"`project` reads a QGIS project (.qgs/.qgz) — `{src}` is not one",
                             line=stage.line, stage=stage.raw)
 
-        extra = [k for k in stage.options if k not in ("to", "repoint", "missing")]
+        extra = [k for k in stage.options if k not in ("to", "repoint", "missing", "rasters")]
         if extra:
             raise FlowError(
-                f"`project` takes `to=`, `repoint=`, `missing=` — got `{extra[0]}=`",
+                f"`project` takes `to=`, `repoint=`, `missing=`, `rasters=` — got `{extra[0]}=`",
                 line=stage.line, stage=stage.raw)
         out = stage.options.get("to")
         target = stage.options.get("repoint")
         missing = stage.options.get("missing", "fail")
+        rasters = stage.options.get("rasters")
         if not out:
             raise FlowError("`project` needs an output: `to=<out.qgs>`",
                             line=stage.line, stage=stage.raw)
@@ -819,11 +820,16 @@ class Engine:
         if os.path.splitext(out)[1].lower() not in (".qgs", ".qgz"):
             raise FlowError(f"`project` writes a .qgs or .qgz — `{out}` is neither",
                             line=stage.line, stage=stage.raw)
+        if rasters:
+            rasters = os.path.expanduser(rasters)
+            if not os.path.isdir(rasters):
+                raise FlowError(f"`project` rasters= must be a directory — `{rasters}` is not one",
+                                line=stage.line, stage=stage.raw)
         # A connection target (@conn[.schema]) is passed through; a file target is expanded.
         if not is_connection_ref(target):
             target = os.path.expanduser(target)
         self.backend.repoint_project(src, out, target=target, missing=missing,
-                                     progress=self._emit)
+                                     rasters=rasters, progress=self._emit)
         return None  # terminal
 
     def _expand_value(self, value: str, stage):

@@ -53,8 +53,11 @@ front-end/provenance tracks ran ahead. Where things really stand:
   project file. Standalone `QgsProject()` + `QgsMapLayer.setDataSource`, off the main
   thread. This completes "compile a region" / analyst-plan Task 5. (Design:
   [15-postgis-and-project-design](15-postgis-and-project-design.md).)
+- **Shipped (v0.19.0) — raster-layer repointing in `project`.** `project … rasters=<dir>`
+  repoints raster layers (DEM, orthophoto) to a same-basename file in `<dir>` via the
+  `gdal` provider, alongside the vector `repoint=` target.
 - **Still planned — layer sidecars:** read/write/apply `.qml` styles and `.qmd` metadata
-  (a `style` verb), and raster-layer repointing in `project`.
+  (a `style` verb).
 - **Still ahead:** richer `filter` (IN/LIKE/NULL), `qgis_process` backend, grammar
   freeze + PyPI (v1.0), named intermediates / SQL writes / quality rules (v2.0).
 

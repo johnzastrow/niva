@@ -1083,50 +1083,70 @@ class PyqgisBackend(Backend):
     # --- project file repointing (the `project` verb, roadmap §project) ----------
 
     def repoint_project(self, src: str, dest: str, *, target: str, missing: str,
-                        progress=None) -> None:
+                        rasters: str | None = None, progress=None) -> None:
         # Use a STANDALONE QgsProject (never QgsProject.instance()) so this is safe on
         # the flow's worker thread — see plugin/flowtask.py and 15-§3.
-        from qgis.core import QgsProject, QgsVectorLayer
+        from qgis.core import QgsProject, QgsRasterLayer, QgsVectorLayer
 
         proj = QgsProject()
         if not proj.read(src):
             raise OpError(f"could not read project `{src}`",
                           algorithm="project", params={"src": src}, backend="pyqgis")
         resolve, available = self._repoint_target(target)
+        counts = {"repointed": 0, "kept": 0, "dropped": 0}
 
-        repointed = dropped = kept = 0
+        def emit(msg):
+            if progress:
+                progress(msg)
+
+        def unmatched(lyr, name):
+            """Apply the `missing` policy to a layer not found in its target."""
+            if missing == "fail":
+                raise OpError(
+                    f"layer `{lyr.name()}` (source `{name}`) is not in the repoint target "
+                    "— use missing=keep or missing=drop to override",
+                    algorithm="project", params={"src": src}, backend="pyqgis")
+            if missing == "drop":
+                label = lyr.name()  # read before removeMapLayer deletes the object
+                proj.removeMapLayer(lyr.id())
+                counts["dropped"] += 1
+                emit(f"   dropped `{label}` (not in target)")
+            else:  # keep
+                counts["kept"] += 1
+                emit(f"   kept `{lyr.name()}` unchanged (not in target)")
+
         for lyr in list(proj.mapLayers().values()):
+            if isinstance(lyr, QgsRasterLayer):
+                # Rasters are separate files, not inside the vector container/DB. Repoint
+                # them into the `rasters=` directory by basename; without it, leave them.
+                if rasters is None:
+                    counts["kept"] += 1
+                    emit(f"   ⚠ left raster `{lyr.name()}` unchanged (no rasters= target)")
+                    continue
+                base = os.path.basename(lyr.source().split("|", 1)[0])
+                cand = os.path.join(rasters, base)
+                if os.path.isfile(cand):
+                    lyr.setDataSource(cand, lyr.name(), "gdal")
+                    counts["repointed"] += 1
+                    emit(f"   repointed raster `{lyr.name()}` → {base}")
+                else:
+                    unmatched(lyr, base)
+                continue
             if not isinstance(lyr, QgsVectorLayer):
-                kept += 1
-                if progress:
-                    progress(f"   ⚠ left `{lyr.name()}` unchanged (repoint targets vector data)")
+                counts["kept"] += 1
+                emit(f"   ⚠ left `{lyr.name()}` unchanged (not a vector or raster layer)")
                 continue
             name = self._layer_source_name(lyr)
             if name not in available:
-                if missing == "fail":
-                    raise OpError(
-                        f"layer `{lyr.name()}` (source `{name}`) is not in the repoint "
-                        "target — use missing=keep or missing=drop to override",
-                        algorithm="project", params={"src": src}, backend="pyqgis")
-                if missing == "drop":
-                    label = lyr.name()  # read before removeMapLayer deletes the object
-                    proj.removeMapLayer(lyr.id())
-                    dropped += 1
-                    if progress:
-                        progress(f"   dropped `{label}` (not in target)")
-                else:  # keep
-                    kept += 1
-                    if progress:
-                        progress(f"   kept `{lyr.name()}` unchanged (not in target)")
+                unmatched(lyr, name)
                 continue
             new_uri, provider = resolve(name)
             subset = lyr.subsetString()
             lyr.setDataSource(new_uri, lyr.name(), provider)
             if subset:
                 lyr.setSubsetString(subset)
-            repointed += 1
-            if progress:
-                progress(f"   repointed `{lyr.name()}` → {name}")
+            counts["repointed"] += 1
+            emit(f"   repointed `{lyr.name()}` → {name}")
 
         parent = os.path.dirname(dest)
         if parent:
@@ -1134,9 +1154,8 @@ class PyqgisBackend(Backend):
         if not proj.write(dest):
             raise OpError(f"could not write project `{dest}`",
                           algorithm="project", params={"dest": dest}, backend="pyqgis")
-        if progress:
-            progress(f"   project written → {dest} "
-                     f"({repointed} repointed, {kept} kept, {dropped} dropped)")
+        emit(f"   project written → {dest} ({counts['repointed']} repointed, "
+             f"{counts['kept']} kept, {counts['dropped']} dropped)")
 
     def _repoint_target(self, target: str):
         """Resolve a repoint ``target`` into ``(resolve, available)``: ``resolve(name)``

@@ -400,8 +400,13 @@ the layer's name (its old `|layername=`, else the file stem), **subset filters p
 A standalone `QgsProject()` is used (off the main thread; never the GUI singleton). A layer
 whose name isn't in the target is handled by `missing=` — `fail` (default, never silently
 break a project), `keep` (leave it), or `drop` (remove it). This is the last piece of
-"compile a region" (analyst-plan Task 5). Raster-layer repointing and `.qml`/`.qmd`
-sidecars are still ahead (`04-roadmap`).
+"compile a region" (analyst-plan Task 5).
+
+**`rasters=<dir>`** (v0.19.0) repoints **raster** layers too — they live in separate files,
+not the vector container/DB, so each raster is repointed to a **same-basename file in
+`<dir>`** (e.g. a project's `dem.tif` → `<dir>/dem.tif`), via the `gdal` provider. Without
+`rasters=`, raster layers are left unchanged; with it, an unmatched raster follows the same
+`missing=` policy. `.qml`/`.qmd` sidecars are still ahead (`04-roadmap`).
 
 ### Issues this round surfaced
 | # | What surfaced | Verdict |
