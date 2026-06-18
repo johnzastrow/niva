@@ -7,6 +7,22 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.18.1] - 2026-06-18
+
+### Fixed
+- **`sql @conn` routing now sees past a leading comment or parenthesis.** A query that
+  began with `-- …`, `/* … */`, or `(` (e.g. `/* note */ SELECT …`, `(SELECT …)`) was
+  misread as a write and run as a terminal statement; the read/write router now skips
+  leading comments and parens before checking the keyword.
+- **DB lineage comment hardened.** The `COMMENT ON TABLE` niva writes after a PostgreSQL
+  `save @conn` now quotes the `schema.table` identifier (the comment value was already
+  escaped), so an unusual table name can't break or inject into the statement.
+
+### Changed
+- Internal cleanup (no behaviour change): the provider default-schema rule is now one
+  shared `default_schema()` helper instead of being duplicated in `save_table` and the
+  `project` repoint target.
+
 ## [0.18.0] - 2026-06-18
 
 ### Added

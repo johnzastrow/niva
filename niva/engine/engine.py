@@ -883,11 +883,26 @@ _QUERY_KEYWORDS = {"SELECT", "WITH", "VALUES", "TABLE", "EXPLAIN", "SHOW"}
 
 
 def _is_query(sql: str) -> bool:
-    """True when ``sql`` is a SELECT-style read (first word is a query keyword)."""
-    stripped = sql.strip()
-    if not stripped:
+    """True when ``sql`` is a SELECT-style read (its first keyword is a query keyword).
+    Leading whitespace, ``--``/``/* */`` comments, and opening parens are skipped first,
+    so ``-- note\\nSELECT …``, ``/* c */ SELECT …`` and ``(SELECT …)`` still read as
+    queries rather than being misrouted to a write."""
+    s = sql.lstrip()
+    while s:
+        if s.startswith("--"):
+            nl = s.find("\n")
+            s = "" if nl < 0 else s[nl + 1:]
+        elif s.startswith("/*"):
+            end = s.find("*/")
+            s = "" if end < 0 else s[end + 2:]
+        elif s.startswith("("):
+            s = s[1:]
+        else:
+            break
+        s = s.lstrip()
+    if not s:
         return False
-    return stripped.split(None, 1)[0].upper() in _QUERY_KEYWORDS
+    return s.split(None, 1)[0].upper() in _QUERY_KEYWORDS
 
 
 def _now() -> str:

@@ -109,6 +109,34 @@ class TestSqlExecute(unittest.TestCase):
         backend, _ = run('sql @pg "select 1"')
         self.assertEqual(backend.calls[0][0], "sql")
 
+    def test_leading_comment_or_paren_still_reads_as_query(self):
+        # A query that leads with a comment or an opening paren must still route to run_sql.
+        for q in ("/* note */ SELECT 1", "(SELECT 1)", "  SELECT 1"):
+            backend, _ = run(f'sql @pg "{q}"')
+            self.assertEqual(backend.calls[0][0], "sql", q)
+
+
+class TestIsQuery(unittest.TestCase):
+    def test_is_query_skips_leading_comments_and_parens(self):
+        from niva.engine.engine import _is_query
+
+        self.assertTrue(_is_query("-- a note\nSELECT 1"))
+        self.assertTrue(_is_query("/* block */ WITH x AS (SELECT 1) SELECT * FROM x"))
+        self.assertTrue(_is_query("((SELECT 1))"))
+        self.assertFalse(_is_query("/* c */ CREATE TABLE t AS SELECT 1"))
+        self.assertFalse(_is_query("   UPDATE t SET a = 1"))
+        self.assertFalse(_is_query(""))
+
+
+class TestDefaultSchema(unittest.TestCase):
+    def test_default_schema(self):
+        from niva.engine.connections import default_schema
+
+        self.assertEqual(default_schema("postgres", None), "public")
+        self.assertEqual(default_schema("spatialite", None), "")
+        self.assertEqual(default_schema("postgres", "niagara"), "niagara")  # explicit wins
+        self.assertEqual(default_schema("spatialite", "x"), "x")
+
     def test_execute_is_terminal(self):
         # An execute returns no layer, so a following stage has nothing to consume.
         with self.assertRaises(FlowError):

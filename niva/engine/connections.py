@@ -35,3 +35,12 @@ def parse_connection_ref(token: str):
     if len(parts) == 2:
         return conn, None, parts[1]
     return conn, parts[1], ".".join(parts[2:])
+
+
+def default_schema(provider: str, schema: str | None) -> str:
+    """The effective DB schema for a write or repoint target: an explicit ``schema`` wins;
+    otherwise the provider's default — ``public`` for PostgreSQL, ``''`` (let the provider
+    decide) for SpatiaLite and other file databases."""
+    if schema is not None:
+        return schema
+    return "public" if provider == "postgres" else ""

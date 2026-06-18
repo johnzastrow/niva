@@ -24,7 +24,7 @@ from contextlib import contextmanager
 
 from ..errors import OpError
 from .backend import Backend
-from .connections import is_connection_ref, parse_connection_ref
+from .connections import default_schema, is_connection_ref, parse_connection_ref
 from .layer import DB_TABLE, MEMORY, SOURCE, CrsInfo, Layer
 
 # A GDAL/OGR processing algorithm runs an external command; on a nonzero exit QGIS's
@@ -942,9 +942,7 @@ class PyqgisBackend(Backend):
 
         md, connection = self._find_connection(conn)
         provider = md.key()
-        # Default schema by provider: postgres tables live in `public`; SpatiaLite (and
-        # other file DBs) have no schema, so an empty string lets the provider decide.
-        eff_schema = schema if schema is not None else ("public" if provider == "postgres" else "")
+        eff_schema = default_schema(provider, schema)
 
         exists = self._table_exists(connection, eff_schema, table)
         if mode == "create" and exists:
@@ -992,10 +990,11 @@ class PyqgisBackend(Backend):
         # Record lineage best-effort into the table comment — PostgreSQL only (SQLite /
         # SpatiaLite and most others have no COMMENT ON TABLE). Never fatal, no credentials.
         if lineage and provider == "postgres":
-            where = f"{eff_schema}.{table}" if eff_schema else table
+            ident = self._quote_ident(table) if not eff_schema \
+                else f"{self._quote_ident(eff_schema)}.{self._quote_ident(table)}"
             note = " | ".join(str(x) for x in lineage).replace("'", "''")
             try:
-                connection.executeSql(f"COMMENT ON TABLE {where} IS '{note}'")
+                connection.executeSql(f"COMMENT ON TABLE {ident} IS '{note}'")
             except Exception:
                 pass
 
@@ -1050,6 +1049,13 @@ class PyqgisBackend(Backend):
                 algorithm="save", params={"connection": conn, "table": table}, backend="pyqgis",
             )
         return Layer(DB_TABLE, dest, facet="vector", name=table)
+
+    @staticmethod
+    def _quote_ident(name: str) -> str:
+        """Quote a SQL identifier (schema/table) for safe interpolation — double-quote it
+        and double any embedded quotes — so a name with odd characters can't break or
+        inject into a statement we build (e.g. the lineage ``COMMENT ON TABLE``)."""
+        return '"' + name.replace('"', '""') + '"'
 
     @staticmethod
     def _table_exists(connection, schema: str, table: str) -> bool:
@@ -1132,7 +1138,7 @@ class PyqgisBackend(Backend):
                     "`@conn` or `@conn.<schema>`",
                     algorithm="project", params={}, backend="pyqgis")
             md, connection = self._find_connection(conn)
-            sch = table if table is not None else ("public" if md.key() == "postgres" else "")
+            sch = default_schema(md.key(), table)
             try:
                 available = {t.tableName() for t in connection.tables(sch)}
             except Exception:
