@@ -20,6 +20,15 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   template library (`$NIVA_TEMPLATES` or `~/.niva/templates`, so `from-template=<name>` finds
   it); a **path** writes anywhere; `paths=relative` makes the template portable. The slots keep
   their current data as *example* data, repointed on instantiation. Terminal.
+- **Bundled `example` template.** niva now ships a fully-populated example template (resolved
+  by `from-template=example`, no setup) under `niva/templates/` — three distinctly-styled slots
+  (`boundary`/`roads`/`places`), a print layout (title/map/legend/scale bar), a spatial
+  bookmark, and a title + CRS — so the feature works out of the box and gives users a project to
+  clone. Named templates now resolve across `$NIVA_TEMPLATES` → `~/.niva/templates` → bundled.
+- **Template authoring guide** — [`docs/templates.md`](docs/templates.md): a full reference of
+  what a template carries (layouts, bookmarks, themes, per-layer symbology/filters/metadata),
+  the display-name slot-matching rule, caveats (schema-dependent styling, layout extent), and an
+  end-to-end authoring walkthrough.
 
 ### Changed
 - **`from-template` slots now match by the layer's *display name*** (what it's labelled in the

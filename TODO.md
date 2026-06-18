@@ -43,7 +43,8 @@ All use a standalone `QgsProject()` / `QgsMapLayer` off the main thread (per
   `.qgs`/`.qgz` is a template (layouts verified to survive instantiation); slots match by the
   layer's **display name** (fallback datasource name). `project to-template=<name|path>
   from=<src> [paths=]` registers an existing project into the library so `from-template=<name>`
-  finds it.
+  finds it. Ships a bundled `example` template (`from-template=example`) + the authoring guide
+  `docs/templates.md` (element reference: what a template carries).
 
 ## Roadmap-noted follow-ups (not yet scoped)
 - `project` / `style` `apply` to a **database-backed** layer (DB style table).

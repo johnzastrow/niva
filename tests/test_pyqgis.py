@@ -793,6 +793,28 @@ class TestPyqgisProject(unittest.TestCase):
         self.assertEqual([lay.name() for lay in self._p.layoutManager().layouts()], ["Report"])
         self.assertIn(os.path.join("mydata2", "parcels.gpkg"), layers["parcels"].source())
 
+    def test_bundled_example_instantiates(self):
+        import niva
+
+        # The shipped `example` template: resolve by name (no env), repoint its three slots,
+        # and carry its layout + bookmark + title through to the output.
+        data = os.path.join(self.tmp, "exdata")
+        os.makedirs(data, exist_ok=True)
+        for slot in ("boundary", "roads", "places"):
+            _write_points(os.path.join(data, f"{slot}.gpkg"), "EPSG:4326",
+                          [(-79.06, 43.09), (-79.05, 43.10)])
+        out = os.path.join(self.tmp, "example_out.qgz")
+        niva.flow(f'project from-template=example to="{out}" data="{data}"')
+        layers = {layer.name(): layer for layer in self._reload(out)}  # sets self._p
+        self.assertEqual(set(layers), {"boundary", "roads", "places"})
+        for slot in ("boundary", "roads", "places"):
+            self.assertIn(os.path.join("exdata", f"{slot}.gpkg"), layers[slot].source())
+            self.assertTrue(layers[slot].isValid())
+        self.assertEqual([lay.name() for lay in self._p.layoutManager().layouts()], ["Map"])
+        self.assertEqual([b.name() for b in self._p.bookmarkManager().bookmarks()],
+                         ["Study Area"])
+        self.assertEqual(self._p.title(), "Example Map")
+
 
 class TestPyqgisStyle(unittest.TestCase):
     """`style` — apply/save a layer's .qml style (real symbology round-trip)."""

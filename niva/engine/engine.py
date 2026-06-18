@@ -999,21 +999,24 @@ class Engine:
         self._emit(f"   project info → {out} ({len(info.get('layers', []))} layer(s))")
         return None  # terminal
 
-    # Where named templates are looked up, in order: `$NIVA_TEMPLATES` (if set), then the
-    # user library `~/.niva/templates`. A template is just a saved QGIS project — register
-    # an existing one by name with `project to-template=<name> from=<project>`.
+    # Where named templates are looked up, in order: `$NIVA_TEMPLATES` (if set), the user
+    # library `~/.niva/templates`, then the templates that ship inside the package (e.g.
+    # `example`). A template is just a saved QGIS project — register an existing one by name
+    # with `project to-template=<name> from=<project>`.
     _TEMPLATES_ENV = "NIVA_TEMPLATES"
     _TEMPLATES_USER = "~/.niva/templates"
+    _TEMPLATES_BUNDLED = os.path.join(os.path.dirname(__file__), os.pardir, "templates")
 
     def _template_roots(self) -> list:
-        """The ordered directories searched for a named template: env override first,
-        then the user library — so a `$NIVA_TEMPLATES` entry shadows a user one of the
-        same name."""
+        """The ordered directories searched for a named template: env override first, then
+        the user library, then the bundled templates — so a `$NIVA_TEMPLATES` or user entry
+        shadows a bundled one of the same name."""
         roots = []
         env = os.environ.get(self._TEMPLATES_ENV)
         if env:
             roots.append(os.path.expanduser(env))
         roots.append(os.path.expanduser(self._TEMPLATES_USER))
+        roots.append(os.path.normpath(self._TEMPLATES_BUNDLED))
         return roots
 
     def _template_library(self) -> str:

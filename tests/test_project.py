@@ -263,6 +263,19 @@ class TestProjectFromTemplate(unittest.TestCase):
         finally:
             del os.environ["NIVA_TEMPLATES"]
 
+    def test_bundled_example_resolves_without_env(self):
+        # The `example` template ships in the package and resolves with no env/user library.
+        backend = self._run(f'from-template=example to="{self.out}" data="{self.data}"')
+        src = backend.calls[-1][1]
+        self.assertTrue(src.endswith(os.path.join("niva", "templates", "example.qgz")), src)
+        self.assertTrue(os.path.isfile(src))
+
+    def test_unknown_name_lists_bundled_in_hint(self):
+        # Even with no library set, the error lists what *is* available (the bundled ones).
+        with self.assertRaises(FlowError) as cm:
+            self._run(f'from-template=ghost to="{self.out}" data="{self.data}"')
+        self.assertIn("example", str(cm.exception))
+
     def test_missing_data_is_error(self):
         with self.assertRaises(FlowError):
             self._run(f'from-template="{self.template}" to="{self.out}"')

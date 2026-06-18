@@ -108,6 +108,8 @@ niva.flow('load "data.gpkg|layername=roads" | buffer 100m dissolve | save out.gp
 
 - [About & goals](docs/about.md) · [Plugin](plugin/README.md) ·
   [Verb ↔ algorithm map](docs/planning/14-traceability-matrix.md)
+- [Template projects](docs/templates.md) — author a QGIS project once (layout + styles),
+  reuse it against fresh data with `project from-template=`
 - [Design & risk docs](docs/planning/) — PRD, architecture, grammar, security, the
   `Oscar` failure register
 - [CHANGELOG](CHANGELOG.md)
