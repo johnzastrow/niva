@@ -45,13 +45,16 @@ front-end/provenance tracks ran ahead. Where things really stand:
   (SMTP, Gmail-aware; secrets from the environment, TLS enforced, fail-closed), and
   `catalog` (recurse a directory and inventory every geospatial dataset — including
   per-layer for multi-layer GeoPackages — to a Markdown report).
-- **Planned — project & layer file manipulation (new scope):** bring QGIS project and
-  layer files into niva's remit — copy/rewrite `.qgs`/`.qgz` projects and **repoint
-  their layer datasources** (e.g. to freshly clipped data), and read/write/apply layer
-  sidecars (`.qml` styles, `.qmd` metadata). This is the missing piece for "compile a
-  region" workflows (analyst-plan Task 5), today out of scope. Likely via the
-  `QgsProject` / `QgsMapLayer.setDataSource` APIs behind new verbs (e.g. `project`,
-  `style`), keeping it declarative and safe (never silently break a project file).
+- **Shipped (v0.18.0) — `project` verb: copy a project & repoint datasources.**
+  `project <src.qgs|qgz> to=<out> repoint=<target>` copies a QGIS project and repoints
+  each vector layer's datasource to a new home — a GeoPackage **or** an `@conn[.schema]`
+  database (ties into the v0.17.0 DB write) — matched by layer name, subset filters
+  preserved, `missing=fail|keep|drop` for unmatched layers; never silently breaks a
+  project file. Standalone `QgsProject()` + `QgsMapLayer.setDataSource`, off the main
+  thread. This completes "compile a region" / analyst-plan Task 5. (Design:
+  [15-postgis-and-project-design](15-postgis-and-project-design.md).)
+- **Still planned — layer sidecars:** read/write/apply `.qml` styles and `.qmd` metadata
+  (a `style` verb), and raster-layer repointing in `project`.
 - **Still ahead:** richer `filter` (IN/LIKE/NULL), `qgis_process` backend, grammar
   freeze + PyPI (v1.0), named intermediates / SQL writes / quality rules (v2.0).
 

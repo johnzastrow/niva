@@ -390,6 +390,19 @@ sql @pg "CREATE TABLE roads_buf AS SELECT id, ST_Buffer(geom, 100) AS geom FROM 
   returns nothing. The **leading keyword** decides: `CREATE TABLE … AS SELECT …` runs as
   a write, `WITH … SELECT …` as a read.
 
+**Repoint a project** — `project <src.qgs|qgz> to=<out> repoint=<target>` (v0.18.0):
+```
+project "NiagaraBasemap/data.qgs" to="data/basemap.qgs" repoint="data/basemap_clip.gpkg" missing=keep
+```
+Copies a QGIS project and repoints each **vector** layer's datasource to one `<target>` —
+a GeoPackage path **or** an `@conn[.schema]` database (the v0.17.0 DB write) — matched by
+the layer's name (its old `|layername=`, else the file stem), **subset filters preserved**.
+A standalone `QgsProject()` is used (off the main thread; never the GUI singleton). A layer
+whose name isn't in the target is handled by `missing=` — `fail` (default, never silently
+break a project), `keep` (leave it), or `drop` (remove it). This is the last piece of
+"compile a region" (analyst-plan Task 5). Raster-layer repointing and `.qml`/`.qmd`
+sidecars are still ahead (`04-roadmap`).
+
 ### Issues this round surfaced
 | # | What surfaced | Verdict |
 |---|---------------|---------|

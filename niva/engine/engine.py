@@ -312,6 +312,8 @@ class Engine:
             return self._email(stage, current)
         if verb == "catalog":
             return self._catalog(stage)
+        if verb == "project":
+            return self._project(stage)
         if verb == "split":
             return self._split(stage, current)
         if verb == "each":
@@ -776,6 +778,53 @@ class Engine:
         with open(out, "w", encoding="utf-8") as fh:
             fh.write(report)
         self._emit(f"  catalogued {len(entries)} dataset(s) → {out}")
+        return None  # terminal
+
+    def _project(self, stage) -> Layer | None:
+        """`project <src.qgs|qgz> to=<out.qgs|qgz> repoint=<target> [missing=fail|keep|drop]`
+        — copy a QGIS project and repoint its vector layers' datasources to a new home
+        (a GeoPackage path or an `@conn[.schema]` database connection), matched by layer
+        name with subset filters preserved. Terminal: writes a project file, returns no
+        pipeable layer (roadmap §"project & layer file manipulation")."""
+        if len(stage.args) != 1:
+            raise FlowError(
+                "`project` takes one source project — "
+                "`project <src.qgs> to=<out.qgs> repoint=<target>`",
+                line=stage.line, stage=stage.raw)
+        src = os.path.expanduser(stage.args[0])
+        if not os.path.isfile(src):
+            raise FlowError(f"`project`: not a file: {src}", line=stage.line, stage=stage.raw)
+        if os.path.splitext(src)[1].lower() not in (".qgs", ".qgz"):
+            raise FlowError(f"`project` reads a QGIS project (.qgs/.qgz) — `{src}` is not one",
+                            line=stage.line, stage=stage.raw)
+
+        extra = [k for k in stage.options if k not in ("to", "repoint", "missing")]
+        if extra:
+            raise FlowError(
+                f"`project` takes `to=`, `repoint=`, `missing=` — got `{extra[0]}=`",
+                line=stage.line, stage=stage.raw)
+        out = stage.options.get("to")
+        target = stage.options.get("repoint")
+        missing = stage.options.get("missing", "fail")
+        if not out:
+            raise FlowError("`project` needs an output: `to=<out.qgs>`",
+                            line=stage.line, stage=stage.raw)
+        if not target:
+            raise FlowError("`project` needs a repoint target: "
+                            "`repoint=<dir.gpkg | @conn[.schema]>`",
+                            line=stage.line, stage=stage.raw)
+        if missing not in ("fail", "keep", "drop"):
+            raise FlowError(f"`missing={missing}` is not valid — use fail, keep, or drop",
+                            line=stage.line, stage=stage.raw)
+        out = os.path.expanduser(out)
+        if os.path.splitext(out)[1].lower() not in (".qgs", ".qgz"):
+            raise FlowError(f"`project` writes a .qgs or .qgz — `{out}` is neither",
+                            line=stage.line, stage=stage.raw)
+        # A connection target (@conn[.schema]) is passed through; a file target is expanded.
+        if not is_connection_ref(target):
+            target = os.path.expanduser(target)
+        self.backend.repoint_project(src, out, target=target, missing=missing,
+                                     progress=self._emit)
         return None  # terminal
 
     def _expand_value(self, value: str, stage):

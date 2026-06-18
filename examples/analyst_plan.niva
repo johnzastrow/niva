@@ -96,14 +96,17 @@ notify "niva: Task 4 done — clipped to the study area ({elapsed} elapsed)"
 notify "niva analyst plan: complete ✓ in {elapsed} — outputs in ~/Github/niva/data" priority=high
 
 
-# --- Task 5: copy QGIS project files and repoint layers ----------------------
-# !! ALERT — NOT AVAILABLE in niva yet (PLANNED — see docs/planning/04-roadmap.md
-# "project & layer file manipulation"). Copying QGIS project files (.qgs/.qgz) and
-# repointing their layer datasources to the clipped data is project-file editing,
-# not geoprocessing. Until the planned `project` verb lands, do it in QGIS or a
-# small PyQGIS script: QgsProject.read(), layer.setDataSource(<clipped uri>, name,
-# "ogr"/"gdal"), then write into /data.
-#     ~/Downloads/NiagaraOverture/  (data.qgs)
-#     ~/Downloads/NiagaraBasemap/   (data.qgs, data_redesign.qgs)
-#     ~/Github/marimo_qgis/example/ (project, if any)
+# --- Task 5: copy the QGIS project files and repoint layers to the clips -----
+# `project <src.qgs> to=<out.qgs> repoint=<target>` copies a QGIS project and repoints
+# each vector layer's datasource to the new home — here the consolidated *_clip.gpkg from
+# Task 4 — matched by the layer's name, keeping subset filters. `missing=keep` leaves any
+# layer not found in the clip (e.g. a raster, or a renamed theme) pointing at its original
+# source rather than failing the run. (v0.18.0; see docs/planning/15.)
+project "~/Downloads/NiagaraBasemap/data.qgs"          to="~/Github/niva/data/basemap.qgs"          repoint="~/Github/niva/data/basemap_clip.gpkg"  missing=keep
+project "~/Downloads/NiagaraBasemap/data_redesign.qgs" to="~/Github/niva/data/basemap_redesign.qgs" repoint="~/Github/niva/data/basemap_clip.gpkg"  missing=keep
+project "~/Downloads/NiagaraOverture/Overture_data.qgs" to="~/Github/niva/data/overture.qgs"        repoint="~/Github/niva/data/overture_clip.gpkg" missing=keep
+
+# Repoint to a database instead of a GeoPackage by giving an `@conn[.schema]` target
+# (after saving the clips there with `save @conn` — see Task 4 variants):
+#   project "~/Downloads/NiagaraBasemap/data.qgs" to="~/Github/niva/data/basemap_pg.qgs" repoint=@pg.niagara missing=keep
 # =============================================================================

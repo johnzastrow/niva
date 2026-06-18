@@ -89,6 +89,15 @@ class Backend(abc.ABC):
     def crs_of(self, layer: Layer) -> CrsInfo:
         """Report ``layer``'s CRS — used to resolve distances (units.py)."""
 
+    @abc.abstractmethod
+    def repoint_project(self, src: str, dest: str, *, target: str, missing: str,
+                        progress=None) -> None:
+        """Copy the QGIS project ``src`` to ``dest`` and repoint each vector layer's
+        datasource to ``target`` — a GeoPackage path or an ``@conn[.schema]`` connection —
+        matched by layer name, preserving subset filters. ``missing`` (``fail`` | ``keep``
+        | ``drop``) governs a layer whose name is absent from the target. The `project`
+        verb; never silently breaks a project file."""
+
     def sublayers(self, source: str) -> list:
         """List the layer names inside a multi-layer container (e.g. a GeoPackage),
         for ``catalog``. Returns ``[]`` for a single-layer source (the default) — a
@@ -188,6 +197,10 @@ class MockBackend(Backend):
         self.last_lineage = list(lineage) if lineage else []
         ref = f"@{conn}." + (f"{schema}.{table}" if schema else table)
         return Layer(DB_TABLE, ref, facet="vector", name=table)
+
+    def repoint_project(self, src: str, dest: str, *, target: str, missing: str,
+                        progress=None) -> None:
+        self.calls.append(("repoint_project", src, dest, target, missing))
 
     def profile(self, layer: Layer, deep: bool = False) -> dict:
         self.calls.append(("assess", layer.name, deep))

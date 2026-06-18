@@ -1,7 +1,7 @@
 # 15 — PostGIS as a first-class target, and the `project` verb
 
 Design for the **read / write / analyse in a database** round (Phase 1, shipped v0.17.0)
-and the **project-file repointing** round (Phase 2, planned v0.18). Read alongside
+and the **project-file repointing** round (Phase 2, shipped v0.18.0). Read alongside
 [12-security-model](12-security-model.md) (the credential boundary), the `save` / `sql`
 sections of [13-verb-reference](13-verb-reference.md), and the roadmap status in
 [04-roadmap](04-roadmap.md).
@@ -116,12 +116,16 @@ flowchart LR
     end
 ```
 
-## 6. Phase 2 (v0.18) — the `project` verb (repoint)
+## 6. Phase 2 (v0.18.0, shipped) — the `project` verb (repoint)
 
-`project "<src.qgs|qgz>" to="<out>" repoint="<target>" [missing=fail|keep|drop]`. New
-built-in verb (dispatch in `_run_stage`; a `_project` method modelled on `_catalog`),
-using a **standalone** `QgsProject()` off the main thread. One `<target>` per call — a
-`.gpkg` path *or* `@conn[.schema]` (ties into Phase 1's DB write).
+`project "<src.qgs|qgz>" to="<out>" repoint="<target>" [missing=fail|keep|drop]`. A new
+built-in verb (dispatch in `_run_stage`; `_project` in the engine; `repoint_project` in the
+backend), using a **standalone** `QgsProject()` off the main thread. One `<target>` per
+call — a `.gpkg` path *or* `@conn[.schema]` (ties into Phase 1's DB write). Vector layers
+are repointed by name (subset filters preserved); raster/other layers are left unchanged.
+Implementation note found in live-QGIS testing: match the target's layer set with
+`QgsProviderRegistry.querySublayers` (not the `sublayers` helper, which returns `[]` for a
+single-layer container), and read a layer's name *before* `removeMapLayer` deletes it.
 
 ```mermaid
 flowchart TD

@@ -24,6 +24,7 @@ from contextlib import contextmanager
 
 from ..errors import OpError
 from .backend import Backend
+from .connections import is_connection_ref, parse_connection_ref
 from .layer import DB_TABLE, MEMORY, SOURCE, CrsInfo, Layer
 
 # A GDAL/OGR processing algorithm runs an external command; on a nonzero exit QGIS's
@@ -1059,6 +1060,113 @@ class PyqgisBackend(Backend):
             return any(t.tableName() == table for t in connection.tables(schema))
         except Exception:
             return False
+
+    # --- project file repointing (the `project` verb, roadmap §project) ----------
+
+    def repoint_project(self, src: str, dest: str, *, target: str, missing: str,
+                        progress=None) -> None:
+        # Use a STANDALONE QgsProject (never QgsProject.instance()) so this is safe on
+        # the flow's worker thread — see plugin/flowtask.py and 15-§3.
+        from qgis.core import QgsProject, QgsVectorLayer
+
+        proj = QgsProject()
+        if not proj.read(src):
+            raise OpError(f"could not read project `{src}`",
+                          algorithm="project", params={"src": src}, backend="pyqgis")
+        resolve, available = self._repoint_target(target)
+
+        repointed = dropped = kept = 0
+        for lyr in list(proj.mapLayers().values()):
+            if not isinstance(lyr, QgsVectorLayer):
+                kept += 1
+                if progress:
+                    progress(f"   ⚠ left `{lyr.name()}` unchanged (repoint targets vector data)")
+                continue
+            name = self._layer_source_name(lyr)
+            if name not in available:
+                if missing == "fail":
+                    raise OpError(
+                        f"layer `{lyr.name()}` (source `{name}`) is not in the repoint "
+                        "target — use missing=keep or missing=drop to override",
+                        algorithm="project", params={"src": src}, backend="pyqgis")
+                if missing == "drop":
+                    label = lyr.name()  # read before removeMapLayer deletes the object
+                    proj.removeMapLayer(lyr.id())
+                    dropped += 1
+                    if progress:
+                        progress(f"   dropped `{label}` (not in target)")
+                else:  # keep
+                    kept += 1
+                    if progress:
+                        progress(f"   kept `{lyr.name()}` unchanged (not in target)")
+                continue
+            new_uri, provider = resolve(name)
+            subset = lyr.subsetString()
+            lyr.setDataSource(new_uri, lyr.name(), provider)
+            if subset:
+                lyr.setSubsetString(subset)
+            repointed += 1
+            if progress:
+                progress(f"   repointed `{lyr.name()}` → {name}")
+
+        parent = os.path.dirname(dest)
+        if parent:
+            os.makedirs(parent, exist_ok=True)
+        if not proj.write(dest):
+            raise OpError(f"could not write project `{dest}`",
+                          algorithm="project", params={"dest": dest}, backend="pyqgis")
+        if progress:
+            progress(f"   project written → {dest} "
+                     f"({repointed} repointed, {kept} kept, {dropped} dropped)")
+
+    def _repoint_target(self, target: str):
+        """Resolve a repoint ``target`` into ``(resolve, available)``: ``resolve(name)``
+        returns ``(new_uri, provider)`` for a layer named ``name``, and ``available`` is
+        the set of names the target holds (gpkg layers, or DB tables). Two kinds: a
+        GeoPackage path, or an ``@conn[.schema]`` database connection."""
+        if is_connection_ref(target):
+            conn, schema, table = parse_connection_ref(target)
+            if schema is not None:  # @conn.schema.table — names a table, not a target
+                raise OpError(
+                    f"`project` repoint target `{target}` names a table — use "
+                    "`@conn` or `@conn.<schema>`",
+                    algorithm="project", params={}, backend="pyqgis")
+            md, connection = self._find_connection(conn)
+            sch = table if table is not None else ("public" if md.key() == "postgres" else "")
+            try:
+                available = {t.tableName() for t in connection.tables(sch)}
+            except Exception:
+                available = set()
+            provider = md.key()
+
+            def resolve(name):
+                return connection.tableUri(sch, name), provider
+
+            return resolve, available
+
+        # GeoPackage / file container target. Query ALL layer names (unlike
+        # ``sublayers``, which returns [] for a single-layer container).
+        from qgis.core import QgsProviderRegistry
+        try:
+            details = QgsProviderRegistry.instance().querySublayers(target)
+            available = {d.name() for d in details if d.name()}
+        except Exception:
+            available = set()
+
+        def resolve(name):
+            return f"{target}|layername={name}", "ogr"
+
+        return resolve, available
+
+    @staticmethod
+    def _layer_source_name(layer) -> str:
+        """The name to match against the repoint target: the old datasource's
+        ``|layername=`` if present, else the source file's stem."""
+        src = layer.source()
+        if "layername=" in src:
+            return src.split("layername=", 1)[1].split("|", 1)[0]
+        path = src.split("|", 1)[0]
+        return os.path.splitext(os.path.basename(path))[0]
 
     def crs_of(self, layer: Layer) -> CrsInfo:
         from qgis.core import Qgis, QgsUnitTypes

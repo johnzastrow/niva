@@ -353,5 +353,84 @@ class TestMultiLayerLoad(unittest.TestCase):
         self.assertTrue(QgsVectorLayer(f"{out}|layername=out", "o", "ogr").isValid())
 
 
+class TestPyqgisProject(unittest.TestCase):
+    """`project` — copy a QGIS project and repoint layer datasources (real QgsProject)."""
+
+    def setUp(self):
+        import niva
+        from qgis.core import QgsProject, QgsVectorLayer
+
+        self.tmp = tempfile.mkdtemp(prefix="niva_prj_")
+        # A per-theme gpkg with a layer named `roads` (the file stem).
+        self.orig = os.path.join(self.tmp, "roads.gpkg")
+        _write_points(self.orig, "EPSG:4326", [(1, 1), (2, 2)])
+        # A consolidated gpkg that contains a layer named `roads`.
+        self.consolidated = os.path.join(self.tmp, "basemap_clip.gpkg")
+        niva.flow(f'load "{self.orig}" | save "{self.consolidated}" as roads')
+        # A source project pointing at the original per-theme gpkg.
+        proj = QgsProject()
+        vl = QgsVectorLayer(f"{self.orig}|layername=roads", "Roads", "ogr")
+        self.assertTrue(vl.isValid())
+        proj.addMapLayer(vl)
+        self.src = os.path.join(self.tmp, "p.qgs")
+        self.assertTrue(proj.write(self.src))
+
+    def _reload(self, path):
+        from qgis.core import QgsProject
+
+        self._p = QgsProject()  # keep a reference: a GC'd project deletes its layers
+        self.assertTrue(self._p.read(path))
+        return list(self._p.mapLayers().values())
+
+    def test_repoint_to_gpkg(self):
+        import niva
+
+        out = os.path.join(self.tmp, "out.qgs")
+        niva.flow(f'project "{self.src}" to="{out}" repoint="{self.consolidated}"')
+        layers = self._reload(out)
+        self.assertEqual(len(layers), 1)
+        src = layers[0].source()
+        self.assertIn("basemap_clip.gpkg", src)
+        self.assertIn("layername=roads", src)
+        self.assertTrue(layers[0].isValid())
+
+    def test_qgz_output(self):
+        import niva
+
+        out = os.path.join(self.tmp, "out.qgz")
+        niva.flow(f'project "{self.src}" to="{out}" repoint="{self.consolidated}"')
+        self.assertTrue(os.path.isfile(out))
+        self.assertIn("basemap_clip.gpkg", self._reload(out)[0].source())
+
+    def test_missing_fails_by_default(self):
+        import niva
+        from niva.errors import OpError
+
+        empty = os.path.join(self.tmp, "empty.gpkg")
+        _write_points(empty, "EPSG:4326", [(9, 9)])  # holds layer `empty`, not `roads`
+        with self.assertRaises(OpError):
+            niva.flow(f'project "{self.src}" to="{self.tmp}/o2.qgs" repoint="{empty}"')
+
+    def test_missing_drop_removes_unmatched_layer(self):
+        import niva
+
+        empty = os.path.join(self.tmp, "empty2.gpkg")
+        _write_points(empty, "EPSG:4326", [(9, 9)])
+        out = os.path.join(self.tmp, "o3.qgs")
+        niva.flow(f'project "{self.src}" to="{out}" repoint="{empty}" missing=drop')
+        self.assertEqual(len(self._reload(out)), 0)
+
+    def test_missing_keep_leaves_layer(self):
+        import niva
+
+        empty = os.path.join(self.tmp, "empty3.gpkg")
+        _write_points(empty, "EPSG:4326", [(9, 9)])
+        out = os.path.join(self.tmp, "o4.qgs")
+        niva.flow(f'project "{self.src}" to="{out}" repoint="{empty}" missing=keep')
+        layers = self._reload(out)
+        self.assertEqual(len(layers), 1)
+        self.assertIn("roads.gpkg", layers[0].source())  # unchanged
+
+
 if __name__ == "__main__":
     unittest.main()

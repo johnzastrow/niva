@@ -126,7 +126,8 @@ def report_markdown() -> str:
         from niva.registry import core_registry
 
         verbs = core_registry().verbs()
-        add("- Built-in verbs: `load` `save` `sql` `run` `call` `metadata` `assess` `describe`")
+        add("- Built-in verbs: `load` `save` `sql` `run` `call` `metadata` `assess` "
+            "`catalog` `project` `describe`")
         add(f"- Aliased verbs ({len(verbs)}): {', '.join('`' + v + '`' for v in verbs)}")
     except Exception as exc:  # noqa: BLE001
         add(f"- registry unavailable: {exc}")

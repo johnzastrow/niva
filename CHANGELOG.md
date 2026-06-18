@@ -7,6 +7,22 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.18.0] - 2026-06-18
+
+### Added
+- **`project` verb — copy a QGIS project and repoint its layers.**
+  `project <src.qgs|qgz> to=<out.qgs|qgz> repoint=<target>` copies a QGIS project file and
+  repoints each **vector** layer's datasource to one `<target>` — a GeoPackage path **or**
+  an `@conn[.schema]` database connection (the v0.17.0 DB write) — matched by the layer's
+  name (its old `|layername=`, else the file stem), with **subset filters preserved**. A
+  layer whose name isn't found in the target is handled by `missing=`: **`fail`** (default
+  — never silently break a project), **`keep`** (leave it pointing at its old source), or
+  **`drop`** (remove it from the project). Uses a standalone `QgsProject()` (off the main
+  thread, never the GUI singleton); `.qgs` and `.qgz` are read/written by extension. This
+  is the last piece of "compile a region" — it completes analyst-plan Task 5, which the
+  bundled `examples/analyst_plan.niva` now performs instead of flagging as unavailable.
+  Raster-layer repointing and `.qml`/`.qmd` sidecars remain on the roadmap.
+
 ## [0.17.0] - 2026-06-18
 
 ### Added
