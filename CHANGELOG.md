@@ -7,6 +7,22 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.16.3] - 2026-06-17
+
+### Fixed
+- **`~` now expands in layer/raster path arguments**, not just `load`/`save`. A path
+  passed to a verb that takes a layer — e.g. `clip "~/aoi.gpkg"`,
+  `clipraster "~/mask.gpkg"`, `spatialjoin with="~/pts.gpkg"` — was forwarded to QGIS
+  verbatim, and QGIS/GDAL do not expand `~`, so it failed to find the file. The binder
+  now expands a leading `~` for layer/raster args (an absolute path or a
+  `@connection.table` reference is unchanged), matching how `load`/`save` already
+  behave. This makes home-relative flows fully portable.
+
+### Changed
+- **Bundled example flows use portable `~/…` paths** instead of hardcoded absolute
+  paths, so `examples/analyst_plan.niva` and `examples/youngstown_cat_canvassing.niva`
+  run on any machine (and no longer embed a specific username/home layout).
+
 ## [0.16.2] - 2026-06-17
 
 ### Fixed

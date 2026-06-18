@@ -5,6 +5,7 @@ it, and checks the resulting ``processing.run`` params. Run with
 ``python -m unittest discover -s tests`` (or ``pytest``).
 """
 
+import os
 import unittest
 
 from niva.errors import FlowError
@@ -92,6 +93,17 @@ class TestBinder(unittest.TestCase):
         op = bound("clip city.gpkg")
         self.assertEqual(op.algorithm, "native:clip")
         self.assertEqual(op.params["OVERLAY"], "city.gpkg")
+
+    def test_layer_arg_expands_tilde(self):
+        # A layer/raster path arg expands a leading ~ (QGIS/GDAL don't), so
+        # `clip "~/aoi.gpkg"` resolves like `load "~/aoi.gpkg"`. Non-~ paths and
+        # @connection refs are unchanged.
+        home = os.path.expanduser("~")
+        self.assertEqual(bound('clip "~/aoi.gpkg"').params["OVERLAY"],
+                         os.path.join(home, "aoi.gpkg"))
+        self.assertEqual(bound("clipraster ~/dem/mask.gpkg").params["MASK"],
+                         os.path.join(home, "dem/mask.gpkg"))
+        self.assertEqual(bound("clip /abs/city.gpkg").params["OVERLAY"], "/abs/city.gpkg")
 
     def test_reproject_crs_and_flag_defaults(self):
         op = bound("reproject EPSG:2262")

@@ -14,6 +14,7 @@ enum word), reported with the stage's line and text (02-§6).
 
 from __future__ import annotations
 
+import os
 import re
 from dataclasses import dataclass
 
@@ -114,7 +115,12 @@ def _coerce(value: str, type_: str, values, stage, what: str):
         return [_enum(v, values, stage, what) for v in _split(value)]
     if type_ in ("fields", "list"):
         return _split(value)
-    # crs, field, string, layer, raster, expression — passed through verbatim.
+    if type_ in ("layer", "raster"):
+        # A dataset path: expand a leading ~ so `clip "~/aoi.gpkg"` works like
+        # `load "~/aoi.gpkg"` (QGIS/GDAL don't expand ~). An already-absolute path or a
+        # `@connection.table` reference has no leading ~, so it passes through unchanged.
+        return os.path.expanduser(value)
+    # crs, field, string, expression — passed through verbatim.
     return value
 
 

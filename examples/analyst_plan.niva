@@ -2,7 +2,7 @@
 # Analyst plan — Northern Western New York compilation (see analyst_plan.md)
 # =============================================================================
 # Target CRS: EPSG:6346  (NAD83(2011) / UTM zone 17N)
-# Output dir: /home/jcz/Github/niva/data
+# Output dir: ~/Github/niva/data
 #
 # Pure niva. Tasks 1–4 run as written; Task 5 (QGIS project files) needs a verb
 # niva does not have yet — flagged "!! ALERT" with the planned path.
@@ -31,19 +31,20 @@
 
 notify "niva analyst plan: starting at {now} and started {started} and ops {ops}" priority=high
 
-# --- Task 1: create /home/jcz/Github/niva/data -------------------------------
+# --- Task 1: create ~/Github/niva/data -------------------------------
 # No `mkdir` verb is needed: every save/catalog/assess below auto-creates /data
 # on first write.
 
 
 # --- Task 2: catalog the data sources into /data -----------------------------
-catalog "/home/jcz/Downloads/NiagaraBasemap" to="/home/jcz/Github/niva/data/catalog_NiagaraBasemap.md"
-catalog "/home/jcz/Downloads/NiagaraOverture" to="/home/jcz/Github/niva/data/catalog_NiagaraOverture.md"
-catalog "/home/jcz/Github/marimo_qgis/example" to="/home/jcz/Github/niva/data/catalog_example.md"
-load "~/Downloads/ytown_dem_deflate.tif" | assess to "/home/jcz/Github/niva/data/catalog_dem.md"
-load "/home/jcz/Downloads/twn_Porter_sp24/porter_ortho.jp2" | assess to "/home/jcz/Github/niva/data/catalog_orthophoto.md"
+catalog "~/Downloads/NiagaraBasemap" to="~/Github/niva/data/catalog_NiagaraBasemap.md"
+catalog "~/Downloads/NiagaraOverture" to="~/Github/niva/data/catalog_NiagaraOverture.md"
+catalog "~/Github/marimo_qgis/example" to="~/Github/niva/data/catalog_example.md"
+load "~/Downloads/ytown_dem_deflate.tif" | assess to "~/Github/niva/data/catalog_dem.md"
+load "~/Downloads/twn_Porter_sp24/porter_ortho.jp2" | assess to "~/Github/niva/data/catalog_orthophoto.md"
 
 notify "niva: Task 2 done — data sources catalogued ({elapsed} elapsed)"
+
 
 # --- Task 3: reproject / warp everything to EPSG:6346 into /data -------------
 
@@ -54,45 +55,45 @@ notify "niva: Task 2 done — data sources catalogued ({elapsed} elapsed)"
 # few Polygon+LineString GeometryCollection features) is reprojected LOSSLESSLY into a
 # generic-geometry layer instead of dropping the odd parts — "both, per layer". No
 # `fix` needed here. (Any raster encountered by `reproject` is skipped — see below.)
-each "/home/jcz/Downloads/NiagaraBasemap"  | reproject EPSG:6346 | save "/home/jcz/Github/niva/data/basemap.gpkg"
-each "/home/jcz/Downloads/NiagaraOverture" | reproject EPSG:6346 | save "/home/jcz/Github/niva/data/overture.gpkg"
-each "/home/jcz/Github/marimo_qgis/example/example.gpkg" | reproject EPSG:6346 | save "/home/jcz/Github/niva/data/collected.gpkg"
+each "~/Downloads/NiagaraBasemap"  | reproject EPSG:6346 | save "~/Github/niva/data/basemap.gpkg"
+each "~/Downloads/NiagaraOverture" | reproject EPSG:6346 | save "~/Github/niva/data/overture.gpkg"
+each "~/Github/marimo_qgis/example/example.gpkg" | reproject EPSG:6346 | save "~/Github/niva/data/collected.gpkg"
 
 # Single rasters -> reprojected copies (GeoTIFF output is lossless-compressed).
-load "~/Downloads/ytown_dem_deflate.tif" | warp EPSG:6346 | save "/home/jcz/Github/niva/data/dem.tif"
+load "~/Downloads/ytown_dem_deflate.tif" | warp EPSG:6346 | save "~/Github/niva/data/dem.tif"
 
 
 # Orthophoto -> orthophoto.jp2.
 # !! ALERT — niva defaults compression for GeoTIFF only; a `.jp2` save uses the JP2
 # driver's defaults (can be large). The warp is fine; for a controlled JP2 use:
 #   run gdal:warpreproject INPUT="…/porter_ortho.jp2" TARGET_CRS=EPSG:6346 OUTPUT=/tmp/ortho6346.tif CREATION_OPTIONS="COMPRESS=DEFLATE|TILED=YES"
-#   run gdal:translate INPUT=/tmp/ortho6346.tif OUTPUT="/home/jcz/Github/niva/data/orthophoto.jp2" CREATION_OPTIONS="QUALITY=25"
-load "/home/jcz/Downloads/twn_Porter_sp24/porter_ortho.jp2" | warp EPSG:6346 | save "/home/jcz/Github/niva/data/orthophoto.jp2"
+#   run gdal:translate INPUT=/tmp/ortho6346.tif OUTPUT="~/Github/niva/data/orthophoto.jp2" CREATION_OPTIONS="QUALITY=25"
+load "~/Downloads/twn_Porter_sp24/porter_ortho.jp2" | warp EPSG:6346 | save "~/Github/niva/data/orthophoto.jp2"
 
 notify "niva: Task 3 done — reprojected/warped to EPSG:6346 ({elapsed} elapsed) and last {last} and ops {ops}"
 
 # --- Task 4: clip everything in /data to the study-area bbox (AOISM) ---------
 
 # Build the study-area bounding box once (dissolve AOISM to one feature -> its bbox):
-load "/home/jcz/Github/marimo_qgis/example/example.gpkg|layername=AOISM" | dissolve | boundingbox | save "/home/jcz/Github/niva/data/study_area_bbox.gpkg"
+load "~/Github/marimo_qgis/example/example.gpkg|layername=AOISM" | dissolve | boundingbox | save "~/Github/niva/data/study_area_bbox.gpkg"
 
 # Clip every layer of each reprojected GeoPackage to that bbox (batch + per-layer).
 # `fix` again guards the typed clip output against any stray collection geometry.
-each "/home/jcz/Github/niva/data/basemap.gpkg"   | fix | clip "/home/jcz/Github/niva/data/study_area_bbox.gpkg" | save "/home/jcz/Github/niva/data/basemap_clip.gpkg"
-each "/home/jcz/Github/niva/data/overture.gpkg"  | fix | clip "/home/jcz/Github/niva/data/study_area_bbox.gpkg" | save "/home/jcz/Github/niva/data/overture_clip.gpkg"
-each "/home/jcz/Github/niva/data/collected.gpkg" | fix | clip "/home/jcz/Github/niva/data/study_area_bbox.gpkg" | save "/home/jcz/Github/niva/data/collected_clip.gpkg"
+each "~/Github/niva/data/basemap.gpkg"   | fix | clip "~/Github/niva/data/study_area_bbox.gpkg" | save "~/Github/niva/data/basemap_clip.gpkg"
+each "~/Github/niva/data/overture.gpkg"  | fix | clip "~/Github/niva/data/study_area_bbox.gpkg" | save "~/Github/niva/data/overture_clip.gpkg"
+each "~/Github/niva/data/collected.gpkg" | fix | clip "~/Github/niva/data/study_area_bbox.gpkg" | save "~/Github/niva/data/collected_clip.gpkg"
 
 # Clip the reprojected rasters (DEM + orthophoto) to the bbox:
-load "/home/jcz/Github/niva/data/dem.tif" | clipraster "/home/jcz/Github/niva/data/study_area_bbox.gpkg" | save "/home/jcz/Github/niva/data/dem_clip.tif"
-load "/home/jcz/Github/niva/data/orthophoto.jp2" | clipraster "/home/jcz/Github/niva/data/study_area_bbox.gpkg" | save "/home/jcz/Github/niva/data/orthophoto_clip.jp2"
+load "~/Github/niva/data/dem.tif" | clipraster "~/Github/niva/data/study_area_bbox.gpkg" | save "~/Github/niva/data/dem_clip.tif"
+load "~/Github/niva/data/orthophoto.jp2" | clipraster "~/Github/niva/data/study_area_bbox.gpkg" | save "~/Github/niva/data/orthophoto_clip.jp2"
 
 # Resample the clipped orthophoto to 5 m pixels. `warp` to the same CRS with
 # resolution=5 sets the output pixel size; `average` resampling is the right choice for
 # *down*-sampling imagery (mean of the source pixels) rather than the default nearest.
-load "/home/jcz/Github/niva/data/orthophoto_clip.jp2" | warp EPSG:6346 resolution=5 resampling=average | save "/home/jcz/Github/niva/data/orthophoto_clip_5m.jp2"
+load "~/Github/niva/data/orthophoto_clip.jp2" | warp EPSG:6346 resolution=5 resampling=average | save "~/Github/niva/data/orthophoto_clip_5m.jp2"
 
 notify "niva: Task 4 done — clipped to the study area ({elapsed} elapsed)"
-notify "niva analyst plan: complete ✓ in {elapsed} — outputs in /home/jcz/Github/niva/data" priority=high
+notify "niva analyst plan: complete ✓ in {elapsed} — outputs in ~/Github/niva/data" priority=high
 
 
 # --- Task 5: copy QGIS project files and repoint layers ----------------------
@@ -102,7 +103,7 @@ notify "niva analyst plan: complete ✓ in {elapsed} — outputs in /home/jcz/Gi
 # not geoprocessing. Until the planned `project` verb lands, do it in QGIS or a
 # small PyQGIS script: QgsProject.read(), layer.setDataSource(<clipped uri>, name,
 # "ogr"/"gdal"), then write into /data.
-#     /home/jcz/Downloads/NiagaraOverture/  (data.qgs)
-#     /home/jcz/Downloads/NiagaraBasemap/   (data.qgs, data_redesign.qgs)
-#     /home/jcz/Github/marimo_qgis/example/ (project, if any)
+#     ~/Downloads/NiagaraOverture/  (data.qgs)
+#     ~/Downloads/NiagaraBasemap/   (data.qgs, data_redesign.qgs)
+#     ~/Github/marimo_qgis/example/ (project, if any)
 # =============================================================================
