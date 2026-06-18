@@ -808,17 +808,20 @@ class Engine:
             raise FlowError(f"`project` reads a QGIS project (.qgs/.qgz) — `{src}` is not one",
                             line=stage.line, stage=stage.raw)
 
-        extra = [k for k in stage.options
-                 if k not in ("to", "repoint", "missing", "rasters", "paths")]
+        known = ("to", "repoint", "missing", "rasters", "paths",
+                 "bookmark", "at", "scale", "width")
+        extra = [k for k in stage.options if k not in known]
         if extra:
             raise FlowError(
-                "`project` takes `to=`, `repoint=`, `missing=`, `rasters=`, `paths=` — "
-                f"got `{extra[0]}=`", line=stage.line, stage=stage.raw)
+                "`project` takes `to=`, `repoint=`, `missing=`, `rasters=`, `paths=`, "
+                f"`bookmark=` (+ `at=`/`scale=`/`width=`) — got `{extra[0]}=`",
+                line=stage.line, stage=stage.raw)
         out = stage.options.get("to")
         target = stage.options.get("repoint")  # optional: omit to copy/convert without repointing
         missing = stage.options.get("missing", "fail")
         rasters = stage.options.get("rasters")
         paths = stage.options.get("paths")
+        bookmark = self._parse_bookmark(stage)
         if not out:
             raise FlowError("`project` needs an output: `to=<out.qgs>`",
                             line=stage.line, stage=stage.raw)
@@ -841,7 +844,8 @@ class Engine:
         if target and not is_connection_ref(target):
             target = os.path.expanduser(target)
         self.backend.repoint_project(src, out, target=target, missing=missing,
-                                     rasters=rasters, paths=paths, progress=self._emit)
+                                     rasters=rasters, paths=paths, bookmark=bookmark,
+                                     progress=self._emit)
         return None  # terminal
 
     def _style(self, stage, current: Layer | None) -> Layer | None:
@@ -872,6 +876,58 @@ class Engine:
                             line=stage.line, stage=stage.raw)
         self.backend.style_layer(current, action, path)
         return current  # pass-through
+
+    # A QGIS bookmark stores an extent, not a centre+scale. So `scale=N` is converted to a
+    # ground width via a reference on-screen map width (~0.5 m, a typical full-HD canvas) —
+    # approximate, and CRS-unit dependent; use `width=` for an exact extent. (15-§project.)
+    _BOOKMARK_SCALE_REF_M = 0.5
+
+    def _parse_bookmark(self, stage):
+        """Build the `bookmark` spec from the options: ``None``, or
+        ``{name, at: (x,y)|None, width: float|None}``. A bare `bookmark=<name>` uses the
+        project's union extent; `at=` + `scale=`/`width=` makes a centred bookmark."""
+        name = stage.options.get("bookmark")
+        at, scale, width = (stage.options.get(k) for k in ("at", "scale", "width"))
+        if name is None:
+            if at or scale or width:
+                raise FlowError("`at=`/`scale=`/`width=` only apply with `bookmark=<name>`",
+                                line=stage.line, stage=stage.raw)
+            return None
+        spec = {"name": name, "at": None, "width": None}
+        if at is not None:
+            try:
+                x, y = (float(v) for v in at.split(","))
+            except ValueError:
+                raise FlowError(f'`at` must be "x,y" map coordinates — got `{at}`',
+                                line=stage.line, stage=stage.raw)
+            spec["at"] = (x, y)
+            if scale and width:
+                raise FlowError("give a centred bookmark `scale=` or `width=`, not both",
+                                line=stage.line, stage=stage.raw)
+            if width is not None:
+                spec["width"] = self._bookmark_float(width, "width", stage)
+            elif scale is not None:
+                spec["width"] = (self._bookmark_float(scale, "scale", stage)
+                                 * self._BOOKMARK_SCALE_REF_M)
+            else:
+                raise FlowError("a centred `bookmark` with `at=` needs `scale=` or `width=`",
+                                line=stage.line, stage=stage.raw)
+        elif scale or width:
+            raise FlowError('`scale=`/`width=` need a centre `at="x,y"`',
+                            line=stage.line, stage=stage.raw)
+        return spec
+
+    @staticmethod
+    def _bookmark_float(value, what, stage):
+        try:
+            n = float(value)
+        except ValueError:
+            raise FlowError(f"`{what}` must be a number — got `{value}`",
+                            line=stage.line, stage=stage.raw)
+        if n <= 0:
+            raise FlowError(f"`{what}` must be positive — got `{value}`",
+                            line=stage.line, stage=stage.raw)
+        return n
 
     def _project_new(self, stage) -> Layer | None:
         """`project new from=<dir|glob> to=<out.qgs|qgz> [crs=… title=…]` — create a fresh

@@ -7,6 +7,15 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.25.0] - 2026-06-18
+
+### Added
+- **`project … bookmark=<name>` — add a spatial bookmark.** `project src.qgs to=out.qgs
+  bookmark="Study Area"` adds a bookmark covering the **union** of the project's layers (a
+  jump-to for compiled outputs). For a centred bookmark, add `at="x,y"` with `width=<w>`
+  (exact, in map units) or `scale=<N>` (converted to a width via a ~0.5 m reference map
+  view — approximate; prefer `width=` for an exact extent). Composes with `repoint=`/`paths=`.
+
 ## [0.24.0] - 2026-06-18
 
 ### Added

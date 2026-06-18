@@ -10,46 +10,29 @@ and [`docs/planning/16-anatomy-of-a-verb.md`](docs/planning/16-anatomy-of-a-verb
   flat (scratch fix holds), the repointed `.qgs` projects open and resolve to the clips.
   This is a verification/ops task, not a feature.
 
-## Project & layer-file operations (new scope, after the e2e run)
+## Project & layer-file operations (new scope)
 
-The `project` verb (repoint) and `style` verb are the start; these extend the
-project/layer-file surface so a niva flow can *produce* the cartographic deliverables of
-"compile a region," not just the data. All use a standalone `QgsProject()` /
-`QgsMapLayer` off the main thread (per `docs/planning/15` §3 and `16`), and each needs the
-two-tier tests (MockBackend + live-QGIS).
+All use a standalone `QgsProject()` / `QgsMapLayer` off the main thread (per
+`docs/planning/15` §3 and `16`), with two-tier tests (MockBackend + live-QGIS).
 
-**High value**
-- [ ] **Create a shell project from outputs** — `project new from=<dir|glob> to=<out.qgs>
-  [crs=… title=…]`. The missing half of the project story: `project` can only repoint an
-  *existing* `.qgs`; this *generates* one pointing at a directory/glob of output layers
-  (standalone `QgsProject()` → `addMapLayer` each → `setCrs`/`setTitle` → `write`). Closes
-  the clip → save → project loop without needing a source project.
-- [ ] **QLR export (Layer Definition Files)** — emit a portable `.qlr` (datasource + style
-  + metadata, one or more layers) so analysts can drag-drop a styled layer with no project.
-  `QgsLayerDefinition.exportLayerDefinitionLayers(...)`. Slots in as `style save x.qlr`
-  (extension-dispatched) or a small `qlr` action.
-- [ ] **SLD style export** — `style save x.sld` (OGC, for GeoServer/interop). Cheap:
-  `QgsVectorLayer.saveSldStyle(path)`; just another extension on the `style` verb.
-- [ ] **`project info <src.qgs>`** — inventory a project's layers / datasources / CRS to a
-  Markdown report (a `catalog` for projects). Read the project, iterate `mapLayers()`.
+**Next up**
+- [ ] **Template projects** — `project from-template=<name|path> to=<out> data=<dir|glob>`.
+  Curate a few stock `.qgz` templates that already contain **print layouts + styled layer
+  slots**; niva instantiates one against the user's data (copy the template, load/repoint
+  the layers, optionally apply styles). This is the *practical* path to print layouts +
+  consistent styling — far better than editing layouts programmatically — and subsumes the
+  print-layout items below. Design: a templates dir convention, name→path resolution, and
+  layer-slot matching (by name, like `project repoint`). **(Agreed: do after the current
+  cartographic set.)**
 
-**Medium value**
-- [ ] **Path rewrite + repackage** — rewrite a project's datasource paths relative↔absolute
-  (`QgsProject.setFilePathStorage` + `write`), and convert `.qgs` ↔ `.qgz` (read then write
-  by extension). Portability fixes.
-
-**Cartography / GUI-side (stub out — assess feasibility + fit; lower priority, may be partial)**
-- [ ] **Print layouts (`.qpt`)** — export/import a print-layout template; generate a layout
-  from a region (`QgsPrintLayout`, `project.layoutManager()`, `saveAsTemplate` /
-  `loadFromTemplate`). Stub: scope what's declarative vs GUI-only.
-- [ ] **Adjust print layouts** — tweak an existing layout: title text, the map item's
-  extent/scale, swap its layers, page size. Operates on a project's layout(s).
-- [ ] **Bookmarks** — add/list spatial bookmarks in a project (`project.bookmarkManager()`,
-  `QgsBookmark`); e.g. a bookmark for the study-area bbox.
-- [ ] **Map themes** — create/apply visibility presets ("map themes":
-  `project.mapThemeCollection()`), e.g. a "basemap only" vs "full" theme over the clips.
-- [ ] **Legend tweaks** — layer ordering, group nodes, and legend visibility/labels in the
-  project tree (`project.layerTreeRoot()` — `QgsLayerTree`/`QgsLayerTreeGroup`).
+**Lower priority — assess; minimal forms are low value**
+- [ ] **Map themes** — visibility presets (`project.mapThemeCollection()`). A single
+  all-visible theme is near-useless; only worth it with per-layer visibility control (a
+  richer grammar) or baked into **template projects**.
+- [ ] **Legend tweaks** — layer ordering / group nodes in the tree
+  (`project.layerTreeRoot()`). Likewise marginal alone; better via templates.
+- [ ] **Print layouts (`.qpt`)** — *superseded by template projects* (a template carries the
+  layout). Keep only if direct `.qpt` export/import is later wanted.
 
 ## Done
 - [x] **Test-hardening pass** (v0.18.3) — live-QGIS + PostGIS tier now gates CI on the
@@ -58,6 +41,12 @@ two-tier tests (MockBackend + live-QGIS).
 - [x] **Raster-layer repointing in `project`** (v0.19.0) — `project … rasters=<dir>`.
 - [x] **`style` verb** (v0.20.0) — `style apply|save <.qml|.qmd>`, persisting into a
   GeoPackage `layer_styles` table or a sidecar.
+- [x] **`project new from=<dir> to=<out.qgs>`** (v0.21.0) — create a project from outputs.
+- [x] **`style save <.sld|.qlr>`** (v0.22.0) — SLD + QGIS Layer Definition export.
+- [x] **`project info <src.qgs>`** (v0.23.0) — inventory a project to Markdown.
+- [x] **`project` copy/convert + `paths=`** (v0.24.0) — `repoint=` optional, `.qgs`↔`.qgz`,
+  relative/absolute path rewrite.
+- [x] **`project … bookmark=<name>`** (v0.25.0) — union-extent or centred (`at=`+`scale=`/`width=`).
 
 ## Roadmap-noted follow-ups (not yet scoped)
 - `project` / `style` `apply` to a **database-backed** layer (DB style table).

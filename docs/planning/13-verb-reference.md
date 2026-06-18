@@ -404,6 +404,12 @@ copies a project, converting `.qgs`↔`.qgz` by the `to=` extension; add `paths=
 `absolute`) to rewrite datasource path storage (e.g. make a project portable). Combine with
 `repoint=`/`rasters=` to repoint *and* rewrite in one pass.
 
+**Bookmark a region** — `bookmark=<name>` (v0.25.0). `project <src> to=<out> bookmark="Study
+Area"` adds a spatial bookmark covering the **union** of the project's layers (a jump-to for
+compiled outputs). For a centred bookmark, add `at="x,y"` with either `width=<w>` (an exact
+extent in map units) or `scale=<N>` (converted to a width via a ~0.5 m reference map view —
+approximate; prefer `width=` for an exact extent). Composes with `repoint=`/`paths=`.
+
 **Inventory a project** — `project info <src.qgs|qgz> [to=<out.md>]` (v0.23.0):
 ```
 project info "region.qgs" to="region_layers.md"

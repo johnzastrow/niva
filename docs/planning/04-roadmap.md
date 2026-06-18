@@ -68,6 +68,8 @@ front-end/provenance tracks ran ahead. Where things really stand:
   datasources / CRS to a Markdown report.
 - **Shipped (v0.24.0) — copy/convert/rewrite-paths in `project`.** `repoint=` is
   optional; `.qgs`↔`.qgz` by extension; `paths=relative|absolute` rewrites datasource paths.
+- **Shipped (v0.25.0) — `project … bookmark=<name>`.** Add a spatial bookmark (union
+  extent, or centred via `at=`+`scale=`/`width=`).
 - **More project/layer-file ops planned** (`TODO.md`):
   `.qgs`↔`.qgz` repackage, and cartographic decoration (bookmarks, map themes, legend,
   print layouts).

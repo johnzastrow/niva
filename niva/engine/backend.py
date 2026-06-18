@@ -92,7 +92,7 @@ class Backend(abc.ABC):
     @abc.abstractmethod
     def repoint_project(self, src: str, dest: str, *, target: str | None, missing: str,
                         rasters: str | None = None, paths: str | None = None,
-                        progress=None) -> None:
+                        bookmark: str | None = None, progress=None) -> None:
         """Copy the QGIS project ``src`` to ``dest``, optionally repointing each vector
         layer's datasource to ``target`` — a GeoPackage path or an ``@conn[.schema]``
         connection — matched by layer name, preserving subset filters. ``target=None``
@@ -222,8 +222,9 @@ class MockBackend(Backend):
 
     def repoint_project(self, src: str, dest: str, *, target: str | None, missing: str,
                         rasters: str | None = None, paths: str | None = None,
-                        progress=None) -> None:
-        self.calls.append(("repoint_project", src, dest, target, missing, rasters, paths))
+                        bookmark: str | None = None, progress=None) -> None:
+        self.calls.append(
+            ("repoint_project", src, dest, target, missing, rasters, paths, bookmark))
 
     def style_layer(self, layer: Layer, action: str, path: str) -> None:
         self.calls.append(("style", action, path))

@@ -1084,7 +1084,7 @@ class PyqgisBackend(Backend):
 
     def repoint_project(self, src: str, dest: str, *, target: str | None, missing: str,
                         rasters: str | None = None, paths: str | None = None,
-                        progress=None) -> None:
+                        bookmark: str | None = None, progress=None) -> None:
         # Use a STANDALONE QgsProject (never QgsProject.instance()) so this is safe on
         # the flow's worker thread — see plugin/flowtask.py and 15-§3.
         from qgis.core import QgsProject, QgsRasterLayer, QgsVectorLayer
@@ -1153,6 +1153,9 @@ class PyqgisBackend(Backend):
             counts["repointed"] += 1
             emit(f"   repointed `{lyr.name()}` → {name}")
 
+        if bookmark:
+            self._add_bookmark(proj, bookmark)
+            emit(f"   bookmark `{bookmark}` → project extent")
         if paths in ("relative", "absolute"):
             from qgis.core import Qgis
 
@@ -1225,6 +1228,52 @@ class PyqgisBackend(Backend):
             })
         layers.sort(key=lambda d: d["name"])
         return {"title": proj.title(), "crs": proj.crs().authid(), "layers": layers}
+
+    def _add_bookmark(self, proj, spec: dict) -> None:
+        """Add a spatial bookmark to ``proj`` in the project CRS. ``spec`` is
+        ``{name, at: (x,y)|None, width: float|None}``: a centre+width makes a square extent
+        there; otherwise the bookmark covers the union of the project's layer extents (a
+        'study area' jump-to for compiled outputs)."""
+        from qgis.core import QgsBookmark, QgsRectangle, QgsReferencedRectangle
+
+        pcrs = proj.crs()
+        at, width = spec.get("at"), spec.get("width")
+        if at is not None and width is not None:
+            cx, cy = at
+            half = width / 2.0
+            extent = QgsRectangle(cx - half, cy - half, cx + half, cy + half)
+        else:
+            extent = self._union_extent(proj, pcrs)
+        bm = QgsBookmark()
+        bm.setName(spec["name"])
+        bm.setExtent(QgsReferencedRectangle(extent, pcrs))
+        proj.bookmarkManager().addBookmark(bm)
+
+    @staticmethod
+    def _union_extent(proj, pcrs):
+        from qgis.core import (
+            QgsCoordinateTransform,
+            QgsCoordinateTransformContext,
+            QgsRectangle,
+        )
+
+        extent = None
+        for lyr in proj.mapLayers().values():
+            le = lyr.extent()
+            if le.isNull() or le.isEmpty():
+                continue
+            if lyr.crs() != pcrs and lyr.crs().isValid() and pcrs.isValid():
+                try:
+                    le = QgsCoordinateTransform(
+                        lyr.crs(), pcrs, QgsCoordinateTransformContext()
+                    ).transformBoundingBox(le)
+                except Exception:
+                    continue
+            if extent is None:
+                extent = QgsRectangle(le)
+            else:
+                extent.combineExtentWith(le)
+        return extent if extent is not None else QgsRectangle()
 
     def _repoint_target(self, target: str):
         """Resolve a repoint ``target`` into ``(resolve, available)``: ``resolve(name)``

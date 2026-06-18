@@ -633,6 +633,26 @@ class TestPyqgisProject(unittest.TestCase):
         niva.flow(f'project "{self.src}" to="{out}" paths=relative')
         self.assertIn("./roads.gpkg", open(out).read())
 
+    def test_bookmark_union_extent(self):
+        import niva
+
+        out = os.path.join(self.tmp, "bm.qgs")
+        niva.flow(f'project "{self.src}" to="{out}" bookmark="Study Area"')
+        self._reload(out)  # keeps the project alive on self._p
+        self.assertEqual([b.name() for b in self._p.bookmarkManager().bookmarks()],
+                         ["Study Area"])
+
+    def test_bookmark_centred(self):
+        import niva
+
+        out = os.path.join(self.tmp, "bm2.qgs")
+        niva.flow(f'project "{self.src}" to="{out}" bookmark="AOI" at="0,0" width=10')
+        self._reload(out)
+        bm = self._p.bookmarkManager().bookmarks()[0]
+        self.assertEqual(bm.name(), "AOI")
+        self.assertAlmostEqual(bm.extent().width(), 10.0, places=3)
+        self.assertAlmostEqual(bm.extent().center().x(), 0.0, places=6)
+
 
 class TestPyqgisStyle(unittest.TestCase):
     """`style` — apply/save a layer's .qml style (real symbology round-trip)."""

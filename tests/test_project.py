@@ -144,6 +144,34 @@ class TestProjectVerb(unittest.TestCase):
         with self.assertRaises(FlowError):
             _run(self._flow(f'to="{self.out}" paths=sideways'))
 
+    def test_bookmark_union(self):
+        backend = _run(self._flow(f'to="{self.out}" bookmark="AOI"'))
+        self.assertEqual(backend.calls[-1][7], {"name": "AOI", "at": None, "width": None})
+
+    def test_bookmark_at_width(self):
+        backend = _run(self._flow(f'to="{self.out}" bookmark="AOI" at="10,20" width=400'))
+        self.assertEqual(backend.calls[-1][7], {"name": "AOI", "at": (10.0, 20.0), "width": 400.0})
+
+    def test_bookmark_at_scale_converts_to_width(self):
+        backend = _run(self._flow(f'to="{self.out}" bookmark="AOI" at="10,20" scale=1000'))
+        self.assertEqual(backend.calls[-1][7]["width"], 500.0)  # scale * 0.5 m ref
+
+    def test_bookmark_at_needs_scale_or_width(self):
+        with self.assertRaises(FlowError):
+            _run(self._flow(f'to="{self.out}" bookmark="AOI" at="10,20"'))
+
+    def test_bookmark_scale_needs_at(self):
+        with self.assertRaises(FlowError):
+            _run(self._flow(f'to="{self.out}" bookmark="AOI" scale=1000'))
+
+    def test_at_without_bookmark_is_error(self):
+        with self.assertRaises(FlowError):
+            _run(self._flow(f'to="{self.out}" at="1,2" width=5'))
+
+    def test_bookmark_bad_at_is_error(self):
+        with self.assertRaises(FlowError):
+            _run(self._flow(f'to="{self.out}" bookmark="AOI" at="nope" width=5'))
+
     def test_unknown_option_is_error(self):
         with self.assertRaises(FlowError):
             _run(self._flow(f'to="{self.out}" repoint="t.gpkg" mode=replace'))
