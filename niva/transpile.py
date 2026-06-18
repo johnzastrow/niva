@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import ast
 
+from .engine.connections import is_connection_ref
 from .engine.engine import _scalar
 from .grammar import Call, Flow, parse
 from .registry import bind, core_registry
@@ -156,7 +157,12 @@ def _export_flow(flow: Flow, registry, counter) -> tuple[list[str], str]:
         if verb == "save":
             # A standalone save (no preceding algorithm wrote to it). Rare; note it.
             dest = st.args[0] if st.args else "?"
-            lines.append(f"    #   save -> {dest!r} (no transform stage precedes this save)")
+            if st.args and is_connection_ref(st.args[0]):
+                lines.append(f"    #   save -> {dest!r} "
+                             "(database write — no processing.run equivalent)")
+            else:
+                lines.append(f"    #   save -> {dest!r} "
+                             "(no transform stage precedes this save)")
             i += 1
             continue
         if verb in ("assess", "metadata", "sql"):
@@ -165,9 +171,14 @@ def _export_flow(flow: Flow, registry, counter) -> tuple[list[str], str]:
             continue
 
         # --- an algorithm stage: curated verb or the `run` escape hatch ---
+        # Look ahead for a following file `save` to use as this step's OUTPUT. A
+        # `save @conn` (database write) has no processing.run OUTPUT equivalent, so we
+        # leave it for the standalone-save branch to annotate rather than emit a
+        # bogus `OUTPUT='@conn.table'`.
         save_dest = None
-        if i + 1 < len(stages) and stages[i + 1].verb == "save" and stages[i + 1].args:
-            save_dest = stages[i + 1].args[0].split("|", 1)[0]
+        nxt = stages[i + 1] if i + 1 < len(stages) else None
+        if nxt and nxt.verb == "save" and nxt.args and not is_connection_ref(nxt.args[0]):
+            save_dest = nxt.args[0].split("|", 1)[0]
 
         try:
             algorithm, params, input_param, output_param, is_curated = _bind_stage(st, registry)

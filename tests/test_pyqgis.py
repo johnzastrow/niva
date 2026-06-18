@@ -227,6 +227,50 @@ class TestPyqgisConnections(unittest.TestCase):
         with self.assertRaises(OpError):
             niva.flow(f"load @no_such_conn_xyz.homes | save {self.tmp}/x.gpkg")
 
+    def _table_count(self, table):
+        from qgis.core import QgsVectorLayer
+
+        from niva.engine.pyqgis import PyqgisBackend
+
+        _md, connection = PyqgisBackend()._find_connection(self.CONN)
+        layer = QgsVectorLayer(connection.tableUri("", table), table, "spatialite")
+        self.assertTrue(layer.isValid(), f"table {table} did not load")
+        return layer.featureCount()
+
+    def test_save_table_round_trip(self):
+        import niva
+
+        niva.flow(f"load @{self.CONN}.homes | save @{self.CONN}.homes_copy")
+        self.assertEqual(self._table_count("homes_copy"), 2)
+
+    def test_save_table_create_collision_errors(self):
+        import niva
+        from niva.errors import OpError
+
+        with self.assertRaises(OpError):  # `homes` already exists, default mode=create
+            niva.flow(f"load @{self.CONN}.homes | save @{self.CONN}.homes")
+
+    def test_save_table_replace(self):
+        import niva
+
+        niva.flow(f"load @{self.CONN}.homes | save @{self.CONN}.r")
+        niva.flow(f'sql @{self.CONN} "SELECT * FROM homes WHERE id = 1" '
+                  f"| save @{self.CONN}.r mode=replace")
+        self.assertEqual(self._table_count("r"), 1)
+
+    def test_save_table_append(self):
+        import niva
+
+        niva.flow(f"load @{self.CONN}.homes | save @{self.CONN}.a")
+        niva.flow(f"load @{self.CONN}.homes | save @{self.CONN}.a mode=append")
+        self.assertEqual(self._table_count("a"), 4)
+
+    def test_sql_execute_creates_table(self):
+        import niva
+
+        niva.flow(f'sql @{self.CONN} "CREATE TABLE made AS SELECT * FROM homes"')
+        self.assertEqual(self._table_count("made"), 2)
+
 
 class TestFidCollisionSave(unittest.TestCase):
     """Saving a layer that carries an `fid` field to GeoPackage must not fail on the

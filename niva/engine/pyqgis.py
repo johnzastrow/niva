@@ -917,6 +917,149 @@ class PyqgisBackend(Backend):
             )
         return Layer(MEMORY, layer, facet="vector", name="sql")
 
+    def execute_sql(self, conn: str, query: str) -> None:
+        # A non-SELECT statement (DDL/DML) run server-side. As with `run_sql`, the
+        # connection name is logged but the query text is not (it stays in the
+        # provider) — and no credentials are ever in scope.
+        _md, connection = self._find_connection(conn)
+        try:
+            connection.executeSql(query)
+        except Exception as exc:
+            raise OpError(
+                f"SQL statement against connection `{conn}` failed: {exc}",
+                algorithm="sql", params={"connection": conn}, backend="pyqgis",
+            ) from exc
+        return None
+
+    def save_table(self, layer: Layer, conn: str, schema: str | None, table: str, *,
+                   mode: str = "create", lineage: list | None = None) -> Layer:
+        from qgis.core import (
+            QgsDataSourceUri,
+            QgsVectorLayer,
+            QgsVectorLayerExporter,
+        )
+
+        md, connection = self._find_connection(conn)
+        provider = md.key()
+        # Default schema by provider: postgres tables live in `public`; SpatiaLite (and
+        # other file DBs) have no schema, so an empty string lets the provider decide.
+        eff_schema = schema if schema is not None else ("public" if provider == "postgres" else "")
+
+        exists = self._table_exists(connection, eff_schema, table)
+        if mode == "create" and exists:
+            where = f"{eff_schema}.{table}" if eff_schema else table
+            raise OpError(
+                f"table `{where}` already exists on connection `{conn}` — use "
+                "mode=replace or mode=append",
+                algorithm="save", params={"connection": conn, "table": table}, backend="pyqgis",
+            )
+        if mode == "replace" and exists:
+            try:
+                connection.dropVectorTable(eff_schema, table)
+            except Exception as exc:
+                raise OpError(
+                    f"could not replace table `{table}` on connection `{conn}`: {exc}",
+                    algorithm="save", params={"connection": conn, "table": table}, backend="pyqgis",
+                ) from exc
+
+        # Append adds rows to an existing table — the exporter can only *create* one
+        # (every "append"/"update" option still tries to CREATE and fails "table exists"),
+        # so we open the target and add features. Appending to a missing table falls
+        # through to create.
+        if mode == "append" and exists:
+            return self._append_to_table(layer, connection, eff_schema, table, provider, conn)
+
+        # create / replace → export a fresh table.
+        # Build the destination URI from the *live connection* so host/port/dbname and
+        # credentials come from QGIS's store — never from the flow text.
+        geom_col = "geom" if layer.ref.isSpatial() else ""
+        uri = QgsDataSourceUri(connection.uri())
+        uri.setDataSource(eff_schema, table, geom_col)
+
+        res = QgsVectorLayerExporter.exportLayer(
+            layer.ref, uri.uri(False), provider, layer.ref.crs(), False, {"overwrite": True}
+        )
+        # exportLayer returns (resultCode, message); Success == 0. Keep the URI and message
+        # out of the error we raise — they can carry credentials.
+        code = res[0] if isinstance(res, (tuple, list)) else res
+        if int(code) != int(QgsVectorLayerExporter.NoError):
+            raise OpError(
+                f"could not write table `{table}` on connection `{conn}`",
+                algorithm="save", params={"connection": conn, "table": table}, backend="pyqgis",
+            )
+
+        # Record lineage best-effort into the table comment — PostgreSQL only (SQLite /
+        # SpatiaLite and most others have no COMMENT ON TABLE). Never fatal, no credentials.
+        if lineage and provider == "postgres":
+            where = f"{eff_schema}.{table}" if eff_schema else table
+            note = " | ".join(str(x) for x in lineage).replace("'", "''")
+            try:
+                connection.executeSql(f"COMMENT ON TABLE {where} IS '{note}'")
+            except Exception:
+                pass
+
+        # Reload the written table as a live layer so the result stays pipeable.
+        out = QgsVectorLayer(connection.tableUri(eff_schema, table), table, provider)
+        return Layer(DB_TABLE, out if out.isValid() else uri.uri(False),
+                     facet="vector", name=table)
+
+    def _append_to_table(self, layer: Layer, connection, schema: str, table: str,
+                         provider: str, conn: str) -> Layer:
+        """INSERT the source features into an existing DB table (`mode=append`). Maps
+        attributes by field name (the exporter adds a `pk` column, so positions differ)
+        and transforms geometry to the table's CRS if needed. No credentials in scope."""
+        from qgis.core import (
+            QgsCoordinateTransform,
+            QgsCoordinateTransformContext,
+            QgsFeature,
+            QgsGeometry,
+            QgsVectorLayer,
+        )
+
+        dest = QgsVectorLayer(connection.tableUri(schema, table), table, provider)
+        if not dest.isValid():
+            raise OpError(
+                f"could not open table `{table}` on connection `{conn}` to append",
+                algorithm="save", params={"connection": conn, "table": table}, backend="pyqgis",
+            )
+        src = layer.ref
+        dfields = dest.fields()
+        sidx = {f.name(): i for i, f in enumerate(src.fields())}
+        xform = None
+        if src.crs() != dest.crs() and src.crs().isValid() and dest.crs().isValid():
+            xform = QgsCoordinateTransform(src.crs(), dest.crs(), QgsCoordinateTransformContext())
+        rows = []
+        for sf in src.getFeatures():
+            nf = QgsFeature(dfields)
+            geom = sf.geometry()
+            if xform is not None and not geom.isEmpty():
+                geom = QgsGeometry(geom)
+                geom.transform(xform)
+            nf.setGeometry(geom)
+            for di in range(len(dfields)):
+                si = sidx.get(dfields[di].name())
+                if si is not None:
+                    nf.setAttribute(di, sf.attribute(si))
+            rows.append(nf)
+        res = dest.dataProvider().addFeatures(rows)
+        ok = res[0] if isinstance(res, (tuple, list)) else res
+        if not ok:
+            raise OpError(
+                f"could not append to table `{table}` on connection `{conn}`",
+                algorithm="save", params={"connection": conn, "table": table}, backend="pyqgis",
+            )
+        return Layer(DB_TABLE, dest, facet="vector", name=table)
+
+    @staticmethod
+    def _table_exists(connection, schema: str, table: str) -> bool:
+        """True if ``table`` exists in ``schema`` on ``connection``. Best-effort: a
+        provider that can't enumerate tables is treated as 'unknown' → not existing,
+        so `create` falls through to the export (which will still fail loudly)."""
+        try:
+            return any(t.tableName() == table for t in connection.tables(schema))
+        except Exception:
+            return False
+
     def crs_of(self, layer: Layer) -> CrsInfo:
         from qgis.core import Qgis, QgsUnitTypes
 

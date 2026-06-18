@@ -392,7 +392,13 @@ class Engine:
                 f"`sql` takes a bare connection `@{conn}`, not a table reference (`{ref}`)",
                 line=stage.line, stage=stage.raw,
             )
-        return self.backend.run_sql(conn, query)
+        # SELECT-style queries return a layer to pipe; everything else (DDL/DML) runs
+        # server-side as a terminal step. `CREATE TABLE … AS SELECT …` reads as a write
+        # (leading `CREATE`); `WITH … SELECT …` reads as a query (leading `WITH`).
+        if _is_query(query):
+            return self.backend.run_sql(conn, query)
+        self.backend.execute_sql(conn, query)
+        return None
 
     def _save(self, stage, current: Layer | None, lineage: list) -> Layer:
         if current is None:
@@ -400,6 +406,8 @@ class Engine:
                 "`save` has nothing to save — the flow has not loaded a layer yet",
                 line=stage.line, stage=stage.raw,
             )
+        if stage.args and is_connection_ref(stage.args[0]):
+            return self._save_to_db(stage, current, lineage)
         if stage.options:
             raise FlowError(
                 "`save` takes no key=value options — `save <path>` or "
@@ -458,6 +466,73 @@ class Engine:
             self._batch_gpkgs.add(dest)  # compact this container when the batch ends
         return self.backend.save(current, dest, lineage=lineage,
                                  layer_name=layer_name, append=append)
+
+    def _save_to_db(self, stage, current: Layer, lineage: list) -> Layer:
+        # `save @conn[.schema].table [mode=create|replace|append]` — write the current
+        # layer into a database table. Credentials stay in QGIS; the flow passes only
+        # the connection name. Write is fail-closed: `create` errors if the table
+        # already exists (12-security-model §3 — no silent overwrite).
+        ref = stage.args[0]
+        if len(stage.args) != 1:
+            raise FlowError(
+                "a database save takes just `save @conn.table` (with an optional "
+                "`mode=`) — `as <layer>` is for file containers only",
+                line=stage.line, stage=stage.raw,
+            )
+        if "{name}" in ref:
+            raise FlowError(
+                "`{name}` templating works on file paths, not `@conn` targets — in a "
+                "batch, `save @conn` names the table after each item",
+                line=stage.line, stage=stage.raw,
+            )
+        try:
+            conn, schema, table = parse_connection_ref(ref)
+        except ValueError as exc:
+            raise FlowError(f"`save`: {exc}", line=stage.line, stage=stage.raw)
+
+        batch = self._batch_item
+        if batch:
+            # In a batch the table is named after each item, so a single trailing
+            # qualifier is the *schema* to write the tables into (not a table name):
+            # `each "NiagaraBasemap/" | … | save @pg.niagara` → one table per layer in
+            # schema `niagara`; bare `save @pg` → the provider's default schema. A
+            # three-part `@conn.schema.table` would name one table — not allowed when
+            # there's one table per item.
+            if schema is not None:  # @conn.schema.table
+                raise FlowError(
+                    "a batch (`each`) save writes one table per item — drop the table "
+                    f"name and use `save @conn` or `save @conn.<schema>` (got `{ref}`)",
+                    line=stage.line, stage=stage.raw,
+                )
+            schema = table  # the 2-part trailing component, or None for bare `@conn`
+            table = _safe_name(batch)
+        elif table is None:  # bare `@conn` outside a batch
+            raise FlowError(
+                f"`save @conn.table` needs a table name — `{ref}` is a bare connection",
+                line=stage.line, stage=stage.raw,
+            )
+
+        mode = "create"
+        for key, value in stage.options.items():
+            if key != "mode":
+                raise FlowError(
+                    f"a database save takes only `mode=` — got `{key}=`",
+                    line=stage.line, stage=stage.raw,
+                )
+            mode = value
+        if mode not in ("create", "replace", "append"):
+            raise FlowError(
+                f"`mode={mode}` is not valid — use create, replace, or append",
+                line=stage.line, stage=stage.raw,
+            )
+
+        if current.facet == "raster":
+            raise FlowError(
+                "saving rasters to a database is not supported — use a file target",
+                line=stage.line, stage=stage.raw,
+            )
+        return self.backend.save_table(current, conn, schema, table,
+                                       mode=mode, lineage=lineage)
 
     def _metadata(self, stage, current: Layer | None) -> Layer:
         # `metadata set key=value …` — attach descriptive metadata to the current
@@ -751,6 +826,19 @@ def _safe_name(name: str) -> str:
     """Make a batch item name safe to drop into a file path (`{name}` template)."""
     out = "".join(c if (c.isalnum() or c in "-_.") else "_" for c in name)
     return out.strip("._") or "item"
+
+
+# Leading keywords that mean a `sql` statement reads (returns a layer) rather than
+# writes. Anything else (CREATE/UPDATE/INSERT/DROP/…) is a server-side write.
+_QUERY_KEYWORDS = {"SELECT", "WITH", "VALUES", "TABLE", "EXPLAIN", "SHOW"}
+
+
+def _is_query(sql: str) -> bool:
+    """True when ``sql`` is a SELECT-style read (first word is a query keyword)."""
+    stripped = sql.strip()
+    if not stripped:
+        return False
+    return stripped.split(None, 1)[0].upper() in _QUERY_KEYWORDS
 
 
 def _now() -> str:

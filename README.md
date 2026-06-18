@@ -29,8 +29,10 @@ Niva turns QGIS automation from PyQGIS code into a readable single lines of text
   QGIS by `scripts/lint_registry.py`.
 * **Raster and vector output** — `save` writes either (rasters via `gdal:translate`,
   vectors via `QgsVectorFileWriter`, driver chosen by extension).
-* **Databases** via named QGIS connections — `@conn` tables and `sql @conn "…"` —
-  credentials never leave QGIS.
+* **Databases** via named QGIS connections — read (`load @conn.table`,
+  `sql @conn "SELECT …"`), **write** (`save @conn.table`, fail-closed with
+  `mode=create|replace|append`), and **analyse** server-side (non-SELECT
+  `sql @conn "CREATE TABLE … AS SELECT …"`). Credentials never leave QGIS.
 * **Provenance for free** — every `save` records lineage; `assess` writes data-quality
   reports; the run journal echoes the exact `processing.run(…)` for each step.
 * **Composable** — chain stages with `|`, compose files with `call`, and **export a
@@ -97,7 +99,8 @@ niva.flow('load "data.gpkg|layername=roads" | buffer 100m dissolve | save out.gp
 ```
 
 > A GeoPackage holds many layers — name one with `|layername=…`. Databases:
-> `load @conn.table` and `sql @conn "SELECT …"` (credentials stay in QGIS).
+> `load @conn.table`, `sql @conn "SELECT …"`, and write back with `save @conn.table`
+> or a non-SELECT `sql @conn "…"` (credentials stay in QGIS).
 
 
 

@@ -28,7 +28,24 @@ class Backend(abc.ABC):
     @abc.abstractmethod
     def run_sql(self, conn: str, query: str) -> Layer:
         """Run ``query`` against the named QGIS connection and return the result as
-        a query layer."""
+        a query layer. For SELECT-style reads; non-SELECT statements go to
+        ``execute_sql``."""
+
+    @abc.abstractmethod
+    def execute_sql(self, conn: str, query: str) -> None:
+        """Execute a non-SELECT statement (DDL/DML — ``CREATE``/``UPDATE``/``INSERT``/
+        ``DROP``, spatial ``ST_*`` writes) against the named QGIS connection. A
+        terminal step: returns nothing. Credentials stay in QGIS's store; the query
+        text is never logged in errors."""
+
+    @abc.abstractmethod
+    def save_table(self, layer: Layer, conn: str, schema: str | None, table: str, *,
+                   mode: str = "create", lineage: list | None = None) -> Layer:
+        """Write ``layer`` into a table on the named QGIS connection and return a
+        handle to it. ``mode`` is fail-closed: ``create`` errors if the table exists,
+        ``replace`` drops+recreates it, ``append`` INSERTs into it. The destination
+        URI (host/credentials) is built from the live QGIS connection — the flow never
+        sees them. ``lineage`` is recorded best-effort into the table's comment."""
 
     @abc.abstractmethod
     def run(self, algorithm: str, params: dict, *, input_param: str,
@@ -122,6 +139,7 @@ class MockBackend(Backend):
         self.calls: list = []
         self.last_lineage: list = []
         self.saves: list = []  # one dict per save: {dest, layer_name, append}
+        self.db_saves: list = []  # one dict per DB save: {conn, schema, table, mode}
         self.sublayer_map: dict = {}  # source path -> [layer names], for `each` tests
         self._n = 0
 
@@ -158,6 +176,18 @@ class MockBackend(Backend):
         self.calls.append(("sql", conn, query))
         self._n += 1
         return Layer(MEMORY, f"sql-{self._n}", facet="vector", name="sql")
+
+    def execute_sql(self, conn: str, query: str) -> None:
+        self.calls.append(("execute_sql", conn, query))
+        return None
+
+    def save_table(self, layer: Layer, conn: str, schema: str | None, table: str, *,
+                   mode: str = "create", lineage: list | None = None) -> Layer:
+        self.calls.append(("save_table", conn, schema, table, mode))
+        self.db_saves.append({"conn": conn, "schema": schema, "table": table, "mode": mode})
+        self.last_lineage = list(lineage) if lineage else []
+        ref = f"@{conn}." + (f"{schema}.{table}" if schema else table)
+        return Layer(DB_TABLE, ref, facet="vector", name=table)
 
     def profile(self, layer: Layer, deep: bool = False) -> dict:
         self.calls.append(("assess", layer.name, deep))

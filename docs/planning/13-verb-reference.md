@@ -31,8 +31,12 @@ round tables.
 - **SQL** — `sql` has **three forms/engines** (query-layer / `gdal:executesql` /
   `qgis:executesql`); the write-only `*executesql` algorithms are **not** the read
   path [§8]; a `SELECT` isn't self-describing (`key=`/`geom=`/`crs=`) [§8]; inputs
-  are `input1`, `input2` [§8]; v1 is **read-only** (top-level `SELECT`, read-only
-  txn) [§8]; prefer `ST_*` in-query for DB-resident data [§8].
+  are `input1`, `input2` [§8]; prefer `ST_*` in-query for DB-resident data [§8].
+  **As of v0.17.0 `sql @conn` also runs non-SELECT statements** (DDL/DML) server-side
+  as a terminal step; the leading keyword routes read vs. write [§8].
+- **DB write** — `save @conn[.schema].table` writes the result into a database table
+  (v0.17.0); **fail-closed** (`mode=create` errors if it exists; `mode=replace`/
+  `mode=append` otherwise); credentials stay in QGIS [§3 (save), §8].
 - **`call`** — a **statement, not a pipeable stage**; files share data only via
   `save`/`add` (no shared layer) [§9]; `call` target is caller-relative, data paths
   are run-`work_dir` [§9]; cycles error + max-depth [§9].
@@ -356,13 +360,43 @@ Buffers **server-side** (`ST_Buffer`, indexed, no client pull) — far faster on
 data (Oscar L4). The grammar makes both one line; niva should *teach* the second
 for DB-resident data.
 
+### Write & analyse in the database (v0.17.0)
+
+The same security boundary that makes reads safe (the connection **name** is all niva
+sees; QGIS owns the credentials) now also covers writes.
+
+**Write a result into a table** — `save @conn[.schema].table`:
+```
+load roads.gpkg | clip aoi.gpkg | save @pg.public.roads_clip
+```
+- The destination URI (host/database/login) is built from the **live** connection, so
+  no credential ever appears in the flow, the log, or an error message.
+- **Fail-closed.** `save` defaults to `mode=create` and **errors if the table exists** —
+  matching "no silent overwrite of an input" (`12-§3`). Use `mode=replace` (drop +
+  recreate) or `mode=append` (INSERT into the existing table) to opt in.
+- In an `each` batch, `save @conn` writes **one table per item**, named after the item.
+  A trailing qualifier is the **schema** to write them into (there is no single table to
+  name): `each "NiagaraBasemap/" | … | save @pg.niagara` puts each layer in schema
+  `niagara`; bare `save @pg` uses the provider's default schema. (`@conn.schema.table`
+  is rejected in a batch — that names one table.)
+- Rasters to a database are out of scope for v1 — use a file target.
+
+**Analyse server-side** — `sql @conn "<non-SELECT>"`:
+```
+sql @pg "CREATE TABLE roads_buf AS SELECT id, ST_Buffer(geom, 100) AS geom FROM roads"
+```
+- A SELECT-style statement (`SELECT`/`WITH`/`VALUES`/`TABLE`/`EXPLAIN`/`SHOW`) still
+  returns a **pipeable layer**; anything else (DDL/DML) runs as a **terminal** step and
+  returns nothing. The **leading keyword** decides: `CREATE TABLE … AS SELECT …` runs as
+  a write, `WITH … SELECT …` as a read.
+
 ### Issues this round surfaced
 | # | What surfaced | Verdict |
 |---|---------------|---------|
 | 11 | **Three forms, three mechanisms** — and the `*executesql` algorithms are **write-only** (no output), so a `SELECT` does *not* use them; reads use a query layer / `gdal:executesql` / `qgis:executesql`. | **fixed** — `03-§2.6`; `06-§4` corrected |
 | 12 | **A SELECT result isn't self-describing.** Virtual-layer SQL **requires** uid + geometry + geometry-type + **CRS**; a DB query layer needs a unique key + geometry column. | **spec'd** — auto-detect, else `sql … key= geom= crs=` (`03-§2.6`) |
 | 13 | **Table naming.** Bare `sql` references the piped/loaded layers as **`input1`**, `input2`, … (QGIS convention). | **spec'd** — `03-§2.6` |
-| 14 | **Read-only detection for v1.** "Starts with SELECT" misses `WITH … SELECT` / `SELECT … INTO` / side-effecting functions. | **spec'd** — allow top-level `SELECT`/`WITH … SELECT`, run in a **read-only transaction**; else "writes are v2" (`03-§2.6`) |
+| 14 | **Read vs. write routing.** "Starts with SELECT" misses `WITH … SELECT`; and writes were deferred. | **shipped (v0.17.0)** — leading keyword routes read (`SELECT`/`WITH`/`VALUES`/`TABLE`/`EXPLAIN`/`SHOW` → query layer) vs. write (everything else → terminal `execute_sql`); see "Write & analyse" above |
 | 15 | **The round-trip pulls data client-side**, losing the DB index/planner. | **guidance** — prefer `ST_*` in the query for DB data (Oscar L4) |
 | 16 | **Result CRS** = the geometry SRID (a `ST_Transform` changes it); virtual SQL must **declare** it. | **spec'd** — `03-§2.6` |
 | 17 | **`sql` syntax had drifted** — doc `06` used `use @conn` + `\| load`; doc `03` used `sql @conn`. | **fixed** — canonical `sql @conn "…"` everywhere; `06-§4.4` corrected |

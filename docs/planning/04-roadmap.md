@@ -128,9 +128,11 @@ Extends the grammar without breaking v1 flows.
 - **Variables / parameters** in `.niva` scripts, and **parameterized `call`**
   (pass values / the current layer into a called file) — reusable macros
   (`03-§4.1`), guarded so the common case still reads like prose.
-- **SQL writes & connection management** (`06-§4`, `03-§6`): `UPDATE`/`DELETE`/
-  `CREATE`, import-to-PostGIS/SpatiaLite, managing `@connections`; exit code `4`
-  (connection/SQL). (Read passthrough already shipped in v0.1.)
+- **SQL writes & connection management** (`06-§4`, `03-§6`): ~~`UPDATE`/`DELETE`/
+  `CREATE`, import-to-PostGIS/SpatiaLite~~, managing `@connections`; exit code `4`
+  (connection/SQL). (Read passthrough shipped in v0.1; **write/analyse shipped in
+  v0.17.0** — `save @conn.table` with `mode=create|replace|append` and non-SELECT
+  `sql @conn "…"`. Still ahead: in-app `@connection` *management*.)
 - **Quality rules / constraints** (`08-§6`): assert conditions and fail a flow on
   bad data; metadata templates; catalog/search integration
   (`QgsLayerMetadataProviderRegistry`).

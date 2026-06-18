@@ -7,6 +7,27 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.17.0] - 2026-06-18
+
+### Added
+- **Write to a database with `save @conn[.schema].table`.** A flow can now persist its
+  result into a PostGIS/SpatiaLite table on a named QGIS connection, not just a file —
+  `load roads.gpkg | clip aoi.gpkg | save @pg.public.roads_clip`. Writing is
+  **fail-closed**: `save` creates a new table and errors if it already exists, unless you
+  ask for `mode=replace` (drop + recreate) or `mode=append` (INSERT into the existing
+  table). In an `each` batch, `save @conn` writes one table per item, named after the
+  item; a trailing qualifier names the **schema** to write them into
+  (`each "NiagaraBasemap/" | … | save @pg.niagara`).
+  As with reads, **credentials never leave QGIS** — the destination URI (host, database,
+  login) is built from the live connection, and the connection name is all niva ever sees;
+  errors never echo the URI or query text.
+- **Run non-SELECT SQL with `sql @conn "…"`.** `sql` now executes server-side
+  analysis/DDL/DML — `CREATE TABLE … AS SELECT …`, `UPDATE`, `INSERT`, `DROP`, spatial
+  `ST_*` writes — as a terminal step. SELECT-style queries (`SELECT`/`WITH`/`VALUES`/
+  `TABLE`/`EXPLAIN`/`SHOW`) keep returning a layer to pipe, exactly as before; the leading
+  keyword decides the route, so `CREATE TABLE … AS SELECT …` correctly runs as a write
+  while `WITH … SELECT …` is read as a query.
+
 ## [0.16.3] - 2026-06-17
 
 ### Fixed
