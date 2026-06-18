@@ -289,33 +289,32 @@ class Engine:
 
     # --- per-stage dispatch --------------------------------------------------
 
+    # Built-in verbs — everything not backed by the alias registry. One entry per verb:
+    # the adapter hands each handler exactly the context it needs (the piped `current`
+    # layer, and the `lineage` accumulated so far). Adding a built-in verb is one line
+    # here plus its `_<verb>` method — see docs/planning/16-anatomy-of-a-verb.md.
+    _BUILTIN_VERBS = {
+        "load":     lambda self, stage, current, lineage: self._load(stage),
+        "save":     lambda self, stage, current, lineage: self._save(stage, current, lineage),
+        "sql":      lambda self, stage, current, lineage: self._sql(stage),
+        "metadata": lambda self, stage, current, lineage: self._metadata(stage, current),
+        "assess":   lambda self, stage, current, lineage: self._assess(stage, current),
+        "run":      lambda self, stage, current, lineage: self._run_raw(stage, current),
+        "notify":   lambda self, stage, current, lineage: self._notify(stage, current),
+        "email":    lambda self, stage, current, lineage: self._email(stage, current),
+        "catalog":  lambda self, stage, current, lineage: self._catalog(stage),
+        "project":  lambda self, stage, current, lineage: self._project(stage),
+        "split":    lambda self, stage, current, lineage: self._split(stage, current),
+    }
+
     def _run_stage(self, stage, current: Layer | None, lineage: list) -> Layer | None:
         self._pending_call = None  # set only when this stage actually runs an algorithm
         if hasattr(self.backend, "_note"):
             self.backend._note = None  # a per-op handling notice (e.g. mixed geometry)
         verb = stage.verb
-        if verb == "load":
-            return self._load(stage)
-        if verb == "save":
-            return self._save(stage, current, lineage)
-        if verb == "sql":
-            return self._sql(stage)
-        if verb == "metadata":
-            return self._metadata(stage, current)
-        if verb == "assess":
-            return self._assess(stage, current)
-        if verb == "run":
-            return self._run_raw(stage, current)
-        if verb == "notify":
-            return self._notify(stage, current)
-        if verb == "email":
-            return self._email(stage, current)
-        if verb == "catalog":
-            return self._catalog(stage)
-        if verb == "project":
-            return self._project(stage)
-        if verb == "split":
-            return self._split(stage, current)
+        handler = self._BUILTIN_VERBS.get(verb)
+        if handler is not None:
+            return handler(self, stage, current, lineage)
         if verb == "each":
             raise FlowError(
                 "`each` must be the first stage of a flow — `each \"<dir>\" | … | save out.gpkg`",

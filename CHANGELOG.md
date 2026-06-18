@@ -7,6 +7,20 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.18.2] - 2026-06-18
+
+### Changed
+- **Built-in verb dispatch is now a registry** (`Engine._BUILTIN_VERBS`) instead of a
+  hand-maintained `if verb == …` chain. Behaviour is identical; adding a built-in verb is
+  now one line plus its method. Paves the road for the verbs still on the roadmap.
+
+### Docs
+- **New: [`docs/planning/16-anatomy-of-a-verb.md`](docs/planning/16-anatomy-of-a-verb.md)**
+  — the paved road for adding verbs: alias vs built-in, the built-in checklist and
+  conventions (errors, paths, credentials, journal, off-main-thread), and the **two-tier
+  test mandate** (a MockBackend test for logic + a live-QGIS test for behaviour — the
+  latter is what catches real backend bugs), with lifecycle diagrams.
+
 ## [0.18.1] - 2026-06-18
 
 ### Fixed
