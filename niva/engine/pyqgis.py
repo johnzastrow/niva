@@ -1157,6 +1157,44 @@ class PyqgisBackend(Backend):
         emit(f"   project written → {dest} ({counts['repointed']} repointed, "
              f"{counts['kept']} kept, {counts['dropped']} dropped)")
 
+    def create_project(self, layers: list, dest: str, *, crs: str | None = None,
+                       title: str | None = None, progress=None) -> None:
+        # Standalone QgsProject (never the GUI singleton) — safe on the worker thread.
+        from qgis.core import QgsCoordinateReferenceSystem, QgsProject
+
+        proj = QgsProject()
+        added = 0
+        for uri in layers:
+            try:
+                lyr = self.load(uri)  # reuse load's vector/raster detection
+            except OpError as exc:
+                if progress:
+                    progress(f"   ⚠ skipped `{uri}`: {exc}")
+                continue
+            name = self._layer_source_name(lyr.ref)  # |layername= or file stem
+            lyr.ref.setName(name)
+            proj.addMapLayer(lyr.ref)  # the project takes ownership
+            added += 1
+            if progress:
+                progress(f"   added `{name}`")
+        if added == 0:
+            raise OpError("`project new`: none of the sources could be loaded",
+                          algorithm="project", params={"dest": dest}, backend="pyqgis")
+        if crs:
+            ref = QgsCoordinateReferenceSystem(str(crs))
+            if ref.isValid():
+                proj.setCrs(ref)
+        if title:
+            proj.setTitle(str(title))
+        parent = os.path.dirname(dest)
+        if parent:
+            os.makedirs(parent, exist_ok=True)
+        if not proj.write(dest):
+            raise OpError(f"could not write project `{dest}`",
+                          algorithm="project", params={"dest": dest}, backend="pyqgis")
+        if progress:
+            progress(f"   created project → {dest} ({added} layer(s))")
+
     def _repoint_target(self, target: str):
         """Resolve a repoint ``target`` into ``(resolve, available)``: ``resolve(name)``
         returns ``(new_uri, provider)`` for a layer named ``name``, and ``available`` is

@@ -7,6 +7,16 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.21.0] - 2026-06-18
+
+### Added
+- **`project new from=<dir|glob> to=<out.qgs>` — create a project from outputs.** The
+  complement to repointing: instead of editing an existing project, `project new` writes a
+  fresh QGIS project (`.qgs`/`.qgz`) that loads every layer found under `from=` — a
+  directory, glob, or multi-layer container, resolved like `each` (GeoPackages expanded per
+  layer) — with optional `crs=` and `title=`. Closes the compile loop (clip → save →
+  *generate* a ready-to-open project).
+
 ## [0.20.0] - 2026-06-18
 
 ### Added

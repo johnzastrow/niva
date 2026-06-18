@@ -199,12 +199,23 @@ class Engine:
         """Resolve `each <source>` to an ordered list of (name, load-uri): a glob of
         files, a directory (recursed), or a single file. Multi-layer containers
         (GeoPackages) expand to one item per layer."""
-        from ..utilities import CATALOG_MULTILAYER_EXTS, facet_for_ext
-
         if not stage.args:
             raise FlowError('`each` needs a source: `each "<dir>"`, `each "<glob>"`, '
                             "or `each <file.gpkg>`", line=stage.line, stage=stage.raw)
-        raw = os.path.expanduser(stage.args[0])
+        items = self._resolve_sources(stage.args[0], verb="each",
+                                      line=stage.line, raw=stage.raw)
+        if not items:
+            raise FlowError(f"`each`: no geospatial datasets found in `{stage.args[0]}`",
+                            line=stage.line, stage=stage.raw)
+        return items
+
+    def _resolve_sources(self, source: str, *, verb: str, line: int, raw: str) -> list:
+        """Resolve a directory / glob / file ``source`` to ordered (name, load-uri) items,
+        expanding a multi-layer container (GeoPackage) to one item per layer. Shared by
+        `each` and `project new` (``verb`` only labels the errors)."""
+        from ..utilities import CATALOG_MULTILAYER_EXTS, facet_for_ext
+
+        src = os.path.expanduser(source)
         items: list = []
 
         def add(path):
@@ -218,26 +229,21 @@ class Engine:
                     return
             items.append((os.path.splitext(os.path.basename(path))[0], path))
 
-        if any(c in raw for c in "*?["):  # glob pattern
-            matches = sorted(glob.glob(raw))
+        if any(c in src for c in "*?["):  # glob pattern
+            matches = sorted(glob.glob(src))
             if not matches:
-                raise FlowError(f"`each`: no files match `{stage.args[0]}`",
-                                line=stage.line, stage=stage.raw)
+                raise FlowError(f"`{verb}`: no files match `{source}`", line=line, stage=raw)
             for m in matches:
                 if os.path.isfile(m):
                     add(m)
-        elif os.path.isdir(raw):  # recurse a directory
-            for dirpath, _dirs, files in os.walk(raw):
+        elif os.path.isdir(src):  # recurse a directory
+            for dirpath, _dirs, files in os.walk(src):
                 for fn in sorted(files):
                     add(os.path.join(dirpath, fn))
-        elif os.path.isfile(raw):  # a single file (maybe multi-layer)
-            add(raw)
+        elif os.path.isfile(src):  # a single file (maybe multi-layer)
+            add(src)
         else:
-            raise FlowError(f"`each`: no such file or directory: {raw}",
-                            line=stage.line, stage=stage.raw)
-        if not items:
-            raise FlowError(f"`each`: no geospatial datasets found in `{stage.args[0]}`",
-                            line=stage.line, stage=stage.raw)
+            raise FlowError(f"`{verb}`: no such file or directory: {src}", line=line, stage=raw)
         return items
 
     def _record(self, stage, text, *, ok, t0, error=None) -> None:
@@ -786,6 +792,8 @@ class Engine:
         (a GeoPackage path or an `@conn[.schema]` database connection), matched by layer
         name with subset filters preserved. Terminal: writes a project file, returns no
         pipeable layer (roadmap §"project & layer file manipulation")."""
+        if stage.args and stage.args[0] == "new":
+            return self._project_new(stage)
         if len(stage.args) != 1:
             raise FlowError(
                 "`project` takes one source project — "
@@ -855,6 +863,42 @@ class Engine:
                             line=stage.line, stage=stage.raw)
         self.backend.style_layer(current, action, path)
         return current  # pass-through
+
+    def _project_new(self, stage) -> Layer | None:
+        """`project new from=<dir|glob> to=<out.qgs|qgz> [crs=… title=…]` — create a fresh
+        QGIS project that loads every layer found under `from=` (a directory, glob, or
+        multi-layer container, like `each`). The complement to repointing: build a project
+        for freshly compiled outputs without needing an existing one. Terminal."""
+        if len(stage.args) != 1:  # just the `new` keyword
+            raise FlowError("`project new` takes options only — "
+                            "`project new from=<dir> to=<out.qgs> [crs= title=]`",
+                            line=stage.line, stage=stage.raw)
+        extra = [k for k in stage.options if k not in ("from", "to", "crs", "title")]
+        if extra:
+            raise FlowError(
+                f"`project new` takes `from=`, `to=`, `crs=`, `title=` — got `{extra[0]}=`",
+                line=stage.line, stage=stage.raw)
+        source = stage.options.get("from")
+        out = stage.options.get("to")
+        if not source:
+            raise FlowError("`project new` needs `from=<dir|glob>`",
+                            line=stage.line, stage=stage.raw)
+        if not out:
+            raise FlowError("`project new` needs `to=<out.qgs>`",
+                            line=stage.line, stage=stage.raw)
+        out = os.path.expanduser(out)
+        if os.path.splitext(out)[1].lower() not in (".qgs", ".qgz"):
+            raise FlowError(f"`project new` writes a .qgs or .qgz — `{out}` is neither",
+                            line=stage.line, stage=stage.raw)
+        items = self._resolve_sources(source, verb="project new",
+                                      line=stage.line, raw=stage.raw)
+        if not items:
+            raise FlowError(f"`project new`: no geospatial datasets found in `{source}`",
+                            line=stage.line, stage=stage.raw)
+        layers = [uri for _name, uri in items]
+        self.backend.create_project(layers, out, crs=stage.options.get("crs"),
+                                    title=stage.options.get("title"), progress=self._emit)
+        return None  # terminal
 
     def _expand_value(self, value: str, stage):
         """A `run` option value, with **`~` and glob expansion**. A `;`-joined value

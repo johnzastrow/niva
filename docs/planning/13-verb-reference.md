@@ -390,6 +390,15 @@ sql @pg "CREATE TABLE roads_buf AS SELECT id, ST_Buffer(geom, 100) AS geom FROM 
   returns nothing. The **leading keyword** decides: `CREATE TABLE … AS SELECT …` runs as
   a write, `WITH … SELECT …` as a read.
 
+**Create a project from outputs** — `project new from=<dir|glob> to=<out.qgs|qgz>` (v0.21.0):
+```
+project new from="data/" to="region.qgs" crs=EPSG:6346 title="Niagara Region"
+```
+Writes a fresh QGIS project that loads every layer found under `from=` (a directory, glob,
+or multi-layer container — resolved like `each`, GeoPackages expanded per layer), optionally
+setting the project CRS and title. The complement to repointing: build a ready-to-open
+project for freshly compiled outputs without needing one to already exist. Terminal.
+
 **Repoint a project** — `project <src.qgs|qgz> to=<out> repoint=<target>` (v0.18.0):
 ```
 project "NiagaraBasemap/data.qgs" to="data/basemap.qgs" repoint="data/basemap_clip.gpkg" missing=keep

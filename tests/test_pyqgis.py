@@ -590,6 +590,21 @@ class TestPyqgisProject(unittest.TestCase):
         niva.flow(f'project "{rsrc}" to="{out}" repoint="{self.consolidated}" missing=keep')
         self.assertIn(os.path.join("rold", "dem.tif"), self._reload(out)[0].source())
 
+    def test_project_new_from_dir(self):
+        import niva
+
+        outs = os.path.join(self.tmp, "outs")
+        os.makedirs(outs)
+        _write_points(os.path.join(outs, "a.gpkg"), "EPSG:4326", [(1, 1), (2, 2)])
+        _write_raster(os.path.join(outs, "dem.tif"))
+        proj_out = os.path.join(self.tmp, "new.qgs")
+        niva.flow(f'project new from="{outs}" to="{proj_out}" crs=EPSG:6346 title="Region"')
+        layers = self._reload(proj_out)  # keeps the project alive via self._p
+        self.assertEqual(sorted(layer.name() for layer in layers), ["a", "dem"])
+        self.assertTrue(all(layer.isValid() for layer in layers))
+        self.assertEqual(self._p.crs().authid(), "EPSG:6346")
+        self.assertEqual(self._p.title(), "Region")
+
 
 class TestPyqgisStyle(unittest.TestCase):
     """`style` — apply/save a layer's .qml style (real symbology round-trip)."""

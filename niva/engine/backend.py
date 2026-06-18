@@ -105,6 +105,12 @@ class Backend(abc.ABC):
         ``apply`` a sidecar to it (persisting the style so QGIS picks it up). ``path``
         ends ``.qml`` (symbology) or ``.qmd`` (metadata). The `style` verb."""
 
+    @abc.abstractmethod
+    def create_project(self, layers: list, dest: str, *, crs: str | None = None,
+                       title: str | None = None, progress=None) -> None:
+        """Write a new QGIS project at ``dest`` loading each layer URI in ``layers``,
+        optionally setting the project CRS and title. The `project new` form."""
+
     def sublayers(self, source: str) -> list:
         """List the layer names inside a multi-layer container (e.g. a GeoPackage),
         for ``catalog``. Returns ``[]`` for a single-layer source (the default) — a
@@ -211,6 +217,10 @@ class MockBackend(Backend):
 
     def style_layer(self, layer: Layer, action: str, path: str) -> None:
         self.calls.append(("style", action, path))
+
+    def create_project(self, layers: list, dest: str, *, crs: str | None = None,
+                       title: str | None = None, progress=None) -> None:
+        self.calls.append(("create_project", list(layers), dest, crs, title))
 
     def profile(self, layer: Layer, deep: bool = False) -> dict:
         self.calls.append(("assess", layer.name, deep))

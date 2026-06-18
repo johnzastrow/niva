@@ -58,6 +58,44 @@ class TestProjectVerb(unittest.TestCase):
         with self.assertRaises(FlowError):
             _run(self._flow(f'to="{self.out}" repoint="t.gpkg" rasters="{self.tmp}/nope"'))
 
+    def _outputs_dir(self, *names):
+        d = os.path.join(self.tmp, "outs")
+        os.makedirs(d, exist_ok=True)
+        for n in names:
+            open(os.path.join(d, n), "w").close()
+        return d
+
+    def test_new_records_create_project(self):
+        d = self._outputs_dir("a.gpkg", "b.gpkg")
+        out = os.path.join(self.tmp, "new.qgs")
+        backend = _run(f'project new from="{d}" to="{out}" crs=EPSG:4326 title="Region"')
+        call = backend.calls[-1]
+        self.assertEqual(call[0], "create_project")
+        self.assertEqual(sorted(os.path.basename(u) for u in call[1]), ["a.gpkg", "b.gpkg"])
+        self.assertEqual(call[2], out)
+        self.assertEqual(call[3], "EPSG:4326")  # crs
+        self.assertEqual(call[4], "Region")     # title
+
+    def test_new_needs_from(self):
+        with self.assertRaises(FlowError):
+            _run(f'project new to="{self.tmp}/x.qgs"')
+
+    def test_new_needs_to(self):
+        d = self._outputs_dir("a.gpkg")
+        with self.assertRaises(FlowError):
+            _run(f'project new from="{d}"')
+
+    def test_new_to_must_be_a_project(self):
+        d = self._outputs_dir("a.gpkg")
+        with self.assertRaises(FlowError):
+            _run(f'project new from="{d}" to="{self.tmp}/x.gpkg"')
+
+    def test_new_empty_source_is_error(self):
+        d = os.path.join(self.tmp, "empty")
+        os.makedirs(d)
+        with self.assertRaises(FlowError):
+            _run(f'project new from="{d}" to="{self.tmp}/x.qgs"')
+
     def test_bad_missing_is_error(self):
         with self.assertRaises(FlowError):
             _run(self._flow(f'to="{self.out}" repoint="t.gpkg" missing=maybe'))
