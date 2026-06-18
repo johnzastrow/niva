@@ -56,8 +56,10 @@ front-end/provenance tracks ran ahead. Where things really stand:
 - **Shipped (v0.19.0) — raster-layer repointing in `project`.** `project … rasters=<dir>`
   repoints raster layers (DEM, orthophoto) to a same-basename file in `<dir>` via the
   `gdal` provider, alongside the vector `repoint=` target.
-- **Still planned — layer sidecars:** read/write/apply `.qml` styles and `.qmd` metadata
-  (a `style` verb).
+- **Shipped (v0.20.0) — `style` verb: layer styles & metadata.** `style apply <file>` /
+  `style save <file>` apply or export a `.qml` (symbology) / `.qmd` (metadata) sidecar for
+  the current layer, persisting an applied style into a GeoPackage's `layer_styles` table
+  or a same-basename sidecar. Remaining: `apply` to a database-backed layer.
 - **Still ahead:** richer `filter` (IN/LIKE/NULL), `qgis_process` backend, grammar
   freeze + PyPI (v1.0), named intermediates / SQL writes / quality rules (v2.0).
 

@@ -591,5 +591,56 @@ class TestPyqgisProject(unittest.TestCase):
         self.assertIn(os.path.join("rold", "dem.tif"), self._reload(out)[0].source())
 
 
+class TestPyqgisStyle(unittest.TestCase):
+    """`style` — apply/save a layer's .qml style (real symbology round-trip)."""
+
+    def setUp(self):
+        from qgis.core import QgsVectorLayer
+
+        self.tmp = tempfile.mkdtemp(prefix="niva_sty_")
+        self.gpkg = os.path.join(self.tmp, "roads.gpkg")
+        _write_points(self.gpkg, "EPSG:4326", [(1, 1), (2, 2)])
+        # A .qml carrying a distinctive style (layer opacity 0.37).
+        lay = QgsVectorLayer(f"{self.gpkg}|layername=roads", "r", "ogr")
+        lay.setOpacity(0.37)
+        self.qml = os.path.join(self.tmp, "house.qml")
+        lay.saveNamedStyle(self.qml)
+
+    def _opacity(self, uri):
+        from qgis.core import QgsVectorLayer
+
+        return round(QgsVectorLayer(uri, "x", "ogr").opacity(), 3)
+
+    def test_save_style_to_file(self):
+        import niva
+
+        out = os.path.join(self.tmp, "out.qml")
+        niva.flow(f'load "{self.gpkg}|layername=roads" | style save "{out}"')
+        self.assertTrue(os.path.isfile(out))
+
+    def test_apply_to_gpkg_persists_in_style_table(self):
+        import niva
+
+        niva.flow(f'load "{self.gpkg}|layername=roads" | style apply "{self.qml}"')
+        # a freshly loaded layer adopts the stored default style
+        self.assertEqual(self._opacity(f"{self.gpkg}|layername=roads"), 0.37)
+
+    def test_apply_to_single_file_writes_sidecar(self):
+        import niva
+
+        shp = os.path.join(self.tmp, "pts.shp")
+        niva.flow(f'load "{self.gpkg}|layername=roads" | save "{shp}"')
+        niva.flow(f'load "{shp}" | style apply "{self.qml}"')
+        self.assertTrue(os.path.isfile(os.path.join(self.tmp, "pts.qml")))  # sidecar
+        self.assertEqual(self._opacity(shp), 0.37)  # QGIS auto-loads the sidecar
+
+    def test_save_metadata_qmd(self):
+        import niva
+
+        out = os.path.join(self.tmp, "roads.qmd")
+        niva.flow(f'load "{self.gpkg}|layername=roads" | style save "{out}"')
+        self.assertTrue(os.path.isfile(out))
+
+
 if __name__ == "__main__":
     unittest.main()

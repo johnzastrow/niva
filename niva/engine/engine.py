@@ -304,6 +304,7 @@ class Engine:
         "email":    lambda self, stage, current, lineage: self._email(stage, current),
         "catalog":  lambda self, stage, current, lineage: self._catalog(stage),
         "project":  lambda self, stage, current, lineage: self._project(stage),
+        "style":    lambda self, stage, current, lineage: self._style(stage, current),
         "split":    lambda self, stage, current, lineage: self._split(stage, current),
     }
 
@@ -831,6 +832,29 @@ class Engine:
         self.backend.repoint_project(src, out, target=target, missing=missing,
                                      rasters=rasters, progress=self._emit)
         return None  # terminal
+
+    def _style(self, stage, current: Layer | None) -> Layer | None:
+        """`style apply <file>` / `style save <file>` — apply a `.qml` (symbology) or
+        `.qmd` (metadata) sidecar to the current layer, persisting it so QGIS picks it up;
+        or save the current layer's style/metadata to a sidecar file. Pass-through, so it
+        chains after `save`: `… | save out.gpkg | style apply house.qml`."""
+        if current is None:
+            raise FlowError("`style` operates on the loaded layer — load one first",
+                            line=stage.line, stage=stage.raw)
+        if stage.options or len(stage.args) != 2 or stage.args[0] not in ("apply", "save"):
+            raise FlowError("`style` takes `style apply <file>` or `style save <file>` "
+                            "(a .qml style or .qmd metadata sidecar)",
+                            line=stage.line, stage=stage.raw)
+        action = stage.args[0]
+        path = os.path.expanduser(stage.args[1])
+        if os.path.splitext(path)[1].lower() not in (".qml", ".qmd"):
+            raise FlowError("`style` works with a `.qml` (style) or `.qmd` (metadata) file "
+                            f"— `{path}` is neither", line=stage.line, stage=stage.raw)
+        if action == "apply" and not os.path.isfile(path):
+            raise FlowError(f"`style apply`: not a file: {path}",
+                            line=stage.line, stage=stage.raw)
+        self.backend.style_layer(current, action, path)
+        return current  # pass-through
 
     def _expand_value(self, value: str, stage):
         """A `run` option value, with **`~` and glob expansion**. A `;`-joined value

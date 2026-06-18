@@ -99,6 +99,12 @@ class Backend(abc.ABC):
         ``missing`` (``fail`` | ``keep`` | ``drop``) governs a layer absent from its
         target. The `project` verb; never silently breaks a project file."""
 
+    @abc.abstractmethod
+    def style_layer(self, layer: Layer, action: str, path: str) -> None:
+        """``save`` the current layer's style/metadata to the sidecar ``path``, or
+        ``apply`` a sidecar to it (persisting the style so QGIS picks it up). ``path``
+        ends ``.qml`` (symbology) or ``.qmd`` (metadata). The `style` verb."""
+
     def sublayers(self, source: str) -> list:
         """List the layer names inside a multi-layer container (e.g. a GeoPackage),
         for ``catalog``. Returns ``[]`` for a single-layer source (the default) — a
@@ -202,6 +208,9 @@ class MockBackend(Backend):
     def repoint_project(self, src: str, dest: str, *, target: str, missing: str,
                         rasters: str | None = None, progress=None) -> None:
         self.calls.append(("repoint_project", src, dest, target, missing, rasters))
+
+    def style_layer(self, layer: Layer, action: str, path: str) -> None:
+        self.calls.append(("style", action, path))
 
     def profile(self, layer: Layer, deep: bool = False) -> dict:
         self.calls.append(("assess", layer.name, deep))

@@ -7,6 +7,19 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.20.0] - 2026-06-18
+
+### Added
+- **`style` verb — apply or save a layer's `.qml` style / `.qmd` metadata.**
+  `style apply <file>` loads a `.qml` (symbology) or `.qmd` (metadata) sidecar, applies it
+  to the current layer, and **persists** it so QGIS shows it: a GeoPackage layer's style
+  goes into the container's `layer_styles` table (a re-loaded layer adopts it as the
+  default); a single-file layer (`.shp`/`.tif`) gets a same-basename sidecar QGIS
+  auto-loads. `style save <file>` exports the current layer's style/metadata to a sidecar
+  instead. Both are **pass-through**, so `style` chains after `save`:
+  `… | save roads_clip.gpkg | style apply house.qml`. `apply` needs a file-backed layer
+  (save first); applying to a database-backed layer is not supported yet.
+
 ## [0.19.0] - 2026-06-18
 
 ### Added

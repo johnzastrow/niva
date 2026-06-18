@@ -406,7 +406,19 @@ break a project), `keep` (leave it), or `drop` (remove it). This is the last pie
 not the vector container/DB, so each raster is repointed to a **same-basename file in
 `<dir>`** (e.g. a project's `dem.tif` → `<dir>/dem.tif`), via the `gdal` provider. Without
 `rasters=`, raster layers are left unchanged; with it, an unmatched raster follows the same
-`missing=` policy. `.qml`/`.qmd` sidecars are still ahead (`04-roadmap`).
+`missing=` policy.
+
+**Style a layer** — `style apply <file>` / `style save <file>` (v0.20.0):
+```
+load roads.gpkg | clip aoi.gpkg | save roads_clip.gpkg | style apply house.qml
+```
+Applies a `.qml` (symbology) or `.qmd` (metadata) sidecar to the current layer and
+**persists** it so QGIS shows it: a GeoPackage layer's style goes into the container's
+`layer_styles` table (a re-loaded layer adopts it as default); a single-file layer gets a
+same-basename `.qml`/`.qmd` sidecar QGIS auto-loads. `style save <file>` exports the current
+layer's style/metadata to a sidecar instead. Both are **pass-through**, so `style` chains
+after `save` (which returns the saved layer). `apply` needs a file-backed layer — save
+first. (`apply` to a database-backed layer isn't supported yet.)
 
 ### Issues this round surfaced
 | # | What surfaced | Verdict |

@@ -1206,6 +1206,54 @@ class PyqgisBackend(Backend):
         path = src.split("|", 1)[0]
         return os.path.splitext(os.path.basename(path))[0]
 
+    # --- layer styles / metadata (the `style` verb) ------------------------------
+
+    def style_layer(self, layer: Layer, action: str, path: str) -> None:
+        ml = layer.ref
+        is_meta = path.lower().endswith(".qmd")
+        kind = "metadata" if is_meta else "style"
+        if action == "save":
+            msg, ok = ml.saveNamedMetadata(path) if is_meta else ml.saveNamedStyle(path)
+            if not ok:
+                raise OpError(f"could not save {kind} to `{path}`" + (f": {msg}" if msg else ""),
+                              algorithm="style", params={"path": path}, backend="pyqgis")
+            return None
+        # apply: load into the layer, then persist so QGIS picks it up next time.
+        res = ml.loadNamedMetadata(path) if is_meta else ml.loadNamedStyle(path)
+        ok = res[1] if isinstance(res, tuple) else bool(res)
+        msg = res[0] if isinstance(res, tuple) else ""
+        if not ok:
+            raise OpError(f"could not apply {kind} `{path}`" + (f": {msg}" if msg else ""),
+                          algorithm="style", params={"path": path}, backend="pyqgis")
+        self._persist_style(ml, is_meta)
+        return None
+
+    def _persist_style(self, ml, is_meta: bool) -> None:
+        """Persist an applied style/metadata so it sticks on disk: a GeoPackage vector
+        layer's symbology goes into the container's style table (a re-loaded layer adopts
+        it as default), everything else to a same-basename ``.qml``/``.qmd`` sidecar QGIS
+        auto-loads. The layer must be file-backed (``save`` it first)."""
+        src = ml.source().split("|", 1)[0]
+        if not os.path.exists(src):
+            raise OpError(
+                "`style apply` needs a file-backed layer — save it first, e.g. "
+                "`… | save out.gpkg | style apply house.qml`",
+                algorithm="style", params={}, backend="pyqgis")
+        ext = os.path.splitext(src)[1].lower()
+        is_container = ext in (".gpkg", ".sqlite", ".db")
+        if not is_meta and is_container and hasattr(ml, "saveStyleToDatabaseV2"):
+            _result, err = ml.saveStyleToDatabaseV2("default", "", True, "")
+            if err:
+                raise OpError(f"could not store style in `{os.path.basename(src)}`: {err}",
+                              algorithm="style", params={}, backend="pyqgis")
+            return None
+        sidecar = os.path.splitext(src)[0] + (".qmd" if is_meta else ".qml")
+        msg, ok = ml.saveNamedMetadata(sidecar) if is_meta else ml.saveNamedStyle(sidecar)
+        if not ok:
+            raise OpError(f"could not write sidecar `{sidecar}`" + (f": {msg}" if msg else ""),
+                          algorithm="style", params={}, backend="pyqgis")
+        return None
+
     def crs_of(self, layer: Layer) -> CrsInfo:
         from qgis.core import Qgis, QgsUnitTypes
 

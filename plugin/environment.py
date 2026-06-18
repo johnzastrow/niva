@@ -127,7 +127,7 @@ def report_markdown() -> str:
 
         verbs = core_registry().verbs()
         add("- Built-in verbs: `load` `save` `sql` `run` `call` `metadata` `assess` "
-            "`catalog` `project` `describe`")
+            "`catalog` `project` `style` `describe`")
         add(f"- Aliased verbs ({len(verbs)}): {', '.join('`' + v + '`' for v in verbs)}")
     except Exception as exc:  # noqa: BLE001
         add(f"- registry unavailable: {exc}")
