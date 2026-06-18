@@ -90,14 +90,17 @@ class Backend(abc.ABC):
         """Report ``layer``'s CRS — used to resolve distances (units.py)."""
 
     @abc.abstractmethod
-    def repoint_project(self, src: str, dest: str, *, target: str, missing: str,
-                        rasters: str | None = None, progress=None) -> None:
-        """Copy the QGIS project ``src`` to ``dest`` and repoint each vector layer's
-        datasource to ``target`` — a GeoPackage path or an ``@conn[.schema]`` connection —
-        matched by layer name, preserving subset filters. Raster layers are repointed to a
-        same-basename file in the ``rasters`` directory when given (else left unchanged).
-        ``missing`` (``fail`` | ``keep`` | ``drop``) governs a layer absent from its
-        target. The `project` verb; never silently breaks a project file."""
+    def repoint_project(self, src: str, dest: str, *, target: str | None, missing: str,
+                        rasters: str | None = None, paths: str | None = None,
+                        progress=None) -> None:
+        """Copy the QGIS project ``src`` to ``dest``, optionally repointing each vector
+        layer's datasource to ``target`` — a GeoPackage path or an ``@conn[.schema]``
+        connection — matched by layer name, preserving subset filters. ``target=None``
+        copies without repointing. Raster layers are repointed to a same-basename file in
+        the ``rasters`` directory when given. ``missing`` (``fail`` | ``keep`` | ``drop``)
+        governs a layer absent from its target. ``paths`` (``relative`` | ``absolute``)
+        rewrites datasource path storage; the output format follows ``dest``'s extension
+        (``.qgs``/``.qgz``). The `project` verb; never silently breaks a project file."""
 
     @abc.abstractmethod
     def style_layer(self, layer: Layer, action: str, path: str) -> None:
@@ -217,9 +220,10 @@ class MockBackend(Backend):
         ref = f"@{conn}." + (f"{schema}.{table}" if schema else table)
         return Layer(DB_TABLE, ref, facet="vector", name=table)
 
-    def repoint_project(self, src: str, dest: str, *, target: str, missing: str,
-                        rasters: str | None = None, progress=None) -> None:
-        self.calls.append(("repoint_project", src, dest, target, missing, rasters))
+    def repoint_project(self, src: str, dest: str, *, target: str | None, missing: str,
+                        rasters: str | None = None, paths: str | None = None,
+                        progress=None) -> None:
+        self.calls.append(("repoint_project", src, dest, target, missing, rasters, paths))
 
     def style_layer(self, layer: Layer, action: str, path: str) -> None:
         self.calls.append(("style", action, path))

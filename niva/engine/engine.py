@@ -808,24 +808,25 @@ class Engine:
             raise FlowError(f"`project` reads a QGIS project (.qgs/.qgz) — `{src}` is not one",
                             line=stage.line, stage=stage.raw)
 
-        extra = [k for k in stage.options if k not in ("to", "repoint", "missing", "rasters")]
+        extra = [k for k in stage.options
+                 if k not in ("to", "repoint", "missing", "rasters", "paths")]
         if extra:
             raise FlowError(
-                f"`project` takes `to=`, `repoint=`, `missing=`, `rasters=` — got `{extra[0]}=`",
-                line=stage.line, stage=stage.raw)
+                "`project` takes `to=`, `repoint=`, `missing=`, `rasters=`, `paths=` — "
+                f"got `{extra[0]}=`", line=stage.line, stage=stage.raw)
         out = stage.options.get("to")
-        target = stage.options.get("repoint")
+        target = stage.options.get("repoint")  # optional: omit to copy/convert without repointing
         missing = stage.options.get("missing", "fail")
         rasters = stage.options.get("rasters")
+        paths = stage.options.get("paths")
         if not out:
             raise FlowError("`project` needs an output: `to=<out.qgs>`",
                             line=stage.line, stage=stage.raw)
-        if not target:
-            raise FlowError("`project` needs a repoint target: "
-                            "`repoint=<dir.gpkg | @conn[.schema]>`",
-                            line=stage.line, stage=stage.raw)
         if missing not in ("fail", "keep", "drop"):
             raise FlowError(f"`missing={missing}` is not valid — use fail, keep, or drop",
+                            line=stage.line, stage=stage.raw)
+        if paths is not None and paths not in ("relative", "absolute"):
+            raise FlowError(f"`paths={paths}` is not valid — use relative or absolute",
                             line=stage.line, stage=stage.raw)
         out = os.path.expanduser(out)
         if os.path.splitext(out)[1].lower() not in (".qgs", ".qgz"):
@@ -837,10 +838,10 @@ class Engine:
                 raise FlowError(f"`project` rasters= must be a directory — `{rasters}` is not one",
                                 line=stage.line, stage=stage.raw)
         # A connection target (@conn[.schema]) is passed through; a file target is expanded.
-        if not is_connection_ref(target):
+        if target and not is_connection_ref(target):
             target = os.path.expanduser(target)
         self.backend.repoint_project(src, out, target=target, missing=missing,
-                                     rasters=rasters, progress=self._emit)
+                                     rasters=rasters, paths=paths, progress=self._emit)
         return None  # terminal
 
     def _style(self, stage, current: Layer | None) -> Layer | None:

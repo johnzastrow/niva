@@ -66,7 +66,9 @@ front-end/provenance tracks ran ahead. Where things really stand:
   or a portable QGIS Layer Definition (`.qlr`: datasource + style).
 - **Shipped (v0.23.0) — `project info <src.qgs>`.** Inventory a project's layers /
   datasources / CRS to a Markdown report.
-- **More project/layer-file ops planned** (`TODO.md`): path rewrite,
+- **Shipped (v0.24.0) — copy/convert/rewrite-paths in `project`.** `repoint=` is
+  optional; `.qgs`↔`.qgz` by extension; `paths=relative|absolute` rewrites datasource paths.
+- **More project/layer-file ops planned** (`TODO.md`):
   `.qgs`↔`.qgz` repackage, and cartographic decoration (bookmarks, map themes, legend,
   print layouts).
 - **Still ahead:** richer `filter` (IN/LIKE/NULL), `qgis_process` backend, grammar

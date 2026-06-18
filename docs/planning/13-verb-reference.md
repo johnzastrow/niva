@@ -399,6 +399,11 @@ or multi-layer container — resolved like `each`, GeoPackages expanded per laye
 setting the project CRS and title. The complement to repointing: build a ready-to-open
 project for freshly compiled outputs without needing one to already exist. Terminal.
 
+**Copy / convert / rewrite paths** — `repoint=` is optional (v0.24.0). `project <src> to=<out>`
+copies a project, converting `.qgs`↔`.qgz` by the `to=` extension; add `paths=relative` (or
+`absolute`) to rewrite datasource path storage (e.g. make a project portable). Combine with
+`repoint=`/`rasters=` to repoint *and* rewrite in one pass.
+
 **Inventory a project** — `project info <src.qgs|qgz> [to=<out.md>]` (v0.23.0):
 ```
 project info "region.qgs" to="region_layers.md"

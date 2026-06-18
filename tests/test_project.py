@@ -129,9 +129,20 @@ class TestProjectVerb(unittest.TestCase):
         with self.assertRaises(FlowError):
             _run(self._flow('repoint="t.gpkg"'))
 
-    def test_missing_repoint_is_error(self):
+    def test_no_repoint_is_a_copy(self):
+        # repoint= is optional — `project src to=out` copies/converts without repointing.
+        backend = _run(self._flow(f'to="{self.out}"'))
+        call = backend.calls[-1]
+        self.assertEqual(call[0], "repoint_project")
+        self.assertIsNone(call[3])  # target
+
+    def test_paths_option_recorded(self):
+        backend = _run(self._flow(f'to="{self.out}" paths=relative'))
+        self.assertEqual(backend.calls[-1][6], "relative")  # paths is the 7th element
+
+    def test_bad_paths_is_error(self):
         with self.assertRaises(FlowError):
-            _run(self._flow(f'to="{self.out}"'))
+            _run(self._flow(f'to="{self.out}" paths=sideways'))
 
     def test_unknown_option_is_error(self):
         with self.assertRaises(FlowError):

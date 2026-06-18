@@ -1082,8 +1082,9 @@ class PyqgisBackend(Backend):
 
     # --- project file repointing (the `project` verb, roadmap §project) ----------
 
-    def repoint_project(self, src: str, dest: str, *, target: str, missing: str,
-                        rasters: str | None = None, progress=None) -> None:
+    def repoint_project(self, src: str, dest: str, *, target: str | None, missing: str,
+                        rasters: str | None = None, paths: str | None = None,
+                        progress=None) -> None:
         # Use a STANDALONE QgsProject (never QgsProject.instance()) so this is safe on
         # the flow's worker thread — see plugin/flowtask.py and 15-§3.
         from qgis.core import QgsProject, QgsRasterLayer, QgsVectorLayer
@@ -1092,7 +1093,8 @@ class PyqgisBackend(Backend):
         if not proj.read(src):
             raise OpError(f"could not read project `{src}`",
                           algorithm="project", params={"src": src}, backend="pyqgis")
-        resolve, available = self._repoint_target(target)
+        # target=None → copy/convert without repointing vectors (still does rasters/paths).
+        resolve, available = self._repoint_target(target) if target else (None, set())
         counts = {"repointed": 0, "kept": 0, "dropped": 0}
 
         def emit(msg):
@@ -1136,6 +1138,9 @@ class PyqgisBackend(Backend):
                 counts["kept"] += 1
                 emit(f"   ⚠ left `{lyr.name()}` unchanged (not a vector or raster layer)")
                 continue
+            if resolve is None:  # no repoint target — leave vector layers as they are
+                counts["kept"] += 1
+                continue
             name = self._layer_source_name(lyr)
             if name not in available:
                 unmatched(lyr, name)
@@ -1148,10 +1153,16 @@ class PyqgisBackend(Backend):
             counts["repointed"] += 1
             emit(f"   repointed `{lyr.name()}` → {name}")
 
+        if paths in ("relative", "absolute"):
+            from qgis.core import Qgis
+
+            proj.setFilePathStorage(Qgis.FilePathType.Relative if paths == "relative"
+                                    else Qgis.FilePathType.Absolute)
+            emit(f"   datasource paths → {paths}")
         parent = os.path.dirname(dest)
         if parent:
             os.makedirs(parent, exist_ok=True)
-        if not proj.write(dest):
+        if not proj.write(dest):  # output format (.qgs/.qgz) follows dest's extension
             raise OpError(f"could not write project `{dest}`",
                           algorithm="project", params={"dest": dest}, backend="pyqgis")
         emit(f"   project written → {dest} ({counts['repointed']} repointed, "

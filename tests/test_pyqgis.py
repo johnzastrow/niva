@@ -616,6 +616,23 @@ class TestPyqgisProject(unittest.TestCase):
         self.assertIn("roads.gpkg", text)   # datasource
         self.assertIn("| Layer |", text)    # the table
 
+    def test_copy_convert_qgs_to_qgz(self):
+        import niva
+
+        out = os.path.join(self.tmp, "conv.qgz")
+        niva.flow(f'project "{self.src}" to="{out}"')  # no repoint → copy + convert
+        self.assertTrue(os.path.isfile(out))
+        layers = self._reload(out)
+        self.assertEqual(len(layers), 1)
+        self.assertIn("roads.gpkg", layers[0].source())  # datasource unchanged
+
+    def test_paths_relative(self):
+        import niva
+
+        out = os.path.join(self.tmp, "rel.qgs")  # sibling of roads.gpkg (both in self.tmp)
+        niva.flow(f'project "{self.src}" to="{out}" paths=relative')
+        self.assertIn("./roads.gpkg", open(out).read())
+
 
 class TestPyqgisStyle(unittest.TestCase):
     """`style` — apply/save a layer's .qml style (real symbology round-trip)."""

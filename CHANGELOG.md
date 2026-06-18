@@ -7,6 +7,14 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.24.0] - 2026-06-18
+
+### Added
+- **`project` can copy / convert / rewrite paths** — `repoint=` is now optional.
+  `project <src> to=<out>` copies a project, converting `.qgs`↔`.qgz` by the `to=`
+  extension; `paths=relative` (or `absolute`) rewrites datasource path storage to make a
+  project portable. Combine with `repoint=`/`rasters=` to repoint *and* rewrite in one pass.
+
 ## [0.23.0] - 2026-06-18
 
 ### Added
