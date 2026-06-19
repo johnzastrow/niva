@@ -78,9 +78,44 @@ script, save it, or import a niva-shaped script back into a flow.
 
 ## 3. Standalone — CLI
 
-Installed as the `niva` console script. The catch: a *real* run needs QGIS's Python (it
-imports `qgis.core` and the Processing providers), so run niva with the interpreter that has
-QGIS bindings, or set `PYTHONPATH` to them.
+> **A bare `niva` in a fresh shell usually does nothing — "command not found".** That's
+> expected: there's no `niva` command until you put one on your `PATH`, *and* it must run on
+> **QGIS's own Python** (niva imports `qgis.core` + the Processing providers — the system
+> `python3` typically can't). Fix it one of two ways:
+
+### Make `niva` runnable
+
+**Option A — no install (run it as a module).** Point QGIS's Python at the niva package and
+run the CLI module. On Linux with a packaged QGIS:
+
+```bash
+PYTHONPATH=/path/to/niva:/usr/share/qgis/python:/usr/lib/python3/dist-packages \
+  QT_QPA_PLATFORM=offscreen python3 -m niva.cli.main describe buffer
+```
+
+Wrap that in a shell alias so `niva …` just works (put it in your `~/.bashrc`, adjusting the
+Python and paths to your QGIS):
+
+```bash
+alias niva='PYTHONPATH=/path/to/niva:/usr/share/qgis/python:/usr/lib/python3/dist-packages QT_QPA_PLATFORM=offscreen python3 -m niva.cli.main'
+```
+
+Not sure of QGIS's Python or paths? In the QGIS **Python Console** run:
+`import sys, qgis; print(sys.executable); print([p for p in sys.path if 'qgis' in p.lower()])`.
+
+**Option B — install the `niva` command.** Install niva *into QGIS's Python* so it creates a
+`niva` console script, then make sure that interpreter's `bin`/`Scripts` is on your `PATH`:
+
+```bash
+<qgis-python> -m pip install git+https://github.com/johnzastrow/niva.git
+```
+
+On **Windows** run this from the **OSGeo4W shell**; on **macOS** use `QGIS.app`'s bundled
+Python — both already have the bindings importable (no `PYTHONPATH` needed). On Linux, the
+QGIS bindings may still need to be on `PYTHONPATH`, so Option A's alias is often simplest.
+
+> `--dry-run` and `--explain` work on **any** Python (they don't import QGIS), so
+> `python3 -m niva.cli.main "…" --explain` is a quick way to sanity-check your install.
 
 ### Commands
 

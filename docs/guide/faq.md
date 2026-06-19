@@ -43,6 +43,29 @@ Both, identically:
 - **Standalone** — the `niva` CLI / Python API, run with QGIS's own Python (it boots QGIS
   headless). See the [User Guide](user-guide.md#3-standalone--cli).
 
+## I typed `niva` in a terminal and nothing happened (or "command not found")
+
+Two things have to be true for the `niva` command to work, and a fresh shell usually has
+neither:
+
+1. **There's a `niva` command on your `PATH`.** niva isn't installed as a command until you
+   either `pip install` it into a Python (which creates the `niva` script) or alias it (below).
+2. **It runs on QGIS's Python.** niva needs the PyQGIS bindings (`qgis.core`, Processing) — your
+   system `python3` usually can't import them, only the Python that QGIS ships with.
+
+The quickest fix — **no install, just an alias** (adjust the python and paths to your QGIS):
+
+```bash
+alias niva='PYTHONPATH=/path/to/niva:/usr/share/qgis/python:/usr/lib/python3/dist-packages QT_QPA_PLATFORM=offscreen python3 -m niva.cli.main'
+niva describe buffer            # now it works
+```
+
+(To find QGIS's Python + paths, in the QGIS **Python Console**:
+`import sys, qgis; print(sys.executable); print([p for p in sys.path if 'qgis' in p.lower()])`.)
+Or install the command into QGIS's Python — full instructions in the
+[User Guide](user-guide.md#3-standalone--cli). Sanity-check without QGIS using `--explain`:
+`python3 -m niva.cli.main "load a.gpkg | buffer 100m | save b.gpkg" --explain`.
+
 ## Is niva on PyPI? How do I install it?
 
 Not yet on PyPI. Get it as the **plugin zip** (`niva_qgis.zip`, from the
