@@ -70,6 +70,10 @@ HEADER_TEX = r"""
 \renewcommand{\arraystretch}{1.15}
 % Rotate genuinely-wide tables onto landscape pages (the table filter wraps them too).
 \usepackage{pdflscape}
+% Deep PDF bookmarks (the viewer's navigation outline) down to H3 — every algorithm / verb
+% entry — while the *printed* TOC stays compact (--toc-depth=2). hyperref loads after the
+% header-includes, so defer the setting to \begin{document}.
+\AtBeginDocument{\hypersetup{bookmarksdepth=4}}
 """
 
 # A raw-LaTeX block (needs the raw_attribute extension) that starts the appendices, so the
@@ -87,27 +91,12 @@ LUA_TABLES = r"""
 -- horizontal rule (\hline) after every row, so cells never overflow and rows are easy to
 -- read across. Genuinely-wide GUIDE tables (not the hundreds of narrow appendix ones) are
 -- rotated onto landscape pages.
-local in_appendix = false
-function RawBlock(el)
-  if el.format == "latex" and el.text:find("appendix") then in_appendix = true end
-end
-
--- Let a LONG inline-code token (e.g. gdal:cliprasterbymasklayer) break at any character, so
--- it doesn't overhang the margin in prose. Only long, ASCII tokens are touched (fast).
+-- Inline-code escaping for the break-anywhere rewrite (body prose only).
 local CODE_ESC = {
   ["\\"] = "\\textbackslash{}", ["{"] = "\\{", ["}"] = "\\}", ["$"] = "\\$",
   ["&"] = "\\&", ["#"] = "\\#", ["%"] = "\\%", ["_"] = "\\_",
   ["^"] = "\\textasciicircum{}", ["~"] = "\\textasciitilde{}",
 }
-function Code(el)
-  if #el.text < 18 or el.text:find("[\128-\255]") then return nil end
-  local parts = {}
-  for i = 1, #el.text do
-    local c = el.text:sub(i, i)
-    parts[#parts + 1] = (CODE_ESC[c] or c) .. "\\discretionary{}{}{}"
-  end
-  return pandoc.RawInline("latex", "\\texttt{" .. table.concat(parts) .. "}")
-end
 
 local function cell_latex(cell)
   local s = pandoc.write(pandoc.Pandoc(cell.contents), "latex")
@@ -127,44 +116,71 @@ local function render_rows(rows, bold)
   return table.concat(out, "\n")
 end
 
-function Table(tbl)
-  local ncol = #tbl.colspecs
-  if ncol == 0 then return nil end
-  -- measure columns by their longest cell
-  local maxlen = {}
-  for i = 1, ncol do maxlen[i] = 3 end
-  local function scan(rows)
-    for _, row in ipairs(rows) do
-      for i, cell in ipairs(row.cells) do
-        local l = #pandoc.utils.stringify(cell.contents)
-        if l > maxlen[i] then maxlen[i] = l end
+local in_appendix = false
+
+-- Top-down traversal so a Header can shield its inline code: headings keep normal inline
+-- code (clean PDF bookmarks / TOC down to H3), while body prose gets break-anywhere code.
+return {
+  traverse = "topdown",
+
+  RawBlock = function(el)
+    if el.format == "latex" and el.text:find("\\appendix", 1, true) then
+      in_appendix = true
+    end
+  end,
+
+  -- Leave headings untouched and don't recurse into them (keeps the id in the bookmark).
+  Header = function(el) return el, false end,
+
+  -- Break a LONG inline-code token (e.g. gdal:cliprasterbymasklayer) at any character so it
+  -- doesn't overhang the margin in prose. Only long, ASCII tokens are touched (fast).
+  Code = function(el)
+    if #el.text < 18 or el.text:find("[\128-\255]") then return nil end
+    local parts = {}
+    for i = 1, #el.text do
+      local c = el.text:sub(i, i)
+      parts[#parts + 1] = (CODE_ESC[c] or c) .. "\\discretionary{}{}{}"
+    end
+    return pandoc.RawInline("latex", "\\texttt{" .. table.concat(parts) .. "}")
+  end,
+
+  -- Rewrite each table to a raw-LaTeX longtable with wrapping p{} columns and an \hline on
+  -- every row; rotate genuinely-wide GUIDE tables onto landscape pages.
+  Table = function(tbl)
+    local ncol = #tbl.colspecs
+    if ncol == 0 then return nil end
+    local maxlen = {}
+    for i = 1, ncol do maxlen[i] = 3 end
+    local function scan(rows)
+      for _, row in ipairs(rows) do
+        for i, cell in ipairs(row.cells) do
+          local l = #pandoc.utils.stringify(cell.contents)
+          if l > maxlen[i] then maxlen[i] = l end
+        end
       end
     end
-  end
-  scan(tbl.head.rows)
-  for _, b in ipairs(tbl.bodies) do scan(b.body) end
-  local natural = 0
-  for i = 1, ncol do natural = natural + maxlen[i] end
-  -- proportional, capped widths summing to 0.93\linewidth (room for rules + colsep)
-  local capped, total = {}, 0
-  for i = 1, ncol do capped[i] = math.min(maxlen[i], 45); total = total + capped[i] end
-  local cols = {}
-  for i = 1, ncol do
-    cols[i] = string.format("p{%.3f\\linewidth}", 0.93 * capped[i] / total)
-  end
-  local colspec = "|" .. table.concat(cols, "|") .. "|"
-
-  local body = {}
-  for _, b in ipairs(tbl.bodies) do body[#body + 1] = render_rows(b.body, false) end
-  local latex = "\\begin{longtable}{" .. colspec .. "}\n\\hline\n"
-      .. render_rows(tbl.head.rows, true) .. "\n\\endhead\n"
-      .. table.concat(body, "\n") .. "\n\\end{longtable}"
-
-  if (not in_appendix) and ncol >= 4 and natural > 90 then
-    latex = "\\begin{landscape}\n" .. latex .. "\n\\end{landscape}"
-  end
-  return pandoc.RawBlock("latex", latex)
-end
+    scan(tbl.head.rows)
+    for _, b in ipairs(tbl.bodies) do scan(b.body) end
+    local natural = 0
+    for i = 1, ncol do natural = natural + maxlen[i] end
+    local capped, total = {}, 0
+    for i = 1, ncol do capped[i] = math.min(maxlen[i], 45); total = total + capped[i] end
+    local cols = {}
+    for i = 1, ncol do
+      cols[i] = string.format("p{%.3f\\linewidth}", 0.93 * capped[i] / total)
+    end
+    local colspec = "|" .. table.concat(cols, "|") .. "|"
+    local body = {}
+    for _, b in ipairs(tbl.bodies) do body[#body + 1] = render_rows(b.body, false) end
+    local latex = "\\begin{longtable}{" .. colspec .. "}\n\\hline\n"
+        .. render_rows(tbl.head.rows, true) .. "\n\\endhead\n"
+        .. table.concat(body, "\n") .. "\n\\end{longtable}"
+    if (not in_appendix) and ncol >= 4 and natural > 90 then
+      latex = "\\begin{landscape}\n" .. latex .. "\n\\end{landscape}"
+    end
+    return pandoc.RawBlock("latex", latex)
+  end,
+}
 """
 
 

@@ -16,7 +16,9 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   (`docs/guide/`) with pandoc + xelatex: title page, TOC, a chapter per document, and the
   per-provider algorithm reference (`docs/algorithms/`) as lettered **appendices**. Tables are
   rewritten with wrapping `p{}` columns and a horizontal rule on every row so nothing is cut
-  off, and genuinely-wide guide tables are rotated onto **landscape** pages. Regenerable.
+  off, genuinely-wide guide tables are rotated onto **landscape** pages, long inline-code
+  tokens break in prose, and the **PDF bookmark outline goes down to H3** (every algorithm /
+  verb is navigable) while the printed TOC stays compact. Regenerable.
 
 ### Changed
 - **Merged `tools/` into `scripts/`** — `gen_algorithms.py` now lives in `scripts/` alongside
