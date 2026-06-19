@@ -138,6 +138,83 @@ class TestCatalog(unittest.TestCase):
         self.assertTrue(os.path.exists(out))
 
 
+class TestShow(unittest.TestCase):
+    """The `show` verb — list layers/tables at a location. MockBackend records the call
+    and returns stub layers; the live listing is exercised in tests/test_pyqgis.py."""
+
+    def _run(self, flowtext, backend):
+        import contextlib
+        import io
+
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            flow(flowtext, backend=backend)
+        return buf.getvalue()
+
+    def test_show_a_file_lists_layers(self):
+        root = tempfile.mkdtemp(prefix="niva_show_")
+        gpkg = os.path.join(root, "data.gpkg")
+        open(gpkg, "w").close()
+        backend = MockBackend()
+        out = self._run(f'show "{gpkg}"', backend)
+        self.assertIn(("list_layers", gpkg), backend.calls)
+        self.assertIn("Data at", out)
+        self.assertIn("layer_a", out)
+        self.assertIn("layername=layer_a", out)  # copy-pasteable source
+
+    def test_show_a_directory_lists_each_container(self):
+        root = tempfile.mkdtemp(prefix="niva_show_")
+        open(os.path.join(root, "a.gpkg"), "w").close()
+        open(os.path.join(root, "b.tif"), "w").close()
+        open(os.path.join(root, "notes.txt"), "w").close()  # ignored
+        backend = MockBackend()
+        out = self._run(f'show "{root}"', backend)
+        called = [c for c in backend.calls if c[0] == "list_layers"]
+        self.assertEqual(len(called), 2)  # a.gpkg + b.tif, not notes.txt
+        self.assertIn("a.gpkg", out)
+
+    def test_show_a_bare_connection_lists_all_tables(self):
+        backend = MockBackend()
+        out = self._run("show @pg", backend)
+        self.assertIn(("list_tables", "pg", None, None), backend.calls)
+        self.assertIn("roads", out)
+        self.assertIn("@pg.roads", out)
+
+    def test_show_a_schema_scope(self):
+        backend = MockBackend()
+        self._run("show @pg.public", backend)
+        self.assertIn(("list_tables", "pg", "public", None), backend.calls)
+
+    def test_show_resolves_a_connection_name_containing_dots(self):
+        class DottedBackend(MockBackend):
+            def connection_names(self):
+                return ["actual_spatialite.sqlite", "pg"]
+
+        backend = DottedBackend()
+        self._run("show @actual_spatialite.sqlite", backend)
+        # The whole dotted name is the connection — not conn=actual_spatialite, table=sqlite.
+        self.assertIn(("list_tables", "actual_spatialite.sqlite", None, None), backend.calls)
+
+    def test_show_to_file(self):
+        root = tempfile.mkdtemp(prefix="niva_show_")
+        out = os.path.join(root, "listing.md")
+        flow(f'show @pg to="{out}"', backend=MockBackend())
+        self.assertTrue(os.path.exists(out))
+        self.assertIn("Data at", open(out).read())
+
+    def test_show_requires_a_location(self):
+        with self.assertRaises(FlowError):
+            flow("show", backend=MockBackend())
+
+    def test_show_rejects_unknown_options(self):
+        with self.assertRaises(FlowError):
+            flow("show @pg bogus=1", backend=MockBackend())
+
+    def test_show_missing_path_is_a_flow_error(self):
+        with self.assertRaises(FlowError):
+            flow("show /no/such/place_xyz.gpkg", backend=MockBackend())
+
+
 class TestProfileIniParse(unittest.TestCase):
     """`_connections_in_ini` — parse a QGIS settings ini for DB connection names per
     profile, without QGIS. Covers the section layouts QGIS uses for each provider."""

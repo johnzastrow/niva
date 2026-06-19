@@ -119,6 +119,22 @@ sql @pg "SELECT id, ST_Buffer(geom,100) AS geom FROM homes WHERE has_cat" | save
 Only the connection **name** appears in a flow — credentials stay in QGIS. See the
 [Reference](reference.md#7-database-connections-conn).
 
+## How do I see what layers/tables are in a file or database?
+
+Use `show` — it lists the loadable layers at one location with each one's kind, geometry/raster
+type, format, and a copy-pasteable `load` source:
+
+```bash
+show data.gpkg            # layers in a GeoPackage (or any container/shapefile/GeoTIFF)
+show data/                # everything directly under a directory
+show @gisdb3              # all tables in a PostGIS connection
+show @gisdb3.public       # just one schema
+```
+
+It's the quick *"what can I load here?"* glance; for a deep recursive inventory (CRS, extent,
+fields, feature counts) use `catalog` instead. For files you can take `show`'s source column
+straight to `ogrinfo <file> <layer>` for more detail.
+
 ## How do I find my database connection names (the `@conn` values)?
 
 Run `info`. From a shell — where the QGIS Browser isn't in front of you — this is the quickest

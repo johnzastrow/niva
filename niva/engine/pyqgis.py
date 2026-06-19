@@ -926,6 +926,23 @@ class PyqgisBackend(Backend):
 
     # --- database connections (credentials stay in QGIS's store) -------------
 
+    def connection_names(self) -> list:
+        """All registered DB connection names across providers (for `show` to resolve a
+        ``@conn`` reference, robust to names containing dots)."""
+        from qgis.core import QgsProviderRegistry
+
+        reg = QgsProviderRegistry.instance()
+        names = set()
+        for provider in reg.providerList():
+            md = reg.providerMetadata(provider)
+            if md is None:
+                continue
+            try:
+                names.update(md.connections(False).keys())
+            except Exception:  # noqa: BLE001 — non-DB provider
+                continue
+        return sorted(names)
+
     def _find_connection(self, name: str):
         """Locate a named connection across all DB providers. Returns
         ``(metadata, connection)`` or raises OpError. Never touches credentials —
@@ -1330,6 +1347,97 @@ class PyqgisBackend(Backend):
         from ..environment import report_markdown
 
         return report_markdown()
+
+    # --- `show`: list datasets at a location ---------------------------------
+
+    def list_layers(self, source: str) -> list:
+        """List the layers inside a file/container via the provider registry's
+        ``querySublayers`` — one pass handles GeoPackage (vector + raster), SpatiaLite,
+        shapefiles, GeoTIFFs, etc. No feature counts (that's `catalog`)."""
+        from qgis.core import Qgis, QgsProviderRegistry, QgsWkbTypes
+
+        details = QgsProviderRegistry.instance().querySublayers(source)
+        rows = []
+        for d in details:
+            try:
+                is_vector = d.type() == Qgis.LayerType.Vector
+                if is_vector:
+                    kind, typ = "vector", (QgsWkbTypes.displayString(d.wkbType()) or "Unknown")
+                else:
+                    kind, typ = "raster", self._raster_summary(d.uri(), d.providerKey())
+                rows.append({
+                    "name": d.name(),
+                    "kind": kind,
+                    "type": typ,
+                    "format": d.driverName() or d.providerKey() or "",
+                    "ref": d.uri(),
+                })
+            except Exception:  # noqa: BLE001 — one bad sublayer must not break the listing
+                continue
+        return rows
+
+    def _raster_summary(self, uri: str, provider: str) -> str:
+        """`<n> band(s) · <dtype>` for a raster sublayer; best effort."""
+        try:
+            from qgis.core import Qgis, QgsRasterLayer
+
+            rl = QgsRasterLayer(uri, "r", provider or "gdal")
+            if not rl.isValid():
+                return "raster"
+            n = rl.bandCount()
+            dtype = ""
+            if n:
+                try:
+                    dtype = Qgis.DataType(rl.dataProvider().dataType(1)).name
+                except Exception:  # noqa: BLE001
+                    dtype = ""
+            label = f"{n} band" + ("s" if n != 1 else "")
+            return label + (f" · {dtype}" if dtype else "")
+        except Exception:  # noqa: BLE001
+            return "raster"
+
+    def list_tables(self, conn: str, schema: str | None = None,
+                    table: str | None = None) -> list:
+        """List a connection's tables via the QGIS connection API. SpatiaLite has no
+        schemas (``schemas()`` raises) → a single unnamed schema; PostGIS iterates
+        schemas (or just the one requested). Geometry type from the table's first
+        geometry column; aspatial tables show as `table`, raster tables as `raster`."""
+        from qgis.core import QgsAbstractDatabaseProviderConnection as DbConn
+        from qgis.core import QgsWkbTypes
+
+        md, connection = self._find_connection(conn)
+        provider = md.key()
+        if schema:
+            schemas = [schema]
+        else:
+            try:
+                schemas = list(connection.schemas()) or [None]
+            except Exception:  # noqa: BLE001 — provider has no schema concept (SpatiaLite)
+                schemas = [None]
+
+        rows = []
+        for sch in schemas:
+            try:
+                props = connection.tables(sch or "")
+            except Exception:  # noqa: BLE001
+                continue
+            for t in props:
+                name = t.tableName()
+                if table is not None and name != table:
+                    continue
+                gtypes = t.geometryColumnTypes()
+                flags = int(t.flags())
+                if gtypes:
+                    kind, typ = "vector", QgsWkbTypes.displayString(gtypes[0].wkbType)
+                elif flags & int(DbConn.TableFlag.Raster):
+                    kind, typ = "raster", "raster"
+                else:
+                    kind, typ = "table", "(aspatial)"
+                ref = f"@{conn}." + (f"{sch}.{name}" if sch else name)
+                rows.append({"name": name, "kind": kind, "type": typ,
+                             "format": provider, "ref": ref})
+        rows.sort(key=lambda r: (r.get("name") or ""))
+        return rows
 
     def _add_bookmark(self, proj, spec: dict) -> None:
         """Add a spatial bookmark to ``proj`` in the project CRS. ``spec`` is

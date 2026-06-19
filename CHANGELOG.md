@@ -7,6 +7,30 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.29.0] - 2026-06-19
+
+### Added
+- **`show` verb** — lists the loadable layers/tables at a location, the lightweight cousin of
+  `catalog`: a quick *"what can I load here, and what's its name?"* glance rather than a deep
+  recursive inventory. Per entry: name, kind (vector/raster/table), type (geometry like
+  `MultiPolygon`, or a raster's `N band · Float32`), format (file driver `GPKG`/`GTiff`/… or DB
+  provider), and a copy-pasteable source for `load` (or `ogrinfo`). No feature counts, so it
+  stays instant even on large databases. Locations:
+  - **files / containers** — GeoPackage, SpatiaLite, shapefile, GeoTIFF, … (a multi-layer
+    container expands to one row per layer), via `QgsProviderRegistry.querySublayers`;
+  - **directories** — shallow listing of immediate children, each container expanded
+    (recursion stays `catalog`'s job);
+  - **database connections** — `show @conn` (all tables), `show @conn.schema`,
+    `show @conn.schema.table`, via the QGIS connection API. Connection names containing dots
+    (e.g. `@actual_spatialite.sqlite`) resolve by longest-matching-prefix. Only the connection
+    name is ever in scope — credentials stay in QGIS.
+
+  Terminal verb (`to=<out.md>` writes a file, else prints to stdout). New backend methods
+  `list_layers`, `list_tables`, `connection_names`; two-tier tests; design doc
+  [`docs/planning/17-show-verb-design.md`](docs/planning/17-show-verb-design.md); documented in
+  the Reference and FAQ. Remote services (WFS/WMS, ArcGIS REST, `/vsicurl`) are a deliberate
+  follow-up.
+
 ## [0.28.0] - 2026-06-19
 
 ### Added

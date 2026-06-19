@@ -1,6 +1,6 @@
 # niva Reference
 
-The complete reference for **niva v0.28.0** — every verb, alias, option, type, environment
+The complete reference for **niva v0.29.0** — every verb, alias, option, type, environment
 variable, CLI command, and Python entry point. For a task-oriented tour see the
 [Cookbook](cookbook.md); for setup and day-to-day use see the [User Guide](user-guide.md).
 
@@ -51,7 +51,7 @@ Verbs fall into three behavioural classes:
 |---|---|---|
 | **Producing** | returns a new layer to pipe onward | `load`, `run`, `split`, `sql` (SELECT), and every alias verb |
 | **Pass-through** | returns the upstream layer unchanged, so it chains | `save`, `assess`, `metadata`, `style`, `notify`, `email` |
-| **Terminal** | returns nothing; a following stage is an error | `catalog`, `info`, `project`, `sql` (write) |
+| **Terminal** | returns nothing; a following stage is an error | `catalog`, `show`, `info`, `project`, `sql` (write) |
 
 A flow normally begins with `load` (or `run`/`sql`, which produce a layer), or with `each`
 to run the rest of the flow once per dataset in a directory/glob/container.
@@ -271,6 +271,40 @@ listing unreadable files separately. Default output is `<dir>/catalog.md`.
 ```
 catalog "data/" to=reports/inventory.md
 ```
+
+### `show` — list available data at a location *(terminal)*
+
+```
+show <path|@conn[.schema[.table]]> [to=<out.md>]
+```
+
+Lists the loadable layers/tables at **one** location and what each is — a quick *"what can I
+load here, and what's its name?"* glance, the lighter cousin of `catalog` (which recurses and
+deep-profiles). Per entry: the **name**, **kind** (vector/raster/table), **type** (geometry
+like `MultiPolygon`, or a raster's `N band · Float32`), **format** (the file driver `GPKG` /
+`GTiff` / `ESRI Shapefile`, or the DB provider), and a copy-pasteable **source** you can hand
+straight to `load` (or `ogrinfo` for files). No feature counts — that keeps it instant even on
+big databases.
+
+`<location>` may be:
+
+- a **file** — `show roads.shp`, `show dem.tif`, or a multi-layer container `show data.gpkg`
+  (one row per layer);
+- a **directory** — `show data/` (shallow: immediate children; each container expands to its
+  layers — recursion is `catalog`'s job);
+- a **database connection** — `show @conn` (every table), `show @conn.schema` (one schema),
+  `show @conn.schema.table` (one table). Connection names containing dots (e.g.
+  `@actual_spatialite.sqlite`) resolve correctly. Only the connection **name** is used —
+  credentials stay in QGIS.
+
+```
+show "data/basemap.gpkg"          # layers in a GeoPackage
+show data/                         # everything directly under data/
+show @gisdb3                       # all PostGIS tables
+show @gisdb3.public to=tables.md   # one schema, written to a file
+```
+
+Defers remote services (WFS/WMS) to a later round.
 
 ### `info` — inspect the local QGIS environment *(terminal)*
 

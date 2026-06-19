@@ -207,3 +207,37 @@ def format_catalog(root: str, entries: list) -> str:
             lines.append(f"- `{relpath}` ({facet}): {err}")
         lines.append("")
     return "\n".join(lines)
+
+
+def format_show(location: str, entries: list, *, is_db: bool = False) -> str:
+    """Render the `show` listing as a Markdown table. ``entries`` is a list of dicts
+    ``{name, kind, type, format, ref}`` (see ``Backend.list_layers``). Keeps it to a
+    quick name-and-type glance — the ``ref`` column is copy-pasteable into ``load`` (or,
+    for files, ``ogrinfo``)."""
+    n = len(entries)
+    noun = "table" if is_db else "dataset"
+    lines = [
+        f"# Data at `{location}`",
+        "",
+        f"{n} {noun}{'' if n == 1 else 's'}.",
+        "",
+    ]
+    if entries:
+        lines.append("| Layer | Kind | Type | Format | Source (for `load`) |")
+        lines.append("|---|---|---|---|---|")
+        for e in entries:
+            lines.append(
+                f"| {e.get('name', '?')} | {e.get('kind', '?')} | {e.get('type', '?')} "
+                f"| {e.get('format', '?')} | `{e.get('ref', '?')}` |"
+            )
+        lines.append("")
+        if is_db:
+            lines.append("Load a row with `load <source>`; inspect one with "
+                         "`sql @conn \"SELECT … LIMIT 0\"` (credentials stay in QGIS).")
+        else:
+            lines.append("Load a row with `load \"<source>\"`; for more detail run "
+                         "`ogrinfo <file> <layer>` or `load \"<source>\" | assess`.")
+    else:
+        lines.append("_No loadable layers found here._")
+    lines.append("")
+    return "\n".join(lines)

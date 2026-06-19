@@ -34,10 +34,10 @@ load roads.gpkg | buffer 100 dissolve | clip city.gpkg | save roads_local.gpkg
 
 ## Status & open questions
 
-niva **runs** (v0.28.0): the full path — grammar → registry/binder → engine → PyQGIS
+niva **runs** (v0.29.0): the full path — grammar → registry/binder → engine → PyQGIS
 backend — executes real geoprocessing, validated against real GIS data on QGIS 4.0.3.
-The surface is now broad: **45 alias verbs** plus **13 built-in verbs** (`load`, `save`,
-`sql`, `run`, `metadata`, `assess`, `catalog`, `info`, `project`, `style`, `split`,
+The surface is now broad: **45 alias verbs** plus **14 built-in verbs** (`load`, `save`,
+`sql`, `run`, `metadata`, `assess`, `catalog`, `show`, `info`, `project`, `style`, `split`,
 `notify`, `email`), with **every** QGIS algorithm reachable via `run`, PostGIS/SpatiaLite
 read·write·analyse, project & template files, a QGIS plugin, and a standalone CLI/API. It
 is covered by a QGIS-free unit/integration tier (**280+** tests) plus a live-QGIS tier.

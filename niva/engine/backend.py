@@ -124,6 +124,24 @@ class Backend(abc.ABC):
         The `project info` form."""
 
     @abc.abstractmethod
+    def list_layers(self, source: str) -> list:
+        """List the layers/datasets *inside* a single file or container (GeoPackage,
+        SpatiaLite, shapefile, GeoTIFF, …). Returns one dict per layer:
+        ``{name, kind ('vector'|'raster'), type (geometry name or raster band summary),
+        format (driver/file type), ref (a string you can pass to ``load``)}``. The `show`
+        verb; a lightweight name-and-type listing (no feature counts, no deep profiling —
+        that's ``catalog``)."""
+
+    @abc.abstractmethod
+    def list_tables(self, conn: str, schema: str | None = None,
+                    table: str | None = None) -> list:
+        """List the tables in a database connection (the loadable ``@conn`` targets).
+        ``schema`` limits to one schema (PostGIS); ``table`` limits to one table. Returns
+        the same per-entry dicts as :meth:`list_layers`, with ``ref`` an
+        ``@conn[.schema].table`` reference. The `show` verb. Never touches credentials —
+        QGIS owns them; only the connection name is in scope."""
+
+    @abc.abstractmethod
     def environment_report(self) -> str:
         """A Markdown report of the live QGIS environment — niva build, versions, the
         Processing providers + reachable algorithm count, the registered database
@@ -135,6 +153,12 @@ class Backend(abc.ABC):
         """List the layer names inside a multi-layer container (e.g. a GeoPackage),
         for ``catalog``. Returns ``[]`` for a single-layer source (the default) — a
         backend overrides this when it can introspect containers."""
+        return []
+
+    def connection_names(self) -> list:
+        """The names of all registered database connections (the valid ``@conn`` values).
+        Used by `show` to resolve a connection reference robustly even when the name
+        itself contains dots. ``[]`` by default; a real backend overrides it."""
         return []
 
     def compact(self, path: str) -> None:
@@ -187,6 +211,9 @@ class MockBackend(Backend):
 
     def sublayers(self, source: str) -> list:
         return list(self.sublayer_map.get(source, []))
+
+    def connection_names(self) -> list:
+        return ["pg", "sl"]
 
     def compact(self, path: str) -> None:
         self.calls.append(("compact", path))
@@ -247,6 +274,27 @@ class MockBackend(Backend):
     def read_project(self, src: str) -> dict:
         self.calls.append(("read_project", src))
         return {"title": "", "crs": "", "layers": []}
+
+    def list_layers(self, source: str) -> list:
+        self.calls.append(("list_layers", source))
+        return [
+            {"name": "layer_a", "kind": "vector", "type": "Polygon",
+             "format": "GPKG", "ref": f"{source}|layername=layer_a"},
+            {"name": "layer_b", "kind": "vector", "type": "Point",
+             "format": "GPKG", "ref": f"{source}|layername=layer_b"},
+        ]
+
+    def list_tables(self, conn: str, schema: str | None = None,
+                    table: str | None = None) -> list:
+        self.calls.append(("list_tables", conn, schema, table))
+        prefix = f"@{conn}." + (f"{schema}." if schema else "")
+        rows = [
+            {"name": "roads", "kind": "vector", "type": "LineString",
+             "format": "postgres", "ref": f"{prefix}roads"},
+            {"name": "homes", "kind": "vector", "type": "Point",
+             "format": "postgres", "ref": f"{prefix}homes"},
+        ]
+        return [r for r in rows if table is None or r["name"] == table]
 
     def environment_report(self) -> str:
         self.calls.append(("environment_report",))

@@ -309,6 +309,7 @@ class Engine:
         "notify":   lambda self, stage, current, lineage: self._notify(stage, current),
         "email":    lambda self, stage, current, lineage: self._email(stage, current),
         "catalog":  lambda self, stage, current, lineage: self._catalog(stage),
+        "show":     lambda self, stage, current, lineage: self._show(stage),
         "info":     lambda self, stage, current, lineage: self._info(stage),
         "project":  lambda self, stage, current, lineage: self._project(stage),
         "style":    lambda self, stage, current, lineage: self._style(stage, current),
@@ -789,6 +790,96 @@ class Engine:
             fh.write(report)
         self._emit(f"  catalogued {len(entries)} dataset(s) → {out}")
         return None  # terminal
+
+    def _show(self, stage) -> Layer | None:
+        """`show <path|@conn[.schema[.table]]> [to=<out.md>]` — list the loadable layers
+        or tables at one location (a file/container, a directory, or a database
+        connection), with each layer's kind, geometry/raster type, file type or provider,
+        and a copy-pasteable `load` source. Terminal: a quick "what can I load here?"
+        glance (no feature counts or deep profiling — that's `catalog`). A directory is
+        listed shallowly (immediate children); each multi-layer container expands to its
+        layers. Defers remote services (WFS/WMS) to a later round."""
+        from ..utilities import facet_for_ext, format_show
+
+        if len(stage.args) != 1:
+            raise FlowError(
+                "show needs one location: `show <path|@conn[.schema]>` [to=<out.md>]",
+                line=stage.line, stage=stage.raw,
+            )
+        unknown = set(stage.options) - {"to"}
+        if unknown:
+            raise FlowError(f"`show`: unknown option(s) {', '.join(sorted(unknown))} — "
+                            "only `to=<out.md>` is accepted",
+                            line=stage.line, stage=stage.raw)
+        target = stage.args[0]
+        is_db = False
+
+        if is_connection_ref(target):
+            is_db = True
+            conn, schema, table = self._resolve_show_connection(target, stage)
+            entries = self.backend.list_tables(conn, schema, table)
+            label = target
+        else:
+            path = os.path.expanduser(target)
+            label = path
+            if os.path.isdir(path):
+                entries = []
+                for fn in sorted(os.listdir(path)):
+                    full = os.path.join(path, fn)
+                    if not os.path.isfile(full):
+                        continue
+                    if facet_for_ext(os.path.splitext(fn)[1]) is None:
+                        continue
+                    try:
+                        entries.extend(self.backend.list_layers(full))
+                    except Exception as exc:  # one unreadable file mustn't abort the listing
+                        self._emit(f"  show: skipped {fn}: {exc}")
+                    self._emit(f"  show: {fn}")
+            elif os.path.isfile(path):
+                entries = self.backend.list_layers(path)
+            else:
+                raise FlowError(f"show: no such file, directory, or connection: {target}",
+                                line=stage.line, stage=stage.raw)
+
+        report = format_show(label, entries, is_db=is_db)
+        out = stage.options.get("to")
+        if out:
+            out = os.path.expanduser(out)
+            parent = os.path.dirname(out)
+            if parent:
+                os.makedirs(parent, exist_ok=True)
+            with open(out, "w", encoding="utf-8") as fh:
+                fh.write(report if report.endswith("\n") else report + "\n")
+            self._emit(f"  listed {len(entries)} item(s) → {out}")
+        else:
+            print(report)
+        return None  # terminal
+
+    def _resolve_show_connection(self, target, stage):
+        """Split `show @ref` into ``(conn, schema, table)``, resolving the connection name
+        as the **longest dotted prefix** that is an actually-registered connection — so a
+        name containing dots (e.g. `actual_spatialite.sqlite`) works. Components *after*
+        the connection name are read for a listing: one trailing part is a schema scope,
+        two are schema + table. Bare `@conn` lists every table."""
+        body = target[1:]
+        if not body:
+            raise FlowError("show: empty connection reference (`@`)",
+                            line=stage.line, stage=stage.raw)
+        names = set(self.backend.connection_names())
+        parts = body.split(".")
+        conn, rest = None, []
+        for i in range(len(parts), 0, -1):
+            candidate = ".".join(parts[:i])
+            if candidate in names:
+                conn, rest = candidate, parts[i:]
+                break
+        if conn is None:
+            # Nothing matched — fall back to the first segment so the backend raises a
+            # clear "no such connection" error naming what the user actually typed.
+            conn, rest = parts[0], parts[1:]
+        schema = rest[0] if len(rest) >= 1 else None
+        table = ".".join(rest[1:]) if len(rest) >= 2 else None
+        return conn, schema, table
 
     def _info(self, stage) -> Layer | None:
         """`info [to=<report.md>]` — inspect the local QGIS environment and report the

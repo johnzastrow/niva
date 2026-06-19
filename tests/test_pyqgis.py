@@ -269,6 +269,17 @@ class TestPyqgisConnections(unittest.TestCase):
         with self.assertRaises(OpError):
             niva.flow(f"load @no_such_conn_xyz.homes | save {self.tmp}/x.gpkg")
 
+    def test_show_lists_connection_tables(self):
+        from niva.engine.pyqgis import PyqgisBackend
+
+        rows = PyqgisBackend().list_tables(self.CONN)
+        names = {r["name"] for r in rows}
+        self.assertIn("homes", names)
+        homes = next(r for r in rows if r["name"] == "homes")
+        self.assertEqual(homes["kind"], "vector")
+        self.assertEqual(homes["type"], "Point")
+        self.assertEqual(homes["ref"], f"@{self.CONN}.homes")
+
     def _table_count(self, table):
         from qgis.core import QgsVectorLayer
 
@@ -919,6 +930,42 @@ class TestPyqgisStyle(unittest.TestCase):
         self.assertTrue(os.path.isfile(out))
         with open(out) as fh:  # a QLR bundles the datasource, so it names the gpkg
             self.assertIn("roads.gpkg", fh.read())
+
+
+class TestPyqgisShow(unittest.TestCase):
+    """`show` — list the layers inside a real container (the part MockBackend can't do:
+    actual layer enumeration + geometry types via querySublayers)."""
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp(prefix="niva_show_")
+        self.gpkg = os.path.join(self.tmp, "multi.gpkg")
+        _write_points(self.gpkg, "EPSG:4326", [(1, 1), (2, 2)])
+        # add a second layer so it's genuinely multi-layer
+        import niva
+
+        niva.flow(f'load "{self.gpkg}" | save "{self.gpkg}" as roads')
+
+    def test_list_layers_reports_names_and_types(self):
+        from niva.engine.pyqgis import PyqgisBackend
+
+        rows = PyqgisBackend().list_layers(self.gpkg)
+        names = {r["name"] for r in rows}
+        self.assertIn("roads", names)
+        roads = next(r for r in rows if r["name"] == "roads")
+        self.assertEqual(roads["kind"], "vector")
+        self.assertIn("Point", roads["type"])
+        self.assertEqual(roads["format"], "GPKG")
+        self.assertIn("layername=roads", roads["ref"])
+
+    def test_show_verb_writes_a_listing(self):
+        import niva
+
+        out = os.path.join(self.tmp, "listing.md")
+        niva.flow(f'show "{self.gpkg}" to="{out}"')
+        self.assertTrue(os.path.isfile(out))
+        text = open(out).read()
+        self.assertIn("Data at", text)
+        self.assertIn("roads", text)
 
 
 class TestPyqgisEnvironmentReport(unittest.TestCase):

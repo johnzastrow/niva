@@ -4,6 +4,16 @@ Parked work. See [`docs/planning/04-roadmap.md`](docs/planning/04-roadmap.md),
 [`docs/planning/15-postgis-and-project-design.md`](docs/planning/15-postgis-and-project-design.md),
 and [`docs/planning/16-anatomy-of-a-verb.md`](docs/planning/16-anatomy-of-a-verb.md) for context.
 
+## `show` — remote services (follow-up to v0.29.0)
+
+- [ ] **Extend `show` to remote services.** v0.29.0 covers files + DB connections; the hard
+  part deferred is listing **remote** sources: WFS feature types, WMS layers, XYZ / vector-tile
+  and ArcGIS REST endpoints — from a URL or a saved OWS connection — plus cloud rasters via GDAL
+  `/vsicurl` / `/vsis3`. Each protocol enumerates differently and needs network-I/O handling:
+  timeouts, offline/slow-endpoint failure, and per-protocol parsing. Reuse the same entry shape
+  (`{name, kind, type, format, ref}`) and `format_show` table. See
+  [`docs/planning/17-show-verb-design.md`](docs/planning/17-show-verb-design.md) §"Out of scope".
+
 ## Project & layer-file operations (new scope)
 
 All use a standalone `QgsProject()` / `QgsMapLayer` off the main thread (per
