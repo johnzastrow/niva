@@ -62,6 +62,120 @@ def fmt_default(value):
     return esc(s[:60] + ("…" if len(s) > 60 else ""))
 
 
+# --- example usage -----------------------------------------------------------
+
+# Destination ("output") parameter types — passed as `OUTPUT=…` in a run command.
+DEST_TYPES = {"sink", "vectorDestination", "rasterDestination", "fileDestination",
+              "folderDestination", "pointCloudDestination", "vectorTileDestination"}
+DEST_EXT = {"sink": ".gpkg", "vectorDestination": ".gpkg", "rasterDestination": ".tif",
+            "pointCloudDestination": ".laz", "fileDestination": ".txt",
+            "folderDestination": "/", "vectorTileDestination": ".mbtiles"}
+
+
+def _num(v):
+    f = float(v)
+    return str(int(f)) if f == int(f) else f"{f:g}"
+
+
+def _runval(value):
+    s = str(value)
+    return f'"{s}"' if (" " in s or ";" in s) else s
+
+
+def example_value(p):
+    """A plausible illustrative value for a parameter, by its type / default."""
+    t = p.type()
+    dv = p.defaultValue()
+    fixed = {
+        "raster": "dem.tif", "mesh": "mesh.nc", "band": "1", "crs": "EPSG:6346",
+        "extent": "0,1000,0,1000", "point": "100,100", "expression": '"value > 0"',
+        "file": "input.dat", "folder": "inputs/", "color": '"#1f78b4"',
+        "datetime": "2024-06-01", "multilayer": '"a.gpkg;b.gpkg"',
+    }
+    if t in ("source", "vector", "layer", "maplayer", "annotationlayer"):
+        return "input.gpkg"
+    if t == "pointcloud":
+        return "cloud.copc.laz"
+    if t in ("field", "attribute", "pointcloudattribute"):
+        return _runval(dv) if isinstance(dv, str) and dv else "field1"
+    if t == "enum":
+        return str(dv if isinstance(dv, int) and not isinstance(dv, bool) else 0)
+    if t == "boolean":
+        return "true" if dv in (True, "true", 1) else "false"
+    if t in ("number", "distance", "duration", "scale"):
+        return _num(dv) if isinstance(dv, (int, float)) and not isinstance(dv, bool) else "10"
+    if t in ("string", "execute_sql"):
+        return _runval(dv) if isinstance(dv, str) and dv else "value"
+    if t in fixed:
+        return fixed[t]
+    if isinstance(dv, bool):
+        return "true" if dv else "false"
+    if isinstance(dv, (int, float)):
+        return _num(dv)
+    if isinstance(dv, str) and dv:
+        return _runval(dv)
+    return "…"
+
+
+def _short(desc, n=80):
+    d = clean(desc).split("\n")[0].strip()
+    return (d[:n].rsplit(" ", 1)[0] + "…") if len(d) > n else d
+
+
+def _enum_label(p, value):
+    opts = getattr(p, "options", None)
+    if not callable(opts):
+        return None
+    try:
+        return opts()[int(value)]
+    except Exception:
+        return None
+
+
+def example_section(alg, params, optional_flag, advanced_flag):
+    """A worked `run` command (required params + a few notable optional ones) plus a
+    narrative explaining each parameter passed."""
+    # Skip GRASS-style dash flags (e.g. `-a`): a `run` KEY must start with a letter/underscore.
+    def runnable(p):
+        n = p.name()
+        return bool(n) and (n[0].isalpha() or n[0] == "_")
+    inputs = [p for p in params if p.type() not in DEST_TYPES and runnable(p)]
+    dests = [p for p in params if p.type() in DEST_TYPES and runnable(p)]
+    required = [p for p in inputs
+                if not (p.flags() & optional_flag)
+                and (p.defaultValue() is None or p.defaultValue() == "")]
+    extra = [p for p in inputs if p not in required and not (p.flags() & advanced_flag)]
+    selected = (required + extra)[:7]  # complex but readable
+
+    args, notes = [], []
+    for p in selected:
+        v = example_value(p)
+        if v == "…" and p not in required:
+            continue
+        args.append(f"{p.name()}={v}")
+        label = _enum_label(p, v) if p.type() == "enum" else None
+        if label is not None:
+            notes.append(f"`{p.name()}={v}` selects *{esc(str(label))}*")
+        else:
+            d = _short(p.description())
+            notes.append(f"`{p.name()}={v}`" + (f" — {d}" if d else ""))
+    if dests:
+        o = dests[0]
+        ext = DEST_EXT.get(o.type(), ".gpkg")
+        fname = o.name().lower() + ("/" if ext == "/" else ext)
+        args.append(f"{o.name()}={fname}")
+        notes.append(f"`{o.name()}={fname}` is where the result is written")
+
+    cmd = "run " + alg.id() + ((" " + " ".join(args)) if args else "")
+    if notes:
+        body = (f"This calls **{esc(alg.displayName())}**: " + "; ".join(notes)
+                + ". Enum values are integer indices; the paths and values here are "
+                "illustrative — substitute your own.")
+    else:
+        body = f"This calls **{esc(alg.displayName())}** (no required parameters)."
+    return ["**Example usage**", "", "```", cmd, "```", "", body, ""]
+
+
 def main():
     from qgis.core import QgsApplication, QgsProcessingParameterDefinition
 
@@ -94,7 +208,8 @@ def main():
             "see [the index](README.md).",
             "",
             "Call any of these with `run <id> KEY=value …` (the **Name** column is the "
-            "`KEY`). A ⭐ marks an algorithm with a friendly niva alias verb.",
+            "`KEY`); each entry includes a worked **Example usage**. A ⭐ marks an algorithm "
+            "with a friendly niva alias verb.",
             "",
         ]
         for alg in algs:
@@ -145,6 +260,7 @@ def main():
                 outtxt = ", ".join(f"`{esc(o.name())}` ({esc(o.type())})" for o in outs)
                 lines.append(f"**Outputs:** {outtxt}")
                 lines.append("")
+            lines.extend(example_section(alg, params, optional_flag, advanced_flag))
             lines.append("")
         path = os.path.join(OUT_DIR, f"{provider}.md")
         with open(path, "w", encoding="utf-8") as fh:
@@ -160,7 +276,7 @@ def main():
         f"Every QGIS Processing algorithm reachable from niva via `run <id> KEY=value …` — "
         f"**{total} algorithms** across {len(counts)} providers (QGIS {QGIS_VERSION}). For "
         "each: its parameters (with types, defaults, and enum options), description, outputs, "
-        "and which niva **alias verb** (if any) wraps it (⭐).",
+        "a worked **Example usage**, and which niva **alias verb** (if any) wraps it (⭐).",
         "",
         "This is auto-generated — regenerate with `scripts/gen_algorithms.py` after a QGIS "
         "upgrade. Most users only need the 45 [alias verbs](../reference.md#5-alias-verbs-the-registry); "
