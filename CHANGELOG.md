@@ -7,6 +7,8 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.27.2] - 2026-06-19
+
 ### Added
 - **Full QGIS algorithm appendix** ([`docs/algorithms/`](docs/algorithms/README.md)) —
   every one of the **769** Processing algorithms reachable via `run <id>` (QGIS 4.0.3),
