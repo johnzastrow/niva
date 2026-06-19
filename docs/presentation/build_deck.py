@@ -356,30 +356,30 @@ for i, (h, b) in enumerate(vals):
 _footer(s, 15)
 
 # ---- 16. STATUS — WHAT'S BUILT -----------------------------------------
-s = content_slide(prs, "What's working today", eyebrow="Status · built and tested")
+s = content_slide(prs, "What's working today", eyebrow="Status · built and shipping")
 _text(s, 0.85, 1.55, 11.6, 0.5,
-      [[("niva is pre-release (v0.1) — but the core already runs real analysis "
+      [[("niva ships as a QGIS plugin (v0.27) and runs real analysis "
          "end-to-end, on QGIS's own algorithms:", {"size": 17, "color": SAGE})]])
 status_cards = [
     ("Grammar & engine", DEEP, [
         "Readable lexer + parser → pipeline stages",
-        "Pipe-chaining engine: layer handles, results",
+        "Pipe-chaining engine: layer handles, lineage",
         "PyQGIS backend — runs real geoprocessing",
     ]),
-    ("Verb coverage", TAN, [
-        "~40-verb registry (Tier 1 + Tier 2 aliases)",
-        "9 core built-ins (load · save · filter · compute …)",
-        "sql read passthrough (SELECT → layer)",
-        "run — reach ANY QGIS algorithm",
+    ("Verbs & algorithms", TAN, [
+        "~45 alias verbs + 12 built-ins (vector + raster)",
+        "sql @conn — SELECT → layer, and server-side writes",
+        "run — reach ANY of QGIS's 769 algorithms",
     ]),
-    ("Provenance & quality", DEEP, [
-        "Operation log / run journal — auto-recorded",
-        "assess — profile inputs before you trust them",
+    ("Data & cartography", DEEP, [
+        "PostGIS & SpatiaLite — read · write · analyse",
+        "project — repoint / build / templates · bookmarks",
+        "style — apply / export .qml · .sld · .qlr",
     ]),
-    ("Composition & delivery", TAN, [
-        "call — compose flows across files (cycle-safe)",
-        "CLI + Python / Marimo API (--explain, --dry-run)",
-        "80 tests passing under QGIS · headless CI",
+    ("Delivery & quality", TAN, [
+        "QGIS plugin (Install from ZIP) · CLI · Python API",
+        "Provenance journal · assess · catalog · notify / email",
+        "270+ tests, live-QGIS + PostGIS CI · full docs",
     ]),
 ]
 cw, ch, gx, gy = 5.8, 2.25, 0.25, 0.2
@@ -399,20 +399,18 @@ for i, (ctitle, accent, items) in enumerate(status_cards):
 _footer(s, 16)
 
 # ---- 17. ROADMAP — REMAINING MILESTONES --------------------------------
-s = content_slide(prs, "The road ahead", eyebrow="Roadmap · remaining milestones")
+s = content_slide(prs, "The road ahead", eyebrow="Roadmap · shipped & next")
 spine = _box(s, 1.62, 2.1, 0.04, 4.35)
 _fill(spine, TAN)
 milestones = [
-    ("v0.1", "Core engine & MVP",
-     "Grammar · PyQGIS backend · ~40 verbs · assess · run / call", "finishing now"),
-    ("v0.2", "Breadth & provenance",
-     "Tier-2 + raster verbs · auto-lineage → metadata · richer filter · qgis_process backend · docs", None),
+    ("v0.27", "Shipped — available now",
+     "~45 verbs + raster · run → 769 · PostGIS read·write·analyse · project / template / style · QGIS plugin · CLI / Python · full docs", "available now"),
     ("v1.0", "Stable release",
      "Grammar freeze (SemVer) · PyPI publish · worked Marimo–QGIS integration", None),
     ("v2.0", "Power features",
-     "Named intermediates & variables · SQL writes · quality rules & constraints", None),
-    ("v2.x", "Front ends & service mode",
-     "QGIS plugin / Processing-Toolbox · service / daemon mode · layout & symbology export", None),
+     "Named intermediates & variables · SQL-driven quality rules & constraints", None),
+    ("v2.x", "Service mode",
+     "Service / daemon mode · richer layout & symbology export", None),
 ]
 ry, rh = 2.0, 1.02
 for ver, mtitle, sub, tag in milestones:

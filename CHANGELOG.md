@@ -7,6 +7,12 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Changed
+- **Refreshed the pitch deck** (`docs/presentation/`) — the "What's working today" and roadmap
+  slides now reflect v0.27: ~45 verbs + raster, `run` → 769 algorithms, PostGIS/SpatiaLite
+  read·write·analyse, the `project`/`style` verbs, the QGIS plugin, and the full docs. Both the
+  Marp deck and the PowerPoint (and their rendered HTML/PDF/PPTX) regenerated.
+
 ## [0.27.5] - 2026-06-19
 
 ### Added
