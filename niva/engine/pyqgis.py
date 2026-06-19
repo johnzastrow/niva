@@ -422,6 +422,21 @@ class PyqgisBackend(Backend):
                           f"({err}). The input may be corrupt or truncated.",
                           algorithm=algorithm, params=params, backend="pyqgis")
 
+    @staticmethod
+    def _output_is_raster(algorithm: str, output_param: str) -> bool:
+        """True if ``algorithm``'s ``output_param`` is a raster output — so a raster-in /
+        vector-out op (e.g. gdal:polygonize) is correctly treated as producing a vector."""
+        from qgis.core import QgsApplication
+
+        alg = QgsApplication.processingRegistry().algorithmById(algorithm)
+        if alg is None:
+            return False
+        try:
+            od = alg.outputDefinition(output_param)
+        except Exception:
+            od = None
+        return od is not None and "raster" in (od.type() or "").lower()
+
     def run(self, algorithm: str, params: dict, *, input_param: str,
             input_layer: Layer, output_param: str, progress=None, cancel=None) -> Layer:
         import processing
@@ -430,11 +445,12 @@ class PyqgisBackend(Backend):
         full[input_param] = input_layer.ref
         # Raster intermediates can be gigabytes. QGIS's ``TEMPORARY_OUTPUT`` sentinel
         # writes them into the system temp dir — often a small, quota'd tmpfs that a
-        # long raster pipeline exhausts. Give raster ops an explicit GeoTIFF path in
-        # niva's scratch dir (relocatable off the tmpfs via NIVA_TMPDIR) and track it
-        # so the engine can delete it once the run ends. Vector ops, which are far
-        # smaller, keep the default sink. See ``scratch_dir``.
-        if input_layer.facet == "raster":
+        # long raster pipeline exhausts. Give raster *outputs* an explicit GeoTIFF path in
+        # niva's scratch dir (relocatable off the tmpfs via NIVA_TMPDIR) and track it so
+        # the engine can delete it once the run ends. Keying on the OUTPUT facet (not the
+        # input's) matters for raster-in / vector-out ops like `gdal:polygonize`: their
+        # output is a vector, which must NOT be forced to a `.tif`. See ``scratch_dir``.
+        if self._output_is_raster(algorithm, output_param):
             full[output_param] = self._temp_path(".tif")
         else:
             full[output_param] = "TEMPORARY_OUTPUT"
@@ -630,6 +646,11 @@ class PyqgisBackend(Backend):
         driver = QgsVectorFileWriter.driverForExtension(ext)
         if driver:
             options.driverName = driver
+        # A `.sqlite` target should be a real SpatiaLite database (so QGIS's SpatiaLite
+        # connection + `sql @conn` ST_* functions work), not a bare OGR SQLite. The
+        # dataset-creation option is honoured on first write and ignored on append.
+        if ext.lower() == ".sqlite":
+            options.datasourceOptions = ["SPATIALITE=YES"]
         if multilayer:  # a known layer name is needed to persist metadata later
             options.layerName = name
             # Append only once the container exists: the FIRST layer creates the file
@@ -1364,6 +1385,17 @@ class PyqgisBackend(Backend):
 
     def style_layer(self, layer: Layer, action: str, path: str) -> None:
         ml = layer.ref
+        if isinstance(ml, str):
+            # After `save`, the handle's ref is a path on disk, not a live layer — load it
+            # so `style apply|save` can chain after `save` (the documented pattern
+            # `… | save out.gpkg | style apply x.qml`).
+            from qgis.core import QgsVectorLayer
+
+            loaded = QgsVectorLayer(ml, layer.name or "layer", "ogr")
+            if not loaded.isValid():
+                raise OpError(f"could not open `{ml}` to style it",
+                              algorithm="style", params={"path": path}, backend="pyqgis")
+            ml = loaded
         ext = os.path.splitext(path)[1].lower()
         if action == "save":
             return self._save_style(ml, path, ext)

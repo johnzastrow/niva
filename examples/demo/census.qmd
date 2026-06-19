@@ -7,10 +7,10 @@
   <title></title>
   <abstract></abstract>
   <links/>
-  <history>niva: 2026-06-19T12:52:56+00:00 load "~/Github/niva/examples/example.gpkg|layername=nhdplus_catchment"</history>
-  <history>niva: 2026-06-19T12:52:56+00:00 run native:fieldcalculator FIELD_NAME=pop FIELD_TYPE=1 FORMULA="round(rand(200, 8000))"</history>
-  <history>niva: 2026-06-19T12:52:56+00:00 run native:fieldcalculator FIELD_NAME=income FIELD_TYPE=1 FORMULA="round(rand(25000, 140000))"</history>
-  <history>niva: 2026-06-19T12:52:56+00:00 keepfields NHDPlusID,pop,income</history>
+  <history>niva: 2026-06-19T13:08:48+00:00 load "~/Github/niva/examples/example.gpkg|layername=nhdplus_catchment"</history>
+  <history>niva: 2026-06-19T13:08:48+00:00 run native:fieldcalculator FIELD_NAME=pop FIELD_TYPE=1 FORMULA="round(rand(200, 8000))"</history>
+  <history>niva: 2026-06-19T13:08:48+00:00 run native:fieldcalculator FIELD_NAME=income FIELD_TYPE=1 FORMULA="round(rand(25000, 140000))"</history>
+  <history>niva: 2026-06-19T13:08:48+00:00 keepfields NHDPlusID,pop,income</history>
   <dates/>
   <fees></fees>
   <encoding></encoding>

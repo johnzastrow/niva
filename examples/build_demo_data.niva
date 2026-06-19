@@ -44,8 +44,8 @@ load "~/Github/niva/examples/demo/dem.tif" | slope | save "~/Github/niva/example
 load "~/Github/niva/examples/demo/dem.tif" | aspect | save "~/Github/niva/examples/demo/aspect.tif"
 # slope doubles as a movement-cost surface for grass:r.cost
 load "~/Github/niva/examples/demo/dem.tif" | slope | save "~/Github/niva/examples/demo/cost_surface.tif"
-# a categorical raster (catchment GridCode at 20 m) so `polygonize` has something to vectorise
-load "~/Github/niva/examples/example.gpkg|layername=nhdplus_catchment" | reproject EPSG:6346 | clip "~/Github/niva/examples/demo/vectors/aoi.gpkg" | run gdal:rasterize FIELD=GridCode UNITS=1 WIDTH=20 HEIGHT=20 | save "~/Github/niva/examples/demo/landcover.tif"
+# a categorical INTEGER raster (catchment GridCode at 20 m, Int32) so `polygonize` works
+load "~/Github/niva/examples/example.gpkg|layername=nhdplus_catchment" | reproject EPSG:6346 | clip "~/Github/niva/examples/demo/vectors/aoi.gpkg" | run gdal:rasterize FIELD=GridCode UNITS=1 WIDTH=20 HEIGHT=20 DATA_TYPE=4 | save "~/Github/niva/examples/demo/landcover.tif"
 # a DEM with a NoData hole (a donut clip) for gdal:fillnodata
 load "~/Github/niva/examples/demo/vectors/aoi.gpkg" | centroid | buffer 700m | save "~/Github/niva/examples/demo/_hole.gpkg"
 load "~/Github/niva/examples/demo/vectors/aoi.gpkg" | difference "~/Github/niva/examples/demo/_hole.gpkg" | save "~/Github/niva/examples/demo/_donut.gpkg"

@@ -10,7 +10,18 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ### Fixed
 - **`save` now creates its target's parent directory** if it doesn't exist (previously only
   `catalog`/`project`/`assess` did, so `save out/new/x.gpkg` into a fresh tree failed with an
-  OGR "unable to open database file" error). Surfaced while building the demo dataset.
+  OGR "unable to open database file" error).
+- **`style apply`/`save` now chains after `save`** (the documented `… | save out.gpkg |
+  style apply x.qml` pattern). `save` returns a path-backed handle; `style` now loads it
+  instead of crashing with `'str' object has no attribute 'loadNamedStyle'`.
+- **Saving to `.sqlite` now produces a real SpatiaLite database** (`SPATIALITE=YES`), so QGIS
+  SpatiaLite connections and `sql @conn` ST_* functions work against it — previously it was a
+  bare OGR SQLite the SpatiaLite provider couldn't read.
+- **The `polygonize` alias works again** — a raster-in / vector-out algorithm's output was
+  wrongly forced to a `.tif` (the scratch path was keyed on the input facet); it now keys on
+  the output facet, so `load r.tif | polygonize | save out.gpkg` produces a vector.
+
+  (All four fixes were surfaced by building and verifying the demo dataset.)
 
 ### Added
 - **Demonstration dataset + build flows** under `examples/` — a recursive example (niva
@@ -19,6 +30,10 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   NoData/target rasters, join CSVs, a SpatiaLite DB, a project + style), and the deferred
   `build_demo_lidar.niva` / `build_demo_postgis.niva`. Generated products land in `examples/demo/`
   and back the cookbook recipes.
+- **`examples/verify_cookbook.py`** — a harness that runs a representative recipe from every
+  cookbook section against `examples/demo/` (registering the SpatiaLite DB, using any reachable
+  PostGIS connection) and reports pass/fail. Current result: 39/40 pass (PostGIS skipped without
+  a connection).
 
 ## [0.27.3] - 2026-06-19
 

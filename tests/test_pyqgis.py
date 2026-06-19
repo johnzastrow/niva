@@ -76,6 +76,30 @@ class TestPyqgisBackend(unittest.TestCase):
         self.assertEqual(layer.featureCount(), 2)
         self.assertIn("Polygon", QgsWkbTypes.displayString(layer.wkbType()))
 
+    def test_polygonize_alias_outputs_vector(self):
+        # `polygonize` is raster-in / vector-out — the output must NOT be forced to a .tif
+        # (regression: keying the scratch on input facet broke it). See _output_is_raster.
+        import niva
+        from qgis.core import QgsVectorLayer
+
+        rast = os.path.join(self.tmp, "r.tif")
+        _write_raster(rast)
+        out = os.path.join(self.tmp, "poly.gpkg")
+        niva.flow(f'load "{rast}" | polygonize field=DN | save "{out}"')
+        vl = QgsVectorLayer(out, "p", "ogr")
+        self.assertTrue(vl.isValid() and vl.featureCount() >= 1)
+
+    def test_save_sqlite_is_spatialite(self):
+        # A `.sqlite` save must be a real SpatiaLite database the provider can read.
+        import niva
+        from qgis.core import QgsProviderRegistry
+
+        sl = os.path.join(self.tmp, "y.sqlite")
+        niva.flow(f'load "{self.src}" | save "{sl}" as pts')
+        md = QgsProviderRegistry.instance().providerMetadata("spatialite")
+        conn = md.createConnection(f"dbname='{sl}'", {})
+        self.assertIn("pts", [t.tableName() for t in conn.tables("")])
+
     def test_buffer_dissolve_units(self):
         # Points are 1000 m apart; 1km buffers overlap, so dissolve → one feature.
         import niva
@@ -849,6 +873,15 @@ class TestPyqgisStyle(unittest.TestCase):
         niva.flow(f'load "{self.gpkg}|layername=roads" | style apply "{self.qml}"')
         # a freshly loaded layer adopts the stored default style
         self.assertEqual(self._opacity(f"{self.gpkg}|layername=roads"), 0.37)
+
+    def test_apply_chains_after_save(self):
+        # `… | save out.gpkg | style apply x.qml` — save returns a path-backed handle;
+        # style must load it rather than crash on a str. (Regression for a documented chain.)
+        import niva
+
+        out = os.path.join(self.tmp, "saved.gpkg")
+        niva.flow(f'load "{self.gpkg}|layername=roads" | save "{out}" | style apply "{self.qml}"')
+        self.assertEqual(self._opacity(out), 0.37)
 
     def test_apply_to_single_file_writes_sidecar(self):
         import niva
