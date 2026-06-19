@@ -86,22 +86,35 @@ script, save it, or import a niva-shaped script back into a flow.
 ### Make `niva` runnable
 
 **Option A — no install (run it as a module).** Point QGIS's Python at the niva package and
-run the CLI module. On Linux with a packaged QGIS:
+run the CLI module. **Two placeholders below must be replaced for your machine — copying the
+line verbatim will fail:**
+
+- **`/path/to/niva`** — the directory holding the `niva/` package (your repo root).
+- **`/path/to/qgis/python3`** — the **full path to QGIS's Python interpreter**, *not* a bare
+  `python3`. A bare `python3` frequently resolves to a Homebrew / pyenv / conda Python that
+  cannot import QGIS, giving `No module named 'niva'` or a PyQGIS `ImportError`. On Linux with a
+  distro QGIS this is typically `/usr/bin/python3.NN` (match QGIS's exact minor version).
 
 ```bash
+# Substitute both placeholders:
 PYTHONPATH=/path/to/niva:/usr/share/qgis/python:/usr/lib/python3/dist-packages \
-  QT_QPA_PLATFORM=offscreen python3 -m niva.cli.main describe buffer
+  QT_QPA_PLATFORM=offscreen /path/to/qgis/python3 -m niva.cli.main describe buffer
 ```
 
-Wrap that in a shell alias so `niva …` just works (put it in your `~/.bashrc`, adjusting the
-Python and paths to your QGIS):
+Wrap it in a shell alias so `niva …` just works (put it in your `~/.bashrc`):
 
 ```bash
-alias niva='PYTHONPATH=/path/to/niva:/usr/share/qgis/python:/usr/lib/python3/dist-packages QT_QPA_PLATFORM=offscreen python3 -m niva.cli.main'
+# Template:
+alias niva='PYTHONPATH=/path/to/niva:/usr/share/qgis/python:/usr/lib/python3/dist-packages QT_QPA_PLATFORM=offscreen /path/to/qgis/python3 -m niva.cli.main'
+
+# Concrete example (Linux, distro QGIS 4.x, repo at ~/Github/niva):
+alias niva='PYTHONPATH=/home/jcz/Github/niva:/usr/share/qgis/python:/usr/lib/python3/dist-packages QT_QPA_PLATFORM=offscreen /usr/bin/python3.14 -m niva.cli.main'
 ```
 
 Not sure of QGIS's Python or paths? In the QGIS **Python Console** run:
-`import sys, qgis; print(sys.executable); print([p for p in sys.path if 'qgis' in p.lower()])`.
+`import sys, qgis; print(sys.executable); print([p for p in sys.path if 'qgis' in p.lower()])`
+— use that `sys.executable` as the interpreter. Then run `niva info`: if it lists your database
+connections, the alias is correctly wired to your real QGIS profile.
 
 **Option B — install the `niva` command.** Install niva *into QGIS's Python* so it creates a
 `niva` console script, then make sure that interpreter's `bin`/`Scripts` is on your `PATH`:

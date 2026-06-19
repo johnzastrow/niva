@@ -1,6 +1,6 @@
 # niva Reference
 
-The complete reference for **niva v0.27.0** — every verb, alias, option, type, environment
+The complete reference for **niva v0.28.0** — every verb, alias, option, type, environment
 variable, CLI command, and Python entry point. For a task-oriented tour see the
 [Cookbook](cookbook.md); for setup and day-to-day use see the [User Guide](user-guide.md).
 

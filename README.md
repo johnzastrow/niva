@@ -44,9 +44,11 @@ Niva turns QGIS automation from PyQGIS code into a readable single lines of text
 * **Composable** — chain stages with `|`, compose files with `call`, and **export a
   flow to a standalone PyQGIS script** (`niva export`) or import one back.
 * **Utility verbs beyond QGIS** — `notify` (ntfy push when a long job finishes),
-  `email` (SMTP, Gmail-aware), and `catalog` (recurse a directory and inventory every
-  geospatial dataset — CRS, extent, fields, bands — to a Markdown report). Credentials
-  for `notify`/`email` come **only from the environment**, never the flow text.
+  `email` (SMTP, Gmail-aware), `catalog` (recurse a directory and inventory every
+  geospatial dataset — CRS, extent, fields, bands — to a Markdown report), and `info`
+  (inspect the local QGIS environment — the registered `@conn` connection names across
+  every profile, providers, versions). Credentials for `notify`/`email` come **only from
+  the environment**, never the flow text.
 
 ## Screenshots
 

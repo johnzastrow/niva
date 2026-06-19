@@ -53,18 +53,31 @@ neither:
 2. **It runs on QGIS's Python.** niva needs the PyQGIS bindings (`qgis.core`, Processing) — your
    system `python3` usually can't import them, only the Python that QGIS ships with.
 
-The quickest fix — **no install, just an alias** (adjust the python and paths to your QGIS):
+The quickest fix — **no install, just an alias**. **Two parts must point at *your* system —
+don't paste the line as-is:**
+
+- replace `/path/to/niva` with the directory that contains the `niva/` package (the repo
+  root), and
+- use the **full path to QGIS's Python**, not a bare `python3`. A bare `python3` often
+  resolves to a Homebrew / pyenv / conda Python that *can't* import QGIS — you'll get
+  `No module named 'niva'` or a PyQGIS `ImportError`.
 
 ```bash
-alias niva='PYTHONPATH=/path/to/niva:/usr/share/qgis/python:/usr/lib/python3/dist-packages QT_QPA_PLATFORM=offscreen python3 -m niva.cli.main'
+# Template — substitute both placeholders:
+alias niva='PYTHONPATH=/path/to/niva:/usr/share/qgis/python:/usr/lib/python3/dist-packages QT_QPA_PLATFORM=offscreen /path/to/qgis/python3 -m niva.cli.main'
+
+# Concrete example (Linux, distro QGIS, repo at ~/Github/niva):
+alias niva='PYTHONPATH=/home/jcz/Github/niva:/usr/share/qgis/python:/usr/lib/python3/dist-packages QT_QPA_PLATFORM=offscreen /usr/bin/python3.14 -m niva.cli.main'
 niva describe buffer            # now it works
 ```
 
-(To find QGIS's Python + paths, in the QGIS **Python Console**:
-`import sys, qgis; print(sys.executable); print([p for p in sys.path if 'qgis' in p.lower()])`.)
-Or install the command into QGIS's Python — full instructions in the
-[User Guide](user-guide.md#3-standalone--cli). Sanity-check without QGIS using `--explain`:
-`python3 -m niva.cli.main "load a.gpkg | buffer 100m | save b.gpkg" --explain`.
+To find QGIS's Python + paths, open the QGIS **Python Console** and run:
+`import sys, qgis; print(sys.executable); print([p for p in sys.path if 'qgis' in p.lower()])`
+— use that `sys.executable` as the interpreter above. Then `niva info` confirms it's wired to
+your real QGIS profile (it lists your `@conn` connections). Or install the command into QGIS's
+Python — full instructions in the [User Guide](user-guide.md#3-standalone--cli). Sanity-check
+the parser without QGIS using `--explain`:
+`<qgis-python> -m niva.cli.main "load a.gpkg | buffer 100m | save b.gpkg" --explain`.
 
 ## Is niva on PyPI? How do I install it?
 

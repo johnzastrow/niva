@@ -34,10 +34,13 @@ load roads.gpkg | buffer 100 dissolve | clip city.gpkg | save roads_local.gpkg
 
 ## Status & open questions
 
-niva **runs** (v0.2.0): the full path — grammar → registry/binder → engine → PyQGIS
-backend — executes real geoprocessing, validated against real GIS data on QGIS 4.0.3
-(122 unit + 19 niva-script integration checks). The verb set is still a starter set
-and will grow.
+niva **runs** (v0.28.0): the full path — grammar → registry/binder → engine → PyQGIS
+backend — executes real geoprocessing, validated against real GIS data on QGIS 4.0.3.
+The surface is now broad: **45 alias verbs** plus **13 built-in verbs** (`load`, `save`,
+`sql`, `run`, `metadata`, `assess`, `catalog`, `info`, `project`, `style`, `split`,
+`notify`, `email`), with **every** QGIS algorithm reachable via `run`, PostGIS/SpatiaLite
+read·write·analyse, project & template files, a QGIS plugin, and a standalone CLI/API. It
+is covered by a QGIS-free unit/integration tier (**280+** tests) plus a live-QGIS tier.
 
 The design is worked out in [`planning/`](../planning/) (PRD, architecture, grammar
 spec, security model, the `Oscar_the_Grouch.md` failure register, and the
@@ -46,7 +49,6 @@ spec, security model, the `Oscar_the_Grouch.md` failure register, and the
 Deliberately still-open questions:
 
 - library vs CLI vs plugin as the *primary* surface for the target user;
-- raster `save` and multi-layer GeoPackage write (`save … as <layer>` / append);
-- a friendly-error layer that translates cryptic QGIS/GDAL messages;
+- how far the friendly-error layer should go in translating cryptic QGIS/GDAL messages;
 - whether the premise holds — that GUI-first analysts will adopt a text grammar at
   all (the risk `Oscar_the_Grouch.md` calls out first).
