@@ -4,6 +4,23 @@ The complete reference for **niva v0.27.0** — every verb, alias, option, type,
 variable, CLI command, and Python entry point. For a task-oriented tour see the
 [Cookbook](cookbook.md); for setup and day-to-day use see the [User Guide](user-guide.md).
 
+### Algorithm coverage at a glance
+
+niva gives **45 alias verbs** friendly names; **every** QGIS Processing algorithm — **769**
+in QGIS 4.0.3 — is reachable through the [`run`](#6-the-run-escape-hatch--describe) escape
+hatch. The complete, per-algorithm appendix (parameters, defaults, enum options, descriptions,
+and which verb aliases each) is in [`docs/algorithms/`](algorithms/README.md).
+
+| Provider | Algorithms | niva alias verbs |
+|---|---|---|
+| `native:` | 339 | 40 |
+| `gdal:` | 59 | 5 |
+| `grass:` | 307 | 0 |
+| `qgis:` | 39 | 0 |
+| `pdal:` | 24 | 0 |
+| `3d:` | 1 | 0 |
+| **Total** | **769** | **45** |
+
 - [1. The flow model](#1-the-flow-model)
 - [2. Syntax](#2-syntax)
 - [3. Value types & units](#3-value-types--units)
@@ -458,7 +475,9 @@ intermediates aren't left huge; the final product's compression is governed by `
 | `aspect` | `gdal:aspect` | — | `band=`(1) | `trig` · `zero_flat` |
 | `polygonize` | `gdal:polygonize` | — | `band=`(1) · `field=`(DN) | `eight` |
 
-Anything not aliased is still reachable with `run <algorithm-id> …` (§6).
+Anything not aliased is still reachable with `run <algorithm-id> …` (§6). For the full
+catalogue of all 769 algorithms — parameters, defaults, enum options, and descriptions — see
+the [algorithm appendix](algorithms/README.md).
 
 ---
 
@@ -488,6 +507,10 @@ needed):
 niva describe buffer
 niva describe gdal:warpreproject
 ```
+
+The **[algorithm appendix](algorithms/README.md)** lists all 769 algorithms by provider —
+each with its parameters (type, required, default, enum options), description, outputs, and
+niva alias (⭐) — so you can find and copy a `run <id> …` for anything without an alias.
 
 ---
 

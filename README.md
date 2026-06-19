@@ -109,7 +109,8 @@ niva.flow('load "data.gpkg|layername=roads" | buffer 100m dissolve | save out.gp
 - **[User Guide](docs/user-guide.md)** — install & run niva inside QGIS and standalone,
   configuration, scratch space, troubleshooting
 - **[Reference](docs/reference.md)** — every verb, alias, option, type, env var, CLI command,
-  and Python entry point
+  and Python entry point · **[Algorithm appendix](docs/algorithms/README.md)** — all 769 QGIS
+  algorithms with parameters & descriptions
 - **[Cookbook](docs/cookbook.md)** — 50 worked recipes, including spatial SQL for SpatiaLite
   and PostGIS
 - [Template projects](docs/templates.md) — author a QGIS project once (layout + styles),
