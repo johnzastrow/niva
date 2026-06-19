@@ -131,7 +131,7 @@ niva.flow('load "data.gpkg|layername=roads" | buffer 100m dissolve | save out.gp
 - [CHANGELOG](CHANGELOG.md)
 
 📘 **The whole guide ([User Guide](docs/guide/) + Reference + Cookbook + FAQ + the
-769-algorithm appendix) is also one PDF: [`niva-guide.pdf`](docs/guide/niva-guide.pdf)** (also
+769-algorithm appendix) is also one PDF: [`niva-guide.pdf`](https://github.com/johnzastrow/niva/blob/9206e42d0c55ef96238c514e9bbf3a038bc69c7c/docs/guide/niva-guide.pdf)** (also
 attached to the [latest release](https://github.com/johnzastrow/niva/releases/latest); rebuild
 with `python3 scripts/build_guide_pdf.py`, which needs `pandoc` + a LaTeX engine).
 
