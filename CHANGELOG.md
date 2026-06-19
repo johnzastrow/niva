@@ -10,7 +10,8 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ### Fixed
 - **`save` now creates its target's parent directory** if it doesn't exist (previously only
   `catalog`/`project`/`assess` did, so `save out/new/x.gpkg` into a fresh tree failed with an
-  OGR "unable to open database file" error).
+  OGR "unable to open database file" error) — including the first item of an `each` batch that
+  saves into one container.
 - **`style apply`/`save` now chains after `save`** (the documented `… | save out.gpkg |
   style apply x.qml` pattern). `save` returns a path-backed handle; `style` now loads it
   instead of crashing with `'str' object has no attribute 'loadNamedStyle'`.
@@ -34,6 +35,11 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   cookbook section against `examples/demo/` (registering the SpatiaLite DB, using any reachable
   PostGIS connection) and reports pass/fail. Current result: 39/40 pass (PostGIS skipped without
   a connection).
+
+### Changed
+- **The demo vectors are consolidated into one GeoPackage** (`examples/demo/demo.gpkg`, 31
+  named layers) instead of ~30 separate `.gpkg` files under `vectors/`/`layers/` — fewer files,
+  same coverage. The build/verify/PostGIS flows address layers as `demo.gpkg|layername=<name>`.
 
 ## [0.27.3] - 2026-06-19
 

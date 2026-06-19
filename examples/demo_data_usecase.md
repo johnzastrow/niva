@@ -24,16 +24,21 @@ shape them into clean, study-area, single-CRS demo assets and to manufacture the
 tables, point cloud, and databases** that aren't there. Each asset below notes the cookbook
 sections it feeds.
 
+**All demo vectors live in one GeoPackage — `demo.gpkg`** — as named layers. Every source
+layer (reprojected to EPSG:6346); `parcels` enhanced with a synthetic `zoning`; `ny_ytown_streets`
+with a synthetic `class`; friendly aliases `roads`/`buildings`/`aoi`/`points`/`watersheds`; and a
+derived `floodzone`. Address a layer as `demo.gpkg|layername=<name>`.
+
 | Asset (under `examples/demo/`) | Built from | Feeds cookbook |
 |---|---|---|
-| `vectors/aoi.gpkg` | `AOISM` | clip masks (§A, B, raster clips) |
-| `vectors/roads.gpkg` (synthetic `class`) | `ny_ytown_streets` | filter, network, SQL `class='primary'` |
-| `vectors/parcels.gpkg` (synthetic `zoning`) | `parcels` | filter, dissolve, SQL `GROUP BY zoning` |
-| `vectors/buildings.gpkg` | `ny_ytown_buildings` | difference, footprints |
-| `vectors/points.gpkg` | `gnis` | clustering, count-in-polygon, hub lines |
-| `vectors/watersheds.gpkg` | `nhdplus_catchment` | zonalstats zones |
-| `vectors/floodzone.gpkg` | buffered `nhd_flowlines` | intersect / selectloc / ST_Intersects |
-| `layers/*.gpkg` (one file per source layer) | `each example.gpkg` | `each`/glob batch (§E) |
+| `demo.gpkg \| aoi` | `AOISM` | clip masks (§A, B, raster clips) |
+| `demo.gpkg \| roads` (synthetic `class`) | `ny_ytown_streets` | filter, network, SQL `class='primary'` |
+| `demo.gpkg \| parcels` (synthetic `zoning`) | `parcels` | filter, dissolve, SQL `GROUP BY zoning` |
+| `demo.gpkg \| buildings` | `ny_ytown_buildings` | difference, footprints |
+| `demo.gpkg \| points` | `gnis` | clustering, count-in-polygon, hub lines |
+| `demo.gpkg \| watersheds` | `nhdplus_catchment` | zonalstats zones |
+| `demo.gpkg \| floodzone` | buffered `nhd_flowlines` | intersect / selectloc / ST_Intersects |
+| `demo.gpkg` (31 layers) | `each example.gpkg` + enhancements | `each <container>` batch (§E) |
 | `dem.tif` (10 m, AOISM) | `ytown_dem.tif` | warp, clipraster, hillshade, slope, aspect, zonalstats, contour, GRASS terrain |
 | `hillshade.tif` / `slope.tif` / `aspect.tif` | `dem.tif` | raster derivatives (§F) |
 | `cost_surface.tif` | `dem.tif` (slope) | `grass:r.cost` |

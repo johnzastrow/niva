@@ -15,7 +15,7 @@
 run pdal:merge LAYERS="~/Downloads/17TPH570895.las;~/Downloads/17TPH570910.las;~/Downloads/17TPH585895.las;~/Downloads/17TPH585910.las;~/Downloads/17TPH585925.las;~/Downloads/17TPH600895.las;~/Downloads/17TPH600910.las" OUTPUT="~/niva_scratch/ytown_merged.laz"
 
 # 2. Clip the merged cloud to the AOISM polygon (built by build_demo_data.niva).
-run pdal:clip INPUT="~/niva_scratch/ytown_merged.laz" OVERLAY="~/Github/niva/examples/demo/vectors/aoi.gpkg" OUTPUT="~/Github/niva/examples/demo/lidar.laz"
+run pdal:clip INPUT="~/niva_scratch/ytown_merged.laz" OVERLAY="~/Github/niva/examples/demo/demo.gpkg|layername=aoi" OUTPUT="~/Github/niva/examples/demo/lidar.laz"
 
 # 3. Export a 1 m DEM from the clipped cloud (then niva can hillshade/slope it).
 run pdal:exportraster INPUT="~/Github/niva/examples/demo/lidar.laz" ATTRIBUTE=Z RESOLUTION=1 OUTPUT="~/Github/niva/examples/demo/lidar_dem.tif"

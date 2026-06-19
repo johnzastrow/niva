@@ -15,11 +15,11 @@
 # does `load @pg.testing.roads`, `sql @pg "SELECT … ST_Buffer(geom,…) …"`, etc.
 # =============================================================================
 
-load "~/Github/niva/examples/demo/vectors/roads.gpkg"      | save @pg.testing.roads      mode=replace
-load "~/Github/niva/examples/demo/vectors/parcels.gpkg"    | save @pg.testing.parcels    mode=replace
-load "~/Github/niva/examples/demo/vectors/floodzone.gpkg"  | save @pg.testing.flood      mode=replace
-load "~/Github/niva/examples/demo/vectors/points.gpkg"     | save @pg.testing.points     mode=replace
-load "~/Github/niva/examples/demo/vectors/watersheds.gpkg" | save @pg.testing.watersheds mode=replace
+load "~/Github/niva/examples/demo/demo.gpkg|layername=roads"      | save @pg.testing.roads      mode=replace
+load "~/Github/niva/examples/demo/demo.gpkg|layername=parcels"    | save @pg.testing.parcels    mode=replace
+load "~/Github/niva/examples/demo/demo.gpkg|layername=floodzone"  | save @pg.testing.flood      mode=replace
+load "~/Github/niva/examples/demo/demo.gpkg|layername=points"     | save @pg.testing.points     mode=replace
+load "~/Github/niva/examples/demo/demo.gpkg|layername=watersheds" | save @pg.testing.watersheds mode=replace
 
 # A couple of analyse-in-place demos you can then run against the loaded tables
 # (these are writes — terminal — so they run server-side and return nothing):

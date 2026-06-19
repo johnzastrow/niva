@@ -3,19 +3,20 @@
   <identifier></identifier>
   <parentidentifier></parentidentifier>
   <language></language>
-  <type></type>
+  <type>dataset</type>
   <title></title>
   <abstract></abstract>
   <links/>
-  <history>niva: 2026-06-19T13:08:51+00:00 load "~/Github/niva/examples/example.gpkg|layername=ny_ytown_stateparks"</history>
-  <history>niva: 2026-06-19T13:08:51+00:00 reproject EPSG:6346</history>
+  <history>niva: 2026-06-19T13:23:31+00:00 each ny_ytown_stateparks</history>
+  <history>niva: 2026-06-19T13:23:31+00:00 reproject EPSG:6346</history>
+  <history>niva: 2026-06-19T13:23:51+00:00 load "~/Github/niva/examples/demo/demo.gpkg|layername=ny_ytown_stateparks"</history>
   <dates/>
   <fees></fees>
   <encoding></encoding>
   <crs>
     <spatialrefsys nativeFormat="Wkt">
       <wkt></wkt>
-      <proj4></proj4>
+      <proj4>+proj=utm +zone=17 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs</proj4>
       <srsid>0</srsid>
       <srid>0</srid>
       <authid></authid>
