@@ -9,16 +9,16 @@ Tasked with compiling high quality for a region in Northern Western New York Sta
    * /home/jcz/Downloads/NiagaraOverture/
    * ~/Downloads/ytown_dem_deflate.tif
    * /home/jcz/Downloads/twn_Porter_sp24/porter_ortho.jp2
-   * /home/jcz/Github/marimo_qgis/example/example.gpkg
+   * /home/jcz/Github/niva/examples/example.gpkg
 3. Project and warp all the data to "EPSG:6346 - NAD83(2011) / UTM zone 17N" as copies into the new directory into new files and geopackages as follows
    	* /home/jcz/Downloads/NiagaraBasemap/ --> basemap.gpkg
    	* /home/jcz/Downloads/NiagaraOverture/ --> overture.gpkg
    * ~/Downloads/ytown_dem_deflate.tif --> dem.tif
    * /home/jcz/Downloads/twn_Porter_sp24/porter_ortho.jp2 --> orthophoto.jp2
-   * /home/jcz/Github/marimo_qgis/example/example.gpkg --> collected.gpkg
+   * /home/jcz/Github/niva/examples/example.gpkg --> collected.gpkg
 4. Clip all the geodata in the new directory to the bounding box of this layer, which is the study area:
-   * [/home/jcz/Github/marimo_qgis/example/example.gpkg](file:///home/jcz/Github/marimo_qgis/example/example.gpkg) layer AOISM
+   * [/home/jcz/Github/niva/examples/example.gpkg](file:///home/jcz/Github/niva/examples/example.gpkg) layer AOISM
 5. Copy the QGIS project files from this places into the new directory and repoint the layer references to the newly clipped data
    * /home/jcz/Downloads/NiagaraOverture/
    * /home/jcz/Downloads/NiagaraBasemap/
-   * /home/jcz/Github/marimo_qgis/example/example.gpkg
+   * /home/jcz/Github/niva/examples/example.gpkg
