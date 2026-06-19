@@ -18,8 +18,11 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   stays instant even on large databases. Locations:
   - **files / containers** — GeoPackage, SpatiaLite, shapefile, GeoTIFF, … (a multi-layer
     container expands to one row per layer), via `QgsProviderRegistry.querySublayers`;
-  - **directories** — shallow listing of immediate children, each container expanded
-    (recursion stays `catalog`'s job);
+  - **directories** — shallow listing of immediate children by default, or the whole tree with
+    the **`deep`** flag (`show data/ deep`). Discovery is **format-agnostic** — every file is
+    probed, so any QGIS-readable dataset is listed (SpatiaLite `.sqlite`/`.db`, FileGDB `.gdb`,
+    MBTiles, … — no fixed extension allowlist); dataset sidecars and non-geospatial files are
+    skipped, and directory-based datasets (`.gdb`) are listed as a container, not descended into;
   - **database connections** — `show @conn` (all tables), `show @conn.schema`,
     `show @conn.schema.table`, via the QGIS connection API. Connection names containing dots
     (e.g. `@actual_spatialite.sqlite`) resolve by longest-matching-prefix. Only the connection

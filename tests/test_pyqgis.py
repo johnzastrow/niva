@@ -963,9 +963,57 @@ class TestPyqgisShow(unittest.TestCase):
         out = os.path.join(self.tmp, "listing.md")
         niva.flow(f'show "{self.gpkg}" to="{out}"')
         self.assertTrue(os.path.isfile(out))
-        text = open(out).read()
+        with open(out) as fh:
+            text = fh.read()
         self.assertIn("Data at", text)
         self.assertIn("roads", text)
+
+    def test_list_layers_reports_raster_band_and_dtype(self):
+        from niva.engine.pyqgis import PyqgisBackend
+
+        tif = os.path.join(self.tmp, "r.tif")
+        _write_raster(tif)
+        rows = PyqgisBackend().list_layers(tif)
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["kind"], "raster")
+        self.assertIn("band", rows[0]["type"])      # e.g. "1 band · Byte"
+        self.assertEqual(rows[0]["format"], "GTiff")
+
+    def _show_text(self, flowtext):
+        import contextlib
+        import io
+
+        import niva
+
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            niva.flow(flowtext)
+        return buf.getvalue()
+
+    def test_directory_shallow_picks_up_any_readable_format(self):
+        # A .sqlite (NOT in any extension allowlist) and a nested gpkg.
+        import niva
+
+        sqlite = os.path.join(self.tmp, "data.sqlite")
+        niva.flow(f'load "{self.gpkg}|layername=roads" | save "{sqlite}"')
+        os.makedirs(os.path.join(self.tmp, "sub"))
+        nested = os.path.join(self.tmp, "sub", "nested.gpkg")
+        niva.flow(f'load "{self.gpkg}|layername=roads" | save "{nested}"')
+
+        shallow = self._show_text(f'show "{self.tmp}"')
+        self.assertIn("data.sqlite", shallow)   # format-agnostic: SQLite is listed
+        self.assertIn("multi.gpkg", shallow)
+        self.assertNotIn("nested.gpkg", shallow)  # shallow does not recurse
+
+    def test_directory_deep_recurses(self):
+        import niva
+
+        os.makedirs(os.path.join(self.tmp, "sub"))
+        nested = os.path.join(self.tmp, "sub", "nested.gpkg")
+        niva.flow(f'load "{self.gpkg}|layername=roads" | save "{nested}"')
+
+        deep = self._show_text(f'show "{self.tmp}" deep')
+        self.assertIn("nested.gpkg", deep)
 
 
 class TestPyqgisEnvironmentReport(unittest.TestCase):

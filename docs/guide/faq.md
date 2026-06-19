@@ -127,13 +127,17 @@ type, format, and a copy-pasteable `load` source:
 ```bash
 show data.gpkg            # layers in a GeoPackage (or any container/shapefile/GeoTIFF)
 show data/                # everything directly under a directory
+show data/ deep           # recurse the whole tree
 show @gisdb3              # all tables in a PostGIS connection
 show @gisdb3.public       # just one schema
 ```
 
-It's the quick *"what can I load here?"* glance; for a deep recursive inventory (CRS, extent,
-fields, feature counts) use `catalog` instead. For files you can take `show`'s source column
-straight to `ogrinfo <file> <layer>` for more detail.
+Directory listings are **shallow by default** — add the `deep` flag to recurse. Any
+QGIS-readable format is picked up (SpatiaLite, FileGDB, … — not a fixed extension list); dataset
+sidecars and non-geospatial files are skipped. It's the quick *"what can I load here?"* glance;
+for a deep per-dataset inventory (CRS, extent, fields, feature counts) use `catalog` instead
+(the two can't be piped together — both are terminal). For files you can take `show`'s source
+column straight to `ogrinfo <file> <layer>`.
 
 ## How do I find my database connection names (the `@conn` values)?
 

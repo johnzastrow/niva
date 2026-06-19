@@ -791,19 +791,35 @@ class Engine:
         self._emit(f"  catalogued {len(entries)} dataset(s) → {out}")
         return None  # terminal
 
-    def _show(self, stage) -> Layer | None:
-        """`show <path|@conn[.schema[.table]]> [to=<out.md>]` — list the loadable layers
-        or tables at one location (a file/container, a directory, or a database
-        connection), with each layer's kind, geometry/raster type, file type or provider,
-        and a copy-pasteable `load` source. Terminal: a quick "what can I load here?"
-        glance (no feature counts or deep profiling — that's `catalog`). A directory is
-        listed shallowly (immediate children); each multi-layer container expands to its
-        layers. Defers remote services (WFS/WMS) to a later round."""
-        from ..utilities import facet_for_ext, format_show
+    # `show` ignores these when scanning a directory: dataset sidecars (a shapefile's
+    # `.dbf`/`.shx`/…, style/aux files) and obviously-non-geospatial files (code, docs,
+    # images, archives). Everything else is probed via the backend, which returns no layers
+    # for a file QGIS can't read — so any *readable* dataset is listed regardless of format.
+    _SHOW_SKIP_EXTS = frozenset({
+        ".shx", ".dbf", ".prj", ".cpg", ".qpj", ".sbn", ".sbx", ".sbx", ".idx", ".ovr",
+        ".qml", ".qmd", ".qlr", ".lyr", ".vat", ".cpg", ".aux",
+        ".py", ".pyc", ".md", ".rst", ".txt", ".log", ".html", ".htm", ".pdf", ".png",
+        ".jpg", ".jpeg", ".gif", ".svg", ".zip", ".gz", ".tar", ".7z", ".rar", ".bz2",
+        ".yml", ".yaml", ".toml", ".ini", ".cfg", ".sh", ".bat", ".c", ".h", ".cpp", ".o",
+    })
+    # Formats whose "file" is actually a directory — treated as a container, not descended.
+    _SHOW_DIR_DATASETS = frozenset({".gdb", ".gpkg.zip"})
 
-        if len(stage.args) != 1:
+    def _show(self, stage) -> Layer | None:
+        """`show <path|@conn[.schema[.table]]> [deep] [to=<out.md>]` — list the loadable
+        layers or tables at one location (a file/container, a directory, or a database
+        connection), with each layer's kind, geometry/raster type, file type or provider,
+        and a copy-pasteable `load` source. Terminal: a quick "what can I load here?" glance
+        (no feature counts or deep profiling — that's `catalog`). A directory is listed
+        shallowly by default; add the `deep` flag to recurse. Any QGIS-readable format is
+        picked up (the backend probes each file). Defers remote services (WFS/WMS)."""
+        from ..utilities import format_show
+
+        flags = {a for a in stage.args if a in ("deep", "recursive")}
+        locations = [a for a in stage.args if a not in ("deep", "recursive")]
+        if len(locations) != 1:
             raise FlowError(
-                "show needs one location: `show <path|@conn[.schema]>` [to=<out.md>]",
+                "show needs one location: `show <path|@conn[.schema]> [deep]` [to=<out.md>]",
                 line=stage.line, stage=stage.raw,
             )
         unknown = set(stage.options) - {"to"}
@@ -811,7 +827,8 @@ class Engine:
             raise FlowError(f"`show`: unknown option(s) {', '.join(sorted(unknown))} — "
                             "only `to=<out.md>` is accepted",
                             line=stage.line, stage=stage.raw)
-        target = stage.args[0]
+        target = locations[0]
+        deep = bool(flags)
         is_db = False
 
         if is_connection_ref(target):
@@ -822,21 +839,11 @@ class Engine:
         else:
             path = os.path.expanduser(target)
             label = path
-            if os.path.isdir(path):
-                entries = []
-                for fn in sorted(os.listdir(path)):
-                    full = os.path.join(path, fn)
-                    if not os.path.isfile(full):
-                        continue
-                    if facet_for_ext(os.path.splitext(fn)[1]) is None:
-                        continue
-                    try:
-                        entries.extend(self.backend.list_layers(full))
-                    except Exception as exc:  # one unreadable file mustn't abort the listing
-                        self._emit(f"  show: skipped {fn}: {exc}")
-                    self._emit(f"  show: {fn}")
-            elif os.path.isfile(path):
-                entries = self.backend.list_layers(path)
+            if os.path.isdir(path) and os.path.splitext(path)[1].lower() \
+                    not in self._SHOW_DIR_DATASETS:
+                entries = self._show_walk(path, deep)
+            elif os.path.exists(path):
+                entries = self._show_probe(path)  # a file, or a directory-dataset (.gdb)
             else:
                 raise FlowError(f"show: no such file, directory, or connection: {target}",
                                 line=stage.line, stage=stage.raw)
@@ -880,6 +887,40 @@ class Engine:
         schema = rest[0] if len(rest) >= 1 else None
         table = ".".join(rest[1:]) if len(rest) >= 2 else None
         return conn, schema, table
+
+    def _show_probe(self, full):
+        """List the layers in one file/container, defensively — an unreadable file just
+        contributes nothing (so probing a whole directory never aborts on one bad file)."""
+        try:
+            rows = self.backend.list_layers(full)
+        except Exception as exc:  # noqa: BLE001
+            self._emit(f"  show: skipped {os.path.basename(full)}: {exc}")
+            return []
+        if rows:
+            self._emit(f"  show: {os.path.basename(full)} ({len(rows)})")
+        return rows
+
+    def _show_walk(self, root, deep):
+        """Collect `show` entries under ``root``. Shallow by default; ``deep`` recurses.
+        Directory-based datasets (FileGDB ``.gdb``, …) are listed as containers but not
+        descended into; sidecar and obviously-non-geospatial files are skipped; every other
+        file is probed, so any QGIS-readable format is picked up regardless of extension."""
+        entries = []
+        for dirpath, dirnames, filenames in os.walk(root):
+            # A directory-dataset (.gdb) is a container: list it, don't walk into it.
+            keep = []
+            for d in sorted(dirnames):
+                if os.path.splitext(d)[1].lower() in self._SHOW_DIR_DATASETS:
+                    entries.extend(self._show_probe(os.path.join(dirpath, d)))
+                else:
+                    keep.append(d)
+            dirnames[:] = keep if deep else []  # shallow ⇒ don't descend
+            for fn in sorted(filenames):
+                ext = os.path.splitext(fn)[1].lower()
+                if ext in self._SHOW_SKIP_EXTS or fn.lower().endswith(".aux.xml"):
+                    continue
+                entries.extend(self._show_probe(os.path.join(dirpath, fn)))
+        return entries
 
     def _info(self, stage) -> Layer | None:
         """`info [to=<report.md>]` — inspect the local QGIS environment and report the

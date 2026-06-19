@@ -275,23 +275,27 @@ catalog "data/" to=reports/inventory.md
 ### `show` — list available data at a location *(terminal)*
 
 ```
-show <path|@conn[.schema[.table]]> [to=<out.md>]
+show <path|@conn[.schema[.table]]> [deep] [to=<out.md>]
 ```
 
 Lists the loadable layers/tables at **one** location and what each is — a quick *"what can I
-load here, and what's its name?"* glance, the lighter cousin of `catalog` (which recurses and
-deep-profiles). Per entry: the **name**, **kind** (vector/raster/table), **type** (geometry
-like `MultiPolygon`, or a raster's `N band · Float32`), **format** (the file driver `GPKG` /
-`GTiff` / `ESRI Shapefile`, or the DB provider), and a copy-pasteable **source** you can hand
-straight to `load` (or `ogrinfo` for files). No feature counts — that keeps it instant even on
-big databases.
+load here, and what's its name?"* glance, the lighter cousin of `catalog` (which deep-profiles
+CRS/extent/fields/counts). Per entry: the **name**, **kind** (vector/raster/table), **type**
+(geometry like `MultiPolygon`, or a raster's `N band · Float32`), **format** (the file driver
+`GPKG` / `GTiff` / `SQLite` / …, or the DB provider), and a copy-pasteable **source** you can
+hand straight to `load` (or `ogrinfo` for files). No feature counts — that keeps it instant
+even on big databases.
 
 `<location>` may be:
 
 - a **file** — `show roads.shp`, `show dem.tif`, or a multi-layer container `show data.gpkg`
   (one row per layer);
-- a **directory** — `show data/` (shallow: immediate children; each container expands to its
-  layers — recursion is `catalog`'s job);
+- a **directory** — `show data/` lists the immediate children; add the **`deep`** flag
+  (`show data/ deep`) to recurse the whole tree. **Any QGIS-readable format is picked up** —
+  not just a fixed extension list — so SpatiaLite (`.sqlite`/`.db`), FileGDB (`.gdb`), and any
+  other GDAL/OGR driver appear; dataset sidecars (a shapefile's `.dbf`/`.shx`/…) and obviously
+  non-geospatial files are skipped. Directory-based datasets like `.gdb` are listed as a
+  container, not descended into;
 - a **database connection** — `show @conn` (every table), `show @conn.schema` (one schema),
   `show @conn.schema.table` (one table). Connection names containing dots (e.g.
   `@actual_spatialite.sqlite`) resolve correctly. Only the connection **name** is used —
@@ -300,11 +304,14 @@ big databases.
 ```
 show "data/basemap.gpkg"          # layers in a GeoPackage
 show data/                         # everything directly under data/
+show data/ deep                    # recurse the whole tree
 show @gisdb3                       # all PostGIS tables
 show @gisdb3.public to=tables.md   # one schema, written to a file
 ```
 
-Defers remote services (WFS/WMS) to a later round.
+`show` is terminal and can't be piped (neither it nor `catalog` produce or consume a layer);
+for a deep per-dataset report (CRS, extent, fields, feature counts) run `catalog` on the same
+location. Defers remote services (WFS/WMS) to a later round.
 
 ### `info` — inspect the local QGIS environment *(terminal)*
 

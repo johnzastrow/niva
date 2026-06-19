@@ -29,20 +29,30 @@ for full profiling. When you want depth on one layer, the footer points you at
 ## Grammar
 
 ```
-show <location> [to=<out.md>]
+show <location> [deep] [to=<out.md>]
 ```
 
 `<location>` is one of:
 
 - a **file** — `show roads.shp`, `show dem.tif`, `show data.gpkg` (a multi-layer container
   expands to one row per layer)
-- a **directory** — `show data/` (shallow: immediate children only; each container expands to
-  its layers) — recursion is `catalog`'s job
+- a **directory** — `show data/` lists the immediate children; the **`deep`** flag
+  (`show data/ deep`) recurses the whole tree. Discovery is **format-agnostic**: every file is
+  probed via the backend, which returns no layers for anything QGIS can't read, so any
+  GDAL/OGR-readable dataset is listed (SpatiaLite, FileGDB, MBTiles, …) — there is **no fixed
+  extension allowlist**. Dataset **sidecars** (`.dbf`/`.shx`/`.prj`/`.aux.xml`/…) and obviously
+  non-geospatial files (code/docs/images/archives) are skipped; directory-based datasets
+  (FileGDB `.gdb`) are listed as a container and not descended into.
 - a **database connection** — `show @conn` (all tables), `show @conn.schema` (one schema),
   `show @conn.schema.table` (one table)
 
 Terminal verb (like `catalog`/`info`): prints a Markdown table to stdout, or writes it with
-`to=`. No feature is piped onward.
+`to=`. Nothing is piped onward — `show` and `catalog` are parallel terminal tools, not
+composable stages (`show … | catalog` is invalid on both ends).
+
+The `deep` flag is an unresolved positional in `Stage.args` (the parser doesn't split
+positionals from flags); `_show` pulls `deep`/`recursive` out of the args and treats the single
+remaining arg as the location.
 
 ## Dispatch
 
@@ -52,8 +62,8 @@ flowchart TD
   B -- yes --> C["resolve connection<br/>(longest dotted prefix<br/>that is a real @conn)"]
   C --> D["backend.list_tables(conn, schema, table)"]
   B -- no --> E{"path is…"}
-  E -- directory --> F["for each geospatial file (shallow):<br/>backend.list_layers(file)"]
-  E -- file --> G["backend.list_layers(path)"]
+  E -- directory --> F["walk (shallow, or whole tree if 'deep'):<br/>skip sidecars/non-geo, probe every file,<br/>list .gdb as a container · backend.list_layers"]
+  E -- file or .gdb --> G["backend.list_layers(path)"]
   E -- missing --> H["FlowError: no such location"]
   D --> I["format_show(entries)"]
   F --> I

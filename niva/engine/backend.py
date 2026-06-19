@@ -207,6 +207,7 @@ class MockBackend(Backend):
         self.saves: list = []  # one dict per save: {dest, layer_name, append}
         self.db_saves: list = []  # one dict per DB save: {conn, schema, table, mode}
         self.sublayer_map: dict = {}  # source path -> [layer names], for `each` tests
+        self.layer_map = None  # source -> [layer names] for `show` dir tests; None = 2 fakes
         self._n = 0
 
     def sublayers(self, source: str) -> list:
@@ -277,6 +278,12 @@ class MockBackend(Backend):
 
     def list_layers(self, source: str) -> list:
         self.calls.append(("list_layers", source))
+        if self.layer_map is not None:
+            # Realistic: only mapped sources have layers; everything else is empty (so a
+            # directory scan that probes every file mirrors querySublayers filtering junk).
+            names = list(self.layer_map.get(source, []))
+            return [{"name": n, "kind": "vector", "type": "Polygon", "format": "GPKG",
+                     "ref": f"{source}|layername={n}"} for n in names]
         return [
             {"name": "layer_a", "kind": "vector", "type": "Polygon",
              "format": "GPKG", "ref": f"{source}|layername=layer_a"},

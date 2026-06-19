@@ -138,9 +138,48 @@ class TestCatalog(unittest.TestCase):
         self.assertTrue(os.path.exists(out))
 
 
+class TestShowFormat(unittest.TestCase):
+    """`format_show` — the Markdown table the `show` verb renders."""
+
+    def _entry(self, name, kind="vector", typ="Polygon", fmt="GPKG", ref=None):
+        return {"name": name, "kind": kind, "type": typ, "format": fmt,
+                "ref": ref or f"x.gpkg|layername={name}"}
+
+    def test_table_has_header_and_rows(self):
+        from niva.utilities import format_show
+
+        out = format_show("x.gpkg", [self._entry("roads"), self._entry("rivers")])
+        self.assertIn("| Layer | Kind | Type | Format | Source", out)
+        self.assertIn("| roads | vector | Polygon | GPKG |", out)
+        self.assertIn("2 datasets.", out)
+
+    def test_singular_vs_plural_and_db_noun(self):
+        from niva.utilities import format_show
+
+        self.assertIn("1 dataset.", format_show("x", [self._entry("a")]))
+        self.assertIn("1 table.", format_show("@c", [self._entry("a")], is_db=True))
+        self.assertIn("2 tables.", format_show("@c", [self._entry("a"), self._entry("b")],
+                                               is_db=True))
+
+    def test_empty_listing(self):
+        from niva.utilities import format_show
+
+        out = format_show("x", [])
+        self.assertIn("0 datasets.", out)
+        self.assertIn("No loadable layers", out)
+
+    def test_db_footer_vs_file_footer(self):
+        from niva.utilities import format_show
+
+        self.assertIn("ogrinfo", format_show("x", [self._entry("a")]))
+        self.assertIn("credentials stay in QGIS",
+                      format_show("@c", [self._entry("a")], is_db=True))
+
+
 class TestShow(unittest.TestCase):
-    """The `show` verb — list layers/tables at a location. MockBackend records the call
-    and returns stub layers; the live listing is exercised in tests/test_pyqgis.py."""
+    """The `show` verb over MockBackend (the live listing is in tests/test_pyqgis.py).
+    MockBackend records every call; with ``layer_map`` set, only mapped files report
+    layers, so a directory scan that probes every file mirrors real querySublayers."""
 
     def _run(self, flowtext, backend):
         import contextlib
@@ -150,6 +189,11 @@ class TestShow(unittest.TestCase):
         with contextlib.redirect_stdout(buf):
             flow(flowtext, backend=backend)
         return buf.getvalue()
+
+    def _called_paths(self, backend):
+        return [c[1] for c in backend.calls if c[0] == "list_layers"]
+
+    # --- a single file -------------------------------------------------------
 
     def test_show_a_file_lists_layers(self):
         root = tempfile.mkdtemp(prefix="niva_show_")
@@ -162,16 +206,90 @@ class TestShow(unittest.TestCase):
         self.assertIn("layer_a", out)
         self.assertIn("layername=layer_a", out)  # copy-pasteable source
 
-    def test_show_a_directory_lists_each_container(self):
+    # --- directories: shallow vs deep ---------------------------------------
+
+    def _tree(self):
+        """root/a.gpkg, root/data.sqlite, root/notes.txt, root/sub/b.gpkg."""
         root = tempfile.mkdtemp(prefix="niva_show_")
-        open(os.path.join(root, "a.gpkg"), "w").close()
-        open(os.path.join(root, "b.tif"), "w").close()
-        open(os.path.join(root, "notes.txt"), "w").close()  # ignored
+        os.makedirs(os.path.join(root, "sub"))
+        for rel in ("a.gpkg", "data.sqlite", "notes.txt", os.path.join("sub", "b.gpkg")):
+            open(os.path.join(root, rel), "w").close()
+        a = os.path.join(root, "a.gpkg")
+        sqlite = os.path.join(root, "data.sqlite")
+        b = os.path.join(root, "sub", "b.gpkg")
         backend = MockBackend()
+        backend.layer_map = {a: ["ra"], sqlite: ["rs1", "rs2"], b: ["rb"]}
+        return root, backend, a, sqlite, b
+
+    def test_shallow_lists_immediate_children_any_format(self):
+        root, backend, a, sqlite, b = self._tree()
         out = self._run(f'show "{root}"', backend)
-        called = [c for c in backend.calls if c[0] == "list_layers"]
-        self.assertEqual(len(called), 2)  # a.gpkg + b.tif, not notes.txt
-        self.assertIn("a.gpkg", out)
+        called = self._called_paths(backend)
+        # .sqlite is probed (no allowlist), .txt is skipped, sub/ is not descended.
+        self.assertIn(a, called)
+        self.assertIn(sqlite, called)
+        self.assertNotIn(b, called)
+        self.assertTrue(all("notes.txt" not in p for p in called))
+        self.assertIn("rs1", out)        # SQLite layer surfaced
+        self.assertNotIn("rb", out)      # nested layer NOT in a shallow listing
+
+    def test_deep_recurses_into_subdirectories(self):
+        root, backend, a, sqlite, b = self._tree()
+        out = self._run(f'show "{root}" deep', backend)
+        called = self._called_paths(backend)
+        self.assertIn(b, called)         # nested container now probed
+        self.assertIn("rb", out)
+
+    def test_recursive_is_an_alias_for_deep(self):
+        root, backend, a, sqlite, b = self._tree()
+        self._run(f'show "{root}" recursive', backend)
+        self.assertIn(b, self._called_paths(backend))
+
+    def test_sidecar_files_are_skipped(self):
+        root = tempfile.mkdtemp(prefix="niva_show_")
+        for fn in ("roads.shp", "roads.dbf", "roads.shx", "roads.prj", "dem.tif.aux.xml"):
+            open(os.path.join(root, fn), "w").close()
+        backend = MockBackend()
+        backend.layer_map = {os.path.join(root, "roads.shp"): ["roads"]}
+        self._run(f'show "{root}"', backend)
+        called = self._called_paths(backend)
+        self.assertIn(os.path.join(root, "roads.shp"), called)
+        for sidecar in ("roads.dbf", "roads.shx", "roads.prj", "dem.tif.aux.xml"):
+            self.assertTrue(all(not p.endswith(sidecar) for p in called),
+                            f"{sidecar} should be skipped")
+
+    def test_directory_dataset_is_a_container_not_descended(self):
+        root = tempfile.mkdtemp(prefix="niva_show_")
+        gdb = os.path.join(root, "archive.gdb")
+        os.makedirs(gdb)
+        inner = os.path.join(gdb, "a00000001.gdbtable")
+        open(inner, "w").close()
+        backend = MockBackend()
+        backend.layer_map = {gdb: ["feature_class_1"]}
+        out = self._run(f'show "{root}"', backend)
+        called = self._called_paths(backend)
+        self.assertIn(gdb, called)        # the .gdb itself is listed as a container
+        self.assertNotIn(inner, called)   # we do NOT walk into it
+        self.assertIn("feature_class_1", out)
+
+    def test_show_a_directory_dataset_directly(self):
+        root = tempfile.mkdtemp(prefix="niva_show_")
+        gdb = os.path.join(root, "archive.gdb")
+        os.makedirs(gdb)
+        backend = MockBackend()
+        backend.layer_map = {gdb: ["fc1"]}
+        out = self._run(f'show "{gdb}"', backend)
+        self.assertIn(gdb, self._called_paths(backend))
+        self.assertIn("fc1", out)
+
+    def test_deep_flag_is_harmless_on_a_file(self):
+        root = tempfile.mkdtemp(prefix="niva_show_")
+        gpkg = os.path.join(root, "data.gpkg")
+        open(gpkg, "w").close()
+        out = self._run(f'show "{gpkg}" deep', MockBackend())
+        self.assertIn("layer_a", out)
+
+    # --- database connections -----------------------------------------------
 
     def test_show_a_bare_connection_lists_all_tables(self):
         backend = MockBackend()
@@ -185,6 +303,11 @@ class TestShow(unittest.TestCase):
         self._run("show @pg.public", backend)
         self.assertIn(("list_tables", "pg", "public", None), backend.calls)
 
+    def test_show_a_single_table(self):
+        backend = MockBackend()
+        self._run("show @pg.public.roads", backend)
+        self.assertIn(("list_tables", "pg", "public", "roads"), backend.calls)
+
     def test_show_resolves_a_connection_name_containing_dots(self):
         class DottedBackend(MockBackend):
             def connection_names(self):
@@ -195,16 +318,37 @@ class TestShow(unittest.TestCase):
         # The whole dotted name is the connection — not conn=actual_spatialite, table=sqlite.
         self.assertIn(("list_tables", "actual_spatialite.sqlite", None, None), backend.calls)
 
+    def test_resolves_table_under_a_dotted_connection_name(self):
+        class DottedBackend(MockBackend):
+            def connection_names(self):
+                return ["my.db"]
+
+        backend = DottedBackend()
+        self._run("show @my.db.roads", backend)  # conn=my.db, then schema=roads
+        self.assertIn(("list_tables", "my.db", "roads", None), backend.calls)
+
+    def test_unknown_connection_falls_back_to_first_segment(self):
+        backend = MockBackend()  # connection_names() == ["pg", "sl"]
+        self._run("show @nope.table", backend)
+        self.assertIn(("list_tables", "nope", "table", None), backend.calls)
+
+    # --- output + errors -----------------------------------------------------
+
     def test_show_to_file(self):
         root = tempfile.mkdtemp(prefix="niva_show_")
         out = os.path.join(root, "listing.md")
         flow(f'show @pg to="{out}"', backend=MockBackend())
         self.assertTrue(os.path.exists(out))
-        self.assertIn("Data at", open(out).read())
+        with open(out) as fh:
+            self.assertIn("Data at", fh.read())
 
     def test_show_requires_a_location(self):
         with self.assertRaises(FlowError):
             flow("show", backend=MockBackend())
+
+    def test_show_requires_exactly_one_location(self):
+        with self.assertRaises(FlowError):
+            flow("show a.gpkg b.gpkg", backend=MockBackend())
 
     def test_show_rejects_unknown_options(self):
         with self.assertRaises(FlowError):
@@ -213,6 +357,10 @@ class TestShow(unittest.TestCase):
     def test_show_missing_path_is_a_flow_error(self):
         with self.assertRaises(FlowError):
             flow("show /no/such/place_xyz.gpkg", backend=MockBackend())
+
+    def test_empty_connection_ref_is_a_flow_error(self):
+        with self.assertRaises(FlowError):
+            flow("show @", backend=MockBackend())
 
 
 class TestProfileIniParse(unittest.TestCase):
