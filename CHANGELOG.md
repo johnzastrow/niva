@@ -7,7 +7,15 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.27.5] - 2026-06-19
+
 ### Added
+- **FAQ** ([`docs/guide/faq.md`](docs/guide/faq.md)) — quick answers including *what software
+  libraries niva needs* (essentially just QGIS; niva is pure Python with zero runtime deps),
+  how to run it, scratch space, databases, and reaching un-aliased algorithms. Linked from the
+  README and included in the guide PDF.
+- **README badges** — release, license (GPLv3), QGIS 3.22+/4.x, Python 3.9+, and "no runtime
+  deps".
 - **Every algorithm in the appendix (`docs/algorithms/`) now has a worked "Example usage"** —
   a complex `run <id> KEY=value …` command (built from the algorithm's required + notable
   optional parameters, with real enum indices and named outputs) followed by a narrative

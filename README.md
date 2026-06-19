@@ -1,5 +1,11 @@
 # niva
 
+[![Latest release](https://img.shields.io/github/v/release/johnzastrow/niva?sort=semver)](https://github.com/johnzastrow/niva/releases/latest)
+[![License: GPLv3](https://img.shields.io/badge/license-GPLv3-blue.svg)](LICENSE)
+[![QGIS](https://img.shields.io/badge/QGIS-3.22%2B%20%7C%204.x-589632.svg?logo=qgis&logoColor=white)](https://qgis.org)
+[![Python](https://img.shields.io/badge/python-3.9%2B-3776AB.svg?logo=python&logoColor=white)](https://www.python.org)
+[![Dependencies](https://img.shields.io/badge/runtime%20deps-none%20(QGIS%20only)-success.svg)](docs/guide/faq.md)
+
 **A concise, readable text-pipeline grammar for QGIS geoprocessing — for people who
 don't want to write PyQGIS.** *Easy wins every time.*
 
@@ -113,6 +119,7 @@ niva.flow('load "data.gpkg|layername=roads" | buffer 100m dissolve | save out.gp
   algorithms with parameters & descriptions
 - **[Cookbook](docs/guide/cookbook.md)** — 50 worked recipes, including spatial SQL for SpatiaLite
   and PostGIS
+- **[FAQ](docs/guide/faq.md)** — what libraries you need, how to run niva, scratch space, databases
 - [Template projects](docs/guide/templates.md) — author a QGIS project once (layout + styles),
   reuse it against fresh data with `project from-template=`
 - [About & goals](docs/guide/about.md) · [Plugin](plugin/README.md) ·
@@ -121,8 +128,10 @@ niva.flow('load "data.gpkg|layername=roads" | buffer 100m dissolve | save out.gp
   `Oscar` failure register
 - [CHANGELOG](CHANGELOG.md)
 
-The user guide is also buildable as a single PDF: `python3 scripts/build_guide_pdf.py`
-(needs `pandoc` + a LaTeX engine).
+📘 **The whole guide ([User Guide](docs/guide/) + Reference + Cookbook + the 769-algorithm
+appendix) ships as a single PDF** — download `niva-guide.pdf` from the
+[latest release](https://github.com/johnzastrow/niva/releases/latest), or rebuild it with
+`python3 scripts/build_guide_pdf.py` (needs `pandoc` + a LaTeX engine).
 
 ## License
 

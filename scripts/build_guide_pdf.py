@@ -28,7 +28,8 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 GUIDE = os.path.join(ROOT, "docs", "guide")
 APPENDIX = os.path.join(ROOT, "docs", "algorithms")
 # Reading order; any other docs/guide/*.md is appended after these.
-GUIDE_ORDER = ["about.md", "user-guide.md", "reference.md", "cookbook.md", "templates.md"]
+GUIDE_ORDER = ["about.md", "user-guide.md", "reference.md", "cookbook.md", "templates.md",
+               "faq.md"]
 # Appendix order (the index first, then providers; grass is huge, so last).
 APPENDIX_ORDER = ["README.md", "native.md", "gdal.md", "qgis.md", "pdal.md", "3d.md", "grass.md"]
 DEFAULT_OUT = os.path.join(GUIDE, "niva-guide.pdf")
