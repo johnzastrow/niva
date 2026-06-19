@@ -7,6 +7,8 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.27.3] - 2026-06-19
+
 ### Added
 - **Cookbook §K — "Reaching every provider with `run`"**: 21 new recipes (4 each from GDAL,
   GRASS, QGIS, PDAL, and native, plus the single 3D algorithm) showing how to use any QGIS
