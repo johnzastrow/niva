@@ -7,11 +7,18 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.27.6] - 2026-06-19
+
 ### Changed
 - **Refreshed the pitch deck** (`docs/presentation/`) — the "What's working today" and roadmap
   slides now reflect v0.27: ~45 verbs + raster, `run` → 769 algorithms, PostGIS/SpatiaLite
   read·write·analyse, the `project`/`style` verbs, the QGIS plugin, and the full docs. Both the
   Marp deck and the PowerPoint (and their rendered HTML/PDF/PPTX) regenerated.
+
+### Notes
+- TODO: a planned **`info` verb** that inspects the local QGIS environment (registered `@conn`
+  database connection names, providers/algorithm count, versions, the env vars niva honours) —
+  the CLI counterpart of the plugin's environment report.
 
 ## [0.27.5] - 2026-06-19
 
