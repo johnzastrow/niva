@@ -39,7 +39,7 @@ notify "niva analyst plan: starting at {now} and started {started} and ops {ops}
 # --- Task 2: catalog the data sources into /data -----------------------------
 catalog "~/Downloads/NiagaraBasemap" to="~/Github/niva/data/catalog_NiagaraBasemap.md"
 catalog "~/Downloads/NiagaraOverture" to="~/Github/niva/data/catalog_NiagaraOverture.md"
-catalog "~/Github/marimo_qgis/example" to="~/Github/niva/data/catalog_example.md"
+catalog "~/Github/niva/examples" to="~/Github/niva/data/catalog_example.md"
 load "~/Downloads/ytown_dem_deflate.tif" | assess to "~/Github/niva/data/catalog_dem.md"
 load "~/Downloads/twn_Porter_sp24/porter_ortho.jp2" | assess to "~/Github/niva/data/catalog_orthophoto.md"
 
@@ -57,7 +57,7 @@ notify "niva: Task 2 done — data sources catalogued ({elapsed} elapsed)"
 # `fix` needed here. (Any raster encountered by `reproject` is skipped — see below.)
 each "~/Downloads/NiagaraBasemap"  | reproject EPSG:6346 | save "~/Github/niva/data/basemap.gpkg"
 each "~/Downloads/NiagaraOverture" | reproject EPSG:6346 | save "~/Github/niva/data/overture.gpkg"
-each "~/Github/marimo_qgis/example/example.gpkg" | reproject EPSG:6346 | save "~/Github/niva/data/collected.gpkg"
+each "~/Github/niva/examples/example.gpkg" | reproject EPSG:6346 | save "~/Github/niva/data/collected.gpkg"
 
 # Single rasters -> reprojected copies (GeoTIFF output is lossless-compressed).
 load "~/Downloads/ytown_dem_deflate.tif" | warp EPSG:6346 | save "~/Github/niva/data/dem.tif"
@@ -75,7 +75,7 @@ notify "niva: Task 3 done — reprojected/warped to EPSG:6346 ({elapsed} elapsed
 # --- Task 4: clip everything in /data to the study-area bbox (AOISM) ---------
 
 # Build the study-area bounding box once (dissolve AOISM to one feature -> its bbox):
-load "~/Github/marimo_qgis/example/example.gpkg|layername=AOISM" | dissolve | boundingbox | save "~/Github/niva/data/study_area_bbox.gpkg"
+load "~/Github/niva/examples/example.gpkg|layername=AOISM" | dissolve | boundingbox | save "~/Github/niva/data/study_area_bbox.gpkg"
 
 # Clip every layer of each reprojected GeoPackage to that bbox (batch + per-layer).
 # `fix` again guards the typed clip output against any stray collection geometry.
