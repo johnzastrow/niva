@@ -1,8 +1,10 @@
 # niva Cookbook
 
 Fifty worked recipes, from a single transform to full pipelines — including a large block of
-spatial **SQL** for both **SpatiaLite** and **PostGIS**. Pair this with the
-[Reference](reference.md) for exact signatures and the [User Guide](user-guide.md) for setup.
+spatial **SQL** for both **SpatiaLite** and **PostGIS** — plus a closing tour that reaches
+**every QGIS provider** (GDAL, GRASS, QGIS, PDAL, native, 3D) through the `run` escape hatch.
+Pair this with the [Reference](reference.md) for exact signatures and the
+[User Guide](user-guide.md) for setup.
 
 **Conventions**
 - Replace file paths, layer names, CRS codes, and SQL table/column names with your own.
@@ -325,6 +327,142 @@ The bundled `example` template (boundary/roads/places slots + print layout) repo
 same-named data, symbology and layout riding along. Register your own designed project with
 `project to-template=<name> from="MyMap.qgz" paths=relative`, then call it by name. See
 [Template projects](templates.md).
+
+---
+
+## K. Reaching every provider with `run`
+
+niva gives 45 algorithms friendly verbs; the other ~720 — across **every** Processing
+provider — are reachable with `run <id> KEY=value …`. Four per provider below. Find any
+algorithm's parameters with `niva describe <id>` or the [algorithm appendix](algorithms/README.md).
+
+Two things to know when using `run` directly:
+- **Enum options take their integer index**, not the alias word — `format=0`, not
+  `format=degrees`. (The index list is in each algorithm's appendix entry.)
+- **Some providers (GRASS, PDAL) write *named* outputs** (`output=`, `slope=`, …) instead of
+  `OUTPUT`, so the step is terminal — give the output path directly rather than piping to
+  `save`. GRASS and PDAL also need their backends installed.
+
+### GDAL (`gdal:`) — raster/vector via GDAL/OGR
+
+**51. Contour lines from a DEM**
+```
+load dem.tif | run gdal:contour INTERVAL=10 FIELD_NAME=ELEV | save contours.gpkg
+```
+
+**52. Rasterize a vector field (10-unit pixels)**
+```
+load parcels.gpkg | run gdal:rasterize FIELD=value UNITS=1 WIDTH=10 HEIGHT=10 | save parcels_value.tif
+```
+
+**53. Proximity (distance-to-target) raster**
+```
+load targets.tif | run gdal:proximity UNITS=0 MAX_DISTANCE=500 | save distance.tif
+```
+
+**54. Fill small NoData gaps by interpolation**
+```
+load gappy.tif | run gdal:fillnodata DISTANCE=20 | save filled.tif
+```
+
+### GRASS (`grass:`) — named outputs (terminal), enums as integers
+
+**55. Slope and aspect from a DEM**
+```
+run grass:r.slope.aspect elevation=dem.tif format=0 slope=slope.tif aspect=aspect.tif
+```
+
+**56. Watershed flow accumulation and basins**
+```
+run grass:r.watershed elevation=dem.tif threshold=1000 accumulation=flowacc.tif basin=basins.tif
+```
+
+**57. Least-cost surface from a start point**
+```
+run grass:r.cost input=cost_surface.tif start_coordinates=600100,4800100 output=cumulative_cost.tif
+```
+
+**58. Viewshed from an observer**
+```
+run grass:r.viewshed input=dem.tif coordinates=600100,4800100 observer_elevation=1.75 max_distance=5000 output=visible.tif
+```
+
+### QGIS (`qgis:`) — the QGIS-Python toolbox
+
+**59. Virtual-layer SQL across files (`input1`, `input2`, …)**
+```
+run qgis:executesql INPUT_DATASOURCES="roads.gpkg;parcels.gpkg" INPUT_QUERY="SELECT * FROM input1 WHERE class = 'primary'" | save primary.gpkg
+```
+This is the file-backed SQL form (the `sql` verb itself only queries `@conn` databases).
+
+**60. Concave hull (k-nearest neighbour)**
+```
+load points.gpkg | run qgis:knearestconcavehull KNEIGHBORS=5 | save hull.gpkg
+```
+
+**61. Random sample points inside polygons**
+```
+load tracts.gpkg | run qgis:randompointsinsidepolygons STRATEGY=0 VALUE=100 MIN_DISTANCE=50 | save sample.gpkg
+```
+
+**62. Spread overlapping (stacked) points apart**
+```
+load stacked.gpkg | run qgis:pointsdisplacement PROXIMITY=5 DISTANCE=10 HORIZONTAL=false | save displaced.gpkg
+```
+
+### PDAL (`pdal:`) — point clouds (use `run`; load/save are vector/raster)
+
+**63. Export a DEM from a LiDAR cloud, then hillshade it**
+```
+run pdal:exportraster INPUT=lidar.copc.laz ATTRIBUTE=Z RESOLUTION=1 | hillshade z_factor=2 | save lidar_hillshade.tif
+```
+`exportraster` outputs a raster (`OUTPUT`), so it pipes into niva's raster verbs.
+
+**64. Classify ground returns**
+```
+run pdal:classifyground INPUT=lidar.laz OUTPUT=ground_classified.laz
+```
+
+**65. Extract the cloud's data-boundary polygon**
+```
+run pdal:boundary INPUT=lidar.laz RESOLUTION=10 THRESHOLD=10 OUTPUT=cloud_extent.gpkg
+```
+
+**66. Thin a dense cloud by sampling radius**
+```
+run pdal:thinbyradius INPUT=lidar.laz SAMPLING_RADIUS=2 OUTPUT=thinned.laz
+```
+
+### Native (`native:`) — beyond the alias verbs
+
+**67. Join the nearest feature from another layer**
+```
+load schools.gpkg | run native:joinbynearest INPUT_2=parcels.gpkg NEIGHBORS=1 MAX_DISTANCE=500 | save schools_parcel.gpkg
+```
+
+**68. DBSCAN point clustering**
+```
+load incidents.gpkg | run native:dbscanclustering MIN_SIZE=5 EPS=250 | save incident_clusters.gpkg
+```
+
+**69. Shortest path over a road network**
+```
+load roads.gpkg | run native:shortestpathpointtopoint STRATEGY=0 START_POINT="600100,4800100" END_POINT="601000,4801000" | save route.gpkg
+```
+
+**70. Hub-and-spoke (spider) lines**
+```
+run native:hublines HUBS=depots.gpkg HUB_FIELD=id SPOKES=stops.gpkg SPOKE_FIELD=depot_id | save spider.gpkg
+```
+
+### 3D (`3d:`)
+
+**71. Tessellate polygons into 3D geometry**
+```
+load buildings.gpkg | run 3d:tessellate | save buildings_3d.gpkg
+```
+The `3d:` provider ships a single algorithm in QGIS 4.0.3 — `tessellate` — so this is the
+whole provider.
 
 ---
 

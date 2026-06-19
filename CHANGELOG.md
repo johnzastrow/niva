@@ -7,6 +7,13 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Added
+- **Cookbook §K — "Reaching every provider with `run`"**: 21 new recipes (4 each from GDAL,
+  GRASS, QGIS, PDAL, and native, plus the single 3D algorithm) showing how to use any QGIS
+  provider's algorithms through the `run` escape hatch — with the two gotchas it surfaces
+  (enum options take integer indices; GRASS/PDAL write named outputs). All ids/parameters are
+  from the live QGIS 4.0.3 registry.
+
 ## [0.27.2] - 2026-06-19
 
 ### Added
