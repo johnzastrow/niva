@@ -130,10 +130,10 @@ niva.flow('load "data.gpkg|layername=roads" | buffer 100m dissolve | save out.gp
   `Oscar` failure register
 - [CHANGELOG](CHANGELOG.md)
 
-📘 **The whole guide ([User Guide](docs/guide/) + Reference + Cookbook + the 769-algorithm
-appendix) ships as a single PDF** — download `niva-guide.pdf` from the
-[latest release](https://github.com/johnzastrow/niva/releases/latest), or rebuild it with
-`python3 scripts/build_guide_pdf.py` (needs `pandoc` + a LaTeX engine).
+📘 **The whole guide ([User Guide](docs/guide/) + Reference + Cookbook + FAQ + the
+769-algorithm appendix) is also one PDF: [`niva-guide.pdf`](docs/guide/niva-guide.pdf)** (also
+attached to the [latest release](https://github.com/johnzastrow/niva/releases/latest); rebuild
+with `python3 scripts/build_guide_pdf.py`, which needs `pandoc` + a LaTeX engine).
 
 ## License
 
