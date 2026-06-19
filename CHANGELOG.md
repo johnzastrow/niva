@@ -9,7 +9,10 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Added
 - **`scripts/build_guide_pdf.py`** — builds one coherent PDF of the user guide
-  (`docs/guide/`) with pandoc (title page, TOC, a chapter per document). Regenerable.
+  (`docs/guide/`) with pandoc + xelatex: title page, TOC, a chapter per document, and the
+  per-provider algorithm reference (`docs/algorithms/`) as lettered **appendices**. Tables are
+  rewritten with wrapping `p{}` columns and a horizontal rule on every row so nothing is cut
+  off, and genuinely-wide guide tables are rotated onto **landscape** pages. Regenerable.
 
 ### Changed
 - **Merged `tools/` into `scripts/`** — `gen_algorithms.py` now lives in `scripts/` alongside
