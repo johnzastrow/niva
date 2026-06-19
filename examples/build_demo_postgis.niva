@@ -1,0 +1,27 @@
+# =============================================================================
+# build_demo_postgis.niva — load the demo vectors into PostGIS (schema `testing`)
+# =============================================================================
+# Populates a PostGIS schema so the cookbook's PostGIS SQL recipes (§H 41-47) run.
+#
+# BEFORE RUNNING:
+#   1. Create a saved PostGIS connection in QGIS (Browser → PostgreSQL → New) for
+#      your account — e.g. user `jcz`, with CREATE on schema `testing`.
+#   2. Replace `@pg` below with that connection's name (the `@name` is all niva
+#      sees; credentials stay in QGIS and never enter this file).
+#   3. Run build_demo_data.niva first — it produces the vectors loaded here.
+#
+# `save @conn.schema.table mode=replace` writes each layer as a PostGIS table
+# (mode=create is the fail-closed default; replace overwrites). The cookbook then
+# does `load @pg.testing.roads`, `sql @pg "SELECT … ST_Buffer(geom,…) …"`, etc.
+# =============================================================================
+
+load "~/Github/niva/examples/demo/vectors/roads.gpkg"      | save @pg.testing.roads      mode=replace
+load "~/Github/niva/examples/demo/vectors/parcels.gpkg"    | save @pg.testing.parcels    mode=replace
+load "~/Github/niva/examples/demo/vectors/floodzone.gpkg"  | save @pg.testing.flood      mode=replace
+load "~/Github/niva/examples/demo/vectors/points.gpkg"     | save @pg.testing.points     mode=replace
+load "~/Github/niva/examples/demo/vectors/watersheds.gpkg" | save @pg.testing.watersheds mode=replace
+
+# A couple of analyse-in-place demos you can then run against the loaded tables
+# (these are writes — terminal — so they run server-side and return nothing):
+#   sql @pg "CREATE TABLE testing.roads_primary AS SELECT * FROM testing.roads WHERE class = 'primary'"
+#   sql @pg "CREATE INDEX ON testing.roads_primary USING GIST (geom)"

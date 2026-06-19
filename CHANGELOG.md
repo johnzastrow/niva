@@ -7,6 +7,19 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Fixed
+- **`save` now creates its target's parent directory** if it doesn't exist (previously only
+  `catalog`/`project`/`assess` did, so `save out/new/x.gpkg` into a fresh tree failed with an
+  OGR "unable to open database file" error). Surfaced while building the demo dataset.
+
+### Added
+- **Demonstration dataset + build flows** under `examples/` — a recursive example (niva
+  building niva's own demo data): `demo_data_usecase.md` (the analyst plan), `build_demo_data.niva`
+  (themed vectors with synthetic columns, per-layer files, a 10 m DEM + derivatives, categorical/
+  NoData/target rasters, join CSVs, a SpatiaLite DB, a project + style), and the deferred
+  `build_demo_lidar.niva` / `build_demo_postgis.niva`. Generated products land in `examples/demo/`
+  and back the cookbook recipes.
+
 ## [0.27.3] - 2026-06-19
 
 ### Added

@@ -21,6 +21,18 @@ def run(text, crs=PROJECTED_M):
     return backend, result
 
 
+class TestSaveCreatesParentDir(unittest.TestCase):
+    def test_save_makes_nested_parent(self):
+        import os
+        import tempfile
+
+        tmp = tempfile.mkdtemp(prefix="niva_save_")
+        dest = os.path.join(tmp, "a", "b", "c", "out.gpkg")
+        run(f'load roads.gpkg | buffer 100m | save "{dest}"')
+        self.assertTrue(os.path.isdir(os.path.dirname(dest)),
+                        "save should create the target's parent directory")
+
+
 class TestPipeline(unittest.TestCase):
     def test_load_op_save_threads_the_layer(self):
         backend, result = run("load roads.gpkg | buffer 100m | save out.gpkg")

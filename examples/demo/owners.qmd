@@ -1,0 +1,29 @@
+<!DOCTYPE qgis PUBLIC 'http://mrcc.com/qgis.dtd' 'SYSTEM'>
+<qgis version="4.0.3-Norrköping">
+  <identifier></identifier>
+  <parentidentifier></parentidentifier>
+  <language></language>
+  <type></type>
+  <title></title>
+  <abstract></abstract>
+  <links/>
+  <history>niva: 2026-06-19T12:52:56+00:00 load "~/Github/niva/examples/example.gpkg|layername=parcels"</history>
+  <history>niva: 2026-06-19T12:52:56+00:00 keepfields PrintKey,OwnrName</history>
+  <dates/>
+  <fees></fees>
+  <encoding></encoding>
+  <crs>
+    <spatialrefsys nativeFormat="Wkt">
+      <wkt></wkt>
+      <proj4></proj4>
+      <srsid>0</srsid>
+      <srid>0</srid>
+      <authid></authid>
+      <description></description>
+      <projectionacronym></projectionacronym>
+      <ellipsoidacronym></ellipsoidacronym>
+      <geographicflag>false</geographicflag>
+    </spatialrefsys>
+  </crs>
+  <extent/>
+</qgis>

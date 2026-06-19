@@ -1,0 +1,21 @@
+# =============================================================================
+# build_demo_lidar.niva — clip the Youngstown LiDAR to AOISM and export a DEM
+# =============================================================================
+# Builds examples/demo/lidar.laz (+ lidar_dem.tif) from the seven ~/Downloads
+# 17TPH*.las tiles that overlap AOISM, for the cookbook's PDAL recipes (§K 63-66).
+#
+# RUN THIS WHERE QGIS HAS WORKING PDAL POINT-CLOUD SUPPORT. niva reaches PDAL via
+# `run pdal:*`; point clouds are not niva `load`/`save` layers, so each step gives
+# the OUTPUT path explicitly. FIRST confirm the tiles' CRS matches AOISM
+# (EPSG:6346) — if it differs, reproject AOISM (or the cloud) so the clip overlay
+# lines up. The raw tiles total ~3.4 GB; set NIVA_TMPDIR to a roomy disk.
+# =============================================================================
+
+# 1. Merge the AOISM-overlapping tiles into one cloud.
+run pdal:merge LAYERS="~/Downloads/17TPH570895.las;~/Downloads/17TPH570910.las;~/Downloads/17TPH585895.las;~/Downloads/17TPH585910.las;~/Downloads/17TPH585925.las;~/Downloads/17TPH600895.las;~/Downloads/17TPH600910.las" OUTPUT="~/niva_scratch/ytown_merged.laz"
+
+# 2. Clip the merged cloud to the AOISM polygon (built by build_demo_data.niva).
+run pdal:clip INPUT="~/niva_scratch/ytown_merged.laz" OVERLAY="~/Github/niva/examples/demo/vectors/aoi.gpkg" OUTPUT="~/Github/niva/examples/demo/lidar.laz"
+
+# 3. Export a 1 m DEM from the clipped cloud (then niva can hillshade/slope it).
+run pdal:exportraster INPUT="~/Github/niva/examples/demo/lidar.laz" ATTRIBUTE=Z RESOLUTION=1 OUTPUT="~/Github/niva/examples/demo/lidar_dem.tif"

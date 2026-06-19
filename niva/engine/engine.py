@@ -472,6 +472,9 @@ class Engine:
         append = is_container and layer_name is not None
         if self._batch_gpkgs is not None and is_container:
             self._batch_gpkgs.add(dest)  # compact this container when the batch ends
+        parent = os.path.dirname(dest)  # create the target folder if it doesn't exist yet
+        if parent and not append:       # (a container being appended already exists)
+            os.makedirs(parent, exist_ok=True)
         return self.backend.save(current, dest, lineage=lineage,
                                  layer_name=layer_name, append=append)
 

@@ -1,0 +1,74 @@
+# =============================================================================
+# build_demo_data.niva — build niva's demonstration dataset, using niva
+# =============================================================================
+# Objective (see demo_data_usecase.md): turn the raw Youngstown sources into a
+# tidy, self-contained body of demo data under examples/demo/ that exercises the
+# cookbook — rasters, themed vectors, per-layer files, tables, a SpatiaLite DB,
+# a project, and a style. This script *is* a niva demo: niva building niva's data.
+#
+# Sources (author-local): examples/example.gpkg (25-layer Youngstown GeoPackage)
+# and ~/Downloads/ytown_dem.tif (a 1 m DEM). Study area: the AOISM polygon
+# (EPSG:6346). LiDAR and PostGIS are built by the sibling scripts
+# build_demo_lidar.niva and build_demo_postgis.niva (different inputs/credentials).
+#
+# Run headless (raster scratch on a real disk — see the User Guide):
+#   NIVA_TMPDIR=$HOME/niva_scratch \
+#   PYTHONPATH=$PWD:/usr/lib/python3/dist-packages:/usr/share/qgis/python \
+#   QT_QPA_PLATFORM=offscreen python3.14 -c \
+#     "import niva; niva.run_file('examples/build_demo_data.niva')"
+# =============================================================================
+
+# --- Task 1: themed study-area vectors (with a couple of synthetic columns) ---
+# Everything reprojected to EPSG:6346 (the study-area CRS). roads gets a synthetic
+# `class`, parcels a synthetic `zoning`, so the cookbook's attribute filters and
+# GROUP BYs have real columns to bite on.
+load "~/Github/niva/examples/example.gpkg|layername=AOISM" | save "~/Github/niva/examples/demo/vectors/aoi.gpkg"
+load "~/Github/niva/examples/example.gpkg|layername=ny_ytown_streets" | reproject EPSG:6346 | run native:fieldcalculator FIELD_NAME=class FIELD_TYPE=2 FORMULA="CASE WHEN $id % 5 = 0 THEN 'primary' WHEN $id % 2 = 0 THEN 'secondary' ELSE 'local' END" | save "~/Github/niva/examples/demo/vectors/roads.gpkg"
+load "~/Github/niva/examples/example.gpkg|layername=parcels" | reproject EPSG:6346 | run native:fieldcalculator FIELD_NAME=zoning FIELD_TYPE=2 FORMULA="CASE WHEN ACRES > 1 THEN 'R1' WHEN ACRES > 0.3 THEN 'R2' ELSE 'C' END" | save "~/Github/niva/examples/demo/vectors/parcels.gpkg"
+load "~/Github/niva/examples/example.gpkg|layername=ny_ytown_buildings" | reproject EPSG:6346 | save "~/Github/niva/examples/demo/vectors/buildings.gpkg"
+load "~/Github/niva/examples/example.gpkg|layername=gnis" | reproject EPSG:6346 | save "~/Github/niva/examples/demo/vectors/points.gpkg"
+load "~/Github/niva/examples/example.gpkg|layername=nhdplus_catchment" | reproject EPSG:6346 | save "~/Github/niva/examples/demo/vectors/watersheds.gpkg"
+# a flood-ish polygon: a 60 m buffer of the streams, dissolved
+load "~/Github/niva/examples/example.gpkg|layername=nhd_flowlines" | reproject EPSG:6346 | buffer 60m dissolve | save "~/Github/niva/examples/demo/vectors/floodzone.gpkg"
+
+# --- Task 2: per-source-layer files (for the `each`/glob recipes) -------------
+# Explode example.gpkg into one GeoJSON per layer; a failing layer (no geometry,
+# odd type) is skipped, the batch continues.
+each "~/Github/niva/examples/example.gpkg" | reproject EPSG:6346 | save "~/Github/niva/examples/demo/layers/{name}.gpkg"
+
+# --- Task 3: rasters (a 10 m DEM clipped to AOISM + the usual derivatives) -----
+# Downsample to 10 m so the committed demo rasters stay small.
+load "~/Downloads/ytown_dem.tif" | warp EPSG:6346 resolution=10 resampling=average | clipraster "~/Github/niva/examples/demo/vectors/aoi.gpkg" | save "~/Github/niva/examples/demo/dem.tif"
+load "~/Github/niva/examples/demo/dem.tif" | hillshade | save "~/Github/niva/examples/demo/hillshade.tif"
+load "~/Github/niva/examples/demo/dem.tif" | slope | save "~/Github/niva/examples/demo/slope.tif"
+load "~/Github/niva/examples/demo/dem.tif" | aspect | save "~/Github/niva/examples/demo/aspect.tif"
+# slope doubles as a movement-cost surface for grass:r.cost
+load "~/Github/niva/examples/demo/dem.tif" | slope | save "~/Github/niva/examples/demo/cost_surface.tif"
+# a categorical raster (catchment GridCode at 20 m) so `polygonize` has something to vectorise
+load "~/Github/niva/examples/example.gpkg|layername=nhdplus_catchment" | reproject EPSG:6346 | clip "~/Github/niva/examples/demo/vectors/aoi.gpkg" | run gdal:rasterize FIELD=GridCode UNITS=1 WIDTH=20 HEIGHT=20 | save "~/Github/niva/examples/demo/landcover.tif"
+# a DEM with a NoData hole (a donut clip) for gdal:fillnodata
+load "~/Github/niva/examples/demo/vectors/aoi.gpkg" | centroid | buffer 700m | save "~/Github/niva/examples/demo/_hole.gpkg"
+load "~/Github/niva/examples/demo/vectors/aoi.gpkg" | difference "~/Github/niva/examples/demo/_hole.gpkg" | save "~/Github/niva/examples/demo/_donut.gpkg"
+load "~/Github/niva/examples/demo/dem.tif" | clipraster "~/Github/niva/examples/demo/_donut.gpkg" | save "~/Github/niva/examples/demo/gappy.tif"
+# a target raster (streams burned to 1) for gdal:proximity
+load "~/Github/niva/examples/example.gpkg|layername=nhd_flowlines" | reproject EPSG:6346 | clip "~/Github/niva/examples/demo/vectors/aoi.gpkg" | run gdal:rasterize BURN=1 UNITS=1 WIDTH=20 HEIGHT=20 | save "~/Github/niva/examples/demo/targets.tif"
+
+# --- Task 4: tabular inputs for the join recipes ------------------------------
+# census.csv: a tract key + synthetic pop/income. owners.csv: a parcel key + owner.
+load "~/Github/niva/examples/example.gpkg|layername=nhdplus_catchment" | run native:fieldcalculator FIELD_NAME=pop FIELD_TYPE=1 FORMULA="round(rand(200, 8000))" | run native:fieldcalculator FIELD_NAME=income FIELD_TYPE=1 FORMULA="round(rand(25000, 140000))" | keepfields NHDPlusID,pop,income | save "~/Github/niva/examples/demo/census.csv"
+load "~/Github/niva/examples/example.gpkg|layername=parcels" | keepfields PrintKey,OwnrName | save "~/Github/niva/examples/demo/owners.csv"
+
+# --- Task 5: a SpatiaLite database for the `@sl` SQL recipes -------------------
+# One .sqlite holding parcels/roads/points/zones. Register it in QGIS as a
+# SpatiaLite connection named `sl` to run the cookbook §G recipes.
+load "~/Github/niva/examples/demo/vectors/parcels.gpkg" | save "~/Github/niva/examples/demo/youngstown.sqlite" as parcels
+load "~/Github/niva/examples/demo/vectors/roads.gpkg" | save "~/Github/niva/examples/demo/youngstown.sqlite" as roads
+load "~/Github/niva/examples/demo/vectors/points.gpkg" | save "~/Github/niva/examples/demo/youngstown.sqlite" as points
+load "~/Github/niva/examples/example.gpkg|layername=ny_ytown_stateparks" | reproject EPSG:6346 | save "~/Github/niva/examples/demo/youngstown.sqlite" as zones
+
+# --- Task 6: a QGIS project + a style sidecar ---------------------------------
+project new from="~/Github/niva/examples/demo/layers" to="~/Github/niva/examples/demo/youngstown.qgs" crs=EPSG:6346 title="Youngstown demo"
+load "~/Github/niva/examples/demo/vectors/roads.gpkg" | style save "~/Github/niva/examples/demo/house.qml"
+
+# --- Task 7: an inventory of everything we just built -------------------------
+catalog "~/Github/niva/examples/demo" to="~/Github/niva/examples/demo/catalog.md"
