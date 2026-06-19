@@ -334,7 +334,7 @@ same-named data, symbology and layout riding along. Register your own designed p
 
 niva gives 45 algorithms friendly verbs; the other ~720 — across **every** Processing
 provider — are reachable with `run <id> KEY=value …`. Four per provider below. Find any
-algorithm's parameters with `niva describe <id>` or the [algorithm appendix](algorithms/README.md).
+algorithm's parameters with `niva describe <id>` or the [algorithm appendix](../algorithms/README.md).
 
 Two things to know when using `run` directly:
 - **Enum options take their integer index**, not the alias word — `format=0`, not
@@ -468,7 +468,7 @@ whole provider.
 
 ## Capstone — full pipelines
 
-Two complete, runnable flows ship in [`examples/`](../examples):
+Two complete, runnable flows ship in [`examples/`](../../examples):
 
 - **`analyst_plan.niva`** — catalog data sources → reproject/warp everything to a target CRS
   → clip to a study-area bounding box → repoint QGIS projects to the clips. A whole regional

@@ -215,4 +215,4 @@ stored with **relative** paths so the committed template is self-contained, and 
 both the wheel (hatchling includes the package data) and the plugin (`cp -r niva` vendors it).
 The user-facing reference of *what a template carries* — every project-level element plus
 per-layer symbology / filters / metadata, with caveats — lives in
-[`docs/templates.md`](../templates.md).
+[`docs/guide/templates.md`](../guide/templates.md).

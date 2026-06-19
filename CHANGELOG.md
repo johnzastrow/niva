@@ -67,11 +67,11 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Added
 - **Comprehensive end-user documentation** — three new guides linked from the README:
-  [`docs/reference.md`](docs/reference.md) (every built-in verb, all 45 alias verbs with their
+  [`docs/guide/reference.md`](docs/guide/reference.md) (every built-in verb, all 45 alias verbs with their
   QGIS algorithm + args/options/flags, value types & units, `@conn` connections, environment
-  variables, the CLI, and the Python API), [`docs/cookbook.md`](docs/cookbook.md) (50 worked
+  variables, the CLI, and the Python API), [`docs/guide/cookbook.md`](docs/guide/cookbook.md) (50 worked
   recipes of increasing complexity, including a large block of spatial SQL for both SpatiaLite
-  and PostGIS), and [`docs/user-guide.md`](docs/user-guide.md) (running niva inside QGIS and
+  and PostGIS), and [`docs/guide/user-guide.md`](docs/guide/user-guide.md) (running niva inside QGIS and
   standalone, configuration, scratch space, the journal, export-to-PyQGIS, and troubleshooting).
 
 ## [0.27.0] - 2026-06-18
@@ -92,7 +92,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   (`boundary`/`roads`/`places`), a print layout (title/map/legend/scale bar), a spatial
   bookmark, and a title + CRS — so the feature works out of the box and gives users a project to
   clone. Named templates now resolve across `$NIVA_TEMPLATES` → `~/.niva/templates` → bundled.
-- **Template authoring guide** — [`docs/templates.md`](docs/templates.md): a full reference of
+- **Template authoring guide** — [`docs/guide/templates.md`](docs/guide/templates.md): a full reference of
   what a template carries (layouts, bookmarks, themes, per-layer symbology/filters/metadata),
   the display-name slot-matching rule, caveats (schema-dependent styling, layout extent), and an
   end-to-end authoring walkthrough.

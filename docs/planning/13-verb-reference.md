@@ -467,7 +467,7 @@ project from-template=parcel_map to="acme.qgz" data="acme/parcels/"
 `paths=relative` makes the template portable. The slots keep their current data as *example*
 data, repointed on instantiation. niva also **ships a bundled `example` template**
 (`from-template=example`) with three styled slots + a print layout + a bookmark. See
-[docs/templates.md](../templates.md) for the full element reference (what a template carries)
+[docs/guide/templates.md](../guide/templates.md) for the full element reference (what a template carries)
 and an authoring walkthrough.
 
 **Style a layer** — `style apply <file>` / `style save <file>` (v0.20.0):

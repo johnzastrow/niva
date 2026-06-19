@@ -9,7 +9,7 @@ variable, CLI command, and Python entry point. For a task-oriented tour see the
 niva gives **45 alias verbs** friendly names; **every** QGIS Processing algorithm — **769**
 in QGIS 4.0.3 — is reachable through the [`run`](#6-the-run-escape-hatch--describe) escape
 hatch. The complete, per-algorithm appendix (parameters, defaults, enum options, descriptions,
-and which verb aliases each) is in [`docs/algorithms/`](algorithms/README.md).
+and which verb aliases each) is in [`docs/algorithms/`](../algorithms/README.md).
 
 | Provider | Algorithms | niva alias verbs |
 |---|---|---|
@@ -477,7 +477,7 @@ intermediates aren't left huge; the final product's compression is governed by `
 
 Anything not aliased is still reachable with `run <algorithm-id> …` (§6). For the full
 catalogue of all 769 algorithms — parameters, defaults, enum options, and descriptions — see
-the [algorithm appendix](algorithms/README.md).
+the [algorithm appendix](../algorithms/README.md).
 
 ---
 
@@ -508,7 +508,7 @@ niva describe buffer
 niva describe gdal:warpreproject
 ```
 
-The **[algorithm appendix](algorithms/README.md)** lists all 769 algorithms by provider —
+The **[algorithm appendix](../algorithms/README.md)** lists all 769 algorithms by provider —
 each with its parameters (type, required, default, enum options), description, outputs, and
 niva alias (⭐) — so you can find and copy a `run <id> …` for anything without an alias.
 

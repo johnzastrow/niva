@@ -39,9 +39,9 @@ backend — executes real geoprocessing, validated against real GIS data on QGIS
 (122 unit + 19 niva-script integration checks). The verb set is still a starter set
 and will grow.
 
-The design is worked out in [`planning/`](planning/) (PRD, architecture, grammar
+The design is worked out in [`planning/`](../planning/) (PRD, architecture, grammar
 spec, security model, the `Oscar_the_Grouch.md` failure register, and the
-[traceability matrix](planning/14-traceability-matrix.md) of every verb ↔ algorithm).
+[traceability matrix](../planning/14-traceability-matrix.md) of every verb ↔ algorithm).
 
 Deliberately still-open questions:
 

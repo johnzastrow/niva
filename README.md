@@ -106,16 +106,16 @@ niva.flow('load "data.gpkg|layername=roads" | buffer 100m dissolve | save out.gp
 
 ## Docs
 
-- **[User Guide](docs/user-guide.md)** — install & run niva inside QGIS and standalone,
+- **[User Guide](docs/guide/user-guide.md)** — install & run niva inside QGIS and standalone,
   configuration, scratch space, troubleshooting
-- **[Reference](docs/reference.md)** — every verb, alias, option, type, env var, CLI command,
+- **[Reference](docs/guide/reference.md)** — every verb, alias, option, type, env var, CLI command,
   and Python entry point · **[Algorithm appendix](docs/algorithms/README.md)** — all 769 QGIS
   algorithms with parameters & descriptions
-- **[Cookbook](docs/cookbook.md)** — 50 worked recipes, including spatial SQL for SpatiaLite
+- **[Cookbook](docs/guide/cookbook.md)** — 50 worked recipes, including spatial SQL for SpatiaLite
   and PostGIS
-- [Template projects](docs/templates.md) — author a QGIS project once (layout + styles),
+- [Template projects](docs/guide/templates.md) — author a QGIS project once (layout + styles),
   reuse it against fresh data with `project from-template=`
-- [About & goals](docs/about.md) · [Plugin](plugin/README.md) ·
+- [About & goals](docs/guide/about.md) · [Plugin](plugin/README.md) ·
   [Verb ↔ algorithm map](docs/planning/14-traceability-matrix.md)
 - [Design & risk docs](docs/planning/) — PRD, architecture, grammar, security, the
   `Oscar` failure register
