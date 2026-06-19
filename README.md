@@ -106,10 +106,16 @@ niva.flow('load "data.gpkg|layername=roads" | buffer 100m dissolve | save out.gp
 
 ## Docs
 
-- [About & goals](docs/about.md) · [Plugin](plugin/README.md) ·
-  [Verb ↔ algorithm map](docs/planning/14-traceability-matrix.md)
+- **[User Guide](docs/user-guide.md)** — install & run niva inside QGIS and standalone,
+  configuration, scratch space, troubleshooting
+- **[Reference](docs/reference.md)** — every verb, alias, option, type, env var, CLI command,
+  and Python entry point
+- **[Cookbook](docs/cookbook.md)** — 50 worked recipes, including spatial SQL for SpatiaLite
+  and PostGIS
 - [Template projects](docs/templates.md) — author a QGIS project once (layout + styles),
   reuse it against fresh data with `project from-template=`
+- [About & goals](docs/about.md) · [Plugin](plugin/README.md) ·
+  [Verb ↔ algorithm map](docs/planning/14-traceability-matrix.md)
 - [Design & risk docs](docs/planning/) — PRD, architecture, grammar, security, the
   `Oscar` failure register
 - [CHANGELOG](CHANGELOG.md)
