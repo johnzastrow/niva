@@ -4,7 +4,7 @@
 [![License: GPLv3](https://img.shields.io/badge/license-GPLv3-blue.svg)](LICENSE)
 [![QGIS](https://img.shields.io/badge/QGIS-3.22%2B%20%7C%204.x-589632.svg?logo=qgis&logoColor=white)](https://qgis.org)
 [![Python](https://img.shields.io/badge/python-3.9%2B-3776AB.svg?logo=python&logoColor=white)](https://www.python.org)
-[![Dependencies](https://img.shields.io/badge/runtime%20deps-none%20(QGIS%20only)-success.svg)](docs/guide/faq.md)
+[![Dependencies](https://img.shields.io/badge/runtime%20deps-none%20%28QGIS%20only%29-success.svg)](docs/guide/faq.md)
 
 **A concise, readable text-pipeline grammar for QGIS geoprocessing — for people who
 don't want to write PyQGIS.** *Easy wins every time.*
@@ -66,7 +66,9 @@ Niva turns QGIS automation from PyQGIS code into a readable single lines of text
 <img src="docs/screenshots/dot_niva.png" width="250" alt="niva plugin panel">
 *The niva plugin integrates commands and workflow controls into QGIS.*
 
-
+### ntify notifications
+<img src="docs/screenshots/ntfy.jpg" width="250" alt="niva plugin panel">
+*The niva plugin integrates commands and workflow controls into QGIS.*
 
 
 
