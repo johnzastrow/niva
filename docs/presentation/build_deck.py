@@ -358,7 +358,7 @@ _footer(s, 15)
 # ---- 16. STATUS — WHAT'S BUILT -----------------------------------------
 s = content_slide(prs, "What's working today", eyebrow="Status · built and shipping")
 _text(s, 0.85, 1.55, 11.6, 0.5,
-      [[("niva ships as a QGIS plugin (v0.27) and runs real analysis "
+      [[("niva ships as a QGIS plugin (v0.29) and runs real analysis "
          "end-to-end, on QGIS's own algorithms:", {"size": 17, "color": SAGE})]])
 status_cards = [
     ("Grammar & engine", DEEP, [
@@ -367,7 +367,7 @@ status_cards = [
         "PyQGIS backend — runs real geoprocessing",
     ]),
     ("Verbs & algorithms", TAN, [
-        "~45 alias verbs + 12 built-ins (vector + raster)",
+        "~45 alias verbs + 14 built-ins (vector + raster)",
         "sql @conn — SELECT → layer, and server-side writes",
         "run — reach ANY of QGIS's 769 algorithms",
     ]),
@@ -376,10 +376,10 @@ status_cards = [
         "project — repoint / build / templates · bookmarks",
         "style — apply / export .qml · .sld · .qlr",
     ]),
-    ("Delivery & quality", TAN, [
+    ("Discovery, delivery & quality", TAN, [
+        "show / info / catalog — list data, inspect environment",
         "QGIS plugin (Install from ZIP) · CLI · Python API",
-        "Provenance journal · assess · catalog · notify / email",
-        "270+ tests, live-QGIS + PostGIS CI · full docs",
+        "300+ tests, live-QGIS + PostGIS CI · full docs",
     ]),
 ]
 cw, ch, gx, gy = 5.8, 2.25, 0.25, 0.2
@@ -403,8 +403,8 @@ s = content_slide(prs, "The road ahead", eyebrow="Roadmap · shipped & next")
 spine = _box(s, 1.62, 2.1, 0.04, 4.35)
 _fill(spine, TAN)
 milestones = [
-    ("v0.27", "Shipped — available now",
-     "~45 verbs + raster · run → 769 · PostGIS read·write·analyse · project / template / style · QGIS plugin · CLI / Python · full docs", "available now"),
+    ("v0.29", "Shipped — available now",
+     "~45 verbs + raster · run → 769 · PostGIS read·write·analyse · project / template / style · show / info discovery · QGIS plugin · CLI / Python · full docs", "available now"),
     ("v1.0", "Stable release",
      "Grammar freeze (SemVer) · PyPI publish · worked Marimo–QGIS integration", None),
     ("v2.0", "Power features",

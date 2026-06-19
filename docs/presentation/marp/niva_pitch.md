@@ -199,15 +199,15 @@ A whole pipeline on one line — that a non-programmer can **write and read** �
 
 # What's working today
 
-<p class="lead">niva ships as a <strong>QGIS plugin</strong> (v0.27) and runs real analysis end-to-end, on QGIS's own algorithms:</p>
+<p class="lead">niva ships as a <strong>QGIS plugin</strong> (v0.29) and runs real analysis end-to-end, on QGIS's own algorithms:</p>
 
 <div class="cols">
 <div class="card"><h3>Grammar &amp; engine</h3><p>✓ Readable lexer + parser → pipeline stages<br>✓ Pipe-chaining engine: layer handles, lineage<br>✓ PyQGIS backend — runs real geoprocessing</p></div>
-<div class="card warm"><h3>Verbs &amp; algorithms</h3><p>✓ ~45 alias verbs + 12 built-ins (vector + raster)<br>✓ <code>sql @conn</code> — SELECT → layer, and server-side writes<br>✓ <code>run</code> — reach ANY of QGIS's 769 algorithms</p></div>
+<div class="card warm"><h3>Verbs &amp; algorithms</h3><p>✓ ~45 alias verbs + 14 built-ins (vector + raster)<br>✓ <code>sql @conn</code> — SELECT → layer, and server-side writes<br>✓ <code>run</code> — reach ANY of QGIS's 769 algorithms</p></div>
 </div>
 <div class="cols">
 <div class="card"><h3>Data &amp; cartography</h3><p>✓ PostGIS &amp; SpatiaLite — read · write · analyse<br>✓ <code>project</code> — repoint / build / templates · bookmarks<br>✓ <code>style</code> — apply / export .qml · .sld · .qlr</p></div>
-<div class="card warm"><h3>Delivery &amp; quality</h3><p>✓ QGIS plugin (Install from ZIP) · CLI · Python API<br>✓ Provenance journal · <code>assess</code> · <code>catalog</code> · notify / email<br>✓ 270+ tests, live-QGIS + PostGIS CI · full docs</p></div>
+<div class="card warm"><h3>Discovery, delivery &amp; quality</h3><p>✓ <code>show</code> / <code>info</code> / <code>catalog</code> — list data, inspect the environment<br>✓ QGIS plugin (Install from ZIP) · CLI · Python API<br>✓ 300+ tests, live-QGIS + PostGIS CI · full docs</p></div>
 </div>
 
 ---
@@ -216,7 +216,7 @@ A whole pipeline on one line — that a non-programmer can **write and read** �
 
 # The road ahead
 
-- **v0.1 – 0.27 — Shipped** <span class="tan">· available now</span><br><span class="lead">Grammar · ~45 verbs + raster · <code>run</code> → 769 algorithms · PostGIS read·write·analyse · project / template / style · QGIS plugin + CLI + Python · provenance · full docs</span>
+- **v0.1 – 0.29 — Shipped** <span class="tan">· available now</span><br><span class="lead">Grammar · ~45 verbs + raster · <code>run</code> → 769 algorithms · PostGIS read·write·analyse · project / template / style · <code>show</code> / <code>info</code> discovery · QGIS plugin + CLI + Python · provenance · full docs</span>
 - **v1.0 — Stable release**<br><span class="lead">Grammar freeze (SemVer) · PyPI publish · worked Marimo–QGIS integration</span>
 - **v2.0 — Power features**<br><span class="lead">Named intermediates &amp; variables · SQL-driven quality rules &amp; constraints</span>
 - **v2.x — Service mode**<br><span class="lead">Service / daemon mode · richer layout &amp; symbology export</span>
