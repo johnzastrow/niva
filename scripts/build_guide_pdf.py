@@ -92,6 +92,23 @@ function RawBlock(el)
   if el.format == "latex" and el.text:find("appendix") then in_appendix = true end
 end
 
+-- Let a LONG inline-code token (e.g. gdal:cliprasterbymasklayer) break at any character, so
+-- it doesn't overhang the margin in prose. Only long, ASCII tokens are touched (fast).
+local CODE_ESC = {
+  ["\\"] = "\\textbackslash{}", ["{"] = "\\{", ["}"] = "\\}", ["$"] = "\\$",
+  ["&"] = "\\&", ["#"] = "\\#", ["%"] = "\\%", ["_"] = "\\_",
+  ["^"] = "\\textasciicircum{}", ["~"] = "\\textasciitilde{}",
+}
+function Code(el)
+  if #el.text < 18 or el.text:find("[\128-\255]") then return nil end
+  local parts = {}
+  for i = 1, #el.text do
+    local c = el.text:sub(i, i)
+    parts[#parts + 1] = (CODE_ESC[c] or c) .. "\\discretionary{}{}{}"
+  end
+  return pandoc.RawInline("latex", "\\texttt{" .. table.concat(parts) .. "}")
+end
+
 local function cell_latex(cell)
   local s = pandoc.write(pandoc.Pandoc(cell.contents), "latex")
   return (s:gsub("%s+", " "):gsub("^ ", ""):gsub(" $", ""))
