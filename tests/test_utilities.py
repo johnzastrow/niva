@@ -138,5 +138,33 @@ class TestCatalog(unittest.TestCase):
         self.assertTrue(os.path.exists(out))
 
 
+class TestInfo(unittest.TestCase):
+    """The `info` verb — environment report. MockBackend records the call and returns a
+    stub; the live-QGIS report contents are exercised in tests/test_pyqgis.py."""
+
+    def test_info_records_the_backend_call_and_prints(self):
+        backend = MockBackend()
+        flow("info", backend=backend)
+        self.assertIn(("environment_report",), backend.calls)
+
+    def test_info_writes_report_to_file(self):
+        root = tempfile.mkdtemp(prefix="niva_info_")
+        out = os.path.join(root, "env.md")
+        backend = MockBackend()
+        flow(f'info to="{out}"', backend=backend)
+        self.assertTrue(os.path.exists(out))
+        report = open(out).read()
+        self.assertIn("niva — environment", report)
+        self.assertIn(("environment_report",), backend.calls)
+
+    def test_info_rejects_an_input_argument(self):
+        with self.assertRaises(FlowError):
+            flow("info something.qgs", backend=MockBackend())
+
+    def test_info_rejects_unknown_options(self):
+        with self.assertRaises(FlowError):
+            flow("info bogus=1", backend=MockBackend())
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -7,6 +7,27 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.28.0] - 2026-06-19
+
+### Added
+- **`info` verb** — inspects the local QGIS environment and reports the details a command-line
+  user needs before writing a flow (when working outside QGIS, where the Browser and connection
+  dialogs aren't in front of you). Most useful: the **registered database connection names** —
+  the valid `@conn` references for PostGIS and SpatiaLite. Also surfaces the Processing
+  providers + reachable algorithm count (so `run grass:…`/`run pdal:…` are known to work),
+  versions (QGIS, GDAL, PROJ, GEOS, Python), niva's own build + import path, the verb list, and
+  the environment variables niva honours — with **secrets masked** (`NIVA_NTFY_TOKEN`,
+  `NIVA_SMTP_PASSWORD` shown only as *set* / *unset*). `info` prints to stdout; `info
+  to=<report.md>` writes a file. Terminal verb; distinct from `project info <src.qgs>` (which
+  inventories a project *file*). Documented in the [Reference](docs/guide/reference.md) and
+  [FAQ](docs/guide/faq.md).
+
+### Changed
+- **One source for the environment report.** The report logic now lives in the niva package
+  (`niva/environment.py`), shared by the `info` verb and the plugin's Setup-tab **Environment
+  report** button; `plugin/environment.py` is now a thin re-export. The packaged report adds the
+  environment-variables section (with secret masking).
+
 ## [0.27.6] - 2026-06-19
 
 ### Changed

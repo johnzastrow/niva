@@ -4,29 +4,6 @@ Parked work. See [`docs/planning/04-roadmap.md`](docs/planning/04-roadmap.md),
 [`docs/planning/15-postgis-and-project-design.md`](docs/planning/15-postgis-and-project-design.md),
 and [`docs/planning/16-anatomy-of-a-verb.md`](docs/planning/16-anatomy-of-a-verb.md) for context.
 
-## Environment-inspection verb (`info`)
-
-- [ ] **An `info` verb that inspects the local QGIS environment and reports details a CLI user needs**
-  before writing a flow (when working outside QGIS, where the Browser/connection UI isn't in
-  front of you). The single most useful thing: the **registered database connection names** —
-  the valid `@conn` references for PostGIS and SpatiaLite — since a flow references them by name
-  but a user can't guess them. Also worth surfacing:
-  - Processing **providers** present and the reachable **algorithm count** — including whether
-    optional providers (GRASS, PDAL) are installed, so `run grass:…`/`run pdal:…` are known to work.
-  - **Versions** — QGIS, GDAL, PROJ, GEOS, Python — and the QGIS prefix path + active profile.
-  - The **environment variables niva honours** and their current values: `NIVA_TMPDIR` (+ the
-    resolved scratch dir), `NIVA_TEMPLATES`, `NIVA_NTFY_*`, `NIVA_SMTP_*` (mask secrets).
-  - niva's own version + import path (bundled-in-plugin vs pip), and the verb/alias list.
-
-  This is the **CLI counterpart of the plugin's Setup-tab "Environment report"**
-  (`plugin/environment.py::report_markdown`) — factor that logic into the niva package so the
-  verb and the plugin share one source. Terminal verb (writes/prints a Markdown report); e.g.
-  `info` or `info to=<report.md>`. (Distinct from `project info <src.qgs>`, which inventories a
-  *project file* — this `info` inventories the *QGIS environment*; the bare `info` with no args
-  is unambiguous.) Fold in the planning doc's aspirational `doctor` command
-  (`docs/planning/11-cli-and-api-reference.md`). Two-tier tests (MockBackend records the call;
-  live-QGIS checks the real report contents).
-
 ## Project & layer-file operations (new scope)
 
 All use a standalone `QgsProject()` / `QgsMapLayer` off the main thread (per
@@ -42,6 +19,13 @@ All use a standalone `QgsProject()` / `QgsMapLayer` off the main thread (per
   layout). Keep only if direct `.qpt` export/import is later wanted.
 
 ## Done
+- [x] **Environment-inspection verb (`info`)** (v0.28.0) — `info [to=<report.md>]` inspects the
+  local QGIS environment: registered `@conn` database connection names, Processing providers +
+  reachable algorithm count, versions (QGIS/GDAL/PROJ/GEOS/Python), niva build + import path, the
+  verb list, and the env vars niva honours (secrets masked). Report logic factored into
+  `niva/environment.py`, shared by the verb and the plugin's Setup-tab Environment report
+  (`plugin/environment.py` now re-exports it). Two-tier tests (MockBackend records the call;
+  live-QGIS checks the real report). Distinct from `project info <src.qgs>`.
 - [x] **Real end-to-end run of the analyst plan** (v0.25.0) — `examples/analyst_plan.niva`
   ran headless on the real data through Task 5: outputs valid, `/tmp` flat (scratch fix held),
   the repointed `.qgs` projects open and resolve to the clips.

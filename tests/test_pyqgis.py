@@ -916,5 +916,45 @@ class TestPyqgisStyle(unittest.TestCase):
             self.assertIn("roads.gpkg", fh.read())
 
 
+class TestPyqgisEnvironmentReport(unittest.TestCase):
+    """`info` — the real environment report against a live QGIS (the part MockBackend
+    can't exercise: actual versions, provider list, connection probing)."""
+
+    def test_report_has_the_expected_sections(self):
+        from niva.environment import report_markdown
+
+        report = report_markdown()
+        for heading in ("# niva — environment", "## niva", "## Verbs & algorithms",
+                        "## Database connections", "## Environment (niva variables)",
+                        "## QGIS & geo stack", "## Python & platform"):
+            self.assertIn(heading, report)
+        # The reachable-algorithm count must resolve to a real number, and QGIS must
+        # report a version (not the "unavailable" fallback).
+        self.assertNotIn("**unavailable** algorithms", report)
+        self.assertNotIn("QGIS: unavailable", report)
+
+    def test_report_masks_secret_env_vars(self):
+        import os
+
+        from niva.environment import report_markdown
+
+        os.environ["NIVA_SMTP_PASSWORD"] = "hunter2-should-not-appear"
+        try:
+            report = report_markdown()
+        finally:
+            del os.environ["NIVA_SMTP_PASSWORD"]
+        self.assertNotIn("hunter2-should-not-appear", report)
+        self.assertIn("`NIVA_SMTP_PASSWORD` = **set**", report)
+
+    def test_info_verb_writes_report(self):
+        import niva
+
+        out = os.path.join(tempfile.mkdtemp(prefix="niva_info_"), "env.md")
+        niva.flow(f'info to="{out}"')
+        self.assertTrue(os.path.isfile(out))
+        with open(out) as fh:
+            self.assertIn("niva — environment", fh.read())
+
+
 if __name__ == "__main__":
     unittest.main()

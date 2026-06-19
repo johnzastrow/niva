@@ -106,6 +106,20 @@ sql @pg "SELECT id, ST_Buffer(geom,100) AS geom FROM homes WHERE has_cat" | save
 Only the connection **name** appears in a flow — credentials stay in QGIS. See the
 [Reference](reference.md#7-database-connections-conn).
 
+## How do I find my database connection names (the `@conn` values)?
+
+Run `info`. From a shell — where the QGIS Browser isn't in front of you — this is the quickest
+way to see the registered PostGIS/SpatiaLite connections, plus your QGIS/GDAL/PROJ versions,
+the reachable algorithm count, and the niva environment variables (secrets masked):
+
+```bash
+niva info                 # prints the report; the "Database connections" section lists each @conn
+niva info to=env.md       # or save it to a file
+```
+
+It's the CLI counterpart of the plugin's Setup-tab **Environment report**. See the
+[Reference](reference.md#info--inspect-the-local-qgis-environment-terminal).
+
 ## Can I use an algorithm that doesn't have a niva verb?
 
 Yes. The ~45 [alias verbs](reference.md#5-alias-verbs-the-registry) are conveniences; **every**

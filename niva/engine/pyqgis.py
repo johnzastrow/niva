@@ -1276,6 +1276,11 @@ class PyqgisBackend(Backend):
         layers.sort(key=lambda d: d["name"])
         return {"title": proj.title(), "crs": proj.crs().authid(), "layers": layers}
 
+    def environment_report(self) -> str:
+        from ..environment import report_markdown
+
+        return report_markdown()
+
     def _add_bookmark(self, proj, spec: dict) -> None:
         """Add a spatial bookmark to ``proj`` in the project CRS. ``spec`` is
         ``{name, at: (x,y)|None, width: float|None}``: a centre+width makes a square extent

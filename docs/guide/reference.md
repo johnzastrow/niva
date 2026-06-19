@@ -51,7 +51,7 @@ Verbs fall into three behavioural classes:
 |---|---|---|
 | **Producing** | returns a new layer to pipe onward | `load`, `run`, `split`, `sql` (SELECT), and every alias verb |
 | **Pass-through** | returns the upstream layer unchanged, so it chains | `save`, `assess`, `metadata`, `style`, `notify`, `email` |
-| **Terminal** | returns nothing; a following stage is an error | `catalog`, `project`, `sql` (write) |
+| **Terminal** | returns nothing; a following stage is an error | `catalog`, `info`, `project`, `sql` (write) |
 
 A flow normally begins with `load` (or `run`/`sql`, which produce a layer), or with `each`
 to run the rest of the flow once per dataset in a directory/glob/container.
@@ -271,6 +271,30 @@ listing unreadable files separately. Default output is `<dir>/catalog.md`.
 ```
 catalog "data/" to=reports/inventory.md
 ```
+
+### `info` — inspect the local QGIS environment *(terminal)*
+
+```
+info [to=<report.md>]
+```
+
+Reports what a CLI user needs to know before writing a flow, especially when working
+**outside** QGIS where the Browser and connection dialogs aren't in front of you. Most
+useful: the **registered database connection names** — the valid `@conn` references for
+PostGIS and SpatiaLite — since a flow names them but you can't guess them. Also surfaces the
+Processing **providers** and reachable **algorithm count** (so you know `run grass:…` /
+`run pdal:…` will work), the **versions** (QGIS, GDAL, PROJ, GEOS, Python), niva's own build +
+import path, the verb list, and the **environment variables** niva honours (secrets masked —
+only *set* / *unset* is shown). With `to=`, writes the Markdown to a file; otherwise prints it
+to stdout. This is the CLI counterpart of the plugin's Setup-tab **Environment report**.
+
+```
+info                       # print the report
+info to=env-report.md      # save it
+```
+
+(Not to be confused with `project info <src.qgs>`, which inventories a *project file*; bare
+`info` inventories the *QGIS environment*.)
 
 ### `project` — manipulate QGIS project files *(terminal)*
 

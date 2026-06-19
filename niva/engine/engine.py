@@ -309,6 +309,7 @@ class Engine:
         "notify":   lambda self, stage, current, lineage: self._notify(stage, current),
         "email":    lambda self, stage, current, lineage: self._email(stage, current),
         "catalog":  lambda self, stage, current, lineage: self._catalog(stage),
+        "info":     lambda self, stage, current, lineage: self._info(stage),
         "project":  lambda self, stage, current, lineage: self._project(stage),
         "style":    lambda self, stage, current, lineage: self._style(stage, current),
         "split":    lambda self, stage, current, lineage: self._split(stage, current),
@@ -787,6 +788,40 @@ class Engine:
         with open(out, "w", encoding="utf-8") as fh:
             fh.write(report)
         self._emit(f"  catalogued {len(entries)} dataset(s) → {out}")
+        return None  # terminal
+
+    def _info(self, stage) -> Layer | None:
+        """`info [to=<report.md>]` — inspect the local QGIS environment and report the
+        details a CLI user needs before writing a flow (the registered database
+        connection names — the valid `@conn` references — plus providers, the reachable
+        algorithm count, versions, and the niva environment variables, secrets masked).
+        With `to=`, write the Markdown to a file; otherwise print it to stdout. Terminal:
+        inspects the *environment* (distinct from `project info`, which inventories a
+        project file). The CLI counterpart of the plugin's Setup-tab Environment report."""
+        if stage.args:
+            raise FlowError(
+                "`info` inspects the QGIS environment and takes no input — "
+                "just `info [to=<report.md>]` (for a project file, use `project info <src>`)",
+                line=stage.line, stage=stage.raw,
+            )
+        unknown = set(stage.options) - {"to"}
+        if unknown:
+            raise FlowError(f"`info`: unknown option(s) {', '.join(sorted(unknown))} — "
+                            "only `to=<report.md>` is accepted",
+                            line=stage.line, stage=stage.raw)
+        report = self.backend.environment_report()
+        out = stage.options.get("to")
+        if out:
+            out = os.path.expanduser(out)
+            parent = os.path.dirname(out)
+            if parent:
+                os.makedirs(parent, exist_ok=True)
+            with open(out, "w", encoding="utf-8") as fh:
+                fh.write(report if report.endswith("\n") else report + "\n")
+            self._emit(f"  environment report → {out}")
+        else:
+            # The report *is* the product — to stdout, separable from stderr progress.
+            print(report)
         return None  # terminal
 
     def _project(self, stage) -> Layer | None:

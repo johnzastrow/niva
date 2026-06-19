@@ -123,6 +123,14 @@ class Backend(abc.ABC):
         ``{title, crs, layers: [{name, source, provider, type, crs, valid}, …]}``.
         The `project info` form."""
 
+    @abc.abstractmethod
+    def environment_report(self) -> str:
+        """A Markdown report of the live QGIS environment — niva build, versions, the
+        Processing providers + reachable algorithm count, the registered database
+        connection names (the valid ``@conn`` references), the verbs, and the niva
+        environment variables (secrets masked). The `info` verb; the CLI counterpart of
+        the plugin's Setup-tab Environment report."""
+
     def sublayers(self, source: str) -> list:
         """List the layer names inside a multi-layer container (e.g. a GeoPackage),
         for ``catalog``. Returns ``[]`` for a single-layer source (the default) — a
@@ -239,6 +247,10 @@ class MockBackend(Backend):
     def read_project(self, src: str) -> dict:
         self.calls.append(("read_project", src))
         return {"title": "", "crs": "", "layers": []}
+
+    def environment_report(self) -> str:
+        self.calls.append(("environment_report",))
+        return "# niva — environment\n\n- Backend: mock (no QGIS)\n"
 
     def profile(self, layer: Layer, deep: bool = False) -> dict:
         self.calls.append(("assess", layer.name, deep))
