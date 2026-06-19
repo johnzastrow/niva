@@ -7,6 +7,8 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.27.1] - 2026-06-19
+
 ### Added
 - **Comprehensive end-user documentation** — three new guides linked from the README:
   [`docs/reference.md`](docs/reference.md) (every built-in verb, all 45 alias verbs with their
