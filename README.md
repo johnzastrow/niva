@@ -121,6 +121,9 @@ niva.flow('load "data.gpkg|layername=roads" | buffer 100m dissolve | save out.gp
   `Oscar` failure register
 - [CHANGELOG](CHANGELOG.md)
 
+The user guide is also buildable as a single PDF: `python3 scripts/build_guide_pdf.py`
+(needs `pandoc` + a LaTeX engine).
+
 ## License
 
 [GPLv3](LICENSE) — consistent with the QGIS ecosystem (niva builds on PyQGIS, a GPL
