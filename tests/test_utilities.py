@@ -138,6 +138,40 @@ class TestCatalog(unittest.TestCase):
         self.assertTrue(os.path.exists(out))
 
 
+class TestProfileIniParse(unittest.TestCase):
+    """`_connections_in_ini` — parse a QGIS settings ini for DB connection names per
+    profile, without QGIS. Covers the section layouts QGIS uses for each provider."""
+
+    def _parse(self, body):
+        from niva.environment import _connections_in_ini
+
+        path = os.path.join(tempfile.mkdtemp(prefix="niva_ini_"), "QGIS4.ini")
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write(body)
+        return _connections_in_ini(path)
+
+    def test_postgres_and_spatialite_and_geopackage(self):
+        got = self._parse(
+            "[PostgreSQL]\n"
+            "connections\\gisdb3\\host=db.example.org\n"
+            "connections\\gisdb3\\port=5432\n"
+            "connections\\warehouse\\host=h2\n"
+            "[SpatiaLite]\n"
+            "connections\\actual.sqlite\\sqlitepath=/data/actual.sqlite\n"
+            "[connections]\n"
+            "ogr\\GPKG\\connections\\basemap.gpkg\\path=/data/basemap.gpkg\n"
+            "xyz\\items\\OpenStreetMap\\http-header=x\n"  # not a DB conn — must be ignored
+        )
+        self.assertEqual(got.get("postgres"), ["gisdb3", "warehouse"])
+        self.assertEqual(got.get("spatialite"), ["actual.sqlite"])
+        self.assertEqual(got.get("ogr"), ["basemap.gpkg"])
+
+    def test_missing_file_is_empty(self):
+        from niva.environment import _connections_in_ini
+
+        self.assertEqual(_connections_in_ini("/no/such/profile.ini"), {})
+
+
 class TestInfo(unittest.TestCase):
     """The `info` verb — environment report. MockBackend records the call and returns a
     stub; the live-QGIS report contents are exercised in tests/test_pyqgis.py."""

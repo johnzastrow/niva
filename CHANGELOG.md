@@ -28,6 +28,23 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   report** button; `plugin/environment.py` is now a thin re-export. The packaged report adds the
   environment-variables section (with secret masking).
 
+### Fixed
+- **Standalone niva now reads the QGIS desktop user profile** — so the database connections it
+  reports and resolves (`@conn`) match what you see in QGIS. A standalone `QgsApplication`
+  previously fell back to a generic Qt settings store (`…/Unknown Organization.ini`) that held
+  **none** of the user's connections, so `info` showed the wrong set and `load @conn.table`
+  could fail to find a connection that plainly exists in QGIS. `ensure_qgis()` now adopts QGIS's
+  own Qt org/app identity and boots into the active profile
+  (`~/.local/share/QGIS/QGIS<major>/profiles/<profile>`).
+
+### Added (`info`, continued)
+- **Per-profile connection inventory.** `info` lists **every** QGIS profile and the database
+  connections in each (parsed read-only from each profile's settings ini), marking the active
+  one — since connections are per-profile and niva uses one at a time. New `NIVA_QGIS_PROFILE`
+  selects which profile a standalone run reads.
+- **More environment detail** in the report: Qt **and** PyQt versions, **SpatiaLite + SQLite**
+  versions, and `sys.base_prefix` alongside `sys.prefix`.
+
 ## [0.27.6] - 2026-06-19
 
 ### Changed

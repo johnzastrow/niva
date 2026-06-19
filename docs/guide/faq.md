@@ -120,6 +120,26 @@ niva info to=env.md       # or save it to a file
 It's the CLI counterpart of the plugin's Setup-tab **Environment report**. See the
 [Reference](reference.md#info--inspect-the-local-qgis-environment-terminal).
 
+## Standalone niva shows different connections than my QGIS — why?
+
+Connections are **per QGIS user profile**. A standalone niva reads the **same profile your
+QGIS desktop last used**, so the `@conn` names match the GUI. (Earlier builds accidentally read
+a generic, empty Qt settings store and saw none of your connections — fixed in 0.28.0.) If you
+still see a mismatch, you're probably looking at a *different* profile than you think — run
+`niva info` and check the **QGIS profiles** section, which lists every profile and its
+connections.
+
+## Can niva use a connection from another QGIS profile?
+
+Yes — niva uses **one** profile at a time. `niva info` lists all profiles and their connections;
+to use a connection that lives in another profile, point niva at it:
+
+```bash
+NIVA_QGIS_PROFILE=staging niva load @prod_db.public.roads | save roads.gpkg
+```
+
+(Inside QGIS, niva always uses the profile you have open.)
+
 ## Can I use an algorithm that doesn't have a niva verb?
 
 Yes. The ~45 [alias verbs](reference.md#5-alias-verbs-the-registry) are conveniences; **every**

@@ -281,12 +281,15 @@ info [to=<report.md>]
 Reports what a CLI user needs to know before writing a flow, especially when working
 **outside** QGIS where the Browser and connection dialogs aren't in front of you. Most
 useful: the **registered database connection names** — the valid `@conn` references for
-PostGIS and SpatiaLite — since a flow names them but you can't guess them. Also surfaces the
-Processing **providers** and reachable **algorithm count** (so you know `run grass:…` /
-`run pdal:…` will work), the **versions** (QGIS, GDAL, PROJ, GEOS, Python), niva's own build +
-import path, the verb list, and the **environment variables** niva honours (secrets masked —
-only *set* / *unset* is shown). With `to=`, writes the Markdown to a file; otherwise prints it
-to stdout. This is the CLI counterpart of the plugin's Setup-tab **Environment report**.
+PostGIS and SpatiaLite — since a flow names them but you can't guess them. Because connections
+are **per QGIS profile**, `info` also lists **every profile and the connections in each**, and
+marks the active one (niva reads the active profile by default; `NIVA_QGIS_PROFILE=<name>`
+targets another). Also surfaces the Processing **providers** and reachable **algorithm count**
+(so you know `run grass:…` / `run pdal:…` will work), the **versions** (QGIS, Qt/PyQt, GDAL,
+PROJ, GEOS, SpatiaLite/SQLite, Python), niva's own build + import path, the verb list, and the
+**environment variables** niva honours (secrets masked — only *set* / *unset* is shown). With
+`to=`, writes the Markdown to a file; otherwise prints it to stdout. This is the CLI
+counterpart of the plugin's Setup-tab **Environment report**.
 
 ```
 info                       # print the report
@@ -571,6 +574,7 @@ identically; the only difference is which engine's spatial SQL functions you wri
 | `CPL_TMPDIR` | follows `NIVA_TMPDIR` | GDAL's own scratch dir; niva points it at `NIVA_TMPDIR` unless you set it. |
 | `NIVA_LOG` | unset | Default journal base path; writes `<base>.jsonl` + `<base>.log`. CLI `--log` overrides. |
 | `NIVA_TEMPLATES` | `~/.niva/templates` | Extra directory for named project templates; shadows the user library and bundled templates. Also where `project to-template=<name>` writes. |
+| `NIVA_QGIS_PROFILE` | active desktop profile | **Which QGIS user profile to read** for database connections (the `@conn` names) and other settings, when running standalone. By default niva uses the profile your QGIS desktop last used; set this to another profile's name to target its connections. Run `info` to see all profiles and their connections. |
 | `QGIS_PREFIX_PATH` | `/usr` | QGIS install prefix for standalone bootstrap. |
 | `QT_QPA_PLATFORM` | `offscreen` (set if unset) | Headless Qt platform for standalone runs. |
 | `NIVA_NTFY_TOPIC` | unset | Default ntfy topic for `notify`. |

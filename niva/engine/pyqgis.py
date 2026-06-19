@@ -96,6 +96,51 @@ _QGIS_APP = None
 _NATIVE_PROVIDER = None
 
 
+def _desktop_profile_folder() -> str | None:
+    """Point a standalone niva at the SAME QGIS user profile the desktop uses, so the
+    registered database connections (the ``@conn`` names a flow references), and other
+    QGIS settings, match exactly what the user sees in QGIS.
+
+    A ``QgsApplication`` created off the GUI otherwise falls back to a generic Qt
+    settings store (``…/Unknown Organization.ini``) that contains *none* of the user's
+    connections — so ``load @conn.table`` and the ``info`` report would be blind to them.
+    Setting the Qt org/app identity to QGIS's own (``QGIS`` / ``QGIS<major>``) makes
+    ``QgsSettings`` resolve to
+    ``~/.local/share/QGIS/QGIS<major>/profiles/<profile>/QGIS/QGIS<major>.ini`` — the real
+    profile. The active profile comes from the desktop's ``profiles.ini`` (``lastProfile``),
+    or ``$NIVA_QGIS_PROFILE`` to force one. Returns the profile folder for the
+    ``QgsApplication`` constructor, or ``None`` if it can't be resolved (QGIS then uses its
+    own default). Only relevant when niva creates the app — inside the QGIS plugin the app
+    already exists and this is never called.
+
+    Best-effort: any failure here must never stop QGIS from initialising."""
+    from qgis.core import Qgis
+    from qgis.PyQt.QtCore import QCoreApplication, QStandardPaths
+
+    try:
+        # Adopt QGIS's QSettings identity (only if the host hasn't already set one).
+        if not QCoreApplication.organizationName():
+            QCoreApplication.setOrganizationName("QGIS")
+            QCoreApplication.setOrganizationDomain("qgis.org")
+            QCoreApplication.setApplicationName(f"QGIS{Qgis.QGIS_VERSION_INT // 10000}")
+        # PyQt6 enums are scoped; PyQt5 exposes them unscoped — support both.
+        loc = getattr(QStandardPaths, "AppDataLocation", None)
+        if loc is None:
+            loc = QStandardPaths.StandardLocation.AppDataLocation
+        root = os.path.join(QStandardPaths.writableLocation(loc), "profiles")
+        profile = os.environ.get("NIVA_QGIS_PROFILE")
+        if not profile:
+            import configparser
+
+            cp = configparser.ConfigParser()
+            cp.read(os.path.join(root, "profiles.ini"))
+            profile = cp.get("core", "lastProfile", fallback="default")
+        folder = os.path.join(root, profile)
+        return folder if os.path.isdir(folder) else None
+    except Exception:  # noqa: BLE001 — never block QGIS init on profile resolution
+        return None
+
+
 def ensure_qgis(prefix: str | None = None):
     """Make sure a QGIS application and Processing are available.
 
@@ -109,8 +154,13 @@ def ensure_qgis(prefix: str | None = None):
     if app is None:
         os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
         prefix = prefix or os.environ.get("QGIS_PREFIX_PATH") or "/usr"
+        profile_folder = _desktop_profile_folder()
         QgsApplication.setPrefixPath(prefix, True)
-        app = QgsApplication([], False)
+        # Pass the desktop profile folder so `@conn` names match the QGIS GUI.
+        if profile_folder:
+            app = QgsApplication([], False, profile_folder, "external")
+        else:
+            app = QgsApplication([], False)
         app.initQgis()
         _QGIS_APP = app  # CRITICAL: keep a reference, or it is GC'd and the registry dies
         owns = True

@@ -13,6 +13,11 @@ import unittest
 
 
 def setUpModule():
+    # Isolate from the user's real QGIS profile. niva now boots into the desktop profile
+    # (so `@conn` names match the GUI), which means tests that create/delete connections
+    # would otherwise touch the user's actual profile. Pointing XDG_DATA_HOME at a temp dir
+    # *before* QGIS initialises sends QgsSettings/connections to a throwaway profile.
+    os.environ["XDG_DATA_HOME"] = tempfile.mkdtemp(prefix="niva_xdg_")
     try:
         from niva.engine.pyqgis import ensure_qgis
 
@@ -925,13 +930,28 @@ class TestPyqgisEnvironmentReport(unittest.TestCase):
 
         report = report_markdown()
         for heading in ("# niva — environment", "## niva", "## Verbs & algorithms",
-                        "## Database connections", "## Environment (niva variables)",
-                        "## QGIS & geo stack", "## Python & platform"):
+                        "## Database connections", "## QGIS profiles",
+                        "## Environment (niva variables)", "## QGIS & geo stack",
+                        "## Python & platform"):
             self.assertIn(heading, report)
         # The reachable-algorithm count must resolve to a real number, and QGIS must
         # report a version (not the "unavailable" fallback).
         self.assertNotIn("**unavailable** algorithms", report)
         self.assertNotIn("QGIS: unavailable", report)
+        # The geo stack must include the SpatiaLite/SQLite and PyQt lines.
+        self.assertIn("SpatiaLite/SQLite:", report)
+        self.assertIn("PyQt", report)
+        self.assertIn("sys.base_prefix", report)
+
+    def test_report_reads_a_real_qgis_profile_not_the_generic_store(self):
+        # The whole point of the profile fix: a standalone niva must read the QGIS
+        # desktop profile, never the generic "Unknown Organization" Qt store (which holds
+        # none of the user's connections).
+        from niva.environment import report_markdown
+
+        report = report_markdown()
+        self.assertNotIn("Unknown Organization", report)
+        self.assertIn("Active profile:", report)
 
     def test_report_masks_secret_env_vars(self):
         import os
