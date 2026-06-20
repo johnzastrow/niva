@@ -86,7 +86,11 @@ def _read_source(argv):
             return "<inline>", None
         with open(argv[1], encoding="utf-8") as fh:
             return argv[1], fh.read()
-    return "<inline>", argv[0]
+    # Inline mode: the program may arrive as one quoted argument
+    # (`niva "show /path"`) or as several unquoted shell tokens
+    # (`niva show /path`). Re-join the tokens so both forms work; a
+    # single token joins to itself, so quoted usage is unchanged.
+    return "<inline>", " ".join(argv)
 
 
 def _convert(kind: str, args) -> int:

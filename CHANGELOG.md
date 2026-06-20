@@ -7,6 +7,15 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.29.1] - 2026-06-19
+
+### Fixed
+- **Inline commands with unquoted arguments now work.** `niva show /path/to/dir` (and any
+  inline verb with arguments) previously read only the first shell token (`show`) and silently
+  discarded the rest, producing a confusing error like *"show needs one location"*. The CLI now
+  re-joins the remaining `argv` tokens into the inline source, so both unquoted
+  (`niva show /path`) and quoted (`niva "show /path"`) forms behave identically.
+
 ## [0.29.0] - 2026-06-19
 
 ### Added
