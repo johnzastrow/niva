@@ -142,6 +142,13 @@ class Backend(abc.ABC):
         QGIS owns them; only the connection name is in scope."""
 
     @abc.abstractmethod
+    def list_service(self, url: str) -> list:
+        """List the layers/feature types at a remote OWS endpoint (WFS feature types, WMS
+        layers). Returns the same per-entry dicts as :meth:`list_layers`, with ``format``
+        ``WFS``/``WMS`` and ``ref`` a GDAL-style ``WFS:``/``WMS:`` source. The `show` verb;
+        no credentials are sent (public services only)."""
+
+    @abc.abstractmethod
     def environment_report(self) -> str:
         """A Markdown report of the live QGIS environment — niva build, versions, the
         Processing providers + reachable algorithm count, the registered database
@@ -302,6 +309,15 @@ class MockBackend(Backend):
              "format": "postgres", "ref": f"{prefix}homes"},
         ]
         return [r for r in rows if table is None or r["name"] == table]
+
+    def list_service(self, url: str) -> list:
+        self.calls.append(("list_service", url))
+        return [
+            {"name": "topp:states", "kind": "vector", "type": "EPSG:4326",
+             "format": "WFS", "ref": f"WFS:{url}"},
+            {"name": "topp:roads", "kind": "vector", "type": "EPSG:4326",
+             "format": "WFS", "ref": f"WFS:{url}"},
+        ]
 
     def environment_report(self) -> str:
         self.calls.append(("environment_report",))

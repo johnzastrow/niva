@@ -199,7 +199,7 @@ A whole pipeline on one line — that a non-programmer can **write and read** �
 
 # What's working today
 
-<p class="lead">niva ships as a <strong>QGIS plugin</strong> (v0.29) and runs real analysis end-to-end, on QGIS's own algorithms:</p>
+<p class="lead">niva ships as a <strong>QGIS plugin</strong> (v0.30) and runs real analysis end-to-end, on QGIS's own algorithms:</p>
 
 <div class="cols">
 <div class="card"><h3>Grammar &amp; engine</h3><p>✓ Readable lexer + parser → pipeline stages<br>✓ Pipe-chaining engine: layer handles, lineage<br>✓ PyQGIS backend — runs real geoprocessing</p></div>
@@ -216,7 +216,7 @@ A whole pipeline on one line — that a non-programmer can **write and read** �
 
 # The road ahead
 
-- **v0.1 – 0.29 — Shipped** <span class="tan">· available now</span><br><span class="lead">Grammar · ~45 verbs + raster · <code>run</code> → 769 algorithms · PostGIS read·write·analyse · project / template / style · <code>show</code> / <code>info</code> discovery · QGIS plugin + CLI + Python · provenance · full docs</span>
+- **v0.1 – 0.30 — Shipped** <span class="tan">· available now</span><br><span class="lead">Grammar · ~45 verbs + raster · <code>run</code> → 769 algorithms · PostGIS read·write·analyse · project / template / style · <code>show</code> / <code>info</code> discovery · QGIS plugin + CLI + Python · provenance · full docs</span>
 - **v1.0 — Stable release**<br><span class="lead">Grammar freeze (SemVer) · PyPI publish · worked Marimo–QGIS integration</span>
 - **v2.0 — Power features**<br><span class="lead">Named intermediates &amp; variables · SQL-driven quality rules &amp; constraints</span>
 - **v2.x — Service mode**<br><span class="lead">Service / daemon mode · richer layout &amp; symbology export</span>

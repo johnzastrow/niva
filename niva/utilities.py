@@ -209,13 +209,14 @@ def format_catalog(root: str, entries: list) -> str:
     return "\n".join(lines)
 
 
-def format_show(location: str, entries: list, *, is_db: bool = False) -> str:
+def format_show(location: str, entries: list, *, is_db: bool = False,
+                is_service: bool = False) -> str:
     """Render the `show` listing as a Markdown table. ``entries`` is a list of dicts
     ``{name, kind, type, format, ref}`` (see ``Backend.list_layers``). Keeps it to a
     quick name-and-type glance — the ``ref`` column is copy-pasteable into ``load`` (or,
-    for files, ``ogrinfo``)."""
+    for files/services, ``ogrinfo``)."""
     n = len(entries)
-    noun = "table" if is_db else "dataset"
+    noun = "table" if is_db else "layer" if is_service else "dataset"
     lines = [
         f"# Data at `{location}`",
         "",
@@ -234,6 +235,9 @@ def format_show(location: str, entries: list, *, is_db: bool = False) -> str:
         if is_db:
             lines.append("Load a row with `load <source>`; inspect one with "
                          "`sql @conn \"SELECT … LIMIT 0\"` (credentials stay in QGIS).")
+        elif is_service:
+            lines.append("Inspect a WFS layer with `ogrinfo \"<source>\" <layer>` "
+                         "(WMS layers are map services — add the endpoint in QGIS).")
         else:
             lines.append("Load a row with `load \"<source>\"`; for more detail run "
                          "`ogrinfo <file> <layer>` or `load \"<source>\" | assess`.")

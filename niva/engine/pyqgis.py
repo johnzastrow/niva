@@ -1439,6 +1439,12 @@ class PyqgisBackend(Backend):
         rows.sort(key=lambda r: (r.get("name") or ""))
         return rows
 
+    def list_service(self, url: str) -> list:
+        """Remote OWS listing — delegated to the QGIS-free ``niva.remote`` (stdlib HTTP+XML)."""
+        from ..remote import list_service
+
+        return list_service(url)
+
     def _add_bookmark(self, proj, spec: dict) -> None:
         """Add a spatial bookmark to ``proj`` in the project CRS. ``spec`` is
         ``{name, at: (x,y)|None, width: float|None}``: a centre+width makes a square extent

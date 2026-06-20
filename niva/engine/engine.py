@@ -831,11 +831,22 @@ class Engine:
         deep = bool(flags)
         is_db = False
 
+        from ..remote import is_service_url
+
+        is_service = False
         if is_connection_ref(target):
             is_db = True
             conn, schema, table = self._resolve_show_connection(target, stage)
             entries = self.backend.list_tables(conn, schema, table)
             label = target
+        elif is_service_url(target):
+            is_service = True
+            label = target
+            try:
+                entries = self.backend.list_service(target)
+            except Exception as exc:  # network / parse / unsupported — a clear flow error
+                raise FlowError(f"show: could not list service `{target}`: {exc}",
+                                line=stage.line, stage=stage.raw)
         else:
             path = os.path.expanduser(target)
             label = path
@@ -848,7 +859,7 @@ class Engine:
                 raise FlowError(f"show: no such file, directory, or connection: {target}",
                                 line=stage.line, stage=stage.raw)
 
-        report = format_show(label, entries, is_db=is_db)
+        report = format_show(label, entries, is_db=is_db, is_service=is_service)
         out = stage.options.get("to")
         if out:
             out = os.path.expanduser(out)

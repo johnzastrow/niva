@@ -130,6 +130,8 @@ show data/                # everything directly under a directory
 show data/ deep           # recurse the whole tree
 show @gisdb3              # all tables in a PostGIS connection
 show @gisdb3.public       # just one schema
+show "https://host/geoserver/wfs?service=WFS"   # remote WFS feature types
+show "https://host/geoserver/ows?service=WMS"   # remote WMS layers
 ```
 
 Directory listings are **shallow by default** — add the `deep` flag to recurse. Any

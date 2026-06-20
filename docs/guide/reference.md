@@ -1,6 +1,6 @@
 # niva Reference
 
-The complete reference for **niva v0.29.0** — every verb, alias, option, type, environment
+The complete reference for **niva v0.30.0** — every verb, alias, option, type, environment
 variable, CLI command, and Python entry point. For a task-oriented tour see the
 [Cookbook](cookbook.md); for setup and day-to-day use see the [User Guide](user-guide.md).
 
@@ -275,7 +275,7 @@ catalog "data/" to=reports/inventory.md
 ### `show` — list available data at a location *(terminal)*
 
 ```
-show <path|@conn[.schema[.table]]> [deep] [to=<out.md>]
+show <path|@conn[.schema[.table]]|WFS/WMS-url> [deep] [to=<out.md>]
 ```
 
 Lists the loadable layers/tables at **one** location and what each is — a quick *"what can I
@@ -299,7 +299,12 @@ even on big databases.
 - a **database connection** — `show @conn` (every table), `show @conn.schema` (one schema),
   `show @conn.schema.table` (one table). Connection names containing dots (e.g.
   `@actual_spatialite.sqlite`) resolve correctly. Only the connection **name** is used —
-  credentials stay in QGIS.
+  credentials stay in QGIS;
+- a **remote OWS service** — a **WFS** endpoint lists its feature types, a **WMS** endpoint its
+  layers. Pass the URL (the service is read from a `service=WFS`/`service=WMS` query parameter,
+  the path, or a `WFS:`/`WMS:` prefix; if it can't be told, `show` asks you to specify it).
+  Standard library HTTP only — public services, no credentials sent; the response is fetched
+  with a timeout and size cap, and parsed with DOCTYPE/entity expansion refused (no XXE).
 
 ```
 show "data/basemap.gpkg"          # layers in a GeoPackage
@@ -307,11 +312,13 @@ show data/                         # everything directly under data/
 show data/ deep                    # recurse the whole tree
 show @gisdb3                       # all PostGIS tables
 show @gisdb3.public to=tables.md   # one schema, written to a file
+show "https://demo.mapserver.org/cgi-bin/wfs?service=WFS"   # WFS feature types
+show "https://ows.terrestris.de/osm/service?service=WMS"    # WMS layers
 ```
 
 `show` is terminal and can't be piped (neither it nor `catalog` produce or consume a layer);
 for a deep per-dataset report (CRS, extent, fields, feature counts) run `catalog` on the same
-location. Defers remote services (WFS/WMS) to a later round.
+location.
 
 ### `info` — inspect the local QGIS environment *(terminal)*
 

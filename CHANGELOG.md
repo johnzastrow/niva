@@ -7,6 +7,25 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.30.0] - 2026-06-20
+
+### Added
+- **`show` reaches remote OWS services** — `show <url>` lists a **WFS** endpoint's feature
+  types or a **WMS** endpoint's layers, alongside the existing files / directories / `@conn`
+  sources. The service is detected from a `service=WFS`/`service=WMS` query parameter, the URL
+  path, or a `WFS:`/`WMS:` prefix (if undeterminable, `show` asks you to specify). Each row
+  carries the name, kind (vector for WFS / raster for WMS), type (default CRS or layer title),
+  format (`WFS`/`WMS`), and a GDAL-style `WFS:`/`WMS:` source for `ogrinfo`.
+
+  Implemented as pure standard-library HTTP + XML in a new `niva/remote.py` (no QGIS, no
+  third-party deps) — fully unit-testable offline by injecting the fetcher; `PyqgisBackend`
+  delegates to it. **Security:** only `http`/`https` URLs are fetched (no `WFS:file://…` local
+  reads), responses are timed and size-capped, and the parser **refuses any `<!DOCTYPE>`** so no
+  entities are ever expanded (XXE / billion-laughs blocked without `defusedxml`); no credentials
+  are sent. See [`docs/planning/17-show-verb-design.md`](docs/planning/17-show-verb-design.md).
+  XYZ / vector-tile / ArcGIS REST, `/vsicurl` cloud rasters, and authenticated services remain a
+  follow-up.
+
 ## [0.29.1] - 2026-06-19
 
 ### Fixed

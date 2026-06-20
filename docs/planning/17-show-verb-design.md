@@ -1,7 +1,7 @@
 # 17 — The `show` verb: list available data at a location
 
-**Status:** implemented in v0.29.0 (files + database connections). Remote services
-(WFS/WMS/XYZ, ArcGIS REST, `/vsicurl` cloud rasters) are a deliberate follow-up.
+**Status:** files + database connections in v0.29.0; **remote WFS/WMS services in v0.30.0**.
+XYZ / vector-tile / ArcGIS REST and `/vsicurl` cloud rasters remain a follow-up.
 
 Related: [13-verb-reference](13-verb-reference.md), [16-anatomy-of-a-verb](16-anatomy-of-a-verb.md),
 [15-postgis-and-project-design](15-postgis-and-project-design.md) (the `@conn` model).
@@ -32,7 +32,8 @@ for full profiling. When you want depth on one layer, the footer points you at
 show <location> [deep] [to=<out.md>]
 ```
 
-`<location>` is one of:
+`<location>` is a file, a directory, a `@conn` database connection, or a **WFS/WMS URL**
+(below). One of:
 
 - a **file** — `show roads.shp`, `show dem.tif`, `show data.gpkg` (a multi-layer container
   expands to one row per layer)
@@ -129,11 +130,40 @@ connection **name** is ever in scope — host, user, and password stay in QGIS's
 reads table metadata via the connection API; it never builds a connection string, never logs
 credentials, and the listing's `ref` column carries only the `@conn.table` name.
 
+## Remote services (v0.30.0)
+
+`show <url>` lists a **WFS** endpoint's feature types or a **WMS** endpoint's layers. This is
+pure standard-library HTTP + XML — no QGIS, no third-party deps — so it lives in `niva/remote.py`
+and is fully unit-testable offline by injecting the `fetch` callable. The backend
+(`PyqgisBackend.list_service`) just delegates there; the engine routes a service URL (detected by
+`remote.is_service_url`) to `Backend.list_service`.
+
+```mermaid
+flowchart LR
+  A["show &lt;url&gt;"] --> B["detect service:<br/>WFS:/WMS: prefix · ?service= · path · else ask"]
+  B --> C["build GetCapabilities URL<br/>(scheme must be http/https)"]
+  C --> D["fetch (timeout + size cap)"]
+  D --> E["safe parse: refuse DOCTYPE ⇒ no entity expansion"]
+  E --> F{"WFS or WMS?"}
+  F -- WFS --> G["FeatureType → name + DefaultCRS"]
+  F -- WMS --> H["named Layer → name + Title (dedup)"]
+```
+
+**Security** (global CLAUDE.md §7/§14): only `http`/`https` URLs are fetched (a `WFS:file://…`
+can't read local files); HTTPS certs are validated by urllib defaults; every request is timed
+and the response size-capped; the XML parser **refuses any `<!DOCTYPE>`**, so no internal or
+external entities are ever expanded (blocks billion-laughs / XXE without `defusedxml`). No
+credentials are sent — authenticated OWS is out of scope. The URL is user-supplied on the CLI
+(like `curl`), so this is intended, not SSRF.
+
+Entry shape is the usual `{name, kind, type, format, ref}`: WFS → `kind=vector`,
+`type=DefaultCRS`, `format=WFS`; WMS → `kind=raster`, `type=Title`, `format=WMS`. `ref` is the
+GDAL-style `WFS:<url>` / `WMS:<url>`, so `ogrinfo "<ref>" <layer>` works for WFS.
+
 ## Out of scope (next round)
 
-- **Remote services** — WFS feature types, WMS layers, XYZ/vector-tile and ArcGIS REST
-  endpoints from a URL or a saved OWS connection. These add network I/O, per-protocol parsing,
-  and timeout/offline handling, so they get their own pass.
-- **Cloud rasters** via GDAL `/vsicurl`, `/vsis3`, … — same reasoning.
+- **XYZ / vector-tile / ArcGIS REST** endpoints, and saved OWS connections by name.
+- **Cloud rasters** via GDAL `/vsicurl`, `/vsis3`, … .
+- **Authenticated** OWS services (credentials).
 - Feature/row **counts** — deliberately omitted to keep `show` instant; use `catalog` or
   `load … | assess` when you want them.

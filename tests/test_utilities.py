@@ -332,6 +332,33 @@ class TestShow(unittest.TestCase):
         self._run("show @nope.table", backend)
         self.assertIn(("list_tables", "nope", "table", None), backend.calls)
 
+    # --- remote services -----------------------------------------------------
+
+    def test_show_a_service_url_routes_to_list_service(self):
+        backend = MockBackend()
+        out = self._run('show "https://h/geoserver/wfs?service=WFS"', backend)
+        self.assertIn(("list_service", "https://h/geoserver/wfs?service=WFS"), backend.calls)
+        self.assertIn("topp:states", out)
+        self.assertIn("layers", out)  # service noun is "layer(s)", not "dataset(s)"
+
+    def test_show_a_wfs_prefixed_url(self):
+        backend = MockBackend()
+        self._run('show "WFS:https://h/x"', backend)
+        self.assertIn(("list_service", "WFS:https://h/x"), backend.calls)
+
+    def test_service_url_is_not_treated_as_a_path(self):
+        backend = MockBackend()
+        self._run('show "http://h/wms?service=WMS"', backend)
+        self.assertFalse(any(c[0] == "list_layers" for c in backend.calls))
+
+    def test_service_error_becomes_a_flow_error(self):
+        class BoomBackend(MockBackend):
+            def list_service(self, url):
+                raise ConnectionError("network down")
+
+        with self.assertRaises(FlowError):
+            flow('show "https://h/wfs?service=WFS"', backend=BoomBackend())
+
     # --- output + errors -----------------------------------------------------
 
     def test_show_to_file(self):
