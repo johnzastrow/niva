@@ -1354,15 +1354,26 @@ class PyqgisBackend(Backend):
         """List the layers inside a file/container via the provider registry's
         ``querySublayers`` — one pass handles GeoPackage (vector + raster), SpatiaLite,
         shapefiles, GeoTIFFs, etc. No feature counts (that's `catalog`)."""
+        from osgeo import gdal
         from qgis.core import Qgis, QgsProviderRegistry, QgsWkbTypes
 
-        details = QgsProviderRegistry.instance().querySublayers(source)
+        # A directory scan probes every file; silence GDAL's "not recognized" chatter on the
+        # ones it can't read (the failed probe just yields no layers).
+        gdal.PushErrorHandler("CPLQuietErrorHandler")
+        try:
+            details = QgsProviderRegistry.instance().querySublayers(source)
+        finally:
+            gdal.PopErrorHandler()
         rows = []
         for d in details:
             try:
-                is_vector = d.type() == Qgis.LayerType.Vector
-                if is_vector:
-                    kind, typ = "vector", (QgsWkbTypes.displayString(d.wkbType()) or "Unknown")
+                if d.type() == Qgis.LayerType.Vector:
+                    geom = QgsWkbTypes.displayString(d.wkbType()) or "Unknown"
+                    # An attribute-only layer (NoGeometry) is a *table*, not a vector layer.
+                    if geom == "NoGeometry":
+                        kind, typ = "table", "(aspatial)"
+                    else:
+                        kind, typ = "vector", geom
                 else:
                     kind, typ = "raster", self._raster_summary(d.uri(), d.providerKey())
                 rows.append({

@@ -6,12 +6,12 @@ and [`docs/planning/16-anatomy-of-a-verb.md`](docs/planning/16-anatomy-of-a-verb
 
 ## `show` — remote services (follow-up)
 
-- [ ] **More remote sources for `show`.** v0.30.0 added **WFS/WMS** (`niva/remote.py`). Still
-  open: **XYZ / vector-tile** and **ArcGIS REST** endpoints, **saved OWS connections** by name,
-  **cloud rasters** via GDAL `/vsicurl` / `/vsis3`, and **authenticated** services (credentials).
-  Reuse the same entry shape (`{name, kind, type, format, ref}`), `format_show`, and the
-  DOCTYPE-refusing safe-XML path. See
-  [`docs/planning/17-show-verb-design.md`](docs/planning/17-show-verb-design.md) §"Out of scope".
+- [ ] **More remote sources for `show`.** Shipped: **WFS/WMS** (v0.30.0), **ArcGIS REST + XYZ**
+  (v0.31.0) — all in `niva/remote.py`. Still open: **vector-tile** endpoints, **saved OWS
+  connections** referenced by name, **cloud rasters** via GDAL `/vsicurl` / `/vsis3`, and
+  **authenticated** services (credentials). Reuse the same entry shape
+  (`{name, kind, type, format, ref}`), `format_show`, and the DOCTYPE-refusing safe-XML path.
+  See [`docs/planning/17-show-verb-design.md`](docs/planning/17-show-verb-design.md) §"Out of scope".
 
 ## Project & layer-file operations (new scope)
 

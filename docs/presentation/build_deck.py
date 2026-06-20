@@ -358,7 +358,7 @@ _footer(s, 15)
 # ---- 16. STATUS — WHAT'S BUILT -----------------------------------------
 s = content_slide(prs, "What's working today", eyebrow="Status · built and shipping")
 _text(s, 0.85, 1.55, 11.6, 0.5,
-      [[("niva ships as a QGIS plugin (v0.30) and runs real analysis "
+      [[("niva ships as a QGIS plugin (v0.31) and runs real analysis "
          "end-to-end, on QGIS's own algorithms:", {"size": 17, "color": SAGE})]])
 status_cards = [
     ("Grammar & engine", DEEP, [
@@ -403,7 +403,7 @@ s = content_slide(prs, "The road ahead", eyebrow="Roadmap · shipped & next")
 spine = _box(s, 1.62, 2.1, 0.04, 4.35)
 _fill(spine, TAN)
 milestones = [
-    ("v0.30", "Shipped — available now",
+    ("v0.31", "Shipped — available now",
      "~45 verbs + raster · run → 769 · PostGIS read·write·analyse · project / template / style · show / info discovery · QGIS plugin · CLI / Python · full docs", "available now"),
     ("v1.0", "Stable release",
      "Grammar freeze (SemVer) · PyPI publish · worked Marimo–QGIS integration", None),

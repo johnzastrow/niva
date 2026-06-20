@@ -1,35 +1,46 @@
-"""Remote OWS service listing for the `show` verb — WFS feature types and WMS layers.
+"""Remote service listing for the `show` verb — WFS feature types, WMS layers, ArcGIS REST
+layers/tables, and XYZ tile templates.
 
-This is pure standard-library HTTP + XML (no QGIS, no third-party deps), so it is fully
-unit-testable offline by injecting a ``fetch`` callable. The backend (`PyqgisBackend`) just
-delegates here; the engine routes a service URL to ``Backend.list_service``.
+This is pure standard library (HTTP + XML + JSON, no QGIS, no third-party deps), so it is
+fully unit-testable offline by injecting a ``fetch`` callable. The backend (`PyqgisBackend`)
+just delegates here; the engine routes a service URL to ``Backend.list_service``.
 
 Security (per the project's secure-coding baseline):
-- **XXE / entity-expansion** — we refuse any document carrying a ``<!DOCTYPE>`` (a
-  GetCapabilities response never needs one), so no internal/external entities are ever
-  expanded. Combined with a response **size cap**, this blocks billion-laughs and external-
-  entity attacks while using only the stdlib (no defusedxml dependency).
+- **XXE / entity-expansion** — we refuse any XML carrying a ``<!DOCTYPE>`` (a GetCapabilities
+  response never needs one), so no internal/external entities are ever expanded. Combined with
+  a response **size cap**, this blocks billion-laughs and external-entity attacks while using
+  only the stdlib (no defusedxml dependency). ArcGIS REST is JSON (``json.loads`` — no entity
+  risk).
 - **Scheme allowlist** — only ``http``/``https`` URLs are fetched (so a ``WFS:file:///…``
   trick can't read local files); HTTPS certificates are validated by urllib's defaults.
 - **Timeouts** — every request has a bounded timeout; no credentials are sent or stored
-  (public services only — authenticated OWS is out of scope for now).
+  (public services only — authenticated services are out of scope for now).
 - The URL is user-supplied on the command line (like ``curl``); this is intended, not SSRF.
 """
 
 from __future__ import annotations
 
+import re
 import urllib.parse
 import urllib.request
 
 _TIMEOUT = 30  # seconds
-_MAX_BYTES = 25_000_000  # cap a GetCapabilities response (real ones are KBs–low MBs)
+_MAX_BYTES = 25_000_000  # cap a capabilities/JSON response (real ones are KBs–low MBs)
 _SERVICE_PREFIXES = ("wfs:", "wms:")
 _SCHEME_PREFIXES = ("http://", "https://")
+# An ArcGIS REST service endpoint (optionally a single layer with a trailing /<id>).
+_ARCGIS_RE = re.compile(r"/(feature|map|image)server(/\d+)?/?$", re.IGNORECASE)
+# ESRI geometry type → a familiar geometry name.
+_ESRI_GEOM = {
+    "esriGeometryPoint": "Point", "esriGeometryMultipoint": "MultiPoint",
+    "esriGeometryPolyline": "LineString", "esriGeometryPolygon": "Polygon",
+    "esriGeometryEnvelope": "Envelope",
+}
 
 
 def is_service_url(token: str) -> bool:
-    """True if ``token`` looks like a remote OWS endpoint `show` should query — an
-    ``http(s)://`` URL or a GDAL-style ``WFS:``/``WMS:`` prefix."""
+    """True if ``token`` looks like a remote endpoint `show` should query — an ``http(s)://``
+    URL (WFS/WMS/ArcGIS REST/XYZ) or a GDAL-style ``WFS:``/``WMS:`` prefix."""
     low = token.lower()
     return low.startswith(_SCHEME_PREFIXES) or low.startswith(_SERVICE_PREFIXES)
 
@@ -45,23 +56,29 @@ def _split_prefix(url: str):
 
 
 def _detect_service(url: str):
-    """Return ``(service, base_url)``. The service comes from (in order): a ``WFS:``/``WMS:``
-    prefix; an explicit ``service=`` query parameter; or the path (``…/wfs``, ``…/wms``).
-    ``service`` is ``None`` when undeterminable — the caller then asks the user to specify."""
+    """Return ``(service, base_url)`` where service is ``WFS``/``WMS``/``ARCGIS``/``XYZ`` or
+    ``None``. Determined (in order) by: a ``WFS:``/``WMS:`` prefix; an XYZ ``{z}/{x}/{y}``
+    template; an ArcGIS REST path (``/rest/services/`` or ``…/FeatureServer``); an explicit
+    ``service=WFS|WMS`` query parameter; or a ``…/wfs``/``…/wms`` path. ``None`` when it can't
+    be told — the caller then asks the user to specify."""
     service, base = _split_prefix(url)
+    if service is not None:
+        return service, base
+    # XYZ tile template — the URL *is* the layer; no capabilities to fetch.
+    if ("{x}" in base and "{y}" in base) or "{q}" in base:
+        return "XYZ", base
     parts = urllib.parse.urlsplit(base)
-    if service is None:
-        for key, val in urllib.parse.parse_qsl(parts.query):
-            if key.lower() == "service" and val.upper() in ("WFS", "WMS"):
-                service = val.upper()
-                break
-    if service is None:
-        path = parts.path.lower()
-        if "wfs" in path:
-            service = "WFS"
-        elif "wms" in path:
-            service = "WMS"
-    return service, base
+    path = parts.path.lower()
+    if "/rest/services/" in path or _ARCGIS_RE.search(path):
+        return "ARCGIS", base
+    for key, val in urllib.parse.parse_qsl(parts.query):
+        if key.lower() == "service" and val.upper() in ("WFS", "WMS"):
+            return val.upper(), base
+    if "wfs" in path:
+        return "WFS", base
+    if "wms" in path:
+        return "WMS", base
+    return None, base
 
 
 def _capabilities_url(base: str, service: str) -> str:
@@ -144,16 +161,77 @@ def _parse_wms(root, base: str) -> list:
     return entries
 
 
+def _arcgis_json_url(base: str) -> str:
+    """The ``?f=json`` form of an ArcGIS REST service/layer URL (http/https only)."""
+    parts = urllib.parse.urlsplit(base)
+    if parts.scheme not in ("http", "https"):
+        raise ValueError(f"unsupported URL scheme `{parts.scheme}` — only http/https")
+    query = [(k, v) for k, v in urllib.parse.parse_qsl(parts.query) if k.lower() != "f"]
+    query.append(("f", "json"))
+    return urllib.parse.urlunsplit(
+        (parts.scheme, parts.netloc, parts.path, urllib.parse.urlencode(query), ""))
+
+
+def _arcgis_entry(d: dict, base: str, *, table: bool, single: bool) -> dict:
+    lid = d.get("id")
+    name = str(d.get("name") or (f"layer {lid}" if lid is not None else "?"))
+    geom = _ESRI_GEOM.get(d.get("geometryType"))
+    if table or (geom is None and d.get("type") == "Table"):
+        kind, typ = "table", "(table)"
+    else:
+        kind, typ = "vector", (geom or "layer")
+    ref = base.rstrip("/") if single else f"{base.rstrip('/')}/{lid}"
+    return {"name": name, "kind": kind, "type": typ, "format": "ArcGIS", "ref": ref}
+
+
+def _parse_arcgis(data: bytes, base: str) -> list:
+    """ArcGIS REST ``f=json`` → one entry per layer/table. A service root has ``layers``
+    (and ``tables``); a single ``…/FeatureServer/0`` endpoint is its own metadata object."""
+    import json
+
+    try:
+        obj = json.loads(data)
+    except ValueError as exc:
+        raise ValueError(f"invalid ArcGIS REST JSON: {exc}") from exc
+    if isinstance(obj, dict) and obj.get("error"):
+        raise ValueError(f"ArcGIS REST error: {(obj['error'] or {}).get('message', '?')}")
+    if not isinstance(obj, dict):
+        raise ValueError("unexpected ArcGIS REST response")
+
+    layers, tables = obj.get("layers"), obj.get("tables")
+    if layers or tables:
+        entries = [_arcgis_entry(d, base, table=False, single=False) for d in (layers or [])]
+        entries += [_arcgis_entry(d, base, table=True, single=False) for d in (tables or [])]
+        return entries
+    if obj.get("name") or obj.get("id") is not None:  # a single layer/table endpoint
+        return [_arcgis_entry(obj, base, table=obj.get("type") == "Table", single=True)]
+    return []
+
+
+def _parse_xyz(url: str) -> list:
+    """An XYZ tile template is a single (raster) layer — echo it as one loadable entry."""
+    parts = urllib.parse.urlsplit(url)
+    name = parts.netloc or url
+    return [{"name": name, "kind": "raster", "type": "XYZ tiles", "format": "XYZ",
+             "ref": f"type=xyz&url={url}"}]
+
+
 def list_service(url: str, *, fetch=None) -> list:
-    """List the layers/feature types at a remote OWS endpoint. ``fetch`` (for tests) is a
-    ``callable(capabilities_url) -> bytes``; the default fetches over HTTP. Returns the same
-    entry dicts as the other `show` sources: ``{name, kind, type, format, ref}``."""
+    """List the layers at a remote endpoint — WFS feature types, WMS layers, ArcGIS REST
+    layers/tables, or an XYZ tile template. ``fetch`` (for tests) is a
+    ``callable(url) -> bytes``; the default fetches over HTTP. Returns the same entry dicts
+    as the other `show` sources: ``{name, kind, type, format, ref}``."""
     fetch = fetch or _http_get
     service, base = _detect_service(url)
+    if service == "XYZ":
+        return _parse_xyz(base)  # no network — the template is the layer
     if service is None:
         raise ValueError(
-            "could not tell whether this is a WFS or WMS endpoint — add `?service=WFS` or "
-            "`?service=WMS` to the URL (or a `WFS:`/`WMS:` prefix)")
+            "could not tell what kind of service this is — add `?service=WFS`/`?service=WMS` "
+            "(or a `WFS:`/`WMS:` prefix), pass an ArcGIS REST `…/FeatureServer` URL, or an XYZ "
+            "`{z}/{x}/{y}` template")
+    if service == "ARCGIS":
+        return _parse_arcgis(fetch(_arcgis_json_url(base)), base)
     data = fetch(_capabilities_url(base, service))
     root = _safe_xml(data)
     return _parse_wfs(root, base) if service == "WFS" else _parse_wms(root, base)

@@ -132,7 +132,14 @@ show @gisdb3              # all tables in a PostGIS connection
 show @gisdb3.public       # just one schema
 show "https://host/geoserver/wfs?service=WFS"   # remote WFS feature types
 show "https://host/geoserver/ows?service=WMS"   # remote WMS layers
+show "https://host/arcgis/rest/services/X/FeatureServer"  # ArcGIS REST layers
+show "https://tile.osm.org/{z}/{x}/{y}.png"     # XYZ tile layer
 ```
+
+The listing's footer shows two runnable examples built from the first row (e.g. `load
+"…|layername=roads" | buffer 100m | save out.gpkg`). Heads-up for the shell: the Source cells
+are wrapped in Markdown `backticks` — copy the value *inside* them, and quote the whole flow so
+your shell doesn't run the backticks or split on the `|`: `niva 'load "…|layername=roads"'`.
 
 Directory listings are **shallow by default** — add the `deep` flag to recurse. Any
 QGIS-readable format is picked up (SpatiaLite, FileGDB, … — not a fixed extension list); dataset

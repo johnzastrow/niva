@@ -281,6 +281,22 @@ def report_markdown() -> str:
         add(f"- {conns}")
     add("")
 
+    # how to discover what's loadable — concrete `show` examples, using a real connection
+    # name from the active profile when there is one.
+    add("## Listing data (`show`)")
+    add("`show` lists what you can `load` at a location — a file, a directory, a database "
+        "connection, or a remote service:")
+    add("")
+    add("- File / directory: `show data.gpkg` · `show data/ deep` (recurse)")
+    if isinstance(conns, dict) and conns:
+        first = sorted(conns)[0]
+        add(f"- Database: `show @{first}` (all tables) · `show @{first}.<schema>` (one schema)")
+    else:
+        add("- Database: `show @<conn>` (configure a connection in QGIS first)")
+    add("- Remote: `show \"https://…/wfs?service=WFS\"` — WFS, WMS, ArcGIS REST, or an XYZ "
+        "`{z}/{x}/{y}` template")
+    add("")
+
     # all profiles + their connections — niva uses ONE profile at a time (the active one,
     # or `$NIVA_QGIS_PROFILE`), so this shows what's reachable if you switch.
     add("## QGIS profiles")

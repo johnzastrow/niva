@@ -1,7 +1,8 @@
 # 17 — The `show` verb: list available data at a location
 
-**Status:** files + database connections in v0.29.0; **remote WFS/WMS services in v0.30.0**.
-XYZ / vector-tile / ArcGIS REST and `/vsicurl` cloud rasters remain a follow-up.
+**Status:** files + database connections in v0.29.0; **remote WFS/WMS in v0.30.0**;
+**ArcGIS REST + XYZ in v0.31.0**. Vector-tile, saved OWS connections, `/vsicurl` cloud rasters,
+and authenticated services remain a follow-up.
 
 Related: [13-verb-reference](13-verb-reference.md), [16-anatomy-of-a-verb](16-anatomy-of-a-verb.md),
 [15-postgis-and-project-design](15-postgis-and-project-design.md) (the `@conn` model).
@@ -130,13 +131,17 @@ connection **name** is ever in scope — host, user, and password stay in QGIS's
 reads table metadata via the connection API; it never builds a connection string, never logs
 credentials, and the listing's `ref` column carries only the `@conn.table` name.
 
-## Remote services (v0.30.0)
+## Remote services (v0.30.0 WFS/WMS · v0.31.0 ArcGIS REST + XYZ)
 
-`show <url>` lists a **WFS** endpoint's feature types or a **WMS** endpoint's layers. This is
-pure standard-library HTTP + XML — no QGIS, no third-party deps — so it lives in `niva/remote.py`
-and is fully unit-testable offline by injecting the `fetch` callable. The backend
-(`PyqgisBackend.list_service`) just delegates there; the engine routes a service URL (detected by
-`remote.is_service_url`) to `Backend.list_service`.
+`show <url>` lists a **WFS** endpoint's feature types, a **WMS** endpoint's layers, an **ArcGIS
+REST** service's layers/tables (`…/FeatureServer`, `…/MapServer`, `…/ImageServer`), or treats an
+**XYZ** `{z}/{x}/{y}` template as a single tile layer. This is pure standard-library HTTP + XML +
+JSON — no QGIS, no third-party deps — so it lives in `niva/remote.py` and is fully unit-testable
+offline by injecting the `fetch` callable. The backend (`PyqgisBackend.list_service`) just
+delegates there; the engine routes a service URL (detected by `remote.is_service_url`) to
+`Backend.list_service`. Dispatch by `_detect_service`: a `WFS:`/`WMS:` prefix → WFS/WMS; a
+`{x}/{y}` template → XYZ (no fetch); a `/rest/services/` or `…/*Server` path → ArcGIS REST
+(`?f=json`); a `service=` param or `…/wfs`/`…/wms` path → WFS/WMS; else ask the user to specify.
 
 ```mermaid
 flowchart LR
@@ -162,8 +167,8 @@ GDAL-style `WFS:<url>` / `WMS:<url>`, so `ogrinfo "<ref>" <layer>` works for WFS
 
 ## Out of scope (next round)
 
-- **XYZ / vector-tile / ArcGIS REST** endpoints, and saved OWS connections by name.
+- **Vector-tile** endpoints, and **saved OWS connections** referenced by name.
 - **Cloud rasters** via GDAL `/vsicurl`, `/vsis3`, … .
-- **Authenticated** OWS services (credentials).
+- **Authenticated** services (credentials).
 - Feature/row **counts** — deliberately omitted to keep `show` instant; use `catalog` or
   `load … | assess` when you want them.

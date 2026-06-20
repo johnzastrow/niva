@@ -7,6 +7,32 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.31.0] - 2026-06-20
+
+### Added
+- **`show` reaches ArcGIS REST and XYZ.** Beyond WFS/WMS (0.30), `show <url>` now also lists an
+  **ArcGIS REST** service's layers and tables (`…/FeatureServer`, `…/MapServer`, `…/ImageServer`
+  — read via `?f=json`, with ESRI geometry types mapped to familiar names and a per-layer
+  `…/Server/<id>` source), and treats an **XYZ** `{z}/{x}/{y}` tile template as a single layer
+  (no network — the URL is the layer). Service kind is auto-detected from the URL shape; ArcGIS
+  JSON is parsed with `json` (no entity risk) under the same timeout/size-cap guards.
+- **`show` footer now shows two runnable examples** built from the listing's first row — copy a
+  real Source and pipe it onward, e.g. `load "data.gpkg|layername=roads" | buffer 100m | save
+  buffered.gpkg` (geometry verbs for vectors, `hillshade`/`warp` for rasters, `assess` for
+  tables). Plus a shell-safety tip: the Source cells are Markdown `backticks` — copy the value
+  inside, and quote the whole flow (`niva 'load "…"'`) so the shell doesn't run the backticks or
+  split on the `|`.
+- **`info` gained a “Listing data (`show`)” section** — concrete `show` examples for files,
+  directories, a real database connection from the active profile, and remote services.
+
+### Fixed
+- **`show` now labels attribute-only layers as `table`, not `vector`.** A `NoGeometry` layer
+  (e.g. the tables in a style/SQLite database, or a CSV) was being shown with `kind=vector`;
+  it's now `kind=table` / `type=(aspatial)`, matching how database tables are already classified.
+- **`show <dir> deep` no longer spams GDAL `ERROR 4: … not recognized` lines.** The
+  format-agnostic scan probes every file; GDAL's chatter on the ones it can't read (`.json`,
+  config files, …) is now silenced — a failed probe simply contributes no layers.
+
 ## [0.30.0] - 2026-06-20
 
 ### Added

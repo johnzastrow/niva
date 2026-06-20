@@ -175,6 +175,30 @@ class TestShowFormat(unittest.TestCase):
         self.assertIn("credentials stay in QGIS",
                       format_show("@c", [self._entry("a")], is_db=True))
 
+    def test_examples_use_the_first_real_source(self):
+        from niva.utilities import format_show
+
+        out = format_show("x.gpkg", [self._entry("roads", ref="x.gpkg|layername=roads")])
+        self.assertIn("Examples", out)
+        # a concrete, runnable flow built from the actual source, piped to an alias
+        self.assertIn('load "x.gpkg|layername=roads" | buffer 100m | save buffered.gpkg', out)
+        self.assertIn('load "x.gpkg|layername=roads" | reproject EPSG:3857', out)
+
+    def test_examples_pick_raster_aliases_for_a_raster(self):
+        from niva.utilities import format_show
+
+        out = format_show("dem.tif", [self._entry("dem", kind="raster", typ="1 band",
+                                                  fmt="GTiff", ref="dem.tif")])
+        self.assertIn("load dem.tif | hillshade", out)
+
+    def test_service_listing_has_no_load_examples(self):
+        from niva.utilities import format_show
+
+        out = format_show("https://h/wfs", [self._entry("roads", fmt="WFS",
+                                                        ref="WFS:https://h/wfs")],
+                          is_service=True)
+        self.assertNotIn("Examples", out)  # remote sources aren't `load`-piped
+
 
 class TestShow(unittest.TestCase):
     """The `show` verb over MockBackend (the live listing is in tests/test_pyqgis.py).

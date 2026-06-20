@@ -1,6 +1,6 @@
 # niva Reference
 
-The complete reference for **niva v0.30.0** — every verb, alias, option, type, environment
+The complete reference for **niva v0.31.0** — every verb, alias, option, type, environment
 variable, CLI command, and Python entry point. For a task-oriented tour see the
 [Cookbook](cookbook.md); for setup and day-to-day use see the [User Guide](user-guide.md).
 
@@ -275,7 +275,7 @@ catalog "data/" to=reports/inventory.md
 ### `show` — list available data at a location *(terminal)*
 
 ```
-show <path|@conn[.schema[.table]]|WFS/WMS-url> [deep] [to=<out.md>]
+show <path|@conn[.schema[.table]]|service-url> [deep] [to=<out.md>]
 ```
 
 Lists the loadable layers/tables at **one** location and what each is — a quick *"what can I
@@ -300,11 +300,14 @@ even on big databases.
   `show @conn.schema.table` (one table). Connection names containing dots (e.g.
   `@actual_spatialite.sqlite`) resolve correctly. Only the connection **name** is used —
   credentials stay in QGIS;
-- a **remote OWS service** — a **WFS** endpoint lists its feature types, a **WMS** endpoint its
-  layers. Pass the URL (the service is read from a `service=WFS`/`service=WMS` query parameter,
-  the path, or a `WFS:`/`WMS:` prefix; if it can't be told, `show` asks you to specify it).
-  Standard library HTTP only — public services, no credentials sent; the response is fetched
-  with a timeout and size cap, and parsed with DOCTYPE/entity expansion refused (no XXE).
+- a **remote service** — a **WFS** endpoint lists its feature types, a **WMS** endpoint its
+  layers, an **ArcGIS REST** service (`…/FeatureServer`, `…/MapServer`, `…/ImageServer`) its
+  layers and tables, and an **XYZ** `{z}/{x}/{y}` tile template is itself one layer. The kind
+  is read from a `service=WFS`/`service=WMS` query parameter, the URL path/shape, or a
+  `WFS:`/`WMS:` prefix (if it can't be told, `show` asks you to specify). Standard-library HTTP
+  only — public services, no credentials sent; responses are fetched with a timeout and size
+  cap, XML is parsed with DOCTYPE/entity expansion refused (no XXE), and ArcGIS REST JSON is
+  read with `json` (no entity risk).
 
 ```
 show "data/basemap.gpkg"          # layers in a GeoPackage
@@ -314,11 +317,15 @@ show @gisdb3                       # all PostGIS tables
 show @gisdb3.public to=tables.md   # one schema, written to a file
 show "https://demo.mapserver.org/cgi-bin/wfs?service=WFS"   # WFS feature types
 show "https://ows.terrestris.de/osm/service?service=WMS"    # WMS layers
+show "https://server/arcgis/rest/services/Foo/FeatureServer"  # ArcGIS REST layers
+show "https://tile.osm.org/{z}/{x}/{y}.png"                 # XYZ tile layer
 ```
 
-`show` is terminal and can't be piped (neither it nor `catalog` produce or consume a layer);
-for a deep per-dataset report (CRS, extent, fields, feature counts) run `catalog` on the same
-location.
+The listing's footer includes **two runnable examples** built from the first row, so you can
+copy a real Source and pipe it onward (e.g. `load "data.gpkg|layername=roads" | buffer 100m |
+save out.gpkg`). `show` is terminal and can't itself be piped (neither it nor `catalog` produce
+or consume a layer); for a deep per-dataset report (CRS, extent, fields, feature counts) run
+`catalog` on the same location.
 
 ### `info` — inspect the local QGIS environment *(terminal)*
 

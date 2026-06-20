@@ -46,7 +46,8 @@ Niva turns QGIS automation from PyQGIS code into a readable single lines of text
 * **Utility verbs beyond QGIS** — `notify` (ntfy push when a long job finishes),
   `email` (SMTP, Gmail-aware), `catalog` (recurse a directory and inventory every
   geospatial dataset — CRS, extent, fields, bands — to a Markdown report), `show` (list the
-  loadable layers/tables at a file, directory, `@conn`, or **WFS/WMS** URL — name, type, format,
+  loadable layers/tables at a file, directory, `@conn`, or remote **WFS/WMS/ArcGIS REST/XYZ**
+  URL — name, type, format,
   ready-to-load source), and `info` (inspect the local QGIS environment — the registered `@conn`
   connection
   names across every profile, providers, versions). Credentials for `notify`/`email` come

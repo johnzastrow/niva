@@ -236,12 +236,41 @@ def format_show(location: str, entries: list, *, is_db: bool = False,
             lines.append("Load a row with `load <source>`; inspect one with "
                          "`sql @conn \"SELECT … LIMIT 0\"` (credentials stay in QGIS).")
         elif is_service:
-            lines.append("Inspect a WFS layer with `ogrinfo \"<source>\" <layer>` "
-                         "(WMS layers are map services — add the endpoint in QGIS).")
+            lines.append("WFS / ArcGIS feature layers: `ogrinfo \"<source>\" <layer>`. "
+                         "WMS / XYZ are map services — add the endpoint in QGIS.")
         else:
             lines.append("Load a row with `load \"<source>\"`; for more detail run "
                          "`ogrinfo <file> <layer>` or `load \"<source>\" | assess`.")
+        # The Source cells are shown in Markdown `backticks` — copy the value *inside* them.
+        # The `|` is niva's pipe, so the source must stay quoted; in a shell, quote the whole
+        # flow so your shell doesn't eat the quotes or split on `|`:
+        lines.append("Tip: copy a Source **without** its surrounding backticks, and quote the "
+                     "whole flow for your shell — `niva 'load \"<source>\"'`.")
+        examples = _show_examples(entries) if not is_service else []
+        if examples:
+            lines.append("")
+            lines.append("Examples — take a Source above and pipe it onward "
+                         "(4-space indent = a runnable niva flow):")
+            lines.append("")
+            lines.extend(f"    {flow}" for flow in examples)
     else:
         lines.append("_No loadable layers found here._")
     lines.append("")
     return "\n".join(lines)
+
+
+def _show_examples(entries: list) -> list:
+    """Two concrete, runnable `load … | <alias> | save …` flows built from the first usable
+    row of a `show` listing — so the reader can copy a real source and pipe it onward."""
+    pick = next((e for e in entries if e.get("kind") == "vector"), entries[0])
+    ref = pick.get("ref", "")
+    src = f'"{ref}"' if ("|" in ref or " " in ref) else ref  # quote file refs (the `|`)
+    kind = pick.get("kind")
+    if kind == "raster":
+        return [f"load {src} | hillshade | save hillshade.tif",
+                f"load {src} | warp EPSG:3857 | save reprojected.tif"]
+    if kind == "table":
+        return [f"load {src} | assess",
+                f"load {src} | save extract.gpkg"]
+    return [f"load {src} | buffer 100m | save buffered.gpkg",
+            f"load {src} | reproject EPSG:3857 | save reprojected.gpkg"]

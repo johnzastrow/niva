@@ -968,6 +968,21 @@ class TestPyqgisShow(unittest.TestCase):
         self.assertIn("Data at", text)
         self.assertIn("roads", text)
 
+    def test_aspatial_table_is_kind_table_not_vector(self):
+        from osgeo import ogr
+
+        from niva.engine.pyqgis import PyqgisBackend
+
+        path = os.path.join(self.tmp, "aspatial.gpkg")
+        ds = ogr.GetDriverByName("GPKG").CreateDataSource(path)
+        lyr = ds.CreateLayer("owners", geom_type=ogr.wkbNone)  # attribute-only table
+        lyr.CreateField(ogr.FieldDefn("name", ogr.OFTString))
+        ds = None
+        rows = PyqgisBackend().list_layers(path)
+        owners = next(r for r in rows if r["name"] == "owners")
+        self.assertEqual(owners["kind"], "table")       # not "vector"
+        self.assertEqual(owners["type"], "(aspatial)")
+
     def test_list_layers_reports_raster_band_and_dtype(self):
         from niva.engine.pyqgis import PyqgisBackend
 
@@ -1025,10 +1040,11 @@ class TestPyqgisEnvironmentReport(unittest.TestCase):
 
         report = report_markdown()
         for heading in ("# niva — environment", "## niva", "## Verbs & algorithms",
-                        "## Database connections", "## QGIS profiles",
+                        "## Database connections", "## Listing data", "## QGIS profiles",
                         "## Environment (niva variables)", "## QGIS & geo stack",
                         "## Python & platform"):
             self.assertIn(heading, report)
+        self.assertIn("ArcGIS REST", report)  # the `show` examples mention remote services
         # The reachable-algorithm count must resolve to a real number, and QGIS must
         # report a version (not the "unavailable" fallback).
         self.assertNotIn("**unavailable** algorithms", report)

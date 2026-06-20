@@ -54,6 +54,14 @@ WMS13 = b"""<?xml version="1.0"?>
 </WMS_Capabilities>"""
 
 
+ARCGIS_SERVICE = (b'{"layers":['
+                  b'{"id":0,"name":"Roads","geometryType":"esriGeometryPolyline"},'
+                  b'{"id":1,"name":"Parks","geometryType":"esriGeometryPolygon"}],'
+                  b'"tables":[{"id":2,"name":"Owners"}]}')
+ARCGIS_LAYER = b'{"id":0,"name":"Roads","type":"Feature Layer","geometryType":"esriGeometryPoint"}'
+ARCGIS_ERROR = b'{"error":{"code":400,"message":"Invalid token"}}'
+
+
 class TestServiceDetection(unittest.TestCase):
     def test_is_service_url(self):
         for ok in ("http://x/wfs", "https://x/wms", "WFS:http://x", "wms:http://x"):
@@ -73,6 +81,17 @@ class TestServiceDetection(unittest.TestCase):
     def test_detect_from_path(self):
         self.assertEqual(remote._detect_service("https://h/geoserver/wfs")[0], "WFS")
         self.assertEqual(remote._detect_service("https://h/geoserver/wms")[0], "WMS")
+
+    def test_detect_arcgis(self):
+        for u in ("https://h/arcgis/rest/services/Foo/FeatureServer",
+                  "https://h/x/MapServer", "https://h/x/MapServer/3",
+                  "https://h/x/ImageServer"):
+            self.assertEqual(remote._detect_service(u)[0], "ARCGIS", u)
+
+    def test_detect_xyz_template(self):
+        self.assertEqual(
+            remote._detect_service("https://t/{z}/{x}/{y}.png")[0], "XYZ")
+        self.assertEqual(remote._detect_service("https://t/{q}.png")[0], "XYZ")
 
     def test_undeterminable_is_none(self):
         self.assertIsNone(remote._detect_service("https://h/endpoint")[0])
@@ -130,6 +149,63 @@ class TestParsing(unittest.TestCase):
         self.assertIn("request=GetCapabilities", seen["url"])
 
 
+class TestArcGisRest(unittest.TestCase):
+    def test_json_url_sets_f_json(self):
+        u = remote._arcgis_json_url("https://h/x/FeatureServer?token=abc")
+        self.assertIn("f=json", u)
+        self.assertIn("token=abc", u)
+
+    def test_json_url_replaces_existing_f(self):
+        u = remote._arcgis_json_url("https://h/x/FeatureServer?f=html")
+        self.assertEqual(u.count("f="), 1)
+        self.assertIn("f=json", u)
+
+    def test_non_http_scheme_rejected(self):
+        with self.assertRaises(ValueError):
+            remote._arcgis_json_url("file:///x/FeatureServer")
+
+    def test_parse_service_layers_and_tables(self):
+        seen = {}
+
+        def fetch(u):
+            seen["u"] = u
+            return ARCGIS_SERVICE
+
+        rows = remote.list_service(
+            "https://h/arcgis/rest/services/Foo/FeatureServer", fetch=fetch)
+        self.assertIn("f=json", seen["u"])
+        self.assertEqual([r["name"] for r in rows], ["Roads", "Parks", "Owners"])
+        self.assertEqual(rows[0]["type"], "LineString")
+        self.assertEqual(rows[1]["type"], "Polygon")
+        self.assertEqual(rows[2]["kind"], "table")
+        self.assertTrue(rows[0]["ref"].endswith("/FeatureServer/0"))
+        self.assertTrue(all(r["format"] == "ArcGIS" for r in rows))
+
+    def test_parse_single_layer_endpoint(self):
+        rows = remote.list_service(
+            "https://h/x/FeatureServer/0", fetch=lambda u: ARCGIS_LAYER)
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["name"], "Roads")
+        self.assertEqual(rows[0]["type"], "Point")
+        self.assertTrue(rows[0]["ref"].endswith("/FeatureServer/0"))  # single ⇒ base as-is
+
+    def test_arcgis_error_response_raises(self):
+        with self.assertRaises(ValueError):
+            remote.list_service("https://h/x/MapServer", fetch=lambda u: ARCGIS_ERROR)
+
+
+class TestXyz(unittest.TestCase):
+    def test_xyz_is_one_entry_and_never_fetches(self):
+        def boom(u):  # XYZ must not hit the network
+            raise AssertionError("XYZ should not fetch")
+
+        rows = remote.list_service("https://t/{z}/{x}/{y}.png", fetch=boom)
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["format"], "XYZ")
+        self.assertEqual(rows[0]["kind"], "raster")
+        self.assertTrue(rows[0]["ref"].startswith("type=xyz&url="))
+
+
 class TestSecurity(unittest.TestCase):
     def test_doctype_is_refused(self):
         evil = (b'<?xml version="1.0"?>\n<!DOCTYPE x [<!ENTITY a "boom">]>\n'
@@ -153,6 +229,13 @@ class TestLiveOws(unittest.TestCase):
     def test_live_wms(self):
         rows = remote.list_service("https://ows.terrestris.de/osm/service?service=WMS")
         self.assertTrue(any(r["name"] == "OSM-WMS" for r in rows))
+
+    def test_live_arcgis(self):
+        rows = remote.list_service(
+            "https://sampleserver6.arcgisonline.com/arcgis/rest/services/Census/MapServer")
+        self.assertTrue(rows)
+        self.assertTrue(all(r["format"] == "ArcGIS" for r in rows))
+        self.assertTrue(any(r["type"] in ("Point", "Polygon", "LineString") for r in rows))
 
 
 if __name__ == "__main__":
