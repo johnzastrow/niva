@@ -120,6 +120,18 @@ class TestPyqgisBackend(unittest.TestCase):
         niva.flow(f'load {self.src} | filter "id = 1" | save {out}')
         self.assertEqual(self._saved(out).featureCount(), 1)
 
+    def test_read_and_write_same_geopackage_adds_layer(self):
+        # Reading from and writing to the SAME .gpkg (add a layer) must succeed cleanly — this
+        # is the scenario that logged a benign GDAL `gpkg_metadata` lock warning.
+        import niva
+        from qgis.core import QgsProviderRegistry
+
+        gp = os.path.join(self.tmp, "rw.gpkg")
+        niva.flow(f'load {self.src} | save "{gp}" as base')
+        niva.flow(f'load "{gp}|layername=base" | save "{gp}" as copy')  # read+write same file
+        names = sorted(d.name() for d in QgsProviderRegistry.instance().querySublayers(gp))
+        self.assertEqual(names, ["base", "copy"])
+
     def test_describe_real_algorithm(self):
         import niva
 

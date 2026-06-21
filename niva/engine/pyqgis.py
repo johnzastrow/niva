@@ -163,9 +163,34 @@ def ensure_qgis(prefix: str | None = None):
             app = QgsApplication([], False)
         app.initQgis()
         _QGIS_APP = app  # CRITICAL: keep a reference, or it is GC'd and the registry dies
+        _install_gdal_error_filter()
         owns = True
     _init_processing()
     return app, owns
+
+
+def _install_gdal_error_filter() -> None:
+    """Filter one benign GDAL message out of standalone niva's stderr: when a flow reads from
+    and writes to the *same* GeoPackage, GDAL probes the optional `gpkg_metadata` table under
+    SQLite lock contention and logs ``unable to open database file`` — yet the write succeeds
+    and niva reports real failures through its own error codes. We drop exactly that message
+    and pass everything else through (so genuine GDAL errors stay visible). Installed only when
+    niva owns the QGIS app (CLI/standalone); inside the QGIS plugin, QGIS owns error routing."""
+    import sys
+
+    from osgeo import gdal
+
+    def handler(err_class, err_no, msg):
+        if "gpkg_metadata" in msg and "unable to open database file" in msg:
+            return
+        if err_class >= gdal.CE_Warning:
+            label = "ERROR" if err_class >= gdal.CE_Failure else "Warning"
+            sys.stderr.write(f"{label} {err_no}: {msg}\n")
+
+    try:
+        gdal.PushErrorHandler(handler)
+    except Exception:  # noqa: BLE001 — never let error-handler setup break QGIS init
+        pass
 
 
 def _feedback(progress, cancel=None):

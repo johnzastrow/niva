@@ -11,6 +11,18 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.31.6] - 2026-06-21
+
+### Fixed
+- **No more scary `ERROR 1: … gpkg_metadata … unable to open database file` on a successful
+  save.** When a flow reads from and writes to the **same** GeoPackage (e.g. `load
+  "x.gpkg|layername=a" | … | save x.gpkg as b`), GDAL probes the container's optional
+  `gpkg_metadata` table under transient SQLite lock contention and logs that error to stderr —
+  even though the write succeeds. Standalone niva now installs a **surgical GDAL error filter**
+  that drops exactly this benign message and passes every other GDAL error through unchanged.
+  (Only when niva owns the QGIS app — the CLI/standalone case; inside the QGIS plugin, QGIS owns
+  error routing.)
+
 ## [0.31.5] - 2026-06-21
 
 ### Changed
