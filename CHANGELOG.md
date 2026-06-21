@@ -28,12 +28,22 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   (NoGeometry) source was `load <src> | assess`, but `assess` has no stdout form and always needs
   `assess … to <report.md>` — so copying it produced a flow that errored. It now reads
   `load <src> | assess to assessment.md`.
+- **`save` survives a geometry-typed attribute or a `geom`-named field.** Saving a layer whose
+  attributes include a geometry-typed column (e.g. a second/SRID-0 geometry a PostGIS provider
+  surfaces as an attribute — common when loading a `@conn` table that `show` advertised) failed
+  with *"Unsupported type for field …"*. niva now detects such a field **by data type, not name**
+  (a geometry column can be called anything) and drops it from the write, surfacing the loss
+  instead of failing (the layer keeps its own geometry). Separately, a plain attribute literally
+  named `geom` collided with the GeoPackage geometry column (*"Cannot create field geom…"*) — niva
+  now renames the output geometry column so the attribute's data is kept.
 
 ### Tests
 - New `tests/test_cascade.py` (live-QGIS): dogfoods the discovery chain `info → show → run every
   Source and example → re-`show`/re-`load` each example's output → a multi-hop
   load→save→show→load chain`, across vector, raster, aspatial-table, and dotted-connection
   sources. Mock-backed regression tests for both fixes added to `test_sql.py` / `test_utilities.py`.
+- New `TestGeometryAttributeSave` (live-QGIS): a geometry-typed attribute is dropped by type (not
+  name) and the loss is surfaced; a plain `geom`-named attribute survives via geometry-column rename.
 
 ## [0.31.0] - 2026-06-20
 

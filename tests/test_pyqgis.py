@@ -355,6 +355,81 @@ class TestFidCollisionSave(unittest.TestCase):
         self.assertIn("fid", [f.name() for f in saved.fields()])  # source fid preserved
 
 
+class TestGeometryAttributeSave(unittest.TestCase):
+    """A layer can carry an attribute that conflicts with how a GeoPackage stores geometry —
+    e.g. a second/SRID-0 geometry column a PostGIS provider surfaces as a geometry-typed
+    attribute, or a plain field that happens to be named like the geometry column. Either one
+    used to sink the whole save; niva now adapts the write and keeps going."""
+
+    def _polygon_layer(self, decl):
+        from qgis.core import QgsFeature, QgsGeometry, QgsVectorLayer
+
+        vl = QgsVectorLayer(f"Polygon?crs=EPSG:4326{decl}", "t", "memory")
+        f = QgsFeature(vl.fields())
+        f.setGeometry(QgsGeometry.fromWkt("POLYGON((0 0,1 0,1 1,0 1,0 0))"))
+        attrs = [None] * vl.fields().count()
+        if attrs:
+            attrs[0] = 1
+        f.setAttributes(attrs)
+        vl.dataProvider().addFeature(f)
+        vl.updateExtents()
+        return vl
+
+    def test_geometry_typed_attribute_is_dropped_by_type_not_name(self):
+        # A geometry-typed attribute named `shape` (NOT `geom`) — detection must key off the
+        # DATA TYPE, since a geometry column can be named anything ("Unsupported type for
+        # field <name>" otherwise).
+        from qgis.core import QgsField, QgsVectorLayer
+        from qgis.PyQt.QtCore import QMetaType
+
+        from niva.engine.layer import MEMORY, Layer
+        from niva.engine.pyqgis import PyqgisBackend
+
+        vl = self._polygon_layer("&field=fid:integer&field=name:string")
+        vl.dataProvider().addAttributes([QgsField("shape", QMetaType.Type.User, "geometry")])
+        vl.updateFields()
+
+        tmp = tempfile.mkdtemp(prefix="niva_geomattr_")
+        out = os.path.join(tmp, "g.gpkg")
+        backend = PyqgisBackend()
+        backend._note = None
+        backend.save(Layer(MEMORY, vl, facet="vector"), out)  # must not raise
+
+        saved = QgsVectorLayer(out, "s", "ogr")
+        self.assertTrue(saved.isValid())
+        names = [f.name() for f in saved.fields()]
+        self.assertNotIn("shape", names)           # the geometry-typed attribute is gone
+        self.assertIn("name", names)               # ordinary attributes survive
+        self.assertIsNotNone(backend._note)         # the drop is surfaced, not silent
+        self.assertIn("shape", backend._note)
+
+    def test_attribute_named_like_geometry_column_survives(self):
+        # A plain attribute literally named `geom` collides with the GeoPackage geometry
+        # column ("Cannot create field geom…"). niva renames the output geometry column so
+        # the attribute's data is kept.
+        from qgis.core import QgsVectorLayer
+
+        from niva.engine.layer import MEMORY, Layer
+        from niva.engine.pyqgis import PyqgisBackend
+
+        vl = self._polygon_layer("&field=fid:integer&field=geom:string&field=name:string")
+        vl.getFeature(1)  # touch
+        # set the `geom` text field on the single feature
+        vl.startEditing()
+        for feat in vl.getFeatures():
+            vl.changeAttributeValue(feat.id(), vl.fields().indexOf("geom"), "kept")
+        vl.commitChanges()
+
+        tmp = tempfile.mkdtemp(prefix="niva_geomname_")
+        out = os.path.join(tmp, "g.gpkg")
+        PyqgisBackend().save(Layer(MEMORY, vl, facet="vector"), out)  # must not raise
+
+        saved = QgsVectorLayer(out, "s", "ogr")
+        self.assertTrue(saved.isValid())
+        self.assertIn("geom", [f.name() for f in saved.fields()])  # the attribute survived
+        self.assertEqual(saved.featureCount(), 1)
+
+
 class TestMultiLayerLoad(unittest.TestCase):
     """A GeoPackage holds many layers — niva must not silently grab the first."""
 

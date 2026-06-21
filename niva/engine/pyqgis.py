@@ -701,6 +701,38 @@ class PyqgisBackend(Backend):
         # dataset-creation option is honoured on first write and ignored on append.
         if ext.lower() == ".sqlite":
             options.datasourceOptions = ["SPATIALITE=YES"]
+        # Attribute fields the output driver can't store as plain columns. Inspect once and
+        # adjust the write so a single awkward field never sinks the whole save.
+        wfields = layer.ref.fields() if hasattr(layer.ref, "fields") else []
+        # (1) A geometry-TYPED attribute field — e.g. a PostGIS table's geometry column that the
+        # provider surfaced as an attribute (a second column, or an SRID-0/unregistered one) —
+        # cannot be written as an attribute ("Unsupported type for field <name>"). Identify it by
+        # DATA TYPE, never by name: a geometry column can be called anything (`geom`, `shape`,
+        # `the_geom`, …). QGIS types a geometry attribute as the Qt *user* type; the typeName
+        # (`geometry`/`geography`) is a secondary signal. Drop it (the layer keeps its own
+        # geometry) and surface the loss rather than failing the save.
+        try:
+            from qgis.PyQt.QtCore import QMetaType
+            user_type = int(QMetaType.Type.User)
+        except Exception:  # pragma: no cover — Qt5 fallback
+            from qgis.PyQt.QtCore import QVariant
+            user_type = int(QVariant.UserType)
+
+        def _is_geom_field(f):
+            return int(f.type()) == user_type \
+                or (f.typeName() or "").lower() in ("geometry", "geography")
+
+        drop = [i for i, f in enumerate(wfields) if _is_geom_field(f)]
+        if drop:
+            options.attributes = [i for i in range(len(wfields)) if i not in drop]
+            dropped = ", ".join(f"`{wfields[i].name()}`" for i in drop)
+            self._note = (f"save: dropped geometry-typed attribute field(s) {dropped} — a "
+                          f"{ext.lstrip('.') or 'vector'} file can't hold a geometry as an "
+                          "attribute (the layer's own geometry is unaffected)")
+        names = {wfields[i].name().lower()
+                 for i in range(len(wfields)) if i not in drop}
+        layer_opts: list[str] = []
+
         if multilayer:  # a known layer name is needed to persist metadata later
             options.layerName = name
             # Append only once the container exists: the FIRST layer creates the file
@@ -712,17 +744,25 @@ class PyqgisBackend(Backend):
                         QgsVectorFileWriter.ActionOnExistingFile.CreateOrOverwriteLayer
                 except AttributeError:  # pragma: no cover — Qt5 path
                     options.actionOnExistingFile = QgsVectorFileWriter.CreateOrOverwriteLayer
-            # If the layer carries an `fid` field (many QGIS outputs do — e.g.
+            # (2) If the layer carries an `fid` field (many QGIS outputs do — e.g.
             # points-along-lines, intersection, joins), its values can collide with the
             # GeoPackage primary key → "UNIQUE constraint failed: fid". Tell GDAL to mint
             # a fresh PK and keep the source `fid` as an ordinary attribute (no data loss).
-            fields = layer.ref.fields() if hasattr(layer.ref, "fields") else []
-            names = {f.name().lower() for f in fields}
             if "fid" in names:
                 pk = "gpkg_fid"
                 while pk.lower() in names:
                     pk += "_"
-                options.layerOptions = [f"FID={pk}"]
+                layer_opts.append(f"FID={pk}")
+            # (3) An attribute literally named like the GeoPackage geometry column (`geom`)
+            # collides → "Cannot create field geom. It has the same name as the geometry
+            # field". Name the output geometry column something else so the attribute survives.
+            if ext.lower() == ".gpkg" and "geom" in names:
+                gname = "geometry"
+                while gname.lower() in names:
+                    gname += "_"
+                layer_opts.append(f"GEOMETRY_NAME={gname}")
+        if layer_opts:
+            options.layerOptions = layer_opts
         err = QgsVectorFileWriter.writeAsVectorFormatV3(
             layer.ref, dest, QgsCoordinateTransformContext(), options
         )

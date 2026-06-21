@@ -235,3 +235,6 @@ examples/demo.zip
 
 # Generated demo dataset — shipped as a release asset (demo.zip), not committed
 examples/demo/
+
+# Local Postgres test cluster (never commit)
+.local-pg/

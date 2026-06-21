@@ -26,6 +26,7 @@ deprecated=False
 # repo file stays the full history; this field is just the highlights). Drop the oldest line
 # so it never grows past ~2 entries. Continuation lines MUST stay indented (like `about=`).
 changelog=0.31.1 — Fixed: a database Source whose connection name contains a dot
-    (e.g. @CNYTriData.gpkg.course_points) now round-trips back into load/sql/save; show's
-    aspatial-table example is now runnable (assess to <report.md>).
+    (e.g. @CNYTriData.gpkg.course_points) now round-trips back into load/sql/save; save no
+    longer fails on a geometry-typed or geom-named attribute; show's aspatial-table example
+    is now runnable (assess to <report.md>).
     0.31.0 — show lists ArcGIS REST + XYZ services; show and info print runnable examples.
