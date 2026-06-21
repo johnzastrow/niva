@@ -238,3 +238,13 @@ examples/demo/
 
 # Local Postgres test cluster (never commit)
 .local-pg/
+
+# Output files that `show`'s copy-paste examples write (don't commit if run in-repo)
+/buffered.gpkg
+/fixed.gpkg
+/reprojected.gpkg
+/points.gpkg
+/analysis.gpkg
+/hillshade.tif
+/assessment.md
+/extract.gpkg

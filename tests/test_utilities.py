@@ -187,14 +187,34 @@ class TestShowFormat(unittest.TestCase):
         self.assertIn(
             'niva \'load "x.gpkg|layername=roads" | reproject EPSG:3857 | buffer 100m '
             "| save buffered.gpkg'", out)
-        self.assertIn("| centroid | save points.gpkg", out)
+        # second example is `fix` (geometry-agnostic) — `centroid` crashed on mixed geometry
+        self.assertIn("| fix | save fixed.gpkg", out)
+        self.assertNotIn("| centroid ", out)
+
+    def test_examples_include_write_into_existing_targets(self):
+        from niva.utilities import format_show
+
+        out = format_show("x.gpkg", [self._entry("roads", ref="x.gpkg|layername=roads")])
+        self.assertIn("Write into an **existing** container", out)
+        self.assertIn("| save analysis.gpkg as roads", out)          # add a layer to a gpkg
+        self.assertIn("| save @conn.public.roads mode=append", out)  # append to a DB table
+
+    def test_write_example_sanitises_a_problematic_name(self):
+        from niva.utilities import format_show
+
+        out = format_show("@c", [self._entry("My Roads #1", fmt="postgres",
+                                             ref="@c.public.My Roads #1")], is_db=True)
+        # the layer/table name in the save target is a clean identifier, no quoting needed
+        self.assertIn("| save analysis.gpkg as my_roads_1", out)
+        self.assertIn("| save @conn.public.my_roads_1 mode=append", out)
 
     def test_examples_pick_raster_aliases_for_a_raster(self):
         from niva.utilities import format_show
 
         out = format_show("dem.tif", [self._entry("dem", kind="raster", typ="1 band",
                                                   fmt="GTiff", ref="dem.tif")])
-        self.assertIn("niva 'load dem.tif | hillshade", out)
+        self.assertIn("niva 'load dem.tif | warp EPSG:3857", out)  # warp first (always safe)
+        self.assertIn("| hillshade | save hillshade.tif", out)
 
     def test_aspatial_example_is_runnable(self):
         # `assess` has no stdout form — its example MUST name a `to` output, else copying it

@@ -11,7 +11,22 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
-## [0.31.3] - 2026-06-21
+## [0.31.4] - 2026-06-21
+
+### Added
+- **`show` now also shows how to write into existing targets.** Below the transform examples,
+  the listing prints two `save`-target patterns built from the source: add a layer to a
+  GeoPackage (`load <src> | save analysis.gpkg as <name>`) and append into a database table
+  (`load <src> | save @conn.public.<name> mode=append`) — the output name is a clean,
+  sanitised identifier so a problematic source name needs no quoting. Verified the append path
+  end-to-end against a live PostGIS (create → append × 3 rows correctly).
+
+### Fixed
+- **`show`'s second vector example no longer crashes on mixed geometry.** It was `… | centroid
+  | save points.gpkg`, but `centroid` writes a typed Point sink and **fails on a layer with
+  mixed / GeometryCollection features** (which the listing can't detect — the declared type
+  lies). It's now `… | fix | save fixed.gpkg` — `fix` is geometry-agnostic and is exactly what
+  niva recommends for such layers. The raster example pair now leads with `warp` (always safe).
 
 ### Fixed
 - **`show`'s buffer example now works on any CRS.** The vector example was

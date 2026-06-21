@@ -255,32 +255,67 @@ def format_show(location: str, entries: list, *, is_db: bool = False,
             # Wrap each flow as `niva '…'`: the single quotes keep your shell from eating the
             # double quotes or splitting on `|` (niva's pipe), so it pastes and runs as-is.
             lines.extend(f"    niva '{flow}'" for flow in examples)
+            writes = _show_write_examples(entries)
+            lines.append("")
+            lines.append("Write into an **existing** container — add a layer to a GeoPackage, or "
+                         "append to a database table (the table must already exist; "
+                         "`mode=create` makes a new one):")
+            lines.append("")
+            lines.extend(f"    niva '{flow}'" for flow in writes)
     else:
         lines.append("_No loadable layers found here._")
     lines.append("")
     return "\n".join(lines)
 
 
+def _show_src(entry: dict) -> str:
+    """The entry's source as it must appear in a flow — quoted when it carries a char that
+    would break an unquoted niva token: a space/tab (token split), `|` (pipe), or `#`
+    (comment), e.g. a layer/table named `name-with-dash#hash` or `My Roads`."""
+    ref = entry.get("ref", "")
+    return f'"{ref}"' if any(c in ref for c in " \t#|") else ref
+
+
+def _safe_name(entry: dict) -> str:
+    """A tidy, always-valid output layer/table name derived from the source name (so a
+    problematic source name doesn't need quoting in the `save … as`/`@conn` example). Runs
+    of non-alphanumeric characters collapse to a single underscore."""
+    out: list = []
+    for c in entry.get("name", "layer"):
+        if c.isalnum():
+            out.append(c)
+        elif out and out[-1] != "_":
+            out.append("_")
+    return "".join(out).strip("_").lower() or "layer"
+
+
 def _show_examples(entries: list) -> list:
     """Two concrete, runnable `load … | <alias> | save …` flows built from the first usable
     row of a `show` listing — so the reader can copy a real source and pipe it onward."""
     pick = next((e for e in entries if e.get("kind") == "vector"), entries[0])
-    ref = pick.get("ref", "")
-    # Quote the source if it carries any char that would break an unquoted niva token: a
-    # space/tab (token split), `|` (pipe), or `#` (comment) — e.g. a layer/table named
-    # `name-with-dash#hash` or `My Roads`. Otherwise the example would silently truncate.
-    src = f'"{ref}"' if any(c in ref for c in " \t#|") else ref
+    src = _show_src(pick)
     kind = pick.get("kind")
     if kind == "raster":
-        return [f"load {src} | hillshade | save hillshade.tif",
-                f"load {src} | warp EPSG:3857 | save reprojected.tif"]
+        return [f"load {src} | warp EPSG:3857 | save reprojected.tif",
+                f"load {src} | hillshade | save hillshade.tif"]
     if kind == "table":
         # `assess` always writes to a file — it has no stdout form — so the example must
         # name one, or copying it yields a flow that errors (`assess needs an output`).
         return [f"load {src} | assess to assessment.md",
                 f"load {src} | save extract.gpkg"]
-    # Reproject before buffering so `100m` is valid whatever the input CRS — a geographic
-    # (degrees) layer can't be buffered by a metric distance directly. Both examples then run
-    # on any vector source; `centroid` is CRS-agnostic so it stays a clean second example.
+    # Both examples must run on ANY vector source, whatever its CRS or geometry. `reproject`
+    # first makes `100m` valid even on a geographic (degrees) layer; `buffer` then accepts any
+    # geometry. `fix` is geometry-agnostic (and exactly what niva recommends for the mixed /
+    # GeometryCollection layers that break a typed-output op like `centroid`). We can't tell a
+    # layer's *actual* (vs declared) geometry from the listing, so we avoid type-constrained ops.
     return [f"load {src} | reproject EPSG:3857 | buffer 100m | save buffered.gpkg",
-            f"load {src} | centroid | save points.gpkg"]
+            f"load {src} | fix | save fixed.gpkg"]
+
+
+def _show_write_examples(entries: list) -> list:
+    """Two `save`-target patterns: add a layer to a GeoPackage (multi-layer write), and append
+    into a database table — the common 'write into something that already exists' cases."""
+    pick = next((e for e in entries if e.get("kind") in ("vector", "table")), entries[0])
+    src, name = _show_src(pick), _safe_name(pick)
+    return [f"load {src} | save analysis.gpkg as {name}",
+            f"load {src} | save @conn.public.{name} mode=append"]
