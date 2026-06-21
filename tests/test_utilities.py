@@ -180,16 +180,18 @@ class TestShowFormat(unittest.TestCase):
 
         out = format_show("x.gpkg", [self._entry("roads", ref="x.gpkg|layername=roads")])
         self.assertIn("Examples", out)
-        # a concrete, runnable flow built from the actual source, piped to an alias
-        self.assertIn('load "x.gpkg|layername=roads" | buffer 100m | save buffered.gpkg', out)
-        self.assertIn('load "x.gpkg|layername=roads" | reproject EPSG:3857', out)
+        # shell-ready: wrapped in `niva '…'` so a paste into bash doesn't eat the quotes or
+        # split on `|` (the reported failure)
+        self.assertIn(
+            'niva \'load "x.gpkg|layername=roads" | buffer 100m | save buffered.gpkg\'', out)
+        self.assertIn('niva \'load "x.gpkg|layername=roads" | reproject EPSG:3857', out)
 
     def test_examples_pick_raster_aliases_for_a_raster(self):
         from niva.utilities import format_show
 
         out = format_show("dem.tif", [self._entry("dem", kind="raster", typ="1 band",
                                                   fmt="GTiff", ref="dem.tif")])
-        self.assertIn("load dem.tif | hillshade", out)
+        self.assertIn("niva 'load dem.tif | hillshade", out)
 
     def test_aspatial_example_is_runnable(self):
         # `assess` has no stdout form — its example MUST name a `to` output, else copying it

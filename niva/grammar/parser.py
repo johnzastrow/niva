@@ -66,7 +66,7 @@ def parse(text: str, *, file: str | None = None) -> list:
             if len(toks) != 2:
                 raise FlowError("`call` takes exactly one file path", line=line,
                                 stage=raw, file=file)
-            program.append(Call(target=unquote(toks[1]), line=line, raw=raw))
+            program.append(Call(target=_unquote(toks[1], line, raw, file), line=line, raw=raw))
         else:
             program.append(_parse_flow(raw, line, file))
     return program
@@ -110,6 +110,15 @@ def _parse_flow(raw: str, line: int, file: str | None) -> Flow:
     return Flow(stages=stages, line=line, raw=raw)
 
 
+def _unquote(token: str, line: int, raw: str, file: str | None) -> str:
+    """`unquote` a token, turning a lexer ``ValueError`` (e.g. an unterminated quote) into a
+    located ``FlowError`` so the user gets line/stage context, not a bare traceback."""
+    try:
+        return unquote(token)
+    except ValueError as exc:
+        raise FlowError(str(exc), line=line, stage=raw, file=file) from exc
+
+
 def _is_option(token: str) -> bool:
     """True if a token is ``key=value`` (not a quoted value, valid key)."""
     if token.startswith(("'", '"')) or "=" not in token:
@@ -129,7 +138,7 @@ def _parse_stage(raw: str, line: int, file: str | None) -> Stage:
     for tok in rest:
         if _is_option(tok):
             key, val = tok.split("=", 1)
-            stage.options[key] = unquote(val)
+            stage.options[key] = _unquote(val, line, raw, file)
         else:
-            stage.args.append(unquote(tok))
+            stage.args.append(_unquote(tok, line, raw, file))
     return stage

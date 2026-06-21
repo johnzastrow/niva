@@ -11,6 +11,22 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.31.2] - 2026-06-21
+
+### Fixed
+- **`show`'s example flows are now shell-ready.** They were printed as a bare niva flow
+  (`load "…" | buffer 100m | save …`); pasted into a shell, the shell ate the quotes and treated
+  `|` as a **shell pipe** (→ `buffer`/`save` "command not found"). Each example is now wrapped as
+  `niva '…'`, so it copies and runs as-is — single quotes keep the shell from splitting on `|` or
+  eating the inner `"…"`. (In the QGIS dock, use just the flow inside the quotes.)
+- **Lexer: a quoted connection reference keeps its `@` and drops the quotes.** `@"My PG Server"` /
+  `@'spatialite.db'` parsed with the quotes *retained* (so a connection whose name has spaces or
+  dots couldn't resolve); they now yield `@My PG Server` / `@spatialite.db`.
+- **Lexer: an unterminated quote is a clear error.** A token that *starts* with a quote but never
+  closes it (`load "foo`) used to leak a stray quote downstream; it now raises a located
+  `FlowError` ("unterminated quote"). A quote *inside* an unquoted token (e.g. `O'Brien.shp`) is
+  still treated as a literal, so apostrophes in names survive.
+
 ## [0.31.1] - 2026-06-20
 
 ### Fixed

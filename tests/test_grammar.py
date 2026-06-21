@@ -87,6 +87,31 @@ class TestGrammar(unittest.TestCase):
         f = self.one_flow('filter "name = \'#1\'"')
         self.assertEqual(f.stages[0].args, ["name = '#1'"])
 
+    def test_quoted_connection_ref_keeps_at_strips_quotes(self):
+        # `@"name"` / `@'name'` — a connection whose name has spaces/dots must resolve, so the
+        # quotes are stripped but the `@` is kept (regression: the quotes used to leak in).
+        self.assertEqual(self.one_flow('show @"My PG Server"').stages[0].args, ["@My PG Server"])
+        self.assertEqual(self.one_flow("show @'spatialite.db'").stages[0].args, ["@spatialite.db"])
+        self.assertEqual(
+            self.one_flow('load @"CNYTriData.gpkg.course_points"').stages[0].args,
+            ["@CNYTriData.gpkg.course_points"])
+
+    def test_apostrophe_in_unquoted_token_is_literal(self):
+        # A lone quote *inside* an unquoted token is data, not a delimiter — names like
+        # O'Brien.shp must survive (we only strip a *surrounding* pair).
+        self.assertEqual(self.one_flow("load O'Brien.shp").stages[0].args, ["O'Brien.shp"])
+        self.assertEqual(self.one_flow('load "O\'Brien.shp"').stages[0].args, ["O'Brien.shp"])
+
+    def test_unterminated_quote_is_a_flow_error(self):
+        for bad in ('load "foo', "load 'foo", 'show @"bar'):
+            with self.assertRaises(FlowError):
+                parse(bad)
+
+    def test_quoted_option_value_with_pipe_and_at(self):
+        # an option value can carry niva-special chars when quoted
+        f = self.one_flow('run x EXPRESSION="a|b" CONN=@db')
+        self.assertEqual(f.stages[0].options, {"EXPRESSION": "a|b", "CONN": "@db"})
+
     def test_line_continuation_via_pipe(self):
         text = "load roads.gpkg\n  | buffer 100m\n  | save out.gpkg"
         f = self.one_flow(text)

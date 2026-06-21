@@ -105,13 +105,28 @@ def tokenize(stage: str) -> list[str]:
 
 
 def unquote(value: str) -> str:
-    """Strip one surrounding quote pair and unescape ``\\\\``, ``\\"``, ``\\'``."""
-    if len(value) >= 2 and value[0] in _QUOTES and value[-1] == value[0]:
+    """Strip one surrounding quote pair and unescape ``\\\\``, ``\\"``, ``\\'``.
+
+    - A leading connection-ref ``@`` before the quotes is kept: ``@"my conn"`` → ``@my conn``
+      (so a saved connection whose name has dots/spaces resolves).
+    - A token that *starts* with a quote but never closes it raises ``ValueError`` — a clear
+      syntax error instead of a stray quote leaking downstream.
+    - A quote *inside* an otherwise-unquoted token is a literal: ``O'Brien.shp`` stays
+      ``O'Brien.shp`` (we never strip quotes that aren't a surrounding pair, so apostrophes in
+      names survive).
+    """
+    # `@"…"` / `@'…'` — a quoted connection reference; preserve the `@`, unquote the rest.
+    if value[:2] in ('@"', "@'"):
+        return "@" + unquote(value[1:])
+    if value and value[0] in _QUOTES:
+        q = value[0]
+        if len(value) < 2 or value[-1] != q:
+            raise ValueError(f"unterminated {q} quote in {value!r}")
         inner = value[1:-1]
         out: list[str] = []
         i, n = 0, len(inner)
         while i < n:
-            if inner[i] == "\\" and i + 1 < n and inner[i + 1] in (value[0], "\\"):
+            if inner[i] == "\\" and i + 1 < n and inner[i + 1] in (q, "\\"):
                 out.append(inner[i + 1])
                 i += 2
             else:

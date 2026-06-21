@@ -249,10 +249,12 @@ def format_show(location: str, entries: list, *, is_db: bool = False,
         examples = _show_examples(entries) if not is_service else []
         if examples:
             lines.append("")
-            lines.append("Examples — take a Source above and pipe it onward "
-                         "(4-space indent = a runnable niva flow):")
+            lines.append("Examples — copy one and run it **in your shell** (in the QGIS dock, "
+                         "use just the flow inside the quotes):")
             lines.append("")
-            lines.extend(f"    {flow}" for flow in examples)
+            # Wrap each flow as `niva '…'`: the single quotes keep your shell from eating the
+            # double quotes or splitting on `|` (niva's pipe), so it pastes and runs as-is.
+            lines.extend(f"    niva '{flow}'" for flow in examples)
     else:
         lines.append("_No loadable layers found here._")
     lines.append("")
