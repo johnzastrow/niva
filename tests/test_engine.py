@@ -302,6 +302,14 @@ class TestErrors(unittest.TestCase):
         with self.assertRaises(FlowError):
             run("save out.gpkg")
 
+    def test_save_mode_on_a_file_is_a_guiding_error(self):
+        # `mode=append` is database-only; on a file the error should point at `as <layer>`.
+        with self.assertRaises(FlowError) as ctx:
+            run("load a.gpkg | save out.gpkg mode=append")
+        msg = str(ctx.exception)
+        self.assertIn("database", msg)
+        self.assertIn("as <layer>", msg)
+
     def test_load_arity(self):
         with self.assertRaises(FlowError):
             run("load a.gpkg b.gpkg")

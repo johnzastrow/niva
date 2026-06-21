@@ -4,7 +4,7 @@ qgisMinimumVersion=3.22
 qgisMaximumVersion=4.99
 supportsQt6=True
 description=Run niva flows — a concise text pipeline for QGIS geoprocessing — from a dock.
-version=0.31.4
+version=0.31.5
 author=John Zastrow
 email=br8kwall@gmail.com
 about=niva is a concise, readable text-pipeline grammar for QGIS geoprocessing
@@ -25,7 +25,9 @@ deprecated=False
 # one-line summary for the new version here, mirroring the top entry of ../CHANGELOG.md (the
 # repo file stays the full history; this field is just the highlights). Drop the oldest line
 # so it never grows past ~2 entries. Continuation lines MUST stay indented (like `about=`).
-changelog=0.31.4 — show now also prints write-into-existing examples (add a layer to a
+changelog=0.31.5 — Clearer save error: mode= (create/replace/append) is database-only;
+    on a file use `save <file> as <layer>` to add/append a GeoPackage layer.
+    0.31.4 — show now also prints write-into-existing examples (add a layer to a
     GeoPackage; append to a DB table mode=append); its second vector example is now `fix`
     (centroid crashed on mixed/GeometryCollection geometry).
     0.31.3 — show's vector example reprojects before buffering (buffer 100m used to error on a

@@ -11,6 +11,15 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.31.5] - 2026-06-21
+
+### Changed
+- **Clearer `save` error when `mode=` is used on a file.** `mode=create|replace|append` is a
+  **database**-only option (`save @conn.table mode=append`); using it on a file path now raises
+  a message that says so and points at `save <file> as <layer>` for adding a layer to a
+  GeoPackage/SpatiaLite container (which appends the layer). The generic no-options error also
+  now mentions the database target form.
+
 ## [0.31.4] - 2026-06-21
 
 ### Added

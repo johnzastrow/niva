@@ -420,9 +420,18 @@ class Engine:
         if stage.args and is_connection_ref(stage.args[0]):
             return self._save_to_db(stage, current, lineage)
         if stage.options:
+            if "mode" in stage.options:
+                raise FlowError(
+                    "`mode=` (create/replace/append) only applies to a **database** target — "
+                    "`save @conn.table mode=append`. To add a layer to a GeoPackage/SpatiaLite "
+                    "container, use `save <file> as <layer>` (writing a named layer into an "
+                    "existing container appends it).",
+                    line=stage.line, stage=stage.raw,
+                )
             raise FlowError(
-                "`save` takes no key=value options — `save <path>` or "
-                "`save <path> as <layer>`",
+                "`save` takes no key=value options for a file — `save <path>`, "
+                "`save <path> as <layer>`, or a database target "
+                "`save @conn.table [mode=create|replace|append]`",
                 line=stage.line, stage=stage.raw,
             )
         args = stage.args
