@@ -3714,7 +3714,7 @@ This calls **Find projection**: `INPUT=input.gpkg` — Input layer; `TARGET_AREA
 
 
 ### `native:fixgeometries` — Fix geometries ⭐
-**group:** Vector geometry  ·  **niva verb:** `fix`
+**group:** Vector geometry  ·  **niva verb:** `fixgeom`
 
 This algorithm attempts to create a valid representation of a given invalid geometry without losing any of the input vertices. Already-valid geometries are returned without further intervention. Always outputs multi-geometry layer.
 

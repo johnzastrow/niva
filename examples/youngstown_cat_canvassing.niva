@@ -45,8 +45,8 @@ load "data/usgs/lidar.las"              | assess to docs/quality/lidar.md
 # ---- Step 2 · reproject / warp everything to the local SRS (EPSG:2262) -------
 load "data/nys.gdb|layername=buildings" | reproject EPSG:2262 | save work/buildings.gpkg
 load "data/nys.gdb|layername=highways"  | reproject EPSG:2262 | save work/highways.gpkg
-load "data/niagara/parcels.shp"         | reproject EPSG:2262 | fix | save work/parcels.gpkg
-load "data/niagara/roads.shp"           | reproject EPSG:2262 | fix | save work/roads.gpkg
+load "data/niagara/parcels.shp"         | reproject EPSG:2262 | fixgeom | save work/parcels.gpkg
+load "data/niagara/roads.shp"           | reproject EPSG:2262 | fixgeom | save work/roads.gpkg
 load "data/federal/gnis.gpkg"           | reproject EPSG:2262 | save work/gnis.gpkg
 # raster warp is gdal (preferred over GRASS for this):
 run gdal:warpreproject INPUT=data/usgs/ortho.tif TARGET_CRS=EPSG:2262 RESAMPLING=1 OUTPUT=work/ortho.tif
@@ -74,7 +74,7 @@ load @cats_pg.human_homes
 
 # ---- Step 5 · build a routable street network from the roads ----------------
 # Clean the geometry/topology natively first (roads are "non-routable yet").
-load work/roads_v.gpkg | fix | explode | save work/network_edges.gpkg
+load work/roads_v.gpkg | fixgeom | explode | save work/network_edges.gpkg
 # (network construction/noding for routing happens in step 7 against this layer)
 
 

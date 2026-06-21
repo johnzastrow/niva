@@ -1,6 +1,6 @@
 # niva Reference
 
-The complete reference for **niva v0.31.0** — every verb, alias, option, type, environment
+The complete reference for **niva v0.32.0** — every verb, alias, option, type, environment
 variable, CLI command, and Python entry point. For a task-oriented tour see the
 [Cookbook](cookbook.md); for setup and day-to-day use see the [User Guide](user-guide.md).
 
@@ -519,7 +519,7 @@ Enum options list their words.
 | `explode` | `native:multiparttosingleparts` | — | — | — |
 | `promote` | `native:promotetomulti` | — | — | — |
 | `collect` | `native:collect` | `[field]` | — | — |
-| `fix` | `native:fixgeometries` | — | — | — |
+| `fixgeom` | `native:fixgeometries` | — | — | — |
 | `swapxy` | `native:swapxy` | — | — | — |
 | `forcerhr` | `native:forcerhr` | — | — | — |
 | `snap` | `native:snapgeometries` | `reference` (layer), `tolerance` | `behavior=`(align) ⟨align, closest, align-keep, closest-keep, ends-align, ends-closest, ends-only, anchor⟩ | — |

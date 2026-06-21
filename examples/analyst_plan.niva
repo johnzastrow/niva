@@ -54,7 +54,7 @@ notify "niva: Task 2 done — data sources catalogued ({elapsed} elapsed)"
 # layer, but a layer that mixes geometry types (e.g. an Overture polygon theme with a
 # few Polygon+LineString GeometryCollection features) is reprojected LOSSLESSLY into a
 # generic-geometry layer instead of dropping the odd parts — "both, per layer". No
-# `fix` needed here. (Any raster encountered by `reproject` is skipped — see below.)
+# `fixgeom` needed here. (Any raster encountered by `reproject` is skipped — see below.)
 each "~/Downloads/NiagaraBasemap"  | reproject EPSG:6346 | save "~/Github/niva/data/basemap.gpkg"
 each "~/Downloads/NiagaraOverture" | reproject EPSG:6346 | save "~/Github/niva/data/overture.gpkg"
 each "~/Github/niva/examples/example.gpkg" | reproject EPSG:6346 | save "~/Github/niva/data/collected.gpkg"
@@ -78,10 +78,10 @@ notify "niva: Task 3 done — reprojected/warped to EPSG:6346 ({elapsed} elapsed
 load "~/Github/niva/examples/example.gpkg|layername=AOISM" | dissolve | boundingbox | save "~/Github/niva/data/study_area_bbox.gpkg"
 
 # Clip every layer of each reprojected GeoPackage to that bbox (batch + per-layer).
-# `fix` again guards the typed clip output against any stray collection geometry.
-each "~/Github/niva/data/basemap.gpkg"   | fix | clip "~/Github/niva/data/study_area_bbox.gpkg" | save "~/Github/niva/data/basemap_clip.gpkg"
-each "~/Github/niva/data/overture.gpkg"  | fix | clip "~/Github/niva/data/study_area_bbox.gpkg" | save "~/Github/niva/data/overture_clip.gpkg"
-each "~/Github/niva/data/collected.gpkg" | fix | clip "~/Github/niva/data/study_area_bbox.gpkg" | save "~/Github/niva/data/collected_clip.gpkg"
+# `fixgeom` again guards the typed clip output against any stray collection geometry.
+each "~/Github/niva/data/basemap.gpkg"   | fixgeom | clip "~/Github/niva/data/study_area_bbox.gpkg" | save "~/Github/niva/data/basemap_clip.gpkg"
+each "~/Github/niva/data/overture.gpkg"  | fixgeom | clip "~/Github/niva/data/study_area_bbox.gpkg" | save "~/Github/niva/data/overture_clip.gpkg"
+each "~/Github/niva/data/collected.gpkg" | fixgeom | clip "~/Github/niva/data/study_area_bbox.gpkg" | save "~/Github/niva/data/collected_clip.gpkg"
 
 # Clip the reprojected rasters (DEM + orthophoto) to the bbox:
 load "~/Github/niva/data/dem.tif" | clipraster "~/Github/niva/data/study_area_bbox.gpkg" | save "~/Github/niva/data/dem_clip.tif"

@@ -187,8 +187,8 @@ class TestShowFormat(unittest.TestCase):
         self.assertIn(
             'niva \'load "x.gpkg|layername=roads" | reproject EPSG:3857 | buffer 100m '
             "| save buffered.gpkg'", out)
-        # second example is `fix` (geometry-agnostic) — `centroid` crashed on mixed geometry
-        self.assertIn("| fix | save fixed.gpkg", out)
+        # second example is `fixgeom` (geometry-agnostic) — `centroid` crashed on mixed geometry
+        self.assertIn("| fixgeom | save fixed.gpkg", out)
         self.assertNotIn("| centroid ", out)
 
     def test_examples_include_write_into_existing_targets(self):

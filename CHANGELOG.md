@@ -11,6 +11,22 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.32.0] - 2026-06-21
+
+### Changed
+- **Renamed the `fix` verb to `fixgeom`** (⚠️ breaking). `fix` was too vague; `fixgeom` says
+  what it does — repair geometry (`native:fixgeometries`), matching QGIS's "Fix geometries"
+  tool. Update any flows that used `fix`. Examples, cookbook, and the reference are updated.
+
+### Fixed
+- **Honest error when a point-output op can't write a geometry.** `centroid`/`pointonsurface`
+  on a layer with **invalid or empty geometry** (e.g. NaN coordinates, or no CRS — which can't
+  be repaired) used to raise *"…it has GeometryCollection features. Insert `fix` before it"*,
+  which is wrong on both counts and sent users down a dead-end. The message now states the two
+  real causes — mixed geometry (try `fixgeom`) **or** invalid/empty geometry (`fixgeom` won't
+  help; inspect with `assess`/`show`) — and no longer asserts a GeometryCollection that isn't
+  there.
+
 ## [0.31.6] - 2026-06-21
 
 ### Fixed

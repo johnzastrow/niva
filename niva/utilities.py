@@ -305,11 +305,11 @@ def _show_examples(entries: list) -> list:
                 f"load {src} | save extract.gpkg"]
     # Both examples must run on ANY vector source, whatever its CRS or geometry. `reproject`
     # first makes `100m` valid even on a geographic (degrees) layer; `buffer` then accepts any
-    # geometry. `fix` is geometry-agnostic (and exactly what niva recommends for the mixed /
+    # geometry. `fixgeom` is geometry-agnostic (and exactly what niva recommends for the mixed /
     # GeometryCollection layers that break a typed-output op like `centroid`). We can't tell a
     # layer's *actual* (vs declared) geometry from the listing, so we avoid type-constrained ops.
     return [f"load {src} | reproject EPSG:3857 | buffer 100m | save buffered.gpkg",
-            f"load {src} | fix | save fixed.gpkg"]
+            f"load {src} | fixgeom | save fixed.gpkg"]
 
 
 def _show_write_examples(entries: list) -> list:

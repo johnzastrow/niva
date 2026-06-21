@@ -49,7 +49,7 @@ The expression is a QGIS expression — quote it.
 
 **6. Repair invalid geometries**
 ```
-load messy.shp | fix | save clean.gpkg
+load messy.shp | fixgeom | save clean.gpkg
 ```
 
 **7. Reduce a layer to centroids**
@@ -66,14 +66,14 @@ load parcels.gpkg | centroid | save parcel_points.gpkg
 load roads.gpkg | filter "class = 'primary'" | reproject EPSG:2262 | buffer 100m dissolve | save corridors.gpkg
 ```
 
-**9. Reproject → fix → buffer with options**
+**9. Reproject → fixgeom → buffer with options**
 ```
-load buildings.gpkg | reproject EPSG:26918 | fix | buffer 15m dissolve cap=flat segments=12 | save footprints.gpkg
+load buildings.gpkg | reproject EPSG:26918 | fixgeom | buffer 15m dissolve cap=flat segments=12 | save footprints.gpkg
 ```
 
-**10. Clip → fix → dissolve**
+**10. Clip → fixgeom → dissolve**
 ```
-load parcels.gpkg | clip township.gpkg | fix | dissolve zoning | save zoning_blocks.gpkg
+load parcels.gpkg | clip township.gpkg | fixgeom | dissolve zoning | save zoning_blocks.gpkg
 ```
 
 **11. Simplify then split to single parts**
@@ -129,7 +129,7 @@ load parcels.gpkg | intersect floodzone.gpkg | save parcels_in_flood.gpkg
 
 **19. Difference (erase)**
 ```
-load parcels.gpkg | fix | difference buildings.gpkg | save open_land.gpkg
+load parcels.gpkg | fixgeom | difference buildings.gpkg | save open_land.gpkg
 ```
 
 **20. Select by location (spatial filter)**
@@ -159,7 +159,7 @@ Each input becomes its own layer inside `out.gpkg` (named after the file).
 
 **24. Process every layer of a multi-layer GeoPackage**
 ```
-each "basemap.gpkg" | fix | clip aoi.gpkg | save basemap_clip.gpkg
+each "basemap.gpkg" | fixgeom | clip aoi.gpkg | save basemap_clip.gpkg
 ```
 
 **25. Recurse a directory tree**

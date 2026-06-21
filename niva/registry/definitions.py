@@ -70,7 +70,7 @@ CORE = [
         "Keep only the features matching an expression.",
         args=[Arg("expression", "EXPRESSION", "expression")],
     ),
-    Alias("fix", "native:fixgeometries", "Repair invalid geometries."),
+    Alias("fixgeom", "native:fixgeometries", "Repair invalid geometries."),
     Alias("centroid", "native:centroids", "Replace each feature with its centroid point."),
     Alias(
         "explode",

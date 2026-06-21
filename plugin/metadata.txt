@@ -4,7 +4,7 @@ qgisMinimumVersion=3.22
 qgisMaximumVersion=4.99
 supportsQt6=True
 description=Run niva flows — a concise text pipeline for QGIS geoprocessing — from a dock.
-version=0.31.6
+version=0.32.0
 author=John Zastrow
 email=br8kwall@gmail.com
 about=niva is a concise, readable text-pipeline grammar for QGIS geoprocessing
@@ -25,7 +25,10 @@ deprecated=False
 # one-line summary for the new version here, mirroring the top entry of ../CHANGELOG.md (the
 # repo file stays the full history; this field is just the highlights). Drop the oldest line
 # so it never grows past ~2 entries. Continuation lines MUST stay indented (like `about=`).
-changelog=0.31.6 — Fixed: no more benign GDAL "gpkg_metadata ... unable to open database
+changelog=0.32.0 — Renamed the `fix` verb to `fixgeom` (breaking) — it now says what it does
+    (repair geometry). Clearer error when centroid/pointonsurface hit invalid/empty geometry
+    (no longer wrongly blames "GeometryCollection" or promises fixgeom will help).
+    0.31.6 — Fixed: no more benign GDAL "gpkg_metadata ... unable to open database
     file" error printed on a successful save when a flow reads from and writes to the same
     GeoPackage (standalone niva now filters just that message).
     0.31.5 — Clearer save error: mode= (create/replace/append) is database-only;

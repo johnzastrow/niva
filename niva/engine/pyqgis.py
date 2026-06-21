@@ -538,7 +538,7 @@ class PyqgisBackend(Backend):
                 # (e.g. a stray GeometryCollection in a polygon layer). For the operations
                 # that have a lossless GDAL equivalent we redo the op keeping a GENERIC
                 # geometry (so nothing is dropped); otherwise we raise a clear, actionable
-                # error telling the user to `fix` first. See _lossless_retry.
+                # error telling the user to `fixgeom` first. See _lossless_retry.
                 if _is_geometry_type_error(exc):
                     retried = self._lossless_retry(algorithm, input_layer, full)
                     if retried is not None:
@@ -822,7 +822,7 @@ class PyqgisBackend(Backend):
         """Redo a typed-sink op that choked on mixed geometry, keeping a GENERIC output
         (``-nlt GEOMETRY``) so nothing is dropped. Operations with a GDAL equivalent
         (reproject, clip) are redone via ``osgeo.gdal`` (ships with QGIS, no extra dep);
-        for the rest we raise a clear, actionable error pointing at `fix`. Returns a new
+        for the rest we raise a clear, actionable error pointing at `fixgeom`. Returns a new
         Layer, or None to let the caller re-raise the original error (e.g. a non-file
         source)."""
         src = self._file_source(layer)
@@ -840,12 +840,16 @@ class PyqgisBackend(Backend):
             if out is None:
                 return None
             return Layer(MEMORY, self.load(out).ref, facet="vector", name=algorithm)
-        # Other operations that reject a mixed geometry have no lossless reimplementation
-        # here — surface a clear, actionable error rather than guess.
+        # Other operations that reject a feature's geometry have no lossless reimplementation
+        # here. The cause is one of two things — be honest about both rather than guess:
+        #   1) mixed geometry (e.g. a stray GeometryCollection) — `fixgeom` coerces it;
+        #   2) invalid/empty geometry (NaN coordinates, no CRS) — `fixgeom` can't help and the
+        #      layer is likely corrupt; `assess`/`show` reveal it.
         raise OpError(
-            f"`{algorithm}` can't write this layer's mixed geometry (it has "
-            "GeometryCollection features). Insert `fix` before it to coerce them into "
-            "one type (drops the non-matching parts).",
+            f"`{algorithm}` couldn't write a feature's geometry into its typed output. If the "
+            "layer has mixed geometry types, insert `fixgeom` before it to coerce them. If "
+            "`fixgeom` doesn't help, the geometry is likely invalid or empty (e.g. NaN "
+            "coordinates or no CRS) — inspect the layer with `assess` or `show`.",
             algorithm=algorithm, params={}, backend="pyqgis",
         )
 
