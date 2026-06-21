@@ -4,7 +4,7 @@ qgisMinimumVersion=3.22
 qgisMaximumVersion=4.99
 supportsQt6=True
 description=Run niva flows — a concise text pipeline for QGIS geoprocessing — from a dock.
-version=0.31.2
+version=0.31.3
 author=John Zastrow
 email=br8kwall@gmail.com
 about=niva is a concise, readable text-pipeline grammar for QGIS geoprocessing
@@ -25,8 +25,8 @@ deprecated=False
 # one-line summary for the new version here, mirroring the top entry of ../CHANGELOG.md (the
 # repo file stays the full history; this field is just the highlights). Drop the oldest line
 # so it never grows past ~2 entries. Continuation lines MUST stay indented (like `about=`).
-changelog=0.31.2 — Fixed: show's example flows are now shell-ready (wrapped as niva '…' so a
-    paste into a shell doesn't split on the | pipe); lexer keeps the @ and drops the quotes on
-    @"conn" refs whose name has spaces/dots; an unterminated quote is now a clear error.
-    0.31.1 — a dotted @conn Source round-trips back into load/sql/save; save no longer fails on
-    a geometry-typed or geom-named attribute; show's aspatial-table example is runnable.
+changelog=0.31.3 — Fixed: show's vector example reprojects before buffering (buffer 100m used
+    to error on a geographic/degrees layer); show quotes a Source containing #, a space, or | so
+    the example doesn't truncate on a table named e.g. name-with-dash#hash.
+    0.31.2 — show's example flows are shell-ready (wrapped as niva '…'); lexer keeps the @ and
+    drops the quotes on @"conn" refs; an unterminated quote is now a clear error.

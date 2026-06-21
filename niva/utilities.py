@@ -266,7 +266,10 @@ def _show_examples(entries: list) -> list:
     row of a `show` listing — so the reader can copy a real source and pipe it onward."""
     pick = next((e for e in entries if e.get("kind") == "vector"), entries[0])
     ref = pick.get("ref", "")
-    src = f'"{ref}"' if ("|" in ref or " " in ref) else ref  # quote file refs (the `|`)
+    # Quote the source if it carries any char that would break an unquoted niva token: a
+    # space/tab (token split), `|` (pipe), or `#` (comment) — e.g. a layer/table named
+    # `name-with-dash#hash` or `My Roads`. Otherwise the example would silently truncate.
+    src = f'"{ref}"' if any(c in ref for c in " \t#|") else ref
     kind = pick.get("kind")
     if kind == "raster":
         return [f"load {src} | hillshade | save hillshade.tif",
@@ -276,5 +279,8 @@ def _show_examples(entries: list) -> list:
         # name one, or copying it yields a flow that errors (`assess needs an output`).
         return [f"load {src} | assess to assessment.md",
                 f"load {src} | save extract.gpkg"]
-    return [f"load {src} | buffer 100m | save buffered.gpkg",
-            f"load {src} | reproject EPSG:3857 | save reprojected.gpkg"]
+    # Reproject before buffering so `100m` is valid whatever the input CRS — a geographic
+    # (degrees) layer can't be buffered by a metric distance directly. Both examples then run
+    # on any vector source; `centroid` is CRS-agnostic so it stays a clean second example.
+    return [f"load {src} | reproject EPSG:3857 | buffer 100m | save buffered.gpkg",
+            f"load {src} | centroid | save points.gpkg"]

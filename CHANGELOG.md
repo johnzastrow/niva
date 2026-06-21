@@ -11,6 +11,21 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.31.3] - 2026-06-21
+
+### Fixed
+- **`show`'s buffer example now works on any CRS.** The vector example was
+  `load <src> | buffer 100m | save …`, which **errors on a geographic (degrees) layer** — you
+  can't buffer 100 *metres* in degrees (a third of real-world data hit this). It now reprojects
+  first: `load <src> | reproject EPSG:3857 | buffer 100m | save …`, and the second example is the
+  CRS-agnostic `centroid`. Found by running every example `show` prints against `~/Downloads`.
+- **`show`'s example quotes a Source containing `#`, a space, or `|`.** A real PostGIS table named
+  `name-with-dash#hash` produced `load @conn.public.name-with-dash#hash | …`, where niva read
+  `#hash | …` as a **comment** and silently loaded the wrong table; the source is now quoted
+  (`load "@conn.public.name-with-dash#hash" | …`). Found by dogfooding against a local PostGIS
+  seeded with deliberately problematic table names (spaces, dots, unicode, reserved words, `#`,
+  multi-geometry, aspatial) — all of which now round-trip `show → load → save` cleanly.
+
 ## [0.31.2] - 2026-06-21
 
 ### Fixed

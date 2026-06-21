@@ -182,9 +182,12 @@ class TestShowFormat(unittest.TestCase):
         self.assertIn("Examples", out)
         # shell-ready: wrapped in `niva '…'` so a paste into bash doesn't eat the quotes or
         # split on `|` (the reported failure)
+        # …and the buffer example reprojects FIRST, so `100m` is valid even on a geographic
+        # (degrees) layer — otherwise `buffer 100m` errors on EPSG:4326 data.
         self.assertIn(
-            'niva \'load "x.gpkg|layername=roads" | buffer 100m | save buffered.gpkg\'', out)
-        self.assertIn('niva \'load "x.gpkg|layername=roads" | reproject EPSG:3857', out)
+            'niva \'load "x.gpkg|layername=roads" | reproject EPSG:3857 | buffer 100m '
+            "| save buffered.gpkg'", out)
+        self.assertIn("| centroid | save points.gpkg", out)
 
     def test_examples_pick_raster_aliases_for_a_raster(self):
         from niva.utilities import format_show
@@ -210,6 +213,19 @@ class TestShowFormat(unittest.TestCase):
                                                         ref="WFS:https://h/wfs")],
                           is_service=True)
         self.assertNotIn("Examples", out)  # remote sources aren't `load`-piped
+
+    def test_example_quotes_a_source_with_special_chars(self):
+        # a ref with `#` (comment), a space, or `|` must be quoted in the example, else the
+        # flow truncates/splits — real PostGIS table names like `name-with-dash#hash`/`My Roads`.
+        from niva.utilities import format_show
+
+        for ref in ("@c.public.name-with-dash#hash", "@c.public.My Roads"):
+            out = format_show("@c", [self._entry("t", fmt="postgres", ref=ref)], is_db=True)
+            self.assertIn(f'niva \'load "{ref}" |', out, ref)
+        # a plain ref needs no quoting
+        plain = format_show("@c", [self._entry("t", fmt="postgres", ref="@c.public.roads")],
+                            is_db=True)
+        self.assertIn("niva 'load @c.public.roads |", plain)
 
 
 class TestShow(unittest.TestCase):
