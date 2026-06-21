@@ -18,7 +18,7 @@ from ..grammar import Call, Flow, parse
 from ..registry import bind, core_registry
 from ..values import Distance
 from .backend import Backend
-from .connections import is_connection_ref, parse_connection_ref
+from .connections import is_connection_ref, parse_connection_ref, resolve_connection_name
 from .layer import Layer
 from .units import resolve_distance
 
@@ -372,7 +372,8 @@ class Engine:
                     line=stage.line, stage=stage.raw,
                 )
             try:
-                conn, schema, table = parse_connection_ref(source)
+                conn, schema, table = parse_connection_ref(
+                    source, self.backend.connection_names())
             except ValueError as exc:
                 raise FlowError(f"`load`: {exc}", line=stage.line, stage=stage.raw)
             if table is None:
@@ -396,7 +397,7 @@ class Engine:
                 f'`sql` needs a connection first: `sql @conn "…"` (got `{ref}`)',
                 line=stage.line, stage=stage.raw,
             )
-        conn, schema, table = parse_connection_ref(ref)
+        conn, schema, table = parse_connection_ref(ref, self.backend.connection_names())
         if schema or table:
             raise FlowError(
                 f"`sql` takes a bare connection `@{conn}`, not a table reference (`{ref}`)",
@@ -499,7 +500,8 @@ class Engine:
                 line=stage.line, stage=stage.raw,
             )
         try:
-            conn, schema, table = parse_connection_ref(ref)
+            conn, schema, table = parse_connection_ref(
+                ref, self.backend.connection_names())
         except ValueError as exc:
             raise FlowError(f"`save`: {exc}", line=stage.line, stage=stage.raw)
 
@@ -874,27 +876,16 @@ class Engine:
         return None  # terminal
 
     def _resolve_show_connection(self, target, stage):
-        """Split `show @ref` into ``(conn, schema, table)``, resolving the connection name
-        as the **longest dotted prefix** that is an actually-registered connection — so a
-        name containing dots (e.g. `actual_spatialite.sqlite`) works. Components *after*
-        the connection name are read for a listing: one trailing part is a schema scope,
+        """Split `show @ref` into ``(conn, schema, table)`` via the shared
+        :func:`resolve_connection_name` (longest registered dotted prefix, so a name
+        containing dots like `actual_spatialite.sqlite` works). Under the *listing* grammar
+        the components after the connection name are a scope: one trailing part is a schema,
         two are schema + table. Bare `@conn` lists every table."""
-        body = target[1:]
-        if not body:
-            raise FlowError("show: empty connection reference (`@`)",
-                            line=stage.line, stage=stage.raw)
-        names = set(self.backend.connection_names())
-        parts = body.split(".")
-        conn, rest = None, []
-        for i in range(len(parts), 0, -1):
-            candidate = ".".join(parts[:i])
-            if candidate in names:
-                conn, rest = candidate, parts[i:]
-                break
-        if conn is None:
-            # Nothing matched — fall back to the first segment so the backend raises a
-            # clear "no such connection" error naming what the user actually typed.
-            conn, rest = parts[0], parts[1:]
+        try:
+            conn, rest = resolve_connection_name(
+                target, self.backend.connection_names())
+        except ValueError as exc:
+            raise FlowError(f"show: {exc}", line=stage.line, stage=stage.raw)
         schema = rest[0] if len(rest) >= 1 else None
         table = ".".join(rest[1:]) if len(rest) >= 2 else None
         return conn, schema, table

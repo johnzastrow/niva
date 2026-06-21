@@ -215,13 +215,14 @@ class MockBackend(Backend):
         self.db_saves: list = []  # one dict per DB save: {conn, schema, table, mode}
         self.sublayer_map: dict = {}  # source path -> [layer names], for `each` tests
         self.layer_map = None  # source -> [layer names] for `show` dir tests; None = 2 fakes
+        self.conn_names = ["pg", "sl"]  # registered @conn names; tests may add dotted ones
         self._n = 0
 
     def sublayers(self, source: str) -> list:
         return list(self.sublayer_map.get(source, []))
 
     def connection_names(self) -> list:
-        return ["pg", "sl"]
+        return list(self.conn_names)
 
     def compact(self, path: str) -> None:
         self.calls.append(("compact", path))

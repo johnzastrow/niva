@@ -5,7 +5,35 @@ All notable changes to **niva** are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+> **On every release** also mirror the new version's highlights into the `changelog=` field of
+> [`plugin/metadata.txt`](plugin/metadata.txt) (concise — latest one or two versions only); that
+> field is what the QGIS Plugin Manager shows. This file stays the full history.
+
 ## [Unreleased]
+
+## [0.31.1] - 2026-06-20
+
+### Fixed
+- **A `@conn` Source whose connection name contains a dot now round-trips into `load`.** A
+  GeoPackage/SpatiaLite connection registered in QGIS is named after its file (e.g.
+  `CNYTriData.gpkg`), so `show @CNYTriData.gpkg` printed a Source like
+  `@CNYTriData.gpkg.course_points` — but `load`/`sql`/`save` split it on the first dot and looked
+  for a non-existent connection `CNYTriData` ("no saved QGIS connection named `CNYTriData`"). The
+  connection-name resolution is now shared: a new `resolve_connection_name(token, known_names)` in
+  `engine/connections.py` matches the **longest dotted prefix that is an actually-registered
+  connection**, and `load`/`sql`/`save` (and the `project` repoint path) all use it — so every
+  Source `show` advertises loads back. `show`'s own resolver now shares the same code. Backward
+  compatible: with no registered names the body still splits naively.
+- **`show`'s example for an aspatial table is now runnable.** The footer example for a `table`
+  (NoGeometry) source was `load <src> | assess`, but `assess` has no stdout form and always needs
+  `assess … to <report.md>` — so copying it produced a flow that errored. It now reads
+  `load <src> | assess to assessment.md`.
+
+### Tests
+- New `tests/test_cascade.py` (live-QGIS): dogfoods the discovery chain `info → show → run every
+  Source and example → re-`show`/re-`load` each example's output → a multi-hop
+  load→save→show→load chain`, across vector, raster, aspatial-table, and dotted-connection
+  sources. Mock-backed regression tests for both fixes added to `test_sql.py` / `test_utilities.py`.
 
 ## [0.31.0] - 2026-06-20
 

@@ -6,13 +6,15 @@ Run: ``python -m unittest discover -s tests`` (or ``pytest``).
 import unittest
 
 from niva.engine import Engine, MockBackend
-from niva.engine.connections import parse_connection_ref
+from niva.engine.connections import parse_connection_ref, resolve_connection_name
 from niva.errors import FlowError
 from niva.grammar import parse
 
 
-def run(text):
+def run(text, conn_names=None):
     backend = MockBackend()
+    if conn_names is not None:
+        backend.conn_names = list(conn_names)
     result = Engine(backend).execute(parse(text))
     return backend, result
 
@@ -30,6 +32,53 @@ class TestRefParsing(unittest.TestCase):
     def test_empty_raises(self):
         with self.assertRaises(ValueError):
             parse_connection_ref("@")
+
+    # --- dotted connection names (GeoPackage/SpatiaLite registered as @conn) ---
+    # A registered connection whose *name* contains a dot must resolve whole, instead of
+    # being split on its first dot. Without the registered-name set, the body is split
+    # naively (backward-compatible); with it, the longest registered prefix wins.
+
+    def test_dotted_name_without_registry_splits_naively(self):
+        # No known names → first segment is the connection (old behaviour preserved).
+        self.assertEqual(
+            parse_connection_ref("@basemap.gpkg.roads"),
+            ("basemap", "gpkg", "roads"),
+        )
+
+    def test_dotted_name_resolves_against_registry(self):
+        # `basemap.gpkg` is a registered connection → conn is the whole dotted name,
+        # `roads` is the table. This is exactly the Source `show` prints for such a conn.
+        self.assertEqual(
+            parse_connection_ref("@basemap.gpkg.roads", ["basemap.gpkg", "pg"]),
+            ("basemap.gpkg", None, "roads"),
+        )
+
+    def test_dotted_name_with_schema_qualified_table(self):
+        self.assertEqual(
+            parse_connection_ref("@basemap.gpkg.main.roads", ["basemap.gpkg"]),
+            ("basemap.gpkg", "main", "roads"),
+        )
+
+    def test_resolve_returns_remaining_parts(self):
+        self.assertEqual(
+            resolve_connection_name("@basemap.gpkg.roads", ["basemap.gpkg"]),
+            ("basemap.gpkg", ["roads"]),
+        )
+        # Longest prefix wins even when a shorter prefix is also registered.
+        self.assertEqual(
+            resolve_connection_name("@a.b.c", ["a", "a.b"]),
+            ("a.b", ["c"]),
+        )
+
+    def test_show_load_round_trip(self):
+        # The Source `list_tables` builds for a dotted connection (`@{conn}.{name}`) must
+        # parse back to the same connection + table under the load grammar.
+        conn, table = "CNYTriData.gpkg", "course_points"
+        source = f"@{conn}.{table}"  # what show prints
+        self.assertEqual(
+            parse_connection_ref(source, [conn]),
+            (conn, None, table),
+        )
 
 
 class TestLoadConnection(unittest.TestCase):
@@ -58,6 +107,21 @@ class TestLoadConnection(unittest.TestCase):
         backend, _ = run("load @pg.roads | buffer 10m | save o.gpkg")
         self.assertEqual([c[0] for c in backend.calls], ["load_table", "run", "save"])
 
+    def test_load_dotted_connection_source_round_trips(self):
+        # The Source `show @basemap.gpkg` prints for a GeoPackage connection is
+        # `@basemap.gpkg.<table>`. Loading it must reach the *whole* dotted connection,
+        # not a phantom `basemap` connection (the bug this fix closes).
+        backend, _ = run("load @basemap.gpkg.roads | save out.gpkg",
+                          conn_names=["basemap.gpkg", "pg"])
+        self.assertEqual(backend.calls[0], ("load_table", "basemap.gpkg", None, "roads"))
+
+    def test_save_to_dotted_connection_round_trips(self):
+        backend, _ = run("load @basemap.gpkg.roads | save @basemap.gpkg.roads_copy",
+                          conn_names=["basemap.gpkg"])
+        self.assertEqual(backend.db_saves[-1],
+                         {"conn": "basemap.gpkg", "schema": None,
+                          "table": "roads_copy", "mode": "create"})
+
 
 class TestSql(unittest.TestCase):
     def test_sql_runs_query(self):
@@ -68,6 +132,13 @@ class TestSql(unittest.TestCase):
     def test_sql_result_is_pipeable(self):
         backend, _ = run('sql @pg "SELECT 1" | buffer 5m | save o.gpkg')
         self.assertEqual([c[0] for c in backend.calls], ["sql", "run", "save"])
+
+    def test_sql_on_dotted_connection(self):
+        # A bare dotted connection (`@basemap.gpkg`) must resolve whole — not be read as
+        # connection `basemap` + table `gpkg` (which `sql` would then reject).
+        backend, _ = run('sql @basemap.gpkg "SELECT 1" | save o.gpkg',
+                         conn_names=["basemap.gpkg"])
+        self.assertEqual(backend.calls[0], ("sql", "basemap.gpkg", "SELECT 1"))
 
     def test_sql_needs_connection_and_query(self):
         with self.assertRaises(FlowError):

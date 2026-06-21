@@ -191,6 +191,16 @@ class TestShowFormat(unittest.TestCase):
                                                   fmt="GTiff", ref="dem.tif")])
         self.assertIn("load dem.tif | hillshade", out)
 
+    def test_aspatial_example_is_runnable(self):
+        # `assess` has no stdout form — its example MUST name a `to` output, else copying it
+        # yields a flow that errors. Regression guard for the broken `… | assess` example.
+        from niva.utilities import format_show
+
+        out = format_show("stats.gpkg", [self._entry("stats", kind="table",
+                                                     typ="(aspatial)", ref="stats.gpkg")])
+        self.assertIn("load stats.gpkg | assess to ", out)
+        self.assertNotIn("| assess\n", out)  # never a bare, output-less assess
+
     def test_service_listing_has_no_load_examples(self):
         from niva.utilities import format_show
 

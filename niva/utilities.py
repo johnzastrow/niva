@@ -270,7 +270,9 @@ def _show_examples(entries: list) -> list:
         return [f"load {src} | hillshade | save hillshade.tif",
                 f"load {src} | warp EPSG:3857 | save reprojected.tif"]
     if kind == "table":
-        return [f"load {src} | assess",
+        # `assess` always writes to a file — it has no stdout form — so the example must
+        # name one, or copying it yields a flow that errors (`assess needs an output`).
+        return [f"load {src} | assess to assessment.md",
                 f"load {src} | save extract.gpkg"]
     return [f"load {src} | buffer 100m | save buffered.gpkg",
             f"load {src} | reproject EPSG:3857 | save reprojected.gpkg"]

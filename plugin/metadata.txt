@@ -4,7 +4,7 @@ qgisMinimumVersion=3.22
 qgisMaximumVersion=4.99
 supportsQt6=True
 description=Run niva flows — a concise text pipeline for QGIS geoprocessing — from a dock.
-version=0.31.0
+version=0.31.1
 author=John Zastrow
 email=br8kwall@gmail.com
 about=niva is a concise, readable text-pipeline grammar for QGIS geoprocessing
@@ -20,3 +20,12 @@ category=Plugins
 icon=icon.svg
 experimental=True
 deprecated=False
+# changelog — shown on the plugin's page in the QGIS Plugin Manager. KEEP IT CONCISE: the
+# latest one or two versions only. On every release, bump `version=` above and PREPEND a
+# one-line summary for the new version here, mirroring the top entry of ../CHANGELOG.md (the
+# repo file stays the full history; this field is just the highlights). Drop the oldest line
+# so it never grows past ~2 entries. Continuation lines MUST stay indented (like `about=`).
+changelog=0.31.1 — Fixed: a database Source whose connection name contains a dot
+    (e.g. @CNYTriData.gpkg.course_points) now round-trips back into load/sql/save; show's
+    aspatial-table example is now runnable (assess to <report.md>).
+    0.31.0 — show lists ArcGIS REST + XYZ services; show and info print runnable examples.

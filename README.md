@@ -97,6 +97,46 @@ Install into **QGIS's own Python** (niva runs on QGIS's Processing):
 <qgis-python> -m pip install git+https://github.com/johnzastrow/niva.git
 ```
 
+#### Make `niva` a terminal command
+
+`niva` runs on **QGIS's own Python**, so the `niva` command has to point at *that*
+interpreter — not a Homebrew/pyenv/conda `python3`. The most portable way (it works whether you
+`pip install`ed niva or run it straight from a clone) is a small alias/function in your shell
+profile. Substitute **`<qgis-python>`** — the full path to QGIS's Python; find it in the QGIS
+**Python Console** with `import sys; print(sys.executable)` — and, only when running from a clone,
+**`/path/to/niva`** (your repo root). `QT_QPA_PLATFORM=offscreen` keeps it headless.
+
+**Linux — add to `~/.bashrc`** (zsh: `~/.zshrc`), then `source ~/.bashrc`:
+
+```bash
+alias niva='QT_QPA_PLATFORM=offscreen PYTHONPATH=/path/to/niva:/usr/share/qgis/python:/usr/lib/python3/dist-packages <qgis-python> -m niva.cli.main'
+# pip-installed (no clone)? drop the /path/to/niva: prefix from PYTHONPATH.
+# Concrete: alias niva='QT_QPA_PLATFORM=offscreen PYTHONPATH=/home/me/Github/niva:/usr/share/qgis/python:/usr/lib/python3/dist-packages /usr/bin/python3.12 -m niva.cli.main'
+```
+
+**macOS — add to `~/.zshrc`**, then `source ~/.zshrc`:
+
+```zsh
+# QGIS.app's bundled Python already imports the bindings — no PYTHONPATH needed when pip-installed.
+alias niva='QT_QPA_PLATFORM=offscreen /Applications/QGIS.app/Contents/MacOS/bin/python3 -m niva.cli.main'
+# running from a clone? add the repo: PYTHONPATH=/path/to/niva /Applications/QGIS.app/Contents/MacOS/bin/python3 -m niva.cli.main
+```
+
+**Windows (Windows Terminal / PowerShell) — add to `$PROFILE`** (open it with `notepad $PROFILE`),
+then reload with `. $PROFILE`:
+
+```powershell
+function niva {
+  $env:QT_QPA_PLATFORM = 'offscreen'
+  & 'C:\OSGeo4W\bin\python-qgis.bat' -m niva.cli.main @args
+}
+# standalone installer instead of OSGeo4W? use e.g. 'C:\Program Files\QGIS 3.40\bin\python-qgis.bat'.
+```
+
+`python-qgis.bat` sets up the QGIS environment itself, so no `PYTHONPATH` is needed on Windows.
+After reloading your profile, `niva run myflow.niva` works from any terminal. More detail
+(finding QGIS's Python, troubleshooting) is in the **[User Guide](docs/guide/user-guide.md)**.
+
 Then run flows from the shell or Python:
 
 ```bash

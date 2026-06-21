@@ -1518,7 +1518,7 @@ class PyqgisBackend(Backend):
             return resolve, available
 
         if is_connection_ref(target):
-            conn, schema, table = parse_connection_ref(target)
+            conn, schema, table = parse_connection_ref(target, self.connection_names())
             if schema is not None:  # @conn.schema.table — names a table, not a target
                 raise OpError(
                     f"`project` repoint target `{target}` names a table — use "
