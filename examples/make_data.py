@@ -73,7 +73,6 @@ def main() -> None:
 
     # Build a memory layer with the renamed / added fields.
     src_fields = poly_lyr.fields()
-    geom_type  = poly_lyr.geometryType()
     crs_id     = poly_lyr.crs().authid()
     mem_lyr = QgsVectorLayer(f"MultiPolygon?crs={crs_id}", "boundary-polygon", "memory")
     pr = mem_lyr.dataProvider()
@@ -129,12 +128,12 @@ def main() -> None:
     # ── study_area_bbox.gpkg ──────────────────────────────────────────────────
     study = str(DATA / "study_area_bbox.gpkg")
     niva.flow(f'load "{aoi_src}" | save "{study}"')
-    print(f"  study_area_bbox.gpkg")
+    print("  study_area_bbox.gpkg")
 
     # ── DEM (dem_clip.tif + dem.tif) ─────────────────────────────────────────
     for dest in ("dem_clip.tif", "dem.tif"):
         shutil.copy(dem, str(DATA / dest))
-    print(f"  dem_clip.tif, dem.tif")
+    print("  dem_clip.tif, dem.tif")
 
     # ── collected.gpkg ────────────────────────────────────────────────────────
     # park_lines + park_polygons + park_points.
@@ -144,7 +143,7 @@ def main() -> None:
     niva.flow(f'load "{line_src}"  | save "{collected}" as park_lines')
     niva.flow(f'load "{poly_src}"  | save "{collected}" as park_polygons')
     niva.flow(f'load "{pt_src}"    | save "{collected}" as park_points')
-    print(f"  collected.gpkg  (park_lines + park_polygons + park_points)")
+    print("  collected.gpkg  (park_lines + park_polygons + park_points)")
 
     # ── actual_spatialite.sqlite ──────────────────────────────────────────────
     # park_points + park_polygons + park_lines.
@@ -157,7 +156,7 @@ def main() -> None:
     niva.flow(f'load "{sl}|layername=points"   | save "{actual_sl}" as park_points')
     niva.flow(f'load "{multi_src}"             | save "{actual_sl}" as park_polygons')
     niva.flow(f'load "{sl}|layername=lines"    | save "{actual_sl}" as park_lines')
-    print(f"  actual_spatialite.sqlite  (park_points + park_polygons[multipolys] + park_lines)")
+    print("  actual_spatialite.sqlite  (park_points + park_polygons[multipolys] + park_lines)")
 
     # ── aoism.shp + aoism.gpkg (was ~/Downloads/NiagaraBasemap/aoism.shp) ─────
     # Use the AOISM (area-of-interest) layer from example.gpkg reprojected to
@@ -165,11 +164,11 @@ def main() -> None:
     aoism_src = f"{ex}|layername=AOISM"
     niva.flow(f'load "{aoism_src}" | reproject EPSG:6346 | save "{str(DATA / "aoism.gpkg")}"')
     niva.flow(f'load "{aoism_src}" | reproject EPSG:6346 | save "{str(DATA / "aoism.shp")}"')
-    print(f"  aoism.shp, aoism.gpkg")
+    print("  aoism.shp, aoism.gpkg")
 
     # ── order_boundary.geojson (was ~/Downloads/NiagaraOverture/…) ────────────
     niva.flow(f'load "{aoi_src}" | reproject EPSG:4326 | save "{str(DATA / "order_boundary.geojson")}"')
-    print(f"  order_boundary.geojson")
+    print("  order_boundary.geojson")
 
     # ── performance.csv (was ~/Downloads/OLD/…PerformanceResults….csv) ────────
     # Synthetic aspatial table that exercises the CSV load path (t09).
@@ -179,7 +178,7 @@ def main() -> None:
         w.writerow(["Run", "Test", "Duration_ms", "Status"])
         for i in range(10):
             w.writerow([i + 1, f"test_{i:03d}", (i + 1) * 37, "PASS"])
-    print(f"  performance.csv")
+    print("  performance.csv")
 
     # ── QGIS connections ──────────────────────────────────────────────────────
     s = QgsSettings()
