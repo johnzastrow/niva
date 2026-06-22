@@ -81,6 +81,36 @@ class TestPyqgisBackend(unittest.TestCase):
         self.assertEqual(layer.featureCount(), 2)
         self.assertIn("Polygon", QgsWkbTypes.displayString(layer.wkbType()))
 
+    def test_csv_with_lonlat_loads_as_points(self):
+        # A CSV with longitude/latitude columns loads as POINTS (EPSG:4326), not aspatial, so it's
+        # directly geoprocessable — `load pts.csv | buffer …` works instead of silently failing.
+        import niva
+        from qgis.core import QgsWkbTypes
+
+        csv = os.path.join(self.tmp, "pts.csv")
+        with open(csv, "w", encoding="utf-8") as fh:
+            fh.write("id,name,longitude,latitude\n1,a,-79.0,43.0\n2,b,-79.1,43.1\n3,c,-79.2,43.2\n")
+        out = os.path.join(self.tmp, "csvpts.gpkg")
+        niva.flow(f'load "{csv}" | reproject EPSG:3857 | buffer 1000m | save "{out}"')
+        layer = self._saved(out)
+        self.assertEqual(layer.featureCount(), 3)
+        self.assertIn("Polygon", QgsWkbTypes.displayString(layer.wkbType()))
+
+    def test_csv_without_coords_stays_aspatial(self):
+        # A plain attribute CSV (no coordinate columns) must NOT be force-converted — it loads as
+        # an aspatial table, exactly as before. Guards against false-positive geometrization.
+        import niva
+        from qgis.core import QgsVectorLayer, QgsWkbTypes
+
+        csv = os.path.join(self.tmp, "plain.csv")
+        with open(csv, "w", encoding="utf-8") as fh:
+            fh.write("id,name,score\n1,a,10\n2,b,20\n")
+        out = os.path.join(self.tmp, "plain.gpkg")
+        niva.flow(f'load "{csv}" | save "{out}"')
+        vl = QgsVectorLayer(out, "p", "ogr")
+        self.assertEqual(QgsWkbTypes.displayString(vl.wkbType()), "NoGeometry")
+        self.assertEqual(vl.featureCount(), 2)
+
     def test_polygonize_alias_outputs_vector(self):
         # `polygonize` is raster-in / vector-out — the output must NOT be forced to a .tif
         # (regression: keying the scratch on input facet broke it). See _output_is_raster.

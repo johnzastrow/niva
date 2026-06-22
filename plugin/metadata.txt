@@ -4,7 +4,7 @@ qgisMinimumVersion=3.22
 qgisMaximumVersion=4.99
 supportsQt6=True
 description=Run niva flows — a concise text pipeline for QGIS geoprocessing — from a dock.
-version=0.34.1
+version=0.35.0
 author=John Zastrow
 email=br8kwall@gmail.com
 about=niva is a concise, readable text-pipeline grammar for QGIS geoprocessing
@@ -25,7 +25,10 @@ deprecated=False
 # one-line summary for the new version here, mirroring the top entry of ../CHANGELOG.md (the
 # repo file stays the full history; this field is just the highlights). Drop the oldest line
 # so it never grows past ~2 entries. Continuation lines MUST stay indented (like `about=`).
-changelog=0.34.1 — Fixed: reproject/warp now FAIL CLOSED on an unknown CRS (e.g. EPSG:99999),
+changelog=0.35.0 — Added: native CSV lon/lat point loading (load points.csv builds points when it
+    has longitude/latitude columns; no .vrt needed). New format-matrix test suite + FileGDB/KML/
+    CSV/JP2 fixtures + a wget data fetcher. Fixed (macOS): all QGIS providers now load headless.
+    0.34.1 — Fixed: reproject/warp now FAIL CLOSED on an unknown CRS (e.g. EPSG:99999),
     which used to silently produce a layer with an invalid/empty CRS. Added four property-based
     test suites (error-path/fail-closed, numerical correctness, round-trip fidelity, security).
     0.34.0 — Added: `remove` — delete a file output and its sidecar family (shapefile

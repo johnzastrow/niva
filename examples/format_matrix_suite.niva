@@ -2,7 +2,7 @@
 # niva FORMAT-MATRIX SUITE — raw formats → geoprocess → every store → geoprocess again
 # =============================================================================
 # Exercises niva across input FORMATS and output STORES, the way real pipelines move data:
-#   1. load a RAW file (FileGeodatabase, KML, CSV point data, JPEG2000, GeoJSON) and geoprocess it,
+#   1. load a RAW file (FileGeodatabase, KML, CSV lon/lat points, JPEG2000, GeoJSON) and geoprocess it,
 #   2. write the result into each STORE — GeoPackage, SpatiaLite, Shapefile, and PostGIS,
 #   3. load it back FROM that store and geoprocess again (proving the round-trip carries geometry).
 #
@@ -22,7 +22,7 @@
 
 
 # ===== PREAMBLE | fixtures | the raw-format fixtures are present =====
-load "{testdata}/niva_testdata_points.vrt" | save {tmp}/fm00.gpkg
+load "{testdata}/niva_testdata_points.csv" | save {tmp}/fm00.gpkg
 #@check count("{tmp}/fm00.gpkg") == 50
 #@check gtype("{tmp}/fm00.gpkg") == "Point"
 #@cleanup remove {tmp}/fm00.gpkg
@@ -40,8 +40,8 @@ load "{testdata}/niva_testdata.kml|layername=points" | reproject EPSG:6346 | buf
 #@check nonempty("{tmp}/fm02.gpkg")
 #@cleanup remove {tmp}/fm02.gpkg
 
-# ===== TEST 03 | raw csv | load CSV point data (via .vrt), reproject + buffer =====
-load "{testdata}/niva_testdata_points.vrt" | reproject EPSG:6346 | buffer 200m | dissolve | save {tmp}/fm03.gpkg
+# ===== TEST 03 | raw csv | load raw CSV point data (native lon/lat), reproject + buffer =====
+load "{testdata}/niva_testdata_points.csv" | reproject EPSG:6346 | buffer 200m | dissolve | save {tmp}/fm03.gpkg
 #@check nonempty("{tmp}/fm03.gpkg")
 #@cleanup remove {tmp}/fm03.gpkg
 
@@ -65,7 +65,7 @@ load "{tmp}/fm06_src.gpkg" | buffer 25m | centroid | save {tmp}/fm06.gpkg
 #@cleanup remove {tmp}/fm06_src.gpkg
 
 # ===== TEST 07 | store gpkg layer | csv points → named gpkg layer, then voronoi in it =====
-load "{testdata}/niva_testdata_points.vrt" | reproject EPSG:6346 | save {tmp}/fm07_src.gpkg as pts
+load "{testdata}/niva_testdata_points.csv" | reproject EPSG:6346 | save {tmp}/fm07_src.gpkg as pts
 load "{tmp}/fm07_src.gpkg|layername=pts" | voronoi | save {tmp}/fm07.gpkg
 #@check nonempty("{tmp}/fm07.gpkg")
 #@cleanup remove {tmp}/fm07.gpkg
@@ -90,7 +90,7 @@ load "{tmp}/fm09_src.sqlite|layername=polys" | centroid | buffer 30m | save {tmp
 
 # ------------------------------------------------ STORE: Shapefile (write, then geoprocess in it)
 # ===== TEST 10 | store shapefile | csv points → Shapefile, then buffer the shapefile =====
-load "{testdata}/niva_testdata_points.vrt" | reproject EPSG:6346 | save {tmp}/fm10_src.shp
+load "{testdata}/niva_testdata_points.csv" | reproject EPSG:6346 | save {tmp}/fm10_src.shp
 load "{tmp}/fm10_src.shp" | buffer 100m | dissolve | save {tmp}/fm10.gpkg
 #@check nonempty("{tmp}/fm10.gpkg")
 #@cleanup remove {tmp}/fm10.gpkg
@@ -114,7 +114,7 @@ load "@localpg.public.fm_pts" | buffer 0.001 | save {tmp}/fm12.gpkg
 #@cleanup flow sql @localpg "DROP TABLE IF EXISTS public.fm_pts"
 
 # ===== TEST 13 | store postgis | csv points → PostGIS, then sql ST_Buffer in the DB =====
-load "{testdata}/niva_testdata_points.vrt" | save @localpg.public.fm_csv mode=replace
+load "{testdata}/niva_testdata_points.csv" | save @localpg.public.fm_csv mode=replace
 sql @localpg "SELECT id, ST_Buffer(geom, 0.002) AS geom FROM public.fm_csv" | save {tmp}/fm13.gpkg
 #@check nonempty("{tmp}/fm13.gpkg")
 #@cleanup remove {tmp}/fm13.gpkg

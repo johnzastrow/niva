@@ -448,7 +448,11 @@ class PyqgisBackend(Backend):
             name = src.split("layername=", 1)[1].split("|", 1)[0] or name
         vl = QgsVectorLayer(src, name, "ogr")
         if vl.isValid():
-            return Layer(SOURCE, vl, facet="vector", name=name)
+            # A delimited-text file (CSV/TSV) with longitude/latitude columns loads *aspatial*
+            # through OGR. Detect that and rebuild it as a point layer so it's geoprocessable —
+            # otherwise a `load points.csv | buffer …` silently fails on a geometry-less layer.
+            pts = self._csv_point_layer(src, vl, name)
+            return Layer(SOURCE, pts or vl, facet="vector", name=name)
         rl = QgsRasterLayer(src, name)
         if rl.isValid():
             return Layer(SOURCE, rl, facet="raster", name=name)
@@ -456,6 +460,47 @@ class PyqgisBackend(Backend):
             f"could not open `{source}` as a vector or raster layer",
             algorithm="load", params={"source": source}, backend="pyqgis",
         )
+
+    # Delimited-text extensions niva will try to geometrize, and the coordinate-column names it
+    # recognises. Only the GEOGRAPHIC longitude/latitude family is auto-detected — those imply
+    # EPSG:4326 unambiguously. Projected x/y / easting-northing are intentionally NOT guessed
+    # (their CRS is unknowable from a header), so they stay aspatial rather than silently wrong.
+    _CSV_EXTS = (".csv", ".tsv", ".txt")
+    _LON_NAMES = ("longitude", "lon", "lng", "long", "x_long", "long_x")
+    _LAT_NAMES = ("latitude", "lat", "y_lat", "lat_y")
+
+    def _csv_point_layer(self, src: str, ogr_layer, name: str):
+        """If ``src`` is a delimited-text file that OGR loaded *aspatial* but whose columns hold
+        longitude/latitude, return a point layer built via QGIS's delimited-text provider (CRS
+        EPSG:4326). Returns None if it isn't applicable — caller falls back to the aspatial layer.
+
+        The provider URI is assembled with QUrlQuery so the (file-controlled) column names are
+        URL-encoded — no string-built URI or VRT/XML, hence no injection surface."""
+        path = src.split("|", 1)[0]
+        if os.path.splitext(path)[1].lower() not in self._CSV_EXTS:
+            return None
+        if not self._is_aspatial(ogr_layer):  # already has geometry (e.g. a WKT column) — leave it
+            return None
+        fields = {f.name().lower(): f.name() for f in ogr_layer.fields()}
+        xcol = next((fields[n] for n in self._LON_NAMES if n in fields), None)
+        ycol = next((fields[n] for n in self._LAT_NAMES if n in fields), None)
+        if not (xcol and ycol):
+            return None
+
+        from qgis.core import QgsVectorLayer
+        from qgis.PyQt.QtCore import QUrl, QUrlQuery
+
+        url = QUrl.fromLocalFile(os.path.abspath(path))
+        query = QUrlQuery()
+        for key, val in (("type", "csv"), ("detectTypes", "yes"),
+                         ("xField", xcol), ("yField", ycol), ("crs", "EPSG:4326"),
+                         ("spatialIndex", "no"), ("subsetIndex", "no"), ("watchFile", "no")):
+            query.addQueryItem(key, val)
+        url.setQuery(query)
+        pts = QgsVectorLayer(url.toString(), name, "delimitedtext")
+        if pts.isValid() and not self._is_aspatial(pts) and pts.featureCount() > 0:
+            return pts
+        return None
 
     @staticmethod
     def _transform_note(input_layer, target_crs):

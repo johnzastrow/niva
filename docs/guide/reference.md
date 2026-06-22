@@ -146,9 +146,15 @@ form reads a table from a **saved database connection** (§7); a bare `@conn` wi
 errors (use `sql` to query it), and an `@` pointing at a file extension is rejected (use the
 path form).
 
+A **`.csv`/`.tsv`/`.txt` with longitude/latitude columns** (`longitude`/`latitude`, `lon`/`lat`,
+`lng`, `long`) loads as **points in EPSG:4326**, so it's directly geoprocessable. Detection is
+conservative — projected `x`/`y` (CRS unknowable) and CSVs with no coordinate columns load as an
+aspatial table, unchanged. For non-standard column names, load an OGR `.vrt` that names them.
+
 ```
 load "parcels.gpkg|layername=residential"
 load @pg.public.roads
+load "earthquakes.csv"          # longitude/latitude → points (EPSG:4326)
 ```
 
 ### `save` — write the current layer *(pass-through)*
