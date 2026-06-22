@@ -1129,7 +1129,46 @@ class PyqgisBackend(Backend):
                 f"SQL query against connection `{conn}` produced no valid layer",
                 algorithm="sql", params={"connection": conn}, backend="pyqgis",
             )
+        # The provider doesn't always auto-detect the geometry column of a SELECT result, so a
+        # spatial query can come back *aspatial* (NoGeometry) with the geometry sitting as an
+        # ordinary attribute — breaking any geometry op on the result. If a result column is a
+        # geometry type, name it and recreate the layer. Detected BY TYPE, any column name.
+        if self._is_aspatial(layer):
+            geom_col = self._geometry_field_name(layer)
+            if geom_col:
+                options.geometryColumn = geom_col
+                respatial = connection.createSqlVectorLayer(options)
+                if respatial is not None and respatial.isValid() \
+                        and not self._is_aspatial(respatial):
+                    layer = respatial
         return Layer(MEMORY, layer, facet="vector", name="sql")
+
+    # Field type names that mark a geometry column in a SQL result — both the generic
+    # PostGIS/PostgreSQL names and the per-type names SpatiaLite reports (e.g. `point`).
+    _GEOM_FIELD_TYPES = frozenset({
+        "geometry", "geography", "point", "linestring", "polygon", "multipoint",
+        "multilinestring", "multipolygon", "geometrycollection", "curve", "multicurve",
+        "surface", "multisurface", "circularstring", "compoundcurve", "curvepolygon",
+        "polyhedralsurface", "tin", "triangle",
+    })
+
+    @staticmethod
+    def _geometry_field_name(layer):
+        """The name of ``layer``'s first geometry-typed attribute (a column the SQL provider
+        surfaced as an attribute rather than the geometry) — detected by **type**, never by
+        name, so any column name works. Recognises both PostGIS's `geometry`/`geography` and
+        SpatiaLite's per-type names (`point`, …), with a Qt user-type fallback."""
+        try:
+            from qgis.PyQt.QtCore import QMetaType
+            user = int(QMetaType.Type.User)
+        except Exception:  # noqa: BLE001 — Qt5 fallback
+            from qgis.PyQt.QtCore import QVariant
+            user = int(QVariant.UserType)
+        for f in layer.fields():
+            tn = (f.typeName() or "").lower().rstrip("zm ")  # drop a Z/M dimension suffix
+            if tn in PyqgisBackend._GEOM_FIELD_TYPES or int(f.type()) == user:
+                return f.name()
+        return None
 
     def execute_sql(self, conn: str, query: str) -> None:
         # A non-SELECT statement (DDL/DML) run server-side. As with `run_sql`, the

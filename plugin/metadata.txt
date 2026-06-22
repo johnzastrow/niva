@@ -4,7 +4,7 @@ qgisMinimumVersion=3.22
 qgisMaximumVersion=4.99
 supportsQt6=True
 description=Run niva flows — a concise text pipeline for QGIS geoprocessing — from a dock.
-version=0.32.1
+version=0.33.0
 author=John Zastrow
 email=br8kwall@gmail.com
 about=niva is a concise, readable text-pipeline grammar for QGIS geoprocessing
@@ -25,7 +25,10 @@ deprecated=False
 # one-line summary for the new version here, mirroring the top entry of ../CHANGELOG.md (the
 # repo file stays the full history; this field is just the highlights). Drop the oldest line
 # so it never grows past ~2 entries. Continuation lines MUST stay indented (like `about=`).
-changelog=0.32.1 — Fixed: a PostGIS table whose tableUri omits the geometry column now loads
+changelog=0.33.0 — Added: a @conn.table can now be a SECONDARY layer in an overlay/join
+    (clip @conn.table, spatialjoin with=@conn.table, ...). Fixed: sql results keep their
+    geometry (a spatial SELECT used to come back aspatial). New 40-pipeline validation suite.
+    0.32.1 — Fixed: a PostGIS table whose tableUri omits the geometry column now loads
     WITH its geometry (was an empty aspatial layer that broke reproject/buffer/centroid); the
     geometry column is found by type, any name. The honest geometry error now fires mid-pipe too.
     0.32.0 — Renamed the `fix` verb to `fixgeom` (breaking) — it now says what it does

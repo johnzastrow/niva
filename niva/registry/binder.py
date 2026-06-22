@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import os
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from ..errors import FlowError
 from ..values import Distance
@@ -35,6 +35,10 @@ class BoundOp:
     params: dict
     input_param: str
     output_param: str
+    # Param names bound from a `layer`-typed arg/option — a secondary layer (e.g. clip's
+    # OVERLAY, spatialjoin's JOIN). The engine resolves a `@conn.table` value here into a
+    # loaded layer (the binder is QGIS-free and can't); a plain path passes straight through.
+    layer_params: frozenset = field(default_factory=frozenset)
 
 
 def bind(stage, alias: Alias) -> BoundOp:
@@ -98,7 +102,11 @@ def bind(stage, alias: Alias) -> BoundOp:
     # 7. Forced values are literal (never coerced) and always win.
     params.update(alias.forced)
 
-    return BoundOp(alias.algorithm, params, alias.primary_input, alias.primary_output)
+    layer_params = {s.param for s in alias.args if s.type == "layer" and s.param in params}
+    layer_params |= {s.param for s in alias.options.values()
+                     if s.type == "layer" and s.param in params}
+    return BoundOp(alias.algorithm, params, alias.primary_input, alias.primary_output,
+                   frozenset(layer_params))
 
 
 # --- coercion --------------------------------------------------------------

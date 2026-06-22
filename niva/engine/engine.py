@@ -340,6 +340,7 @@ class Engine:
             )
 
         op = bind(stage, alias)
+        self._resolve_layer_refs(op, stage)  # turn @conn.table secondary layers into layers
         params = self._resolve_distances(op.params, current, stage)
         self._pending_call = self.backend.render_call(
             op.algorithm, params,
@@ -1368,6 +1369,28 @@ class Engine:
         return items[0] if items else value
 
     # --- distance resolution -------------------------------------------------
+
+    def _resolve_layer_refs(self, op, stage) -> None:
+        """Resolve any `@conn.table` value bound to a *secondary-layer* param (e.g. clip's
+        OVERLAY, `intersect`/`difference`/`union`'s overlay, `spatialjoin`'s `with=`) into a
+        loaded layer. The binder is QGIS-free so it passes a `@conn` ref through as a string;
+        here we load it via the backend (a plain path is left untouched). Lets a database table
+        be used as the second layer in an overlay/join, not just a file."""
+        for pname in op.layer_params:
+            val = op.params.get(pname)
+            if not (isinstance(val, str) and is_connection_ref(val)):
+                continue
+            try:
+                conn, schema, table = parse_connection_ref(val, self.backend.connection_names())
+            except ValueError as exc:
+                raise FlowError(f"`{stage.verb}`: {exc}", line=stage.line, stage=stage.raw)
+            if table is None:
+                raise FlowError(
+                    f"`{stage.verb}`: `{val}` is a bare connection — name a table "
+                    "(`@conn.table`) to use it as a layer",
+                    line=stage.line, stage=stage.raw,
+                )
+            op.params[pname] = self.backend.load_table(conn, schema, table).ref
 
     def _resolve_distances(self, params: dict, layer: Layer, stage) -> dict:
         if not any(isinstance(v, Distance) for v in params.values()):

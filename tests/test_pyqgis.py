@@ -281,6 +281,17 @@ class TestPyqgisConnections(unittest.TestCase):
         with self.assertRaises(OpError):
             niva.flow(f"load @no_such_conn_xyz.homes | save {self.tmp}/x.gpkg")
 
+    def test_sql_result_keeps_geometry(self):
+        # A spatial SELECT must come back as a real geometry layer, not aspatial — the
+        # provider doesn't always auto-detect the geometry column, so niva sets it by type.
+        from qgis.core import QgsWkbTypes
+
+        from niva.engine.pyqgis import PyqgisBackend
+
+        vl = PyqgisBackend().run_sql(self.CONN, "SELECT * FROM homes").ref
+        self.assertNotEqual(QgsWkbTypes.displayString(vl.wkbType()), "NoGeometry")
+        self.assertEqual(vl.featureCount(), 2)
+
     def test_geometry_column_found_by_type_not_name(self):
         # The aspatial-load rescue uses the connection's *type-detected* geometry column,
         # whatever it's named — never assumes `geom`. (Here SpatiaLite reports the column.)

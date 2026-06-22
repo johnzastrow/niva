@@ -302,6 +302,16 @@ class TestErrors(unittest.TestCase):
         with self.assertRaises(FlowError):
             run("save out.gpkg")
 
+    def test_conn_ref_as_secondary_layer_is_loaded(self):
+        # A @conn.table used as a secondary layer (clip's overlay) is loaded via the backend,
+        # not passed through as a bogus string. (MockBackend resolves "pg" by longest prefix.)
+        backend, _ = run('load roads.gpkg | clip @pg.public.zones')
+        self.assertIn(("load_table", "pg", "public", "zones"), backend.calls)
+
+    def test_bare_conn_as_layer_is_a_flow_error(self):
+        with self.assertRaises(FlowError):
+            run("load roads.gpkg | clip @pg")  # bare connection, no table
+
     def test_save_mode_on_a_file_is_a_guiding_error(self):
         # `mode=append` is database-only; on a file the error should point at `as <layer>`.
         with self.assertRaises(FlowError) as ctx:

@@ -11,6 +11,31 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.33.0] - 2026-06-22
+
+### Added
+- **A `@conn.table` can now be a *secondary* layer** in an overlay/join — `clip @conn.table`,
+  `intersect`/`difference`/`union`/`symdifference @conn.table`, `spatialjoin with=@conn.table`,
+  `selectloc`, `snap`, `countpoints points=@conn.table`, etc. Previously only `load` resolved
+  `@conn`; a `@conn` ref bound to a layer arg/option was passed through as a bogus string and the
+  algorithm failed. The binder now flags layer-typed params and the engine loads the referenced
+  table (dotted connection names resolved as in `load`).
+- **A 40-pipeline validation suite** — [`examples/validation_suite.niva`](examples/validation_suite.niva)
+  (annotated, simple→complex, with per-test cleanup) plus
+  [`examples/run_validation_suite.py`](examples/run_validation_suite.py), which executes each
+  pipeline, **asserts the output has real non-empty geometry** (the check that catches an
+  aspatial/empty-geometry load), and cleans up. Covers files / SpatiaLite / PostGIS / remote
+  sources, GeoPackage·multi-layer·SpatiaLite·shapefile·GeoTIFF·PostGIS(create/append/replace)
+  targets, ~25 processing verbs, raster ops, sql, run, each, and the utility verbs.
+
+### Fixed
+- **`sql` results keep their geometry.** The DB SQL provider doesn't always auto-detect a
+  result's geometry column, so a spatial `SELECT` came back **aspatial** (NoGeometry) with the
+  geometry sitting as an attribute — breaking any downstream op (the same failure class as the
+  v0.32.1 `load_table` bug). niva now sets the geometry column on the SQL layer, detected **by
+  type, any name** — covering both PostGIS (`geometry`/`geography`) and SpatiaLite (per-type
+  names like `point`).
+
 ## [0.32.1] - 2026-06-22
 
 ### Fixed

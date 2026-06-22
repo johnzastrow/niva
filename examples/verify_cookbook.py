@@ -120,9 +120,9 @@ def main():
     # §G SpatiaLite
     sl_ok, sl_note = register_spatialite()
     sl_recipes = [
-        ("sql @sl subset", f'sql @sl "SELECT * FROM parcels WHERE zoning = \'R1\'" | save "{{OUT}}/o.gpkg"'),
-        ("sql @sl GROUP BY", f'sql @sl "SELECT zoning, COUNT(*) AS n FROM parcels GROUP BY zoning" | save "{{OUT}}/o.gpkg"'),
-        ("sql @sl ST_Buffer", f'sql @sl "SELECT ST_Buffer(geometry, 50) AS geometry FROM points" | save "{{OUT}}/o.gpkg"'),
+        ("sql @sl subset", 'sql @sl "SELECT * FROM parcels WHERE zoning = \'R1\'" | save "{OUT}/o.gpkg"'),
+        ("sql @sl GROUP BY", 'sql @sl "SELECT zoning, COUNT(*) AS n FROM parcels GROUP BY zoning" | save "{OUT}/o.gpkg"'),
+        ("sql @sl ST_Buffer", 'sql @sl "SELECT ST_Buffer(geometry, 50) AS geometry FROM points" | save "{OUT}/o.gpkg"'),
     ]
     for rid, flow in sl_recipes:
         if sl_ok:

@@ -94,6 +94,12 @@ class TestBinder(unittest.TestCase):
         self.assertEqual(op.algorithm, "native:clip")
         self.assertEqual(op.params["OVERLAY"], "city.gpkg")
 
+    def test_layer_params_are_flagged(self):
+        # The binder marks `layer`-typed args/options so the engine can resolve a @conn ref
+        # bound there into a loaded layer (clip's OVERLAY, spatialjoin's JOIN, …).
+        self.assertEqual(bound("clip city.gpkg").layer_params, frozenset({"OVERLAY"}))
+        self.assertIn("JOIN", bound("spatialjoin with=zones.gpkg").layer_params)
+
     def test_layer_arg_expands_tilde(self):
         # A layer/raster path arg expands a leading ~ (QGIS/GDAL don't), so
         # `clip "~/aoi.gpkg"` resolves like `load "~/aoi.gpkg"`. Non-~ paths and
