@@ -4,6 +4,28 @@ Parked work. See [`docs/planning/04-roadmap.md`](docs/planning/04-roadmap.md),
 [`docs/planning/15-postgis-and-project-design.md`](docs/planning/15-postgis-and-project-design.md),
 and [`docs/planning/16-anatomy-of-a-verb.md`](docs/planning/16-anatomy-of-a-verb.md) for context.
 
+## Graphical figure generation — render figures at the end of a flow (new scope)
+
+A final-step verb that renders a **map figure** (PNG / PDF / SVG) from a flow's outputs using a
+QGIS **print-layout template** (`.qpt`), so a `.niva` run can produce report-ready deliverables
+directly. Fixture / default template committed at
+[`examples/layout_template.qpt`](examples/layout_template.qpt) (`StandardLayout`, 300 dpi, a map
+frame + world-file map).
+
+- [ ] **`figure` verb (working name)** — terminal / pass-through. Sketch:
+  `figure to=<out.png|pdf|svg> [template=<.qpt>] [dpi=300] [title=<text>] [layers=current|all]`.
+  Load the `.qpt` into a standalone `QgsPrintLayout` (off the main thread, per `docs/planning/15`
+  §3 and `16`), bind the flow's current layer(s) — and earlier `save` outputs — into the layout's
+  map item(s), set the map extent to the data (or a bookmark), stamp an optional title, and export
+  via `QgsLayoutExporter` (`exportToImage` / `exportToPdf` / `exportToSvg`). Default template =
+  `examples/layout_template.qpt`, else resolve by name like project templates
+  (`$NIVA_TEMPLATES` / `~/.niva/templates`).
+- [ ] **Atlas / multi-map** — one figure per feature of a coverage layer (`QgsLayoutAtlas`). Later.
+- [ ] Add a final-step `figure …` smoke to the validation (and portable) suites once it ships.
+- Two-tier tests (MockBackend records the call; live-QGIS asserts a non-empty image is written).
+- Note: distinct from the *print-layouts-in-project-files* item below — that bakes a layout into a
+  `.qgs`; **this renders an image**. The `.qpt` is the live input here.
+
 ## `show` — remote services (follow-up)
 
 - [ ] **More remote sources for `show`.** Shipped: **WFS/WMS** (v0.30.0), **ArcGIS REST + XYZ**
@@ -24,8 +46,9 @@ All use a standalone `QgsProject()` / `QgsMapLayer` off the main thread (per
   richer grammar) or baked into **template projects**.
 - [ ] **Legend tweaks** — layer ordering / group nodes in the tree
   (`project.layerTreeRoot()`). Likewise marginal alone; better via templates.
-- [ ] **Print layouts (`.qpt`)** — *superseded by template projects* (a template carries the
-  layout). Keep only if direct `.qpt` export/import is later wanted.
+- [ ] **Print layouts (`.qpt`) in project files** — *superseded by template projects* (a template
+  carries the layout). Keep only if direct `.qpt` export/import is later wanted. (For *rendering an
+  image* from a `.qpt`, see "Graphical figure generation" above — a separate, active scope.)
 
 ## Done
 - [x] **Environment-inspection verb (`info`)** (v0.28.0) — `info [to=<report.md>]` inspects the
