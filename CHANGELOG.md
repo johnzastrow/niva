@@ -11,6 +11,22 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.34.0] - 2026-06-22
+
+### Added
+- **`remove` — delete a file output and its sidecar family** (the one destructive verb, behind a
+  strict fail-closed safety gate). `remove <path> [force] [-dryrun]`, or `each "<glob>" | remove`
+  for batch cleanup. It deletes a file **plus its companions** — a shapefile's `.shx`/`.dbf`/`.prj`,
+  a GeoPackage's `-wal`/`-shm`, a project's `_attachments.zip`, and any `.aux.xml`/`.qml`/`.qmd`.
+  The gate refuses, each with a specific message: `@conn` refs (use `sql … DROP TABLE`), globs (use
+  `each`), directories, and any non-geodata type unless you add **`force`** (which then deletes only
+  that one file). A missing path is an idempotent no-op; `-dryrun` logs the plan without deleting.
+  Policy lives in a pure, QGIS-free `niva/remove_policy.py`. See
+  [`docs/planning/18-remove-verb-design.md`](docs/planning/18-remove-verb-design.md).
+- The validation-suite emitter (`run_validation_suite.py --emit`) now writes **`remove` cleanup
+  lines**, so the generated `*.run.niva` scripts are **fully self-cleaning** (files *and* DB
+  tables) — the gap that originally motivated the verb.
+
 ## [0.33.0] - 2026-06-22
 
 ### Added

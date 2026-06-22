@@ -141,8 +141,8 @@ def emit_pure(blocks, path):
         "# Pure runnable niva — generated from validation_suite.niva by",
         "#   python examples/run_validation_suite.py --emit",
         "# Run it and watch every pipeline:  niva run <this file>",
-        "# Outputs land in /tmp/niva_validation/out (left in place); the inline `sql … DROP`",
-        "# lines below clean up the PostGIS tables each test creates.",
+        "# Fully self-cleaning: file outputs are deleted with `remove` and DB tables with",
+        "# inline `sql … DROP`. Outputs land in /tmp/niva_validation/out during the run.",
         "",
     ]
     for b in blocks:
@@ -152,7 +152,11 @@ def emit_pure(blocks, path):
             if c.startswith("flow "):
                 out.append(c[len("flow "):].strip() + "    # cleanup")
             elif c.startswith("rm "):
-                out.append(f"# cleanup (delete outside niva): rm {c[len('rm '):].strip()}")
+                p = c[len("rm "):].strip()
+                # niva's `remove` refuses non-geodata types (e.g. .md reports) without `force`.
+                from niva import remove_policy as _rp
+                force = "" if _rp.on_allowlist(p.strip('"')) else " force"
+                out.append(f"remove {p}{force}    # cleanup")
         out.append("")
     with open(path, "w", encoding="utf-8") as fh:
         fh.write("\n".join(out))

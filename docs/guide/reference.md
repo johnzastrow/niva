@@ -176,6 +176,34 @@ load roads.gpkg | save data.gpkg as roads
 load roads.gpkg | save @pg.public.roads_clip mode=replace
 ```
 
+### `remove` — delete a file output and its sidecars *(terminal)*
+
+```
+remove <path> [force] [-dryrun]
+each "<glob|dir>" | remove [force] [-dryrun]      # batch — each file checked individually
+```
+
+Deletes a **file** and its **sidecar family** (a shapefile's `.shx`/`.dbf`/`.prj`/…, a
+GeoPackage's `-wal`/`-shm`, a project's `_attachments.zip`, plus any `.aux.xml`/`.qml`/`.qmd`).
+It is the one destructive verb, so it runs a strict, fail-closed safety gate — every refusal is a
+specific message, and nothing is deleted unless all checks pass:
+
+- **`@conn` refs are refused** — `remove` is files-only; drop a table with `sql @conn "DROP TABLE …"`.
+- **Globs are refused** — batch with `each "<glob>" | remove` so each file is validated.
+- **Directories are refused** — name a file (or `each "<dir>" | remove` its contents).
+- **A missing path is a no-op** (success) — safe to re-run as cleanup.
+- Only **recognised geodata / niva-output types** are deletable (`.gpkg .shp .tif .qml .qgs …`);
+  anything else needs **`force`**, which deletes *only* that one file (no sidecar guessing).
+- **`-dryrun`** logs the exact deletion plan without deleting — a safe "what would this remove?".
+
+```
+load roads.gpkg | clip aoi.gpkg | save tmp_clip.gpkg | …
+remove tmp_clip.gpkg                       # tidy up the scratch output (+ its sidecars)
+each "/tmp/scratch/*.gpkg" | remove        # batch cleanup
+remove run_report.md force                 # delete a non-geodata file niva wrote
+each "out/*.tif" | remove -dryrun          # preview only
+```
+
 ### `sql` — query or mutate a database connection *(producing OR terminal)*
 
 ```

@@ -4,7 +4,7 @@ qgisMinimumVersion=3.22
 qgisMaximumVersion=4.99
 supportsQt6=True
 description=Run niva flows — a concise text pipeline for QGIS geoprocessing — from a dock.
-version=0.33.0
+version=0.34.0
 author=John Zastrow
 email=br8kwall@gmail.com
 about=niva is a concise, readable text-pipeline grammar for QGIS geoprocessing
@@ -25,7 +25,11 @@ deprecated=False
 # one-line summary for the new version here, mirroring the top entry of ../CHANGELOG.md (the
 # repo file stays the full history; this field is just the highlights). Drop the oldest line
 # so it never grows past ~2 entries. Continuation lines MUST stay indented (like `about=`).
-changelog=0.33.0 — Added: a @conn.table can now be a SECONDARY layer in an overlay/join
+changelog=0.34.0 — Added: `remove` — delete a file output and its sidecar family (shapefile
+    parts, gpkg -wal/-shm, project attachments), behind a strict safety gate: refuses @conn refs,
+    globs, directories and non-geodata types (force to override); -dryrun previews. Batch with
+    `each "<glob>" | remove`. Generated validation scripts are now fully self-cleaning.
+    0.33.0 — Added: a @conn.table can now be a SECONDARY layer in an overlay/join
     (clip @conn.table, spatialjoin with=@conn.table, ...). Fixed: sql results keep their
     geometry, now including COMPUTED geometry (ST_Centroid/ST_Buffer) on SpatiaLite. Two new
     40-pipeline validation suites (simple→complex, and "different & more complex").

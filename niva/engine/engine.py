@@ -154,6 +154,11 @@ class Engine:
                 line=each_stage.line, stage=each_stage.raw,
             )
         items = self._resolve_each(each_stage)
+        # `each "<glob>" | remove` is the one batch that deletes rather than transforms — it
+        # needs the item *path*, not a loaded layer, so it gets a dedicated no-load path that
+        # de-duplicates by file (a multi-layer container expands to many items, one file).
+        if len(rest) == 1 and rest[0].verb == "remove":
+            return self._run_each_remove(each_stage, rest[0], items)
         self._batch_gpkgs = set()  # collect .gpkg/.sqlite targets to compact at the end
         self._emit(f"▶ {each_stage.raw}  → {len(items)} item(s)")
         if self.journal is not None:
@@ -193,6 +198,26 @@ class Engine:
                 self._emit(f"  (could not compact {os.path.basename(gpkg)}: {exc})")
         self._batch_gpkgs = None
         self._emit(f"  batch done: {done}/{len(items)} item(s)")
+        return None
+
+    def _run_each_remove(self, each_stage, remove_stage, items) -> None:
+        """`each "<glob>" | remove [force] [-dryrun]` — delete each batched file once. Items
+        are de-duplicated by file path (so a multi-layer GeoPackage, which `each` expands to one
+        item per layer, is deleted a single time), and no layer is loaded. A refusal (e.g. a
+        type that needs `force`) propagates — it would apply to every item the same way."""
+        self._emit(f"▶ {each_stage.raw}  → {len(items)} item(s)")
+        if self.journal is not None:
+            self.journal.record(text=each_stage.raw, kind="each",
+                                summary=f"remove {len(items)} item(s)")
+        seen, done = set(), 0
+        for name, uri in items:
+            path = uri.split("|layername=")[0]  # the container/file, not the layer
+            if path in seen:
+                continue
+            seen.add(path)
+            self._remove(remove_stage, batch_path=path)
+            done += 1
+        self._emit(f"  batch done: {done} file(s)")
         return None
 
     def _resolve_each(self, stage) -> list:
@@ -314,6 +339,7 @@ class Engine:
         "project":  lambda self, stage, current, lineage: self._project(stage),
         "style":    lambda self, stage, current, lineage: self._style(stage, current),
         "split":    lambda self, stage, current, lineage: self._split(stage, current),
+        "remove":   lambda self, stage, current, lineage: self._remove(stage),
     }
 
     def _run_stage(self, stage, current: Layer | None, lineage: list) -> Layer | None:
@@ -620,6 +646,115 @@ class Engine:
         with open(dest, "w", encoding="utf-8") as fh:
             fh.write(report)
         return current
+
+    def _remove(self, stage, batch_path: str | None = None) -> None:
+        """`remove <path> [force] [-dryrun]` — delete a file output and its sidecar family,
+        behind a strict safety gate (see docs/planning/18). Terminal: returns nothing
+        downstream. In an `each` batch it deletes the current item's file (``batch_path``).
+        Every refused gate raises a `FlowError` with a specific, actionable message — and
+        nothing is deleted unless every check passes (fail-closed)."""
+        from .. import remove_policy as rp
+
+        force = dryrun = False
+        paths: list[str] = []
+        for arg in stage.args:
+            flag = arg.lstrip("-").lower()
+            if flag == "force":
+                force = True
+            elif flag in ("dryrun", "dry-run"):
+                dryrun = True
+            else:
+                paths.append(arg)
+        if stage.options:
+            raise FlowError(
+                "`remove` takes no key=value options — `remove <path> [force] [-dryrun]`",
+                line=stage.line, stage=stage.raw,
+            )
+
+        if batch_path is not None:
+            if paths:
+                raise FlowError(
+                    "`remove` after `each` deletes each batched item — don't also name a path "
+                    f"(`{paths[0]}`); write `each \"<glob>\" | remove`",
+                    line=stage.line, stage=stage.raw,
+                )
+            target = batch_path
+        elif len(paths) != 1:
+            raise FlowError(
+                "`remove` needs exactly one path — `remove <file>` "
+                '(to delete many, batch with `each "<glob>" | remove`)',
+                line=stage.line, stage=stage.raw,
+            )
+        else:
+            target = paths[0]
+
+        # --- the safety gate, in order, each refusal a specific message --------------------
+        if rp.is_conn_ref(target):
+            raise FlowError(
+                f"`remove` deletes files only — `{target}` is a database reference. "
+                'To drop a table use `sql @conn "DROP TABLE <name>"`.',
+                line=stage.line, stage=stage.raw,
+            )
+        if rp.is_glob(target):
+            raise FlowError(
+                f"`remove` won't expand a glob (`{target}`). Batch it so each file is checked "
+                'individually: `each "<glob>" | remove`.',
+                line=stage.line, stage=stage.raw,
+            )
+        path = os.path.abspath(os.path.expanduser(target))
+        if os.path.isdir(path):
+            raise FlowError(
+                f"`remove` deletes files, not directories (`{target}` is a folder). "
+                'Name a file, or batch its contents with `each "<dir>" | remove`.',
+                line=stage.line, stage=stage.raw,
+            )
+        forced_ext = False
+        if not rp.on_allowlist(path):
+            if not force:
+                raise FlowError(
+                    f"`remove` won't delete `{os.path.basename(path)}` — `{rp.ext_of(path) or '(no extension)'}` "
+                    f"isn't a recognised geodata/niva output type. Allowed → {rp.ALLOWLIST_STR}. "
+                    "Add `force` to delete this one file anyway.",
+                    line=stage.line, stage=stage.raw,
+                )
+            forced_ext = True
+
+        # --- resolve the concrete files ----------------------------------------------------
+        if not os.path.exists(path):  # idempotent: a cleanup verb must be safe to re-run
+            self._emit(f"  remove: {target} already absent")
+            if self.journal is not None:
+                self.journal.record(text=stage.raw, kind="remove", summary="already absent")
+            return None
+        candidates = [path] if forced_ext else [path, *rp.family(path)]
+        existing = [p for p in candidates if os.path.isfile(p)]
+        sidecars = len(existing) - 1
+
+        if dryrun:
+            shown = ", ".join(os.path.basename(p) for p in existing)
+            self._emit(f"  remove -dryrun: would delete {len(existing)} file(s) — {shown}")
+            if self.journal is not None:
+                self.journal.record(text=stage.raw, kind="remove",
+                                    summary=f"dryrun: {len(existing)} file(s)")
+            return None
+
+        freed = 0
+        for p in existing:
+            try:
+                freed += os.path.getsize(p)
+                os.remove(p)
+            except FileNotFoundError:
+                pass
+            except OSError as exc:  # permission / I/O — fail closed, name the file
+                raise OpError(
+                    f"`remove` could not delete `{p}`: {exc}",
+                    algorithm="remove", params={"path": p}, backend="filesystem",
+                ) from exc
+        extra = f" (+{sidecars} sidecar{'s' if sidecars != 1 else ''})" if sidecars > 0 else ""
+        self._emit(f"  removed {target}{extra} — {freed} bytes freed")
+        if self.journal is not None:
+            self.journal.record(text=stage.raw, kind="remove",
+                                summary=f"{len(existing)} file(s), {freed} bytes")
+        return None
 
     def _run_raw(self, stage, current: Layer | None) -> Layer | None:
         # `run <algorithm> KEY=value …` — the escape hatch (07-§8). Params are passed
