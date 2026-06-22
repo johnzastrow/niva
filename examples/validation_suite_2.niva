@@ -211,7 +211,7 @@ sql @localpg "SELECT row_number() OVER () AS id, ST_Buffer(geom, 0.001) AS geom 
 #@cleanup remove /tmp/niva_validation/out/b2_30.gpkg
 
 # ===== TEST 31 | sql ST_Centroid (SpatiaLite) | computed geometry, other backend =====
-sql "@actual_spatialite.sqlite" "SELECT ST_Centroid(geom) AS geom FROM park_polygons" | save /tmp/niva_validation/out/b2_31.gpkg
+sql "@actual_spatialite.sqlite" "SELECT ST_Centroid(GEOMETRY) AS geom FROM park_polygons" | save /tmp/niva_validation/out/b2_31.gpkg
 #@out /tmp/niva_validation/out/b2_31.gpkg :: vector >=1
 #@cleanup remove /tmp/niva_validation/out/b2_31.gpkg
 

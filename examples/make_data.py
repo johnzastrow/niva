@@ -112,16 +112,19 @@ def main() -> None:
         mem_lyr, basemap, QgsProject.instance().transformContext(), opts)
     assert err == QgsVectorFileWriter.NoError, msg
 
-    # Remaining basemap layers added to the existing file via niva
+    # Remaining basemap layers added to the existing file via niva.
+    # railway-line and poi-point are used by suite_2/3 (pointsalong, sample, spatialjoin, etc.)
     for src, lname in [
         (multi_src, "boundary-polygon-lvl2"),
         (poly_src,  "landuse-polygon"),
-        (multi_src, "nature_reserve-polygon"),
+        (poly_src,  "nature_reserve-polygon"),  # poly_src ≠ multi_src so symdifference(nature_reserve, park_polygons[multi]) is non-empty
         (pt_src,    "settlement-point"),
         (poly_src,  "water-polygon"),
+        (line_src,  "railway-line"),
+        (pt_src,    "poi-point"),
     ]:
         niva.flow(f'load "{src}" | save "{basemap}" as {lname}')
-    print(f"  basemap.gpkg  ({n_base} boundary-polygon features)")
+    print(f"  basemap.gpkg  ({n_base} boundary-polygon features + railway-line + poi-point)")
 
     # ── study_area_bbox.gpkg ──────────────────────────────────────────────────
     study = str(DATA / "study_area_bbox.gpkg")
@@ -133,18 +136,28 @@ def main() -> None:
         shutil.copy(dem, str(DATA / dest))
     print(f"  dem_clip.tif, dem.tif")
 
-    # ── collected.gpkg with park_lines layer ──────────────────────────────────
+    # ── collected.gpkg ────────────────────────────────────────────────────────
+    # park_lines + park_polygons + park_points.
+    # park_polygons uses the polygon layer (same CRS, same area as basemap layers).
+    # park_points uses the point layer for join/countpoints/spatialjoin tests.
     collected = str(DATA / "collected.gpkg")
-    niva.flow(f'load "{line_src}" | save "{collected}" as park_lines')
-    print(f"  collected.gpkg")
+    niva.flow(f'load "{line_src}"  | save "{collected}" as park_lines')
+    niva.flow(f'load "{poly_src}"  | save "{collected}" as park_polygons')
+    niva.flow(f'load "{pt_src}"    | save "{collected}" as park_points')
+    print(f"  collected.gpkg  (park_lines + park_polygons + park_points)")
 
-    # ── actual_spatialite.sqlite (park_points + park_polygons) ────────────────
+    # ── actual_spatialite.sqlite ──────────────────────────────────────────────
+    # park_points + park_polygons + park_lines.
+    # park_polygons uses multipolys (4 features) rather than the 16-feature polygon
+    # layer, so that difference/union operations against water-polygon (16 polygons)
+    # return non-empty results instead of cancelling out entirely.
     actual_sl = str(DATA / "actual_spatialite.sqlite")
     if os.path.exists(actual_sl):
         os.remove(actual_sl)
     niva.flow(f'load "{sl}|layername=points"   | save "{actual_sl}" as park_points')
-    niva.flow(f'load "{sl}|layername=polygons" | save "{actual_sl}" as park_polygons')
-    print(f"  actual_spatialite.sqlite")
+    niva.flow(f'load "{multi_src}"             | save "{actual_sl}" as park_polygons')
+    niva.flow(f'load "{sl}|layername=lines"    | save "{actual_sl}" as park_lines')
+    print(f"  actual_spatialite.sqlite  (park_points + park_polygons[multipolys] + park_lines)")
 
     # ── aoism.shp + aoism.gpkg (was ~/Downloads/NiagaraBasemap/aoism.shp) ─────
     # Use the AOISM (area-of-interest) layer from example.gpkg reprojected to

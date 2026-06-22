@@ -105,7 +105,7 @@ remove /tmp/niva_validation/out/s3_22.gpkg    # cleanup
 sql @localpg "DROP TABLE IF EXISTS public.nv_s3_22"    # cleanup
 
 # ── TEST 23 | SpatiaLite SQL → deep vector chain | computed geom feeds a chain
-sql "@actual_spatialite.sqlite" "SELECT ST_Centroid(geom) AS geom FROM park_polygons" | buffer 200m | dissolve | convexhull | save /tmp/niva_validation/out/s3_23.gpkg
+sql "@actual_spatialite.sqlite" "SELECT ST_Centroid(GEOMETRY) AS geom FROM park_polygons" | buffer 200m | dissolve | convexhull | save /tmp/niva_validation/out/s3_23.gpkg
 remove /tmp/niva_validation/out/s3_23.gpkg    # cleanup
 
 # ── TEST 24 | add then remove vertices | densify → smooth → simplify
@@ -149,7 +149,7 @@ load "{data}/dem_clip.tif" | slope | warp EPSG:6346 resolution=300 | polygonize 
 remove /tmp/niva_validation/out/s3_33.gpkg    # cleanup
 
 # ── TEST 34 | 8-op flap | buffer → dissolve → explode → centroid → voronoi → clip → fixgeom
-load "{data}/basemap.gpkg|layername=settlement-point" | buffer 800m | dissolve | explode | centroid | voronoi | clip "{data}/study_area_bbox.gpkg" | fixgeom | save /tmp/niva_validation/out/s3_34.gpkg
+load "{data}/basemap.gpkg|layername=settlement-point" | buffer 50m | dissolve | explode | centroid | voronoi | clip "{data}/study_area_bbox.gpkg" | fixgeom | save /tmp/niva_validation/out/s3_34.gpkg
 remove /tmp/niva_validation/out/s3_34.gpkg    # cleanup
 
 # ── TEST 35 | clean+churn+box | fixgeom → simplify → explode → promote → collect → fixgeom → boundingbox

@@ -49,7 +49,8 @@ DATA = (os.environ.get("NIVA_TESTDATA")
 
 
 def _subst(text: str) -> str:
-    return text.format(data=DATA)
+    # Only substitute known tokens; leave {name} and other niva-internal templates alone.
+    return text.replace("{data}", DATA)
 
 _HDR = re.compile(r"#\s*=+\s*(PREAMBLE|TEST\s+\d+)\s*\|\s*(.*?)\s*\|\s*(.*?)\s*=+\s*$")
 
