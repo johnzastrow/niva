@@ -292,6 +292,23 @@ class TestPyqgisConnections(unittest.TestCase):
         self.assertNotEqual(QgsWkbTypes.displayString(vl.wkbType()), "NoGeometry")
         self.assertEqual(vl.featureCount(), 2)
 
+    def test_sql_computed_geometry_keeps_geometry(self):
+        # A *computed* geometry (ST_Centroid) comes back from SpatiaLite as a BLOB/text
+        # attribute with no geometry type to detect — niva must probe candidate columns and
+        # recover a real geometry layer (the by-type pass alone can't see it).
+        from qgis.core import QgsWkbTypes
+
+        from niva.engine.pyqgis import PyqgisBackend
+
+        backend = PyqgisBackend()
+        _md, conn = backend._find_connection(self.CONN)
+        gcol = PyqgisBackend._table_geometry_column(conn, "", "homes")  # whatever it's named
+        vl = backend.run_sql(
+            self.CONN, f'SELECT ST_Centroid("{gcol}") AS centroid_pt FROM homes'
+        ).ref
+        self.assertNotEqual(QgsWkbTypes.displayString(vl.wkbType()), "NoGeometry")
+        self.assertEqual(vl.featureCount(), 2)
+
     def test_geometry_column_found_by_type_not_name(self):
         # The aspatial-load rescue uses the connection's *type-detected* geometry column,
         # whatever it's named — never assumes `geom`. (Here SpatiaLite reports the column.)

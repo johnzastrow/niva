@@ -27,7 +27,8 @@ deprecated=False
 # so it never grows past ~2 entries. Continuation lines MUST stay indented (like `about=`).
 changelog=0.33.0 — Added: a @conn.table can now be a SECONDARY layer in an overlay/join
     (clip @conn.table, spatialjoin with=@conn.table, ...). Fixed: sql results keep their
-    geometry (a spatial SELECT used to come back aspatial). New 40-pipeline validation suite.
+    geometry, now including COMPUTED geometry (ST_Centroid/ST_Buffer) on SpatiaLite. Two new
+    40-pipeline validation suites (simple→complex, and "different & more complex").
     0.32.1 — Fixed: a PostGIS table whose tableUri omits the geometry column now loads
     WITH its geometry (was an empty aspatial layer that broke reproject/buffer/centroid); the
     geometry column is found by type, any name. The honest geometry error now fires mid-pipe too.

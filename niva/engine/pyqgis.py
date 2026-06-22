@@ -1134,14 +1134,46 @@ class PyqgisBackend(Backend):
         # ordinary attribute — breaking any geometry op on the result. If a result column is a
         # geometry type, name it and recreate the layer. Detected BY TYPE, any column name.
         if self._is_aspatial(layer):
-            geom_col = self._geometry_field_name(layer)
-            if geom_col:
-                options.geometryColumn = geom_col
-                respatial = connection.createSqlVectorLayer(options)
-                if respatial is not None and respatial.isValid() \
-                        and not self._is_aspatial(respatial):
-                    layer = respatial
+            layer = self._respatialize_sql(connection, options, layer) or layer
         return Layer(MEMORY, layer, facet="vector", name="sql")
+
+    # Column names commonly used for a geometry, and the attribute *types* a serialized
+    # geometry can masquerade as. SpatiaLite surfaces a **computed** geometry (e.g.
+    # `ST_Centroid(geom)`) as a BLOB/text attribute with no geometry type to detect, so
+    # the type-based pass below finds nothing — we then probe these and verify by result.
+    _GEOMISH_NAMES = frozenset({
+        "geom", "geometry", "the_geom", "geom2", "shape", "wkb_geometry", "way", "wkb",
+    })
+    _BLOBISH_TYPES = frozenset({"text", "binary", "blob", "bytea", "bytearray", "string", ""})
+
+    def _respatialize_sql(self, connection, options, layer):
+        """Turn an *aspatial* SQL result back into a geometry layer by naming its geometry
+        column. Tries the column detected **by type** first (any name); if that finds nothing
+        — as for a SpatiaLite computed geometry, which comes back as a BLOB/text attribute —
+        probes geometry-named / BLOB-typed columns and accepts the first that actually yields
+        a non-aspatial layer. Verification-by-result means a wrongly-guessed column is rejected.
+        Returns the respatialized layer, or None if nothing worked."""
+        candidates: list[str] = []
+        typed = self._geometry_field_name(layer)
+        if typed:
+            candidates.append(typed)
+        for f in layer.fields():
+            nm = f.name()
+            if nm in candidates:
+                continue
+            if nm.lower() in self._GEOMISH_NAMES \
+                    or (f.typeName() or "").lower() in self._BLOBISH_TYPES:
+                candidates.append(nm)
+        for col in candidates[:8]:  # bound the probing; SQL results have few columns
+            options.geometryColumn = col
+            try:
+                respatial = connection.createSqlVectorLayer(options)
+            except Exception:  # noqa: BLE001 — a bad guess just isn't a geometry column
+                continue
+            if respatial is not None and respatial.isValid() \
+                    and not self._is_aspatial(respatial):
+                return respatial
+        return None
 
     # Field type names that mark a geometry column in a SQL result — both the generic
     # PostGIS/PostgreSQL names and the per-type names SpatiaLite reports (e.g. `point`).

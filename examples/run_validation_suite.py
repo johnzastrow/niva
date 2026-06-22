@@ -32,7 +32,9 @@ import sys
 import time
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SUITE = os.path.join(REPO, "examples", "validation_suite.niva")
+# Optional positional arg picks the suite (default = suite 1); --emit writes the pure .niva.
+_ARGS = [a for a in sys.argv[1:] if not a.startswith("--")]
+SUITE = os.path.abspath(_ARGS[0]) if _ARGS else os.path.join(REPO, "examples", "validation_suite.niva")
 SCRATCH = "/tmp/niva_validation"
 OUT = os.path.join(SCRATCH, "out")
 
@@ -131,7 +133,37 @@ def cleanup(directive):
             niva_flow(directive[len("flow "):].strip())
 
 
+def emit_pure(blocks, path):
+    """Write a PURE, `niva run`-able .niva from the suite: per-test header comments, the
+    pipeline flows, and each test's DB cleanup as a real inline flow (`sql … DROP TABLE`).
+    File outputs aren't deleted (niva has no file-delete verb) — they're noted as comments."""
+    out = [
+        "# Pure runnable niva — generated from validation_suite.niva by",
+        "#   python examples/run_validation_suite.py --emit",
+        "# Run it and watch every pipeline:  niva run <this file>",
+        "# Outputs land in /tmp/niva_validation/out (left in place); the inline `sql … DROP`",
+        "# lines below clean up the PostGIS tables each test creates.",
+        "",
+    ]
+    for b in blocks:
+        out.append(f"# ── {b['id']} | {b['cat']} | {b['desc']}")
+        out.extend(b["flows"])
+        for c in b["cleanups"]:
+            if c.startswith("flow "):
+                out.append(c[len("flow "):].strip() + "    # cleanup")
+            elif c.startswith("rm "):
+                out.append(f"# cleanup (delete outside niva): rm {c[len('rm '):].strip()}")
+        out.append("")
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write("\n".join(out))
+    print(f"wrote pure runnable script: {path}")
+
+
 def main():
+    if "--emit" in sys.argv:
+        target = SUITE.replace(".niva", ".run.niva")
+        emit_pure(parse(SUITE), target)
+        return
     os.makedirs(OUT, exist_ok=True)
     blocks = parse(SUITE)
     npass = 0

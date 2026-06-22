@@ -20,21 +20,32 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   `@conn`; a `@conn` ref bound to a layer arg/option was passed through as a bogus string and the
   algorithm failed. The binder now flags layer-typed params and the engine loads the referenced
   table (dotted connection names resolved as in `load`).
-- **A 40-pipeline validation suite** — [`examples/validation_suite.niva`](examples/validation_suite.niva)
-  (annotated, simple→complex, with per-test cleanup) plus
-  [`examples/run_validation_suite.py`](examples/run_validation_suite.py), which executes each
-  pipeline, **asserts the output has real non-empty geometry** (the check that catches an
-  aspatial/empty-geometry load), and cleans up. Covers files / SpatiaLite / PostGIS / remote
-  sources, GeoPackage·multi-layer·SpatiaLite·shapefile·GeoTIFF·PostGIS(create/append/replace)
-  targets, ~25 processing verbs, raster ops, sql, run, each, and the utility verbs.
+- **Two 40-pipeline validation suites** that dogfood niva end-to-end and **assert every output
+  has real, non-empty geometry** (the check that catches an aspatial/empty-geometry load):
+  - [`examples/validation_suite.niva`](examples/validation_suite.niva) — simple→complex across
+    files / SpatiaLite / PostGIS / remote sources, GeoPackage·multi-layer·SpatiaLite·shapefile·
+    GeoTIFF·PostGIS(create/append/replace) targets, the common processing verbs, raster ops,
+    sql, run, each, and the utility verbs.
+  - [`examples/validation_suite_2.niva`](examples/validation_suite_2.niva) — "different & more
+    complex": attribute/field surgery (filter, keepfields, dropfields, renamefield, join), point/
+    line creation geometry (voronoi, delaunay, collect, pointsalong, vertices, offset, densify,
+    smooth, subdivide, minrect, sample, swapxy, forcerhr, promote), the new `@conn`-as-secondary-
+    layer overlays, SQL that *computes* geometry, raster→vector (warp→polygonize), deep multi-op
+    chains, and split / each-`{name}`-templating / style / project.
+  - Runner [`examples/run_validation_suite.py`](examples/run_validation_suite.py) takes a suite
+    path, executes/asserts/cleans up each test, and with `--emit` writes a pure, `niva run`-able
+    `*.run.niva` (pipelines + inline DB cleanup) so the runs can be replayed by hand.
 
 ### Fixed
-- **`sql` results keep their geometry.** The DB SQL provider doesn't always auto-detect a
-  result's geometry column, so a spatial `SELECT` came back **aspatial** (NoGeometry) with the
-  geometry sitting as an attribute — breaking any downstream op (the same failure class as the
-  v0.32.1 `load_table` bug). niva now sets the geometry column on the SQL layer, detected **by
-  type, any name** — covering both PostGIS (`geometry`/`geography`) and SpatiaLite (per-type
-  names like `point`).
+- **`sql` results keep their geometry — now including *computed* geometry.** The DB SQL provider
+  doesn't always auto-detect a result's geometry column, so a spatial `SELECT` came back
+  **aspatial** (NoGeometry) with the geometry sitting as an attribute — breaking any downstream op
+  (the same failure class as the v0.32.1 `load_table` bug). niva sets the geometry column on the
+  SQL layer, detected **by type, any name** (PostGIS `geometry`/`geography`, SpatiaLite per-type
+  names like `point`). When the column has *no* detectable type — as for a SpatiaLite
+  `ST_Centroid(geom)`, which surfaces as a BLOB/text attribute — niva now **probes** geometry-named
+  / BLOB-typed columns and verifies by result, so computed-geometry SELECTs survive on SpatiaLite
+  too (PostGIS already reported a real geometry type).
 
 ## [0.32.1] - 2026-06-22
 
