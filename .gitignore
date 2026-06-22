@@ -248,3 +248,6 @@ examples/demo/
 /hillshade.tif
 /assessment.md
 /extract.gpkg
+
+# Transportable test data — regenerate with examples/make_testdata.py (deterministic)
+examples/testdata/

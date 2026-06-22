@@ -21,8 +21,8 @@ Run under QGIS's Python:
       QT_QPA_PLATFORM=offscreen python3 examples/run_benchmark_suite.py \
         examples/benchmark_suite.niva [--out <dir>]
 
-Writes <out>/niva_benchmark_<UTCstamp>.json and .md (and refreshes latest.json/latest.md).
-Default <out> is /tmp/niva_benchmark/results. JSON is the canonical record for comparison.
+Writes <out>/benchmark_<host>_<UTCstamp>.json and .md (and refreshes benchmark_latest.json/.md).
+Default <out> is ~/niva-test-results (cross-machine). JSON is the canonical comparison record.
 """
 from __future__ import annotations
 
@@ -31,7 +31,6 @@ import glob
 import io
 import json
 import os
-import platform
 import re
 import resource
 import sys
@@ -39,10 +38,15 @@ import threading
 import time
 from datetime import datetime, timezone
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # find the sibling report module
+import _suite_report  # noqa: E402
+
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _ARGS = [a for a in sys.argv[1:] if not a.startswith("--")]
 SUITE = os.path.abspath(_ARGS[0]) if _ARGS else os.path.join(REPO, "examples", "benchmark_suite.niva")
-OUTDIR = "/tmp/niva_benchmark/results"
+# Reports land in the user's home (~/niva-test-results) by default so they compare across
+# machines; override with --out <dir>.
+OUTDIR = str(_suite_report.results_dir())
 if "--out" in sys.argv:
     OUTDIR = os.path.abspath(sys.argv[sys.argv.index("--out") + 1])
 
@@ -164,30 +168,9 @@ def cleanup(directive):
             niva_flow(flow)
 
 
-# --- environment fingerprint -------------------------------------------------------------
+# --- environment fingerprint (cross-platform, shared with the other runners) -------------
 def environment():
-    env = {
-        "timestamp_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "host": platform.node(),
-        "platform": platform.platform(),
-        "python": platform.python_version(),
-        "cpu_count": os.cpu_count(),
-    }
-    try:
-        with open("/proc/meminfo") as fh:
-            for ln in fh:
-                if ln.startswith("MemTotal:"):
-                    env["ram_total_mb"] = round(int(ln.split()[1]) / 1024)
-                    break
-    except OSError:
-        pass
-    with contextlib.suppress(Exception):
-        import niva
-        env["niva_version"] = niva.__version__
-    with contextlib.suppress(Exception):
-        from qgis.core import Qgis
-        env["qgis_version"] = Qgis.QGIS_VERSION
-    return env
+    return _suite_report.environment()
 
 
 def _stamp():
@@ -196,16 +179,19 @@ def _stamp():
 
 def write_reports(env, results, outdir):
     os.makedirs(outdir, exist_ok=True)
+    host = re.sub(r"\W+", "_", env.get("host") or "host")
     stamp = _stamp()
     payload = {"environment": env, "results": results}
-    for name in (f"niva_benchmark_{stamp}.json", "latest.json"):
+    # host-in-name timestamped files are the durable, gather-from-many-machines record;
+    # the latest.* are per-machine convenience.
+    for name in (f"benchmark_{host}_{stamp}.json", "benchmark_latest.json"):
         with open(os.path.join(outdir, name), "w", encoding="utf-8") as fh:
             json.dump(payload, fh, indent=2)
     md = _markdown(env, results)
-    for name in (f"niva_benchmark_{stamp}.md", "latest.md"):
+    for name in (f"benchmark_{host}_{stamp}.md", "benchmark_latest.md"):
         with open(os.path.join(outdir, name), "w", encoding="utf-8") as fh:
             fh.write(md)
-    return os.path.join(outdir, f"niva_benchmark_{stamp}.json")
+    return os.path.join(outdir, f"benchmark_{host}_{stamp}.json")
 
 
 def _markdown(env, results):
@@ -292,7 +278,7 @@ def main():
             print(f"         {err}")
     path = write_reports(env, results, OUTDIR)
     print("=" * 92)
-    print(f"wrote {path}\n      {os.path.join(OUTDIR, 'latest.json')} / latest.md")
+    print(f"wrote {path}\n      {os.path.join(OUTDIR, 'benchmark_latest.json')} / .md")
     sys.stdout.flush()
     os._exit(0)  # skip the QGIS teardown segfault
 

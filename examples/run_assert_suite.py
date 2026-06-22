@@ -36,11 +36,24 @@ import os
 import re
 import sys
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # find the sibling report module
+import _suite_report  # noqa: E402
+
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _ARGS = [a for a in sys.argv[1:] if not a.startswith("--")]
 SUITE = os.path.abspath(_ARGS[0]) if _ARGS else ""
 TMP = "/tmp/niva_assert"
 JDIR = os.path.join(TMP, "journal")
+# Portable test-data dir: $NIVA_TESTDATA, else examples/testdata, else the repo's data/. Suites
+# reference it as `{data}` so they run unchanged on any machine that has the data copied over.
+DATA = (os.environ.get("NIVA_TESTDATA")
+        or next((d for d in (os.path.join(REPO, "examples", "testdata"),
+                             os.path.join(REPO, "data")) if os.path.isdir(d)),
+                os.path.join(REPO, "data")))
+
+
+def _subst(text):
+    return text.format(tmp=TMP, data=DATA)
 
 _HDR = re.compile(r"#\s*=+\s*(PREAMBLE|TEST\s+\d+)\s*\|\s*(.*?)\s*\|\s*(.*?)\s*=+\s*$")
 
@@ -74,7 +87,7 @@ def parse(path):
 # --- layer helpers (file paths; @conn is round-tripped through niva's own load) ----------
 def _vl(path):
     from qgis.core import QgsVectorLayer
-    p = path.format(tmp=TMP)
+    p = _subst(path)
     if p.startswith("@"):
         t = os.path.join(TMP, "_assess.gpkg")
         for f in glob.glob(t + "*"):
@@ -92,7 +105,7 @@ def _helpers():
     from qgis.core import QgsWkbTypes
 
     def exists(p):
-        p = p.format(tmp=TMP)
+        p = _subst(p)
         return os.path.exists(p) or bool(glob.glob(os.path.splitext(p)[0] + ".*"))
 
     def count(p):
@@ -133,7 +146,7 @@ def _helpers():
         return abs(a - b) <= tol
 
     def filetext(p):
-        p = p.format(tmp=TMP)
+        p = _subst(p)
         try:
             with open(p, "rb") as fh:
                 return fh.read().decode("latin-1")
@@ -164,7 +177,7 @@ def _flow(text, log):
 
 
 def cleanup(directive):
-    d = directive.strip().format(tmp=TMP)
+    d = _subst(directive.strip())
     if d.startswith("rm "):
         d = "remove " + d[3:].strip()
     flow = d if d.startswith("remove ") else d[5:].strip() if d.startswith("flow ") else None
@@ -174,9 +187,13 @@ def cleanup(directive):
 
 
 def main():
+    import time
     os.makedirs(JDIR, exist_ok=True)
     blocks = parse(SUITE)
     npass = 0
+    rows = []
+    env = _suite_report.environment()
+    run_t0 = time.monotonic()
     print(f"niva assertion suite: {os.path.basename(SUITE)} — {len(blocks)} block(s)\n" + "=" * 80)
     helpers = _helpers()
     for b in blocks:
@@ -185,9 +202,10 @@ def main():
             with contextlib.suppress(OSError):
                 os.remove(logbase + ext)
         err = None
+        t0 = time.monotonic()
         for fl in b["flows"]:
             try:
-                _flow(fl.format(tmp=TMP), logbase)
+                _flow(_subst(fl), logbase)
             except Exception as exc:  # noqa: BLE001 — capture; negative tests expect this
                 err = exc
                 break
@@ -229,12 +247,25 @@ def main():
         for c in b["cleanups"]:
             cleanup(c)
 
+        dt = time.monotonic() - t0
         ok = not problems
         npass += ok
+        rows.append([b["id"], b["cat"], b["desc"][:48], "PASS" if ok else "FAIL",
+                     f"{dt:.2f}", (problems[0] if problems else "ok")[:80]])
         print(f"[{'PASS' if ok else 'FAIL'}] {b['id']:8} [{b['cat']}] {b['desc'][:48]}")
         for p in problems:
             print(f"         ✗ {p}")
+    elapsed = time.monotonic() - run_t0
     print("=" * 80 + f"\n{npass}/{len(blocks)} blocks passed")
+    try:
+        suite = os.path.splitext(os.path.basename(SUITE))[0]
+        path = _suite_report.write_summary(
+            suite, env, ["ID", "category", "description", "status", "time (s)", "notes"], rows,
+            [f"{npass}/{len(blocks)} blocks passed", f"total elapsed {elapsed:.1f}s"],
+            env["timestamp_utc"], elapsed)
+        print(f"summary report → {path}")
+    except Exception as exc:  # noqa: BLE001 — reporting must never fail the run
+        print(f"(could not write summary report: {exc})")
     sys.stdout.flush()
     os._exit(0 if npass == len(blocks) else 1)
 

@@ -31,6 +31,9 @@ import re
 import sys
 import time
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # find the sibling report module
+import _suite_report  # noqa: E402
+
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # Optional positional arg picks the suite (default = suite 1); --emit writes the pure .niva.
 _ARGS = [a for a in sys.argv[1:] if not a.startswith("--")]
@@ -174,6 +177,9 @@ def main():
     os.makedirs(OUT, exist_ok=True)
     blocks = parse(SUITE)
     npass = 0
+    rows = []
+    env = _suite_report.environment()
+    run_t0 = time.monotonic()
     print(f"niva validation suite — {len(blocks)} blocks\n" + "=" * 78)
     for b in blocks:
         label = f"{b['id']:8} [{b['cat']}] {b['desc']}"
@@ -196,14 +202,31 @@ def main():
         dt = time.monotonic() - t0
         ok = err is None and all(r[0] for r in results)
         npass += ok
+        note = err or "; ".join(m for good, m, _ in results if not good) or "ok"
+        rows.append([b["id"], b["cat"], b["desc"][:48], "PASS" if ok else "FAIL",
+                     f"{dt:.2f}", note[:80]])
         print(f"[{'PASS' if ok else 'FAIL'}] {label}  ({dt:.1f}s)")
         if err:
             print(f"         flow error: {err}")
         for good, msg, tgt in results:
             print(f"         {'✓' if good else '✗'} {tgt} — {msg}")
+    elapsed = time.monotonic() - run_t0
     print("=" * 78 + f"\n{npass}/{len(blocks)} blocks passed")
+    _write_report(env, rows, npass, len(blocks), elapsed)
     sys.stdout.flush()
     os._exit(0 if npass == len(blocks) else 1)  # skip QGIS teardown segfault
+
+
+def _write_report(env, rows, npass, total, elapsed):
+    try:
+        suite = os.path.splitext(os.path.basename(SUITE))[0]
+        path = _suite_report.write_summary(
+            suite, env, ["ID", "category", "description", "status", "time (s)", "notes"], rows,
+            [f"{npass}/{total} blocks passed", f"total elapsed {elapsed:.1f}s"],
+            env["timestamp_utc"], elapsed)
+        print(f"summary report → {path}")
+    except Exception as exc:  # noqa: BLE001 — reporting must never fail the run
+        print(f"(could not write summary report: {exc})")
 
 
 if __name__ == "__main__":

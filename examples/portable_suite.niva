@@ -1,0 +1,140 @@
+# =============================================================================
+# niva PORTABLE SUITE — runs on transportable data, comparable across machines
+# =============================================================================
+# Unlike the other suites (which use this machine's data/ dir and @localpg), this one runs
+# entirely on the SELF-CONTAINED test data produced by examples/make_testdata.py — a single
+# GeoPackage + a DEM + a SpatiaLite file that you can copy to any computer / QGIS instance. It
+# exercises the core verbs and asserts correctness, and the runner records timing + an
+# environment fingerprint to ~/niva-test-results so runs from different machines can be compared.
+#
+# Setup (once per machine):  python3 examples/make_testdata.py
+# Run:
+#   PYTHONPATH=<repo>:/usr/share/qgis/python:/usr/lib/python3/dist-packages \
+#     QT_QPA_PLATFORM=offscreen python3 examples/run_assert_suite.py examples/portable_suite.niva
+#
+# `{data}` resolves to $NIVA_TESTDATA, else examples/testdata, else the repo data/. `{tmp}` is
+# scratch. All vector layers are EPSG:6346 (metres) except points_wgs84 (EPSG:4326).
+# =============================================================================
+
+
+# ===== PREAMBLE | data | the transportable GeoPackage is present and intact =====
+load "{data}/niva_testdata.gpkg|layername=points" | save {tmp}/p00.gpkg
+#@check count("{tmp}/p00.gpkg") == 64
+#@check crs("{tmp}/p00.gpkg") == "EPSG:6346"
+#@cleanup remove {tmp}/p00.gpkg
+
+
+# ------------------------------------------------------------------ load every geometry type
+# ===== TEST 01 | load | points (64) =====
+load "{data}/niva_testdata.gpkg|layername=points" | save {tmp}/p01.gpkg
+#@check nonempty("{tmp}/p01.gpkg")
+#@check count("{tmp}/p01.gpkg") == 64
+#@cleanup remove {tmp}/p01.gpkg
+
+# ===== TEST 02 | load | lines (8) =====
+load "{data}/niva_testdata.gpkg|layername=lines" | save {tmp}/p02.gpkg
+#@check nonempty("{tmp}/p02.gpkg")
+#@check count("{tmp}/p02.gpkg") == 8
+#@cleanup remove {tmp}/p02.gpkg
+
+# ===== TEST 03 | load | polygons (16) =====
+load "{data}/niva_testdata.gpkg|layername=polygons" | save {tmp}/p03.gpkg
+#@check nonempty("{tmp}/p03.gpkg")
+#@check count("{tmp}/p03.gpkg") == 16
+#@cleanup remove {tmp}/p03.gpkg
+
+# ===== TEST 04 | load | multipolygons (4) =====
+load "{data}/niva_testdata.gpkg|layername=multipolys" | save {tmp}/p04.gpkg
+#@check nonempty("{tmp}/p04.gpkg")
+#@check count("{tmp}/p04.gpkg") == 4
+#@cleanup remove {tmp}/p04.gpkg
+
+
+# ------------------------------------------------------------------ core processing + correctness
+# ===== TEST 05 | buffer | 64 disjoint 100 m point-buffers ≈ 64·π·100² =====
+load "{data}/niva_testdata.gpkg|layername=points" | buffer 100m segments=36 | save {tmp}/p05.gpkg
+#@check approx(area("{tmp}/p05.gpkg"), 64*31416, 64*600)
+#@cleanup remove {tmp}/p05.gpkg
+
+# ===== TEST 06 | reproject | round-trip 6346→4326→6346 preserves the bbox (≤1 m) =====
+load "{data}/niva_testdata.gpkg|layername=polygons" | reproject EPSG:4326 | reproject EPSG:6346 | save {tmp}/p06.gpkg
+#@check approx(bbox("{tmp}/p06.gpkg")[0], bbox("{data}/niva_testdata.gpkg|layername=polygons")[0], 1.0)
+#@cleanup remove {tmp}/p06.gpkg
+
+# ===== TEST 07 | clip | polygons clipped to the aoi have ≤ the original area =====
+load "{data}/niva_testdata.gpkg|layername=polygons" | clip "{data}/niva_testdata.gpkg|layername=aoi" | save {tmp}/p07.gpkg
+#@check area("{tmp}/p07.gpkg") <= area("{data}/niva_testdata.gpkg|layername=polygons") + 1
+#@check nonempty("{tmp}/p07.gpkg")
+#@cleanup remove {tmp}/p07.gpkg
+
+# ===== TEST 08 | dissolve | 16 polygons merge into one =====
+load "{data}/niva_testdata.gpkg|layername=polygons" | dissolve | save {tmp}/p08.gpkg
+#@check count("{tmp}/p08.gpkg") == 1
+#@cleanup remove {tmp}/p08.gpkg
+
+# ===== TEST 09 | centroid | each polygon's centroid lies inside it =====
+load "{data}/niva_testdata.gpkg|layername=polygons" | centroid | save {tmp}/p09.gpkg
+#@check within_all("{tmp}/p09.gpkg", "{data}/niva_testdata.gpkg|layername=polygons")
+#@cleanup remove {tmp}/p09.gpkg
+
+# ===== TEST 10 | voronoi | Thiessen polygons from the points =====
+load "{data}/niva_testdata.gpkg|layername=points" | voronoi | save {tmp}/p10.gpkg
+#@check nonempty("{tmp}/p10.gpkg")
+#@cleanup remove {tmp}/p10.gpkg
+
+# ===== TEST 11 | explode | each 2-part multipolygon becomes two singleparts (4→8) =====
+load "{data}/niva_testdata.gpkg|layername=multipolys" | explode | save {tmp}/p11.gpkg
+#@check count("{tmp}/p11.gpkg") == 8
+#@cleanup remove {tmp}/p11.gpkg
+
+# ===== TEST 12 | filter | every polygon has value>0 (count preserved) =====
+load "{data}/niva_testdata.gpkg|layername=polygons" | filter "value > 0" | save {tmp}/p12.gpkg
+#@check count("{tmp}/p12.gpkg") == 16
+#@cleanup remove {tmp}/p12.gpkg
+
+
+# ------------------------------------------------------------------ format round-trips
+# ===== TEST 13 | shapefile | points → .shp preserves count =====
+load "{data}/niva_testdata.gpkg|layername=points" | save {tmp}/p13.shp
+#@check count("{tmp}/p13.shp") == 64
+#@cleanup remove {tmp}/p13.shp
+
+# ===== TEST 14 | geojson | points → 4326 → .geojson preserves count =====
+load "{data}/niva_testdata.gpkg|layername=points" | reproject EPSG:4326 | save {tmp}/p14.geojson
+#@check count("{tmp}/p14.geojson") == 64
+#@check crs("{tmp}/p14.geojson") == "EPSG:4326"
+#@cleanup remove {tmp}/p14.geojson
+
+# ===== TEST 15 | spatialite | the transportable SpatiaLite file loads (64 points) =====
+load "{data}/niva_testdata.sqlite|layername=points" | save {tmp}/p15.gpkg
+#@check count("{tmp}/p15.gpkg") == 64
+#@cleanup remove {tmp}/p15.gpkg
+
+
+# ------------------------------------------------------------------ raster
+# ===== TEST 16 | warp | reproject the DEM to EPSG:3857 =====
+load "{data}/niva_testdata_dem.tif" | warp EPSG:3857 | save {tmp}/p16.tif
+#@check exists("{tmp}/p16.tif")
+#@cleanup remove {tmp}/p16.tif
+
+# ===== TEST 17 | slope | a slope raster from the DEM =====
+load "{data}/niva_testdata_dem.tif" | slope | save {tmp}/p17.tif
+#@check exists("{tmp}/p17.tif")
+#@cleanup remove {tmp}/p17.tif
+
+
+# ------------------------------------------------------------------ awkward names & guards
+# ===== TEST 18 | awkward name | a layer named "weird name" (space) loads =====
+load "{data}/niva_testdata.gpkg|layername=weird name" | save {tmp}/p18.gpkg
+#@check nonempty("{tmp}/p18.gpkg")
+#@cleanup remove {tmp}/p18.gpkg
+
+# ===== TEST 19 | guard | a linear buffer on a geographic layer fails closed =====
+load "{data}/niva_testdata.gpkg|layername=points_wgs84" | buffer 100m | save {tmp}/p19.gpkg
+#@fails linear distance
+#@check not exists("{tmp}/p19.gpkg")
+
+# ===== TEST 20 | chain | a deep chain on portable data yields real geometry =====
+load "{data}/niva_testdata.gpkg|layername=points" | buffer 200m | dissolve | convexhull | centroid | buffer 300m segments=36 | save {tmp}/p20.gpkg
+#@check nonempty("{tmp}/p20.gpkg")
+#@cleanup remove {tmp}/p20.gpkg
