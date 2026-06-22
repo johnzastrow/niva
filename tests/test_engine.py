@@ -312,6 +312,15 @@ class TestErrors(unittest.TestCase):
         with self.assertRaises(FlowError):
             run("load roads.gpkg | clip @pg")  # bare connection, no table
 
+    def test_unknown_crs_fails_closed(self):
+        # An unrecognised CRS must raise (not silently produce an empty-CRS layer). MockBackend
+        # treats a ≥6-digit EPSG code as invalid; a real code passes.
+        with self.assertRaises(FlowError) as ctx:
+            run("load roads.gpkg | reproject EPSG:999999 | save out.gpkg")
+        self.assertIn("not a recognised CRS", str(ctx.exception))
+        backend, _ = run("load roads.gpkg | reproject EPSG:6346 | save out.gpkg")
+        self.assertTrue(any(c[0] == "run" for c in backend.calls))
+
     def test_save_mode_on_a_file_is_a_guiding_error(self):
         # `mode=append` is database-only; on a file the error should point at `as <layer>`.
         with self.assertRaises(FlowError) as ctx:

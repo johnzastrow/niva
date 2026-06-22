@@ -1,0 +1,139 @@
+# =============================================================================
+# niva ROUND-TRIP / DATA-INTEGRITY SUITE
+# =============================================================================
+# load → save → reload through every format must preserve the data: feature count, CRS,
+# geometry, field names, and attribute VALUES (in order). This catches SILENT corruption — the
+# kind no "is the output non-empty?" check would ever notice. Format limits are encoded honestly
+# (a Shapefile truncates field names to 10 chars, so that test checks field COUNT, not names).
+#
+# Run with:
+#   PYTHONPATH=<repo>:/usr/share/qgis/python:/usr/lib/python3/dist-packages \
+#     QT_QPA_PLATFORM=offscreen python3 examples/run_assert_suite.py examples/round_trip_suite.niva
+#
+# Helpers: count(p) crs(p) gtype(p) fields(p) values(p,field) area(p) bbox(p) approx(a,b,tol).
+# SRC is basemap boundary-polygon (35 MultiPolygons, EPSG:6346, fields NAME/NAME_EN/ADMIN_LVL/…).
+# {tmp} = /tmp/niva_assert.
+# =============================================================================
+
+
+# ===== PREAMBLE | setup | stage the source as a clean GeoPackage =====
+load "/home/jcz/Github/niva/data/basemap.gpkg|layername=boundary-polygon" | save {tmp}/src.gpkg
+#@check count("{tmp}/src.gpkg") == 35
+#@check crs("{tmp}/src.gpkg") == "EPSG:6346"
+
+
+# ------------------------------------------------------------------ GeoPackage (lossless)
+# ===== TEST 01 | gpkg | count, CRS, geometry type all preserved =====
+load "{tmp}/src.gpkg" | save {tmp}/rt01.gpkg
+#@check count("{tmp}/rt01.gpkg") == count("{tmp}/src.gpkg")
+#@check crs("{tmp}/rt01.gpkg") == "EPSG:6346"
+#@check gtype("{tmp}/rt01.gpkg") == gtype("{tmp}/src.gpkg")
+#@cleanup remove {tmp}/rt01.gpkg
+
+# ===== TEST 02 | gpkg | real attribute fields preserved exactly =====
+# NOTE: a GeoPackage that already carries a `fid` attribute column gains a renamed FID-bookkeeping
+# duplicate (`gpkg_fid` → `gpkg_fid_` …) on each save — GDAL's documented handling of a pre-existing
+# `fid`, not data loss. niva can't safely auto-drop a column literally named `fid`. So we assert the
+# REAL attributes survive, ignoring the gpkg/fid bookkeeping columns.
+load "{tmp}/src.gpkg" | save {tmp}/rt02.gpkg
+#@check set(f for f in fields("{tmp}/rt02.gpkg") if not f.startswith("gpkg_fid") and f != "fid") == set(f for f in fields("{tmp}/src.gpkg") if not f.startswith("gpkg_fid") and f != "fid")
+#@cleanup remove {tmp}/rt02.gpkg
+
+# ===== TEST 03 | gpkg | attribute VALUES preserved (NAME column, by value) =====
+load "{tmp}/src.gpkg" | save {tmp}/rt03.gpkg
+#@check sorted(str(v) for v in values("{tmp}/rt03.gpkg", "NAME")) == sorted(str(v) for v in values("{tmp}/src.gpkg", "NAME"))
+#@cleanup remove {tmp}/rt03.gpkg
+
+# ===== TEST 04 | gpkg | geometry preserved (total area within 1e-6 relative) =====
+load "{tmp}/src.gpkg" | save {tmp}/rt04.gpkg
+#@check approx(area("{tmp}/rt04.gpkg"), area("{tmp}/src.gpkg"), area("{tmp}/src.gpkg")*0.000001)
+#@cleanup remove {tmp}/rt04.gpkg
+
+# ===== TEST 05 | gpkg | null attribute values survive as nulls =====
+load "{tmp}/src.gpkg" | save {tmp}/rt05.gpkg
+#@check [v is None for v in values("{tmp}/rt05.gpkg", "NAME_EN")] == [v is None for v in values("{tmp}/src.gpkg", "NAME_EN")]
+#@cleanup remove {tmp}/rt05.gpkg
+
+
+# ------------------------------------------------------------------ Shapefile (field-name limit)
+# ===== TEST 06 | shp | count + CRS + geometry preserved =====
+load "{tmp}/src.gpkg" | save {tmp}/rt06.shp
+#@check count("{tmp}/rt06.shp") == count("{tmp}/src.gpkg")
+#@check crs("{tmp}/rt06.shp") == "EPSG:6346"
+#@check nonempty("{tmp}/rt06.shp")
+#@cleanup remove {tmp}/rt06.shp
+
+# ===== TEST 07 | shp | attribute count preserved (names may truncate to 10 chars) =====
+load "{tmp}/src.gpkg" | save {tmp}/rt07.shp
+#@check len(fields("{tmp}/rt07.shp")) == len(fields("{tmp}/src.gpkg"))
+#@check sorted(str(v) for v in values("{tmp}/rt07.shp", "NAME")) == sorted(str(v) for v in values("{tmp}/src.gpkg", "NAME"))
+#@cleanup remove {tmp}/rt07.shp
+
+
+# ------------------------------------------------------------------ GeoJSON (WGS84)
+# ===== TEST 08 | geojson | reproject→4326→geojson preserves count + values =====
+load "{tmp}/src.gpkg" | reproject EPSG:4326 | save {tmp}/rt08.geojson
+#@check count("{tmp}/rt08.geojson") == count("{tmp}/src.gpkg")
+#@check crs("{tmp}/rt08.geojson") == "EPSG:4326"
+#@check sorted(str(v) for v in values("{tmp}/rt08.geojson", "NAME")) == sorted(str(v) for v in values("{tmp}/src.gpkg", "NAME"))
+#@cleanup remove {tmp}/rt08.geojson
+
+
+# ------------------------------------------------------------------ SpatiaLite (file DB)
+# ===== TEST 09 | spatialite | count + CRS + field names preserved =====
+load "{tmp}/src.gpkg" | save {tmp}/rt09.sqlite
+#@check count("{tmp}/rt09.sqlite") == count("{tmp}/src.gpkg")
+#@check crs("{tmp}/rt09.sqlite") == "EPSG:6346"
+#@cleanup remove {tmp}/rt09.sqlite
+
+# ===== TEST 10 | spatialite | attribute values preserved =====
+load "{tmp}/src.gpkg" | save {tmp}/rt10.sqlite
+#@check sorted(str(v) for v in values("{tmp}/rt10.sqlite", "NAME")) == sorted(str(v) for v in values("{tmp}/src.gpkg", "NAME"))
+#@cleanup remove {tmp}/rt10.sqlite
+
+
+# ------------------------------------------------------------------ multi-layer GeoPackage
+# ===== TEST 11 | gpkg layer | save as a named layer, reload it by name =====
+load "{tmp}/src.gpkg" | save {tmp}/rt11.gpkg as districts
+#@check count("{tmp}/rt11.gpkg|layername=districts") == count("{tmp}/src.gpkg")
+#@check crs("{tmp}/rt11.gpkg|layername=districts") == "EPSG:6346"
+#@cleanup remove {tmp}/rt11.gpkg
+
+
+# ------------------------------------------------------------------ PostGIS (DB round-trip)
+# ===== TEST 12 | postgis | write to a table, read it back — count + CRS preserved =====
+load "{tmp}/src.gpkg" | save @localpg.public.nv_rt mode=replace
+load "@localpg.public.nv_rt" | save {tmp}/rt12.gpkg
+#@check count("{tmp}/rt12.gpkg") == count("{tmp}/src.gpkg")
+#@check crs("{tmp}/rt12.gpkg") == "EPSG:6346"
+#@cleanup remove {tmp}/rt12.gpkg
+#@cleanup flow sql @localpg "DROP TABLE IF EXISTS public.nv_rt"
+
+# ===== TEST 13 | postgis | attribute values survive the DB round-trip =====
+load "{tmp}/src.gpkg" | save @localpg.public.nv_rt2 mode=replace
+load "@localpg.public.nv_rt2" | save {tmp}/rt13.gpkg
+#@check sorted(str(v) for v in values("{tmp}/rt13.gpkg", "NAME")) == sorted(str(v) for v in values("{tmp}/src.gpkg", "NAME"))
+#@cleanup remove {tmp}/rt13.gpkg
+#@cleanup flow sql @localpg "DROP TABLE IF EXISTS public.nv_rt2"
+
+
+# ------------------------------------------------------------------ awkward identifiers
+# ===== TEST 14 | special names | a table named "My Roads" (space) round-trips to a file =====
+load "@localpg.public.My Roads" | save {tmp}/rt14.gpkg
+#@check count("{tmp}/rt14.gpkg") >= 1
+#@check nonempty("{tmp}/rt14.gpkg")
+#@cleanup remove {tmp}/rt14.gpkg
+
+# ===== TEST 15 | special names | a layer named with a hyphen round-trips losslessly =====
+load "/home/jcz/Github/niva/data/basemap.gpkg|layername=nature_reserve-polygon" | save {tmp}/rt15.gpkg as nature-reserve
+#@check count("{tmp}/rt15.gpkg|layername=nature-reserve") == count("/home/jcz/Github/niva/data/basemap.gpkg|layername=nature_reserve-polygon")
+#@cleanup remove {tmp}/rt15.gpkg
+
+
+# ------------------------------------------------------------------ coordinate precision
+# ===== TEST 16 | precision | a GeoPackage round-trip preserves the bbox to sub-millimetre =====
+load "{tmp}/src.gpkg" | save {tmp}/rt16.gpkg
+#@check approx(bbox("{tmp}/rt16.gpkg")[0], bbox("{tmp}/src.gpkg")[0], 0.0001)
+#@check approx(bbox("{tmp}/rt16.gpkg")[3], bbox("{tmp}/src.gpkg")[3], 0.0001)
+#@cleanup remove {tmp}/rt16.gpkg
+#@cleanup remove {tmp}/src.gpkg

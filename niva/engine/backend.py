@@ -11,6 +11,7 @@ can power a ``--dry-run`` that validates a flow without executing it.
 from __future__ import annotations
 
 import abc
+import re
 
 from .layer import DB_TABLE, MEMORY, SOURCE, CrsInfo, Layer
 
@@ -223,6 +224,15 @@ class MockBackend(Backend):
 
     def connection_names(self) -> list:
         return list(self.conn_names)
+
+    def valid_crs(self, text: str) -> bool:
+        # No QGIS CRS database here — accept the well-formed forms used in tests, and treat an
+        # obviously-bogus EPSG code (≥ 6 digits) as invalid so engine validation is exercisable.
+        t = text.strip()
+        m = re.fullmatch(r"(?i)epsg:(\d+)", t)
+        if m:
+            return len(m.group(1)) < 6
+        return bool(t)
 
     def compact(self, path: str) -> None:
         self.calls.append(("compact", path))

@@ -11,6 +11,34 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.34.1] - 2026-06-22
+
+### Fixed
+- **`reproject`/`warp` fail closed on an unknown CRS.** `reproject EPSG:99999` (or any code QGIS
+  doesn't recognise) used to **silently** produce a layer with an invalid/empty CRS — the
+  coordinates unchanged but the CRS label gone, a quiet corruption that breaks every downstream
+  step. niva now validates a `crs`-typed argument **before running** and raises a clear error,
+  writing nothing. (The binder flags `crs` params; the engine checks each via the backend's new
+  `valid_crs`, backed by `QgsCoordinateReferenceSystem`.) Surfaced by the new error-path suite.
+
+### Added (testing)
+- **Four property-based assertion suites + a shared harness** (`examples/run_assert_suite.py`,
+  `#@fails`/`#@check` with rich helpers) that test what the validation suites pass *through*:
+  - `error_path_suite.niva` — a bad flow must raise a **useful** message **and leave no partial
+    output** (fail-closed): missing files, unknown verbs/CRS/conn, geographic-buffer, type
+    mismatches, `save` guards, `remove` refusals, `each`/`sql` errors.
+  - `numerical_suite.niva` — the **values** are right: a 100 m buffer's area ≈ π·100², ft→m
+    conversion, centroid-within-polygon, reproject round-trip (bbox & area), dissolve/collect/
+    explode counts, convex-hull/bbox/clip area relations, swapxy identity, densify length.
+  - `round_trip_suite.niva` — `load→save→reload` preserves count / CRS / fields / **attribute
+    values** across GeoPackage / Shapefile / GeoJSON / SpatiaLite / PostGIS, including
+    problematic table names (honestly encoding Shapefile's 10-char field limit and GDAL's
+    pre-existing-`fid` bookkeeping).
+  - `security_suite.niva` — **credentials never leave QGIS** (only the `@conn` name reaches the
+    journal/output), DB **identifiers are quoted** for hostile names (`select`, `café points`,
+    `Mixed.Case.Dots`, `123_leading`, `name-with-dash#hash`), and `remove`'s allowlist holds
+    regardless of path spelling.
+
 ## [0.34.0] - 2026-06-22
 
 ### Added

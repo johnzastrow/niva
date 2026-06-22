@@ -1839,6 +1839,13 @@ class PyqgisBackend(Backend):
                           algorithm="style", params={}, backend="pyqgis")
         return None
 
+    def valid_crs(self, text: str) -> bool:
+        """True if QGIS recognises ``text`` as a CRS (EPSG/authid/WKT/PROJ). Rejects an unknown
+        code like `EPSG:99999`, so reproject/warp fail closed instead of yielding an empty CRS."""
+        from qgis.core import QgsCoordinateReferenceSystem
+
+        return QgsCoordinateReferenceSystem(text).isValid()
+
     def crs_of(self, layer: Layer) -> CrsInfo:
         from qgis.core import Qgis, QgsUnitTypes
 

@@ -100,6 +100,12 @@ class TestBinder(unittest.TestCase):
         self.assertEqual(bound("clip city.gpkg").layer_params, frozenset({"OVERLAY"}))
         self.assertIn("JOIN", bound("spatialjoin with=zones.gpkg").layer_params)
 
+    def test_crs_params_are_flagged(self):
+        # `crs`-typed args/options are marked so the engine can validate them and fail closed on
+        # an unknown CRS instead of silently producing a layer with an empty CRS.
+        self.assertEqual(bound("reproject EPSG:6346").crs_params, frozenset({"TARGET_CRS"}))
+        self.assertIn("TARGET_CRS", bound("warp EPSG:3857").crs_params)
+
     def test_layer_arg_expands_tilde(self):
         # A layer/raster path arg expands a leading ~ (QGIS/GDAL don't), so
         # `clip "~/aoi.gpkg"` resolves like `load "~/aoi.gpkg"`. Non-~ paths and

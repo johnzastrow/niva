@@ -1,0 +1,98 @@
+# =============================================================================
+# niva SECURITY / ABUSE SUITE
+# =============================================================================
+# Exercises niva's security posture directly: credentials never leave QGIS (only the @conn NAME
+# appears in a flow/journal/output), database identifiers with awkward or hostile names are
+# QUOTED (never broken or executed), and the destructive `remove` verb's allowlist holds
+# regardless of how a path is spelled. Uses the deliberately problematic-named @localpg fixtures.
+#
+# Run with:
+#   PYTHONPATH=<repo>:/usr/share/qgis/python:/usr/lib/python3/dist-packages \
+#     QT_QPA_PLATFORM=offscreen python3 examples/run_assert_suite.py examples/security_suite.niva
+#
+# Helpers: journal() (this block's run-journal text), leaks(text) (true if a DB URI/credential
+# marker is present), filetext(p) (a file's bytes as text), count(p) nonempty(p) exists(p).
+# {tmp} = /tmp/niva_assert.
+# =============================================================================
+
+
+# ------------------------------------------------ credentials / connection-URI never leak
+# ===== TEST 01 | creds | loading @conn records the NAME, not a DB URI =====
+load "@localpg.public.My Roads" | save {tmp}/s01.gpkg
+#@check "localpg" in journal()
+#@check not leaks(journal())
+#@cleanup remove {tmp}/s01.gpkg
+
+# ===== TEST 02 | creds | a sql @conn run leaves no URI/credentials in the journal =====
+sql @localpg "SELECT 1 AS id, ST_SetSRID(ST_MakePoint(0,0), 4326) AS geom" | save {tmp}/s02.gpkg
+#@check not leaks(journal())
+#@cleanup remove {tmp}/s02.gpkg
+
+# ===== TEST 03 | creds | writing to @conn leaves no URI/credentials in the journal =====
+load "/home/jcz/Github/niva/data/study_area_bbox.gpkg" | save @localpg.public.nv_sec mode=replace
+#@check not leaks(journal())
+#@cleanup flow sql @localpg "DROP TABLE IF EXISTS public.nv_sec"
+
+# ===== TEST 04 | creds | the output file written FROM @conn embeds no source DB URI =====
+load "@localpg.public.My Roads" | save {tmp}/s04.gpkg
+#@check not leaks(filetext("{tmp}/s04.gpkg"))
+#@cleanup remove {tmp}/s04.gpkg
+
+
+# ------------------------------------------------ identifier quoting / injection resistance
+# ===== TEST 05 | identifier | a table named after a SQL reserved word (`select`) loads =====
+load "@localpg.public.select" | save {tmp}/s05.gpkg
+#@check nonempty("{tmp}/s05.gpkg")
+#@cleanup remove {tmp}/s05.gpkg
+
+# ===== TEST 06 | identifier | a unicode + space name (`café points`) loads =====
+load "@localpg.public.café points" | save {tmp}/s06.gpkg
+#@check nonempty("{tmp}/s06.gpkg")
+#@cleanup remove {tmp}/s06.gpkg
+
+# ===== TEST 07 | identifier | a dotted name (`Mixed.Case.Dots`) resolves as a TABLE, not schema.col =====
+load "@localpg.public.Mixed.Case.Dots" | save {tmp}/s07.gpkg
+#@check nonempty("{tmp}/s07.gpkg")
+#@cleanup remove {tmp}/s07.gpkg
+
+# ===== TEST 08 | identifier | a leading-digit name (`123_leading`) loads =====
+load "@localpg.public.123_leading" | save {tmp}/s08.gpkg
+#@check nonempty("{tmp}/s08.gpkg")
+#@cleanup remove {tmp}/s08.gpkg
+
+# ===== TEST 09 | identifier | a name with `#` and a non-default geom column loads =====
+load "@localpg.public.name-with-dash#hash" | save {tmp}/s09.gpkg
+#@check nonempty("{tmp}/s09.gpkg")
+#@cleanup remove {tmp}/s09.gpkg
+
+# ===== TEST 10 | identifier | round-tripping a hostile name preserves the data =====
+load "@localpg.public.café points" | save {tmp}/s10.gpkg
+#@check count("{tmp}/s10.gpkg") >= 1
+#@cleanup remove {tmp}/s10.gpkg
+
+
+# ------------------------------------------------ `remove` allowlist is spelling-independent
+# ===== TEST 11 | remove | a non-geodata file via a `..` path is still refused (no force) =====
+load "/home/jcz/Github/niva/data/study_area_bbox.gpkg" | assess to {tmp}/sub/secret.conf
+remove {tmp}/sub/../sub/secret.conf
+#@fails recognised geodata
+#@check exists("{tmp}/sub/secret.conf")
+#@cleanup remove {tmp}/sub/secret.conf force
+
+# ===== TEST 12 | remove | a @conn ref dressed as a path is still refused =====
+remove @localpg.public.bobby
+#@fails files only
+
+# ===== TEST 13 | remove | a glob with traversal is still refused =====
+remove "{tmp}/../niva_assert/*.gpkg"
+#@fails glob
+
+
+# ------------------------------------------------ raw-sql boundary (documented)
+# ===== TEST 14 | sql | the raw escape hatch runs the given statement verbatim (by design) =====
+# `sql` is intentionally a raw passthrough — the injection boundary niva DEFENDS is identifier
+# quoting on load/save (tests 05–10), not this escape hatch. Here a benign statement just works.
+sql @localpg "SELECT 2 AS id, ST_SetSRID(ST_MakePoint(1,1), 4326) AS geom" | save {tmp}/s14.gpkg
+#@check count("{tmp}/s14.gpkg") == 1
+#@check not leaks(journal())
+#@cleanup remove {tmp}/s14.gpkg

@@ -39,6 +39,11 @@ class BoundOp:
     # OVERLAY, spatialjoin's JOIN). The engine resolves a `@conn.table` value here into a
     # loaded layer (the binder is QGIS-free and can't); a plain path passes straight through.
     layer_params: frozenset = field(default_factory=frozenset)
+    # Param names bound from a `crs`-typed arg/option (reproject's TARGET_CRS, warp's
+    # SOURCE/TARGET_CRS, …). The engine asks the backend to validate each value before running,
+    # so an unknown CRS (e.g. `EPSG:99999`) fails closed instead of silently producing a layer
+    # with an invalid/empty CRS.
+    crs_params: frozenset = field(default_factory=frozenset)
 
 
 def bind(stage, alias: Alias) -> BoundOp:
@@ -105,8 +110,11 @@ def bind(stage, alias: Alias) -> BoundOp:
     layer_params = {s.param for s in alias.args if s.type == "layer" and s.param in params}
     layer_params |= {s.param for s in alias.options.values()
                      if s.type == "layer" and s.param in params}
+    crs_params = {s.param for s in alias.args if s.type == "crs" and s.param in params}
+    crs_params |= {s.param for s in alias.options.values()
+                   if s.type == "crs" and s.param in params}
     return BoundOp(alias.algorithm, params, alias.primary_input, alias.primary_output,
-                   frozenset(layer_params))
+                   frozenset(layer_params), frozenset(crs_params))
 
 
 # --- coercion --------------------------------------------------------------

@@ -1,0 +1,141 @@
+# =============================================================================
+# niva NUMERICAL-CORRECTNESS SUITE
+# =============================================================================
+# The other suites would pass even if an op produced WRONG-but-non-empty geometry. This one
+# checks the VALUES: a 100 m buffer of a point really has area ≈ π·100²; a foot-distance is
+# converted correctly; a centroid lies inside its polygon; reproject round-trips within tolerance;
+# dissolve/collect/explode counts are right; clip/convexhull/bbox areas relate correctly.
+#
+# Run with:
+#   PYTHONPATH=<repo>:/usr/share/qgis/python:/usr/lib/python3/dist-packages \
+#     QT_QPA_PLATFORM=offscreen python3 examples/run_assert_suite.py examples/numerical_suite.niva
+#
+# `#@check <expr>` helpers: area(p) length(p) count(p) bbox(p) crs(p) gtype(p) within_all(pts,polys)
+#   approx(a,b,tol) exists(p) nonempty(p).  {tmp} = /tmp/niva_assert.  All layers EPSG:6346 (metres).
+# =============================================================================
+
+
+# ===== PREAMBLE | setup | a single-point and single-polygon fixture (EPSG:6346) =====
+load "/home/jcz/Github/niva/data/study_area_bbox.gpkg" | centroid | save {tmp}/pt1.gpkg
+#@check count("{tmp}/pt1.gpkg") == 1
+#@check gtype("{tmp}/pt1.gpkg") == "Point"
+
+
+# ------------------------------------------------------------------ distance & units
+# ===== TEST 01 | buffer | a 100 m buffer of a point has area ≈ π·100² =====
+load "{tmp}/pt1.gpkg" | buffer 100m segments=36 | save {tmp}/n01.gpkg
+#@check approx(area("{tmp}/n01.gpkg"), 31416, 600)
+#@cleanup remove {tmp}/n01.gpkg
+
+# ===== TEST 02 | units | a 100 ft buffer converts to 30.48 m (area ≈ π·30.48²) =====
+load "{tmp}/pt1.gpkg" | buffer 100ft segments=36 | save {tmp}/n02.gpkg
+#@check approx(area("{tmp}/n02.gpkg"), 2919, 150)
+#@cleanup remove {tmp}/n02.gpkg
+
+# ===== TEST 03 | units | a bare distance = map units (metres here): 100 == 100m =====
+load "{tmp}/pt1.gpkg" | buffer 100 segments=36 | save {tmp}/n03.gpkg
+#@check approx(area("{tmp}/n03.gpkg"), 31416, 600)
+#@cleanup remove {tmp}/n03.gpkg
+
+# ===== TEST 04 | buffer | a negative buffer shrinks area =====
+load "/home/jcz/Github/niva/data/study_area_bbox.gpkg" | buffer -50m | save {tmp}/n04.gpkg
+#@check area("{tmp}/n04.gpkg") < area("/home/jcz/Github/niva/data/study_area_bbox.gpkg")
+#@check area("{tmp}/n04.gpkg") > 0
+#@cleanup remove {tmp}/n04.gpkg
+
+
+# ------------------------------------------------------------------ geometry placement
+# ===== TEST 05 | centroid | the centroid of the (rectangular) bbox lies inside it =====
+load "/home/jcz/Github/niva/data/study_area_bbox.gpkg" | centroid | save {tmp}/n05.gpkg
+#@check within_all("{tmp}/n05.gpkg", "/home/jcz/Github/niva/data/study_area_bbox.gpkg")
+#@cleanup remove {tmp}/n05.gpkg
+
+# ===== TEST 06 | pointonsurface | the point is guaranteed to fall inside the polygon =====
+load "/home/jcz/Github/niva/data/basemap.gpkg|layername=nature_reserve-polygon" | pointonsurface | save {tmp}/n06.gpkg
+#@check within_all("{tmp}/n06.gpkg", "/home/jcz/Github/niva/data/basemap.gpkg|layername=nature_reserve-polygon")
+#@cleanup remove {tmp}/n06.gpkg
+
+
+# ------------------------------------------------------------------ CRS round-trips
+# ===== TEST 07 | reproject | round-trip 6346→4326→6346 returns the same bbox (≤1 m) =====
+load "/home/jcz/Github/niva/data/study_area_bbox.gpkg" | reproject EPSG:4326 | reproject EPSG:6346 | save {tmp}/n07.gpkg
+#@check approx(bbox("{tmp}/n07.gpkg")[0], bbox("/home/jcz/Github/niva/data/study_area_bbox.gpkg")[0], 1.0)
+#@check approx(bbox("{tmp}/n07.gpkg")[3], bbox("/home/jcz/Github/niva/data/study_area_bbox.gpkg")[3], 1.0)
+#@cleanup remove {tmp}/n07.gpkg
+
+# ===== TEST 08 | reproject | round-trip preserves area within 0.1% =====
+load "/home/jcz/Github/niva/data/study_area_bbox.gpkg" | reproject EPSG:4326 | reproject EPSG:6346 | save {tmp}/n08.gpkg
+#@check approx(area("{tmp}/n08.gpkg"), area("/home/jcz/Github/niva/data/study_area_bbox.gpkg"), area("/home/jcz/Github/niva/data/study_area_bbox.gpkg")*0.001)
+#@cleanup remove {tmp}/n08.gpkg
+
+# ===== TEST 09 | reproject | the output CRS is actually the target =====
+load "/home/jcz/Github/niva/data/study_area_bbox.gpkg" | reproject EPSG:3857 | save {tmp}/n09.gpkg
+#@check crs("{tmp}/n09.gpkg") == "EPSG:3857"
+#@check count("{tmp}/n09.gpkg") == 1
+#@cleanup remove {tmp}/n09.gpkg
+
+
+# ------------------------------------------------------------------ counts & cardinality
+# ===== TEST 10 | dissolve | merges all features into one =====
+load "/home/jcz/Github/niva/data/basemap.gpkg|layername=landuse-polygon" | dissolve | save {tmp}/n10.gpkg
+#@check count("{tmp}/n10.gpkg") == 1
+#@cleanup remove {tmp}/n10.gpkg
+
+# ===== TEST 11 | collect | aggregates all features into one multipart =====
+load "/home/jcz/Github/niva/data/basemap.gpkg|layername=settlement-point" | collect | save {tmp}/n11.gpkg
+#@check count("{tmp}/n11.gpkg") == 1
+#@cleanup remove {tmp}/n11.gpkg
+
+# ===== TEST 12 | explode | yields at least as many features as the input =====
+load "/home/jcz/Github/niva/data/basemap.gpkg|layername=nature_reserve-polygon" | explode | save {tmp}/n12.gpkg
+#@check count("{tmp}/n12.gpkg") >= count("/home/jcz/Github/niva/data/basemap.gpkg|layername=nature_reserve-polygon")
+#@cleanup remove {tmp}/n12.gpkg
+
+# ===== TEST 13 | filter | the result is a non-empty SUBSET (filter never adds features) =====
+load "/home/jcz/Github/niva/data/basemap.gpkg|layername=landuse-polygon" | filter "$area > 1000" | save {tmp}/n13.gpkg
+#@check count("{tmp}/n13.gpkg") >= 1
+#@check count("{tmp}/n13.gpkg") <= count("/home/jcz/Github/niva/data/basemap.gpkg|layername=landuse-polygon")
+#@cleanup remove {tmp}/n13.gpkg
+
+
+# ------------------------------------------------------------------ area relationships
+# ===== TEST 14 | convexhull | the hull area is ≥ the polygon's area =====
+load "/home/jcz/Github/niva/data/study_area_bbox.gpkg" | convexhull | save {tmp}/n14.gpkg
+#@check area("{tmp}/n14.gpkg") >= area("/home/jcz/Github/niva/data/study_area_bbox.gpkg") - 1
+#@cleanup remove {tmp}/n14.gpkg
+
+# ===== TEST 15 | boundingbox | the bbox area is ≥ the feature's area =====
+load "/home/jcz/Github/niva/data/basemap.gpkg|layername=nature_reserve-polygon" | boundingbox | save {tmp}/n15.gpkg
+#@check area("{tmp}/n15.gpkg") >= area("/home/jcz/Github/niva/data/basemap.gpkg|layername=nature_reserve-polygon") - 1
+#@cleanup remove {tmp}/n15.gpkg
+
+# ===== TEST 16 | clip | the clipped area is ≤ the input area =====
+load "/home/jcz/Github/niva/data/basemap.gpkg|layername=landuse-polygon" | clip "/home/jcz/Github/niva/data/study_area_bbox.gpkg" | save {tmp}/n16.gpkg
+#@check area("{tmp}/n16.gpkg") <= area("/home/jcz/Github/niva/data/basemap.gpkg|layername=landuse-polygon") + 1
+#@cleanup remove {tmp}/n16.gpkg
+
+
+# ------------------------------------------------------------------ identities & invariants
+# ===== TEST 17 | swapxy | applying it twice returns the original bbox =====
+load "/home/jcz/Github/niva/data/study_area_bbox.gpkg" | swapxy | swapxy | save {tmp}/n17.gpkg
+#@check approx(bbox("{tmp}/n17.gpkg")[0], bbox("/home/jcz/Github/niva/data/study_area_bbox.gpkg")[0], 0.001)
+#@check approx(bbox("{tmp}/n17.gpkg")[2], bbox("/home/jcz/Github/niva/data/study_area_bbox.gpkg")[2], 0.001)
+#@cleanup remove {tmp}/n17.gpkg
+
+# ===== TEST 18 | densify | adding vertices preserves total line length =====
+load "/home/jcz/Github/niva/data/collected.gpkg|layername=park_lines" | densify 5m | save {tmp}/n18.gpkg
+#@check approx(length("{tmp}/n18.gpkg"), length("/home/jcz/Github/niva/data/collected.gpkg|layername=park_lines"), 1.0)
+#@cleanup remove {tmp}/n18.gpkg
+
+# ===== TEST 19 | simplify | preserves feature count and area within 5% =====
+load "/home/jcz/Github/niva/data/basemap.gpkg|layername=nature_reserve-polygon" | simplify 5 | save {tmp}/n19.gpkg
+#@check count("{tmp}/n19.gpkg") == count("/home/jcz/Github/niva/data/basemap.gpkg|layername=nature_reserve-polygon")
+#@check approx(area("{tmp}/n19.gpkg"), area("/home/jcz/Github/niva/data/basemap.gpkg|layername=nature_reserve-polygon"), area("/home/jcz/Github/niva/data/basemap.gpkg|layername=nature_reserve-polygon")*0.05)
+#@cleanup remove {tmp}/n19.gpkg
+
+# cleanup the shared fixture
+# ===== TEST 20 | fixture | the single-point fixture really has one feature =====
+load "{tmp}/pt1.gpkg" | save {tmp}/n20.gpkg
+#@check count("{tmp}/n20.gpkg") == 1
+#@cleanup remove {tmp}/n20.gpkg
+#@cleanup remove {tmp}/pt1.gpkg

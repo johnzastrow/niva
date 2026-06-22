@@ -367,6 +367,7 @@ class Engine:
 
         op = bind(stage, alias)
         self._resolve_layer_refs(op, stage)  # turn @conn.table secondary layers into layers
+        self._validate_crs_params(op, stage)  # fail closed on an unknown CRS, never silently
         params = self._resolve_distances(op.params, current, stage)
         self._pending_call = self.backend.render_call(
             op.algorithm, params,
@@ -1526,6 +1527,22 @@ class Engine:
                     line=stage.line, stage=stage.raw,
                 )
             op.params[pname] = self.backend.load_table(conn, schema, table).ref
+
+    def _validate_crs_params(self, op, stage) -> None:
+        """Reject an unknown CRS before running, so a bad code fails closed with a clear message
+        instead of silently producing a layer with an invalid/empty CRS. The backend owns the
+        actual validity check (it has QGIS's CRS database)."""
+        check = getattr(self.backend, "valid_crs", None)
+        if check is None:
+            return
+        for pname in op.crs_params:
+            val = op.params.get(pname)
+            if isinstance(val, str) and val.strip() and not check(val):
+                raise FlowError(
+                    f"`{val}` is not a recognised CRS — use an EPSG code (`EPSG:6346`), a WKT/PROJ "
+                    "string, or an authority id QGIS knows",
+                    line=stage.line, stage=stage.raw,
+                )
 
     def _resolve_distances(self, params: dict, layer: Layer, stage) -> dict:
         if not any(isinstance(v, Distance) for v in params.values()):

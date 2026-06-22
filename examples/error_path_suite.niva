@@ -1,0 +1,128 @@
+# =============================================================================
+# niva ERROR-PATH / FAIL-CLOSED SUITE
+# =============================================================================
+# Suites 1–4 assert SUCCESS. This one asserts niva FAILS CORRECTLY: a bad flow must raise a
+# specific, useful error AND leave no partial output (fail closed) — never a half-written file,
+# orphan sidecar, or silently-corrupted result. This is the security-first posture made testable.
+#
+# Run with the assertion harness:
+#   PYTHONPATH=<repo>:/usr/share/qgis/python:/usr/lib/python3/dist-packages \
+#     QT_QPA_PLATFORM=offscreen python3 examples/run_assert_suite.py examples/error_path_suite.niva
+#
+# Directives:
+#   #@fails <substring>     the flow MUST raise; the message contains <substring> (case-insensitive)
+#   #@check <expr>          a property that must hold after — usually `not exists(...)` (fail closed)
+#   #@cleanup ...           tidy up
+# {tmp} expands to /tmp/niva_assert.
+# =============================================================================
+
+
+# ===== PREAMBLE | setup | make a geographic (EPSG:4326) layer for the units test =====
+load "/home/jcz/Github/niva/data/study_area_bbox.gpkg" | reproject EPSG:4326 | save {tmp}/geo.gpkg
+#@check exists("{tmp}/geo.gpkg")
+#@check crs("{tmp}/geo.gpkg") == "EPSG:4326"
+
+
+# ------------------------------------------------------------------------ bad inputs
+# ===== TEST 01 | input | missing source file → error, no output =====
+load "/home/jcz/Github/niva/data/does_not_exist.gpkg" | buffer 10m | save {tmp}/e01.gpkg
+#@fails could not open
+#@check not exists("{tmp}/e01.gpkg")
+
+# ===== TEST 02 | grammar | unknown verb =====
+load "/home/jcz/Github/niva/data/study_area_bbox.gpkg" | bogusverb | save {tmp}/e02.gpkg
+#@fails unknown verb
+#@check not exists("{tmp}/e02.gpkg")
+
+# ===== TEST 03 | conn | unknown @conn name =====
+load "@nosuchconn_xyz.public.t" | save {tmp}/e03.gpkg
+#@fails no saved QGIS connection
+#@check not exists("{tmp}/e03.gpkg")
+
+
+# ------------------------------------------------------------------------ CRS / units
+# ===== TEST 04 | crs | reproject to an unknown CRS → fail closed (was a silent bug) =====
+load "/home/jcz/Github/niva/data/study_area_bbox.gpkg" | reproject EPSG:99999 | save {tmp}/e04.gpkg
+#@fails not a recognised CRS
+#@check not exists("{tmp}/e04.gpkg")
+
+# ===== TEST 05 | crs | warp raster to an unknown CRS → fail closed =====
+load "/home/jcz/Github/niva/data/dem_clip.tif" | warp EPSG:88888 | save {tmp}/e05.tif
+#@fails not a recognised CRS
+#@check not exists("{tmp}/e05.tif")
+
+# ===== TEST 06 | units | linear buffer on a geographic CRS → guiding error =====
+load "{tmp}/geo.gpkg" | buffer 100m | save {tmp}/e06.gpkg
+#@fails linear distance
+#@check not exists("{tmp}/e06.gpkg")
+#@cleanup remove {tmp}/geo.gpkg
+
+
+# ------------------------------------------------------------------------ type mismatches
+# ===== TEST 07 | type | raster verb on a vector layer → error, no output =====
+load "/home/jcz/Github/niva/data/study_area_bbox.gpkg" | hillshade | save {tmp}/e07.tif
+#@fails algorithm
+#@check not exists("{tmp}/e07.tif")
+
+# ===== TEST 08 | type | vector verb on a raster layer → error, no output =====
+load "/home/jcz/Github/niva/data/dem_clip.tif" | buffer 10m | save {tmp}/e08.gpkg
+#@fails algorithm
+#@check not exists("{tmp}/e08.gpkg")
+
+# ===== TEST 09 | overlay | clip with a missing overlay → error, no output =====
+load "/home/jcz/Github/niva/data/study_area_bbox.gpkg" | clip "/home/jcz/Github/niva/data/nope.gpkg" | save {tmp}/e09.gpkg
+#@fails algorithm
+#@check not exists("{tmp}/e09.gpkg")
+
+
+# ------------------------------------------------------------------------ save targets
+# ===== TEST 10 | save | mode= on a file is database-only → guiding error =====
+load "/home/jcz/Github/niva/data/study_area_bbox.gpkg" | save {tmp}/e10.gpkg mode=append
+#@fails database
+#@check not exists("{tmp}/e10.gpkg")
+
+# ===== TEST 11 | save | bare @conn (no table) =====
+load "/home/jcz/Github/niva/data/study_area_bbox.gpkg" | save @localpg
+#@fails table name
+
+# ===== TEST 12 | save | mode=create onto an existing table → fail, existing unchanged =====
+load "/home/jcz/Github/niva/data/study_area_bbox.gpkg" | save @localpg.public.nv_err mode=replace
+load "/home/jcz/Github/niva/data/study_area_bbox.gpkg" | save @localpg.public.nv_err mode=create
+#@fails exist
+#@check count("@localpg.public.nv_err") == 1
+#@cleanup flow sql @localpg "DROP TABLE IF EXISTS public.nv_err"
+
+
+# ------------------------------------------------------------------------ batch / sql
+# ===== TEST 13 | each | no source =====
+each | reproject EPSG:6346 | save {tmp}/e13.gpkg
+#@fails needs a source
+
+# ===== TEST 14 | each | glob matches nothing =====
+each "{tmp}/no_such_dir_xyz/*.gpkg" | reproject EPSG:6346 | save {tmp}/e14.gpkg
+#@fails no files match
+
+# ===== TEST 15 | sql | query a non-existent table =====
+sql @localpg "SELECT * FROM public.no_such_table_xyz_123"
+#@fails no valid layer
+
+
+# ------------------------------------------------------------------------ remove (the destructive verb)
+# ===== TEST 16 | remove | refuses a @conn reference =====
+remove @localpg.public.roads
+#@fails files only
+
+# ===== TEST 17 | remove | refuses a glob =====
+remove "{tmp}/*.gpkg"
+#@fails glob
+
+# ===== TEST 18 | remove | refuses a directory =====
+remove {tmp}
+#@fails directories
+
+# ===== TEST 19 | remove | refuses a non-geodata type without force =====
+load "/home/jcz/Github/niva/data/study_area_bbox.gpkg" | assess to {tmp}/e19.md
+remove {tmp}/e19.md
+#@fails recognised geodata
+#@check exists("{tmp}/e19.md")
+#@cleanup remove {tmp}/e19.md force
