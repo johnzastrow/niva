@@ -8,9 +8,10 @@ raster size, a wide mix of formats), fetch public datasets and point a flow at t
 ## One command — a good mix of formats
 
 [`fetch_testdata.sh`](fetch_testdata.sh) downloads a curated, no-auth set into `data/downloaded/`
-(gitignored), covering **Shapefile · GeoJSON · GeoPackage · OSM PBF · GeoTIFF** (plus the committed
-KMZ). All URLs are verified direct downloads drawn from
-[`free_geospatial_data_report.md`](free_geospatial_data_report.md).
+(gitignored), covering **Shapefile · GeoJSON · GeoPackage · OSM PBF · GeoTIFF · FileGeodatabase ·
+KML · CSV point data · JPEG2000** (plus the committed KMZ). The CSV gets a generated `.vrt` sidecar
+so its lon/lat columns load as points (`load …/usgs_earthquakes.vrt`). All URLs are verified direct
+downloads drawn from [`free_geospatial_data_report.md`](free_geospatial_data_report.md).
 
 ```bash
 sh examples/fetch_testdata.sh          # SMALL (~35 MB): Natural Earth + geo-countries + TIGER Maine
@@ -42,6 +43,14 @@ direct-download families — and what each is good for in a niva flow:
 | Geofabrik OSM | OSM PBF / SHP ZIP | mixed | the heaviest realistic vector load |
 | USGS 3DEP / Copernicus | GeoTIFF (COG) | raster | warp / slope / aspect / hillshade at scale |
 | NOAA GLOBE | raster tile ZIP | raster | global elevation tiles |
+| USFS EDW | FileGeodatabase (.gdb) | polygon | a raw `.gdb` → geoprocess → load into stores |
+| Google KML samples | KML | mixed | raw KML parsing |
+| USGS earthquakes feed | CSV (+ `.vrt`) | point | lon/lat CSV point data → points |
+| GDAL sample / NAIP | JPEG2000 (.jp2) | raster | raw JP2 → warp / slope |
+
+The [format-matrix suite](format_matrix_suite.niva) exercises the last four (FileGeodatabase, KML,
+CSV point data, JPEG2000) end to end: load the raw file → geoprocess → write into GeoPackage /
+SpatiaLite / Shapefile / PostGIS → geoprocess again in each store.
 
 > Downloads are **optional** and **never committed** — `data/` is gitignored. The suites stay
 > fully runnable from a bare clone using only generated + committed data.

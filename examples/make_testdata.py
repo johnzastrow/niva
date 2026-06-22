@@ -165,18 +165,105 @@ def build_spatialite(sl_path, gpkg_path):
     return sl_path
 
 
+def build_kml(kml_path, gpkg_path):
+    """A KML copy of the points layer (a raw KML input for the format-matrix suite)."""
+    if os.path.exists(kml_path):
+        os.remove(kml_path)
+    src = ogr.Open(gpkg_path)
+    drv = ogr.GetDriverByName("LIBKML") or ogr.GetDriverByName("KML")
+    dst = drv.CreateDataSource(kml_path)
+    dst.CopyLayer(src.GetLayerByName("points"), "points")
+    src = dst = None
+    return kml_path
+
+
+def build_filegdb(gdb_path, gpkg_path):
+    """A FileGeodatabase (OpenFileGDB) with the points & polygons layers — a raw .gdb input."""
+    import shutil
+    if os.path.isdir(gdb_path):
+        shutil.rmtree(gdb_path)
+    src = ogr.Open(gpkg_path)
+    dst = ogr.GetDriverByName("OpenFileGDB").CreateDataSource(gdb_path)
+    for name in ("points", "polygons"):
+        dst.CopyLayer(src.GetLayerByName(name), name)
+    src = dst = None
+    return gdb_path
+
+
+def build_csv_points(csv_path):
+    """A CSV of point data (lon/lat columns) plus an OGR .vrt sidecar that turns it into points,
+    so niva can geoprocess it as geometry — the way real lon/lat CSVs (e.g. the USGS earthquake
+    feed) are consumed. The .vrt is named `<stem>.vrt` and is what the suite loads."""
+    with open(csv_path, "w", encoding="utf-8") as fh:
+        fh.write("id,name,category,longitude,latitude\n")
+        for i in range(50):
+            lon, lat = -79.0 + (i % 10) * 0.02, 43.0 + (i // 10) * 0.02
+            fh.write(f"{i},pt_{i},cat{i % 3},{lon:.5f},{lat:.5f}\n")
+    vrt_path = os.path.splitext(csv_path)[0] + ".vrt"
+    base = os.path.basename(csv_path)
+    layer = os.path.splitext(base)[0]
+    with open(vrt_path, "w", encoding="utf-8") as fh:
+        fh.write(
+            f'<OGRVRTDataSource>\n'
+            f'  <OGRVRTLayer name="{layer}">\n'
+            f'    <SrcDataSource relativeToVRT="1">{base}</SrcDataSource>\n'
+            f'    <GeometryType>wkbPoint</GeometryType>\n'
+            f'    <LayerSRS>EPSG:4326</LayerSRS>\n'
+            f'    <GeometryField encoding="PointFromColumns" x="longitude" y="latitude"/>\n'
+            f'  </OGRVRTLayer>\n'
+            f'</OGRVRTDataSource>\n'
+        )
+    return csv_path, vrt_path
+
+
+def build_jp2(jp2_path, dem_path):
+    """A small 3-band JP2 image (CreateCopy from a synthetic RGB GeoTIFF) — a raw .jp2 input."""
+    drv = gdal.GetDriverByName("JP2OpenJPEG")
+    if drv is None:
+        return None
+    size = 256
+    tmp = jp2_path + ".tmp.tif"
+    src = gdal.GetDriverByName("GTiff").Create(tmp, size, size, 3, gdal.GDT_Byte)
+    pixel = EXT / size
+    src.SetGeoTransform([OX, pixel, 0, OY + EXT, 0, -pixel])
+    src.SetProjection(_srs(6346).ExportToWkt())
+    for b in range(1, 4):
+        row_vals = []
+        for r in range(size):
+            row_vals.append(bytes((int((c + r * b) % 256) for c in range(size))))
+        src.GetRasterBand(b).WriteRaster(0, 0, size, size, b"".join(row_vals))
+    src.FlushCache()
+    src = None
+    if os.path.exists(jp2_path):
+        os.remove(jp2_path)
+    drv.CreateCopy(jp2_path, gdal.Open(tmp))
+    os.remove(tmp)
+    return jp2_path
+
+
 def main():
     os.makedirs(OUT, exist_ok=True)
     gpkg = build_vectors(os.path.join(OUT, "niva_testdata.gpkg"))
     dem = build_dem(os.path.join(OUT, "niva_testdata_dem.tif"))
-    try:
-        sl = build_spatialite(os.path.join(OUT, "niva_testdata.sqlite"), gpkg)
-    except Exception as exc:  # noqa: BLE001 — SpatiaLite driver may be absent; gpkg is enough
-        sl = f"(skipped: {exc})"
+    extra = []
+    for label, fn in (
+        ("niva_testdata.sqlite", lambda: build_spatialite(os.path.join(OUT, "niva_testdata.sqlite"), gpkg)),
+        ("niva_testdata.kml", lambda: build_kml(os.path.join(OUT, "niva_testdata.kml"), gpkg)),
+        ("niva_testdata.gdb", lambda: build_filegdb(os.path.join(OUT, "niva_testdata.gdb"), gpkg)),
+        ("niva_testdata_points.csv", lambda: build_csv_points(os.path.join(OUT, "niva_testdata_points.csv"))[0]),
+        ("niva_testdata.jp2", lambda: build_jp2(os.path.join(OUT, "niva_testdata.jp2"), dem)),
+    ):
+        try:
+            extra.append(fn() or f"(skipped: {label})")
+        except Exception as exc:  # noqa: BLE001 — a missing optional driver shouldn't abort
+            extra.append(f"(skipped {label}: {str(exc).splitlines()[0][:60]})")
     print("wrote transportable test data to", OUT)
-    for p in (gpkg, dem, sl):
-        size = f"{os.path.getsize(p):,} bytes" if os.path.isfile(p) else ""
-        print(f"  {os.path.basename(p) if os.path.isfile(p) else p}  {size}")
+    for p in (gpkg, dem, *extra):
+        if isinstance(p, str) and os.path.exists(p):
+            size = f"{os.path.getsize(p):,} bytes" if os.path.isfile(p) else "(dir)"
+            print(f"  {os.path.basename(p)}  {size}")
+        else:
+            print(f"  {p}")
     # quick self-check: report layer feature counts
     ds = ogr.Open(gpkg)
     print("layers:", ", ".join(f"{ds.GetLayer(i).GetName()}={ds.GetLayer(i).GetFeatureCount()}"

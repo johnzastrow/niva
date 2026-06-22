@@ -51,8 +51,9 @@ for s in validation_suite validation_suite_2 validation_suite_3; do
   $PY examples/run_validation_suite.py examples/$s.niva
 done
 
-# Properties — error-path/fail-closed, numerical, round-trip, security, portable
-for s in error_path_suite numerical_suite round_trip_suite security_suite portable_suite; do
+# Properties — error-path/fail-closed, numerical, round-trip, security, portable, format-matrix
+# (format_matrix exercises FileGeodatabase / KML / CSV-points / JPEG2000 → every store → geoprocess)
+for s in error_path_suite numerical_suite round_trip_suite security_suite portable_suite format_matrix_suite; do
   $PY examples/run_assert_suite.py examples/$s.niva
 done
 

@@ -51,6 +51,35 @@ fetch_small() {
   dl "https://www2.census.gov/geo/tiger/TIGER2022/PLACE/tl_2022_23_place.zip" tl_2022_23_place.zip
   dl "https://www2.census.gov/geo/tiger/TIGER2022/TRACT/tl_2022_23_tract.zip" tl_2022_23_tract.zip
   unzip_into tl_2022_23_place.zip; unzip_into tl_2022_23_tract.zip
+  fetch_formats
+}
+
+# The extra formats the format-matrix suite exercises on real data: FileGeodatabase, KML,
+# CSV point data (+ a generated .vrt so lon/lat columns load as points), and JPEG2000.
+fetch_formats() {
+  # FileGeodatabase (zipped .gdb) — USFS Administrative Forest boundaries (~20 MB)
+  dl "https://data.fs.usda.gov/geodata/edw/edw_resources/fc/S_USA.AdministrativeForest.gdb.zip" usfs_admin_forest.gdb.zip
+  unzip_into usfs_admin_forest.gdb.zip
+  # KML — Google's KML sample document (points, lines, polygons)
+  dl "https://developers.google.com/kml/documentation/KML_Samples.kml" kml_samples.kml
+  # CSV point data — USGS earthquakes, past 30 days (longitude/latitude columns)
+  dl "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_month.csv" usgs_earthquakes.csv
+  # …with an OGR .vrt sidecar so niva loads it as POINTS (load the .vrt, not the .csv):
+  if [ -s "$DEST/usgs_earthquakes.csv" ] && [ ! -s "$DEST/usgs_earthquakes.vrt" ]; then
+    cat > "$DEST/usgs_earthquakes.vrt" <<'VRT'
+<OGRVRTDataSource>
+  <OGRVRTLayer name="usgs_earthquakes">
+    <SrcDataSource relativeToVRT="1">usgs_earthquakes.csv</SrcDataSource>
+    <GeometryType>wkbPoint</GeometryType>
+    <LayerSRS>EPSG:4326</LayerSRS>
+    <GeometryField encoding="PointFromColumns" x="longitude" y="latitude"/>
+  </OGRVRTLayer>
+</OGRVRTDataSource>
+VRT
+    echo "  + wrote usgs_earthquakes.vrt (loads the CSV as points)"
+  fi
+  # JPEG2000 — a small georeferenced JP2 (GDAL sample). For a heavier JP2, see bigdata_urls.md.
+  dl "https://github.com/OSGeo/gdal/raw/master/autotest/gdrivers/data/jpeg2000/byte.jp2" sample.jp2
 }
 
 fetch_big() {

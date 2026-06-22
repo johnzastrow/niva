@@ -1,0 +1,141 @@
+# =============================================================================
+# niva FORMAT-MATRIX SUITE — raw formats → geoprocess → every store → geoprocess again
+# =============================================================================
+# Exercises niva across input FORMATS and output STORES, the way real pipelines move data:
+#   1. load a RAW file (FileGeodatabase, KML, CSV point data, JPEG2000, GeoJSON) and geoprocess it,
+#   2. write the result into each STORE — GeoPackage, SpatiaLite, Shapefile, and PostGIS,
+#   3. load it back FROM that store and geoprocess again (proving the round-trip carries geometry).
+#
+# Inputs are the GENERATED fixtures (examples/make_testdata.py) + COMMITTED real-world data
+# (examples/*.geojson, *.kmz), so the suite runs on a bare clone with no downloads. For the same
+# tests on REAL downloaded data (USFS .gdb, USGS earthquakes .csv, Google .kml, a real .jp2), run
+# `sh examples/fetch_testdata.sh` and point the loads at data/downloaded/ (see bigdata_urls.md).
+#
+# Run with:
+#   PYTHONPATH=<repo>:/usr/share/qgis/python:/usr/lib/python3/dist-packages \
+#     QT_QPA_PLATFORM=offscreen python3 examples/run_assert_suite.py examples/format_matrix_suite.niva
+#
+# PostGIS tests use @localpg (registered by make_data.py against the user-designated database);
+# they no-op gracefully-ish only if the connection is missing — run make_data.py first for full
+# coverage. {testdata} = examples/testdata, {examples} = committed data, {tmp} = scratch.
+# =============================================================================
+
+
+# ===== PREAMBLE | fixtures | the raw-format fixtures are present =====
+load "{testdata}/niva_testdata_points.vrt" | save {tmp}/fm00.gpkg
+#@check count("{tmp}/fm00.gpkg") == 50
+#@check gtype("{tmp}/fm00.gpkg") == "Point"
+#@cleanup remove {tmp}/fm00.gpkg
+
+
+# ------------------------------------------------ RAW INPUT FORMATS: load + geoprocess the raw file
+# ===== TEST 01 | raw filegdb | load a FileGeodatabase layer, buffer it =====
+load "{testdata}/niva_testdata.gdb|layername=points" | buffer 100m | save {tmp}/fm01.gpkg
+#@check nonempty("{tmp}/fm01.gpkg")
+#@check count("{tmp}/fm01.gpkg") == 64
+#@cleanup remove {tmp}/fm01.gpkg
+
+# ===== TEST 02 | raw kml | load KML points, reproject + centroid =====
+load "{testdata}/niva_testdata.kml|layername=points" | reproject EPSG:6346 | buffer 50m | save {tmp}/fm02.gpkg
+#@check nonempty("{tmp}/fm02.gpkg")
+#@cleanup remove {tmp}/fm02.gpkg
+
+# ===== TEST 03 | raw csv | load CSV point data (via .vrt), reproject + buffer =====
+load "{testdata}/niva_testdata_points.vrt" | reproject EPSG:6346 | buffer 200m | dissolve | save {tmp}/fm03.gpkg
+#@check nonempty("{tmp}/fm03.gpkg")
+#@cleanup remove {tmp}/fm03.gpkg
+
+# ===== TEST 04 | raw jp2 | load JPEG2000, warp + slope (raster geoprocessing) =====
+load "{testdata}/niva_testdata.jp2" | warp EPSG:3857 | save {tmp}/fm04.tif
+#@check exists("{tmp}/fm04.tif")
+#@cleanup remove {tmp}/fm04.tif
+
+# ===== TEST 05 | raw geojson | load committed real-world GeoJSON, fixgeom + dissolve =====
+load "{examples}/Estimated Waste Area.geojson" | fixgeom | dissolve | save {tmp}/fm05.gpkg
+#@check count("{tmp}/fm05.gpkg") == 1
+#@cleanup remove {tmp}/fm05.gpkg
+
+
+# ------------------------------------------------ STORE: GeoPackage (write, then geoprocess in it)
+# ===== TEST 06 | store gpkg | gdb → GeoPackage, then buffer the gpkg layer =====
+load "{testdata}/niva_testdata.gdb|layername=polygons" | save {tmp}/fm06_src.gpkg
+load "{tmp}/fm06_src.gpkg" | buffer 25m | centroid | save {tmp}/fm06.gpkg
+#@check nonempty("{tmp}/fm06.gpkg")
+#@cleanup remove {tmp}/fm06.gpkg
+#@cleanup remove {tmp}/fm06_src.gpkg
+
+# ===== TEST 07 | store gpkg layer | csv points → named gpkg layer, then voronoi in it =====
+load "{testdata}/niva_testdata_points.vrt" | reproject EPSG:6346 | save {tmp}/fm07_src.gpkg as pts
+load "{tmp}/fm07_src.gpkg|layername=pts" | voronoi | save {tmp}/fm07.gpkg
+#@check nonempty("{tmp}/fm07.gpkg")
+#@cleanup remove {tmp}/fm07.gpkg
+#@cleanup remove {tmp}/fm07_src.gpkg
+
+
+# ------------------------------------------------ STORE: SpatiaLite (write, then geoprocess in it)
+# ===== TEST 08 | store spatialite | kml → SpatiaLite, then buffer the spatialite layer =====
+load "{testdata}/niva_testdata.kml|layername=points" | reproject EPSG:6346 | save {tmp}/fm08_src.sqlite as pts
+load "{tmp}/fm08_src.sqlite|layername=pts" | buffer 75m | dissolve | save {tmp}/fm08.gpkg
+#@check nonempty("{tmp}/fm08.gpkg")
+#@cleanup remove {tmp}/fm08.gpkg
+#@cleanup remove {tmp}/fm08_src.sqlite
+
+# ===== TEST 09 | store spatialite | gdb polygons → SpatiaLite, then centroid in it =====
+load "{testdata}/niva_testdata.gdb|layername=polygons" | save {tmp}/fm09_src.sqlite as polys
+load "{tmp}/fm09_src.sqlite|layername=polys" | centroid | buffer 30m | save {tmp}/fm09.gpkg
+#@check nonempty("{tmp}/fm09.gpkg")
+#@cleanup remove {tmp}/fm09.gpkg
+#@cleanup remove {tmp}/fm09_src.sqlite
+
+
+# ------------------------------------------------ STORE: Shapefile (write, then geoprocess in it)
+# ===== TEST 10 | store shapefile | csv points → Shapefile, then buffer the shapefile =====
+load "{testdata}/niva_testdata_points.vrt" | reproject EPSG:6346 | save {tmp}/fm10_src.shp
+load "{tmp}/fm10_src.shp" | buffer 100m | dissolve | save {tmp}/fm10.gpkg
+#@check nonempty("{tmp}/fm10.gpkg")
+#@cleanup remove {tmp}/fm10.gpkg
+#@cleanup remove {tmp}/fm10_src.shp
+
+# ===== TEST 11 | store shapefile | kml → Shapefile, then convexhull in it =====
+load "{testdata}/niva_testdata.kml|layername=points" | reproject EPSG:6346 | save {tmp}/fm11_src.shp
+load "{tmp}/fm11_src.shp" | collect | convexhull | save {tmp}/fm11.gpkg
+#@check nonempty("{tmp}/fm11.gpkg")
+#@cleanup remove {tmp}/fm11.gpkg
+#@cleanup remove {tmp}/fm11_src.shp
+
+
+# ------------------------------------------------ STORE: PostGIS (write, then geoprocess in it)
+# (needs @localpg from make_data.py; uses the user-designated database)
+# ===== TEST 12 | store postgis | gdb points → PostGIS, then buffer the @conn table =====
+load "{testdata}/niva_testdata.gdb|layername=points" | save @localpg.public.fm_pts mode=replace
+load "@localpg.public.fm_pts" | buffer 0.001 | save {tmp}/fm12.gpkg
+#@check nonempty("{tmp}/fm12.gpkg")
+#@cleanup remove {tmp}/fm12.gpkg
+#@cleanup flow sql @localpg "DROP TABLE IF EXISTS public.fm_pts"
+
+# ===== TEST 13 | store postgis | csv points → PostGIS, then sql ST_Buffer in the DB =====
+load "{testdata}/niva_testdata_points.vrt" | save @localpg.public.fm_csv mode=replace
+sql @localpg "SELECT id, ST_Buffer(geom, 0.002) AS geom FROM public.fm_csv" | save {tmp}/fm13.gpkg
+#@check nonempty("{tmp}/fm13.gpkg")
+#@cleanup remove {tmp}/fm13.gpkg
+#@cleanup flow sql @localpg "DROP TABLE IF EXISTS public.fm_csv"
+
+# ===== TEST 14 | store postgis | kml → PostGIS, read back + spatialjoin a file layer =====
+load "{testdata}/niva_testdata.kml|layername=points" | reproject EPSG:6346 | save @localpg.public.fm_kml mode=replace
+load "@localpg.public.fm_kml" | spatialjoin with="{testdata}/niva_testdata.gpkg|layername=polygons" predicate=intersect | save {tmp}/fm14.gpkg
+#@check nonempty("{tmp}/fm14.gpkg")
+#@cleanup remove {tmp}/fm14.gpkg
+#@cleanup flow sql @localpg "DROP TABLE IF EXISTS public.fm_kml"
+
+
+# ------------------------------------------------ cross-store chain (every store in one pipeline)
+# ===== TEST 15 | cross-store | gdb → gpkg → spatialite → shp, geoprocessing at each hop =====
+load "{testdata}/niva_testdata.gdb|layername=polygons" | buffer 20m | save {tmp}/fm15_a.gpkg
+load "{tmp}/fm15_a.gpkg" | dissolve | save {tmp}/fm15_b.sqlite as step
+load "{tmp}/fm15_b.sqlite|layername=step" | centroid | save {tmp}/fm15_c.shp
+load "{tmp}/fm15_c.shp" | buffer 50m | save {tmp}/fm15.gpkg
+#@check nonempty("{tmp}/fm15.gpkg")
+#@cleanup remove {tmp}/fm15.gpkg
+#@cleanup remove {tmp}/fm15_a.gpkg
+#@cleanup remove {tmp}/fm15_b.sqlite
+#@cleanup remove {tmp}/fm15_c.shp

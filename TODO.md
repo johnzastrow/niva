@@ -26,6 +26,16 @@ frame + world-file map).
 - Note: distinct from the *print-layouts-in-project-files* item below — that bakes a layout into a
   `.qgs`; **this renders an image**. The `.qpt` is the live input here.
 
+## Load a lon/lat CSV as points (small enhancement)
+
+- [ ] **Auto-build point geometry when loading a `.csv` with coordinate columns.** Today a CSV
+  loads **aspatial** (the OGR CSV provider doesn't infer geometry), so the format-matrix suite and
+  `fetch_testdata.sh` ship a generated `.vrt` sidecar (`GeometryField PointFromColumns x=longitude
+  y=latitude`) and load *that*. niva could detect common coordinate columns (`longitude`/`latitude`,
+  `lon`/`lat`, `x`/`y`) on `load <file>.csv` and synthesize the points itself (via GDAL open options
+  or an in-memory VRT), so a raw lon/lat CSV — e.g. the USGS earthquake feed — is directly
+  geoprocessable. Keep the explicit `.vrt` path working for non-standard column names.
+
 ## `show` — remote services (follow-up)
 
 - [ ] **More remote sources for `show`.** Shipped: **WFS/WMS** (v0.30.0), **ArcGIS REST + XYZ**
