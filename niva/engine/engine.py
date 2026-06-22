@@ -324,6 +324,15 @@ class Engine:
     # the adapter hands each handler exactly the context it needs (the piped `current`
     # layer, and the `lineage` accumulated so far). Adding a built-in verb is one line
     # here plus its `_<verb>` method — see docs/planning/16-anatomy-of-a-verb.md.
+    #
+    # OUTPUT ROUTING for terminal verbs that produce a human-readable report:
+    #   - When `self.progress is not None` the Engine is running inside the QGIS plugin
+    #     (the plugin always passes progress=self.message.emit). Use `self._emit(line)`
+    #     so the report streams into the dock's output panel line-by-line.
+    #   - When `self.progress is None` the Engine is running from the CLI. Use
+    #     `print(report)` so the report goes to stdout (pipeable / redirectable).
+    #   - Verbs that always write to a file (catalog, assess, project info) need neither
+    #     branch: they use `_emit()` only for the "wrote → path" status line.
     _BUILTIN_VERBS = {
         "load":     lambda self, stage, current, lineage: self._load(stage),
         "save":     lambda self, stage, current, lineage: self._save(stage, current, lineage),
@@ -1018,7 +1027,16 @@ class Engine:
                 fh.write(report if report.endswith("\n") else report + "\n")
             self._emit(f"  listed {len(entries)} item(s) → {out}")
         else:
-            print(report)
+            # Plugin context: route the report to the output panel line-by-line via
+            # _emit() so the user can read it without leaving the dock. CLI context:
+            # print to stdout so it's pipeable / redirectable. `self.progress is not
+            # None` is the reliable signal for "we are inside a plugin run" because
+            # the plugin always passes progress=self.message.emit to the Engine.
+            if self.progress is not None:
+                for line in report.splitlines():
+                    self._emit(line)
+            else:
+                print(report)
         return None  # terminal
 
     def _resolve_show_connection(self, target, stage):
@@ -1100,8 +1118,16 @@ class Engine:
                 fh.write(report if report.endswith("\n") else report + "\n")
             self._emit(f"  environment report → {out}")
         else:
-            # The report *is* the product — to stdout, separable from stderr progress.
-            print(report)
+            # Plugin context: route the report to the output panel line-by-line via
+            # _emit() so the user can read it without leaving the dock. CLI context:
+            # print to stdout so it's pipeable / redirectable. `self.progress is not
+            # None` is the reliable signal for "we are inside a plugin run" because
+            # the plugin always passes progress=self.message.emit to the Engine.
+            if self.progress is not None:
+                for line in report.splitlines():
+                    self._emit(line)
+            else:
+                print(report)
         return None  # terminal
 
     def _project(self, stage) -> Layer | None:

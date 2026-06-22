@@ -66,11 +66,17 @@ def run_flow(text: str, *, file: str | None = None, dry_run: bool = False,
 
 
 def _fail(mode: str, exc: Exception) -> dict:
+    import traceback
+
     from niva.errors import NivaError
 
-    # niva's own errors carry user-facing messages; label anything else as unexpected.
-    msg = str(exc) if isinstance(exc, NivaError) \
-        else f"unexpected error: {type(exc).__name__}: {exc}"
+    if isinstance(exc, NivaError):
+        msg = str(exc)
+    else:
+        msg = f"unexpected error: {type(exc).__name__}: {exc}"
+        tb = traceback.format_exc()
+        if tb and tb.strip() != "NoneType: None":
+            msg = msg + "\n\n" + tb
     return {"ok": False, "mode": mode, "summary": "", "layer": None, "error": msg}
 
 
