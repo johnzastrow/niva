@@ -18,19 +18,19 @@
 
 
 # ===== PREAMBLE | setup | make a geographic (EPSG:4326) layer for the units test =====
-load "/home/jcz/Github/niva/data/study_area_bbox.gpkg" | reproject EPSG:4326 | save {tmp}/geo.gpkg
+load "{data}/study_area_bbox.gpkg" | reproject EPSG:4326 | save {tmp}/geo.gpkg
 #@check exists("{tmp}/geo.gpkg")
 #@check crs("{tmp}/geo.gpkg") == "EPSG:4326"
 
 
 # ------------------------------------------------------------------------ bad inputs
 # ===== TEST 01 | input | missing source file → error, no output =====
-load "/home/jcz/Github/niva/data/does_not_exist.gpkg" | buffer 10m | save {tmp}/e01.gpkg
+load "{data}/does_not_exist.gpkg" | buffer 10m | save {tmp}/e01.gpkg
 #@fails could not open
 #@check not exists("{tmp}/e01.gpkg")
 
 # ===== TEST 02 | grammar | unknown verb =====
-load "/home/jcz/Github/niva/data/study_area_bbox.gpkg" | bogusverb | save {tmp}/e02.gpkg
+load "{data}/study_area_bbox.gpkg" | bogusverb | save {tmp}/e02.gpkg
 #@fails unknown verb
 #@check not exists("{tmp}/e02.gpkg")
 
@@ -42,12 +42,12 @@ load "@nosuchconn_xyz.public.t" | save {tmp}/e03.gpkg
 
 # ------------------------------------------------------------------------ CRS / units
 # ===== TEST 04 | crs | reproject to an unknown CRS → fail closed (was a silent bug) =====
-load "/home/jcz/Github/niva/data/study_area_bbox.gpkg" | reproject EPSG:99999 | save {tmp}/e04.gpkg
+load "{data}/study_area_bbox.gpkg" | reproject EPSG:99999 | save {tmp}/e04.gpkg
 #@fails not a recognised CRS
 #@check not exists("{tmp}/e04.gpkg")
 
 # ===== TEST 05 | crs | warp raster to an unknown CRS → fail closed =====
-load "/home/jcz/Github/niva/data/dem_clip.tif" | warp EPSG:88888 | save {tmp}/e05.tif
+load "{data}/dem_clip.tif" | warp EPSG:88888 | save {tmp}/e05.tif
 #@fails not a recognised CRS
 #@check not exists("{tmp}/e05.tif")
 
@@ -60,34 +60,34 @@ load "{tmp}/geo.gpkg" | buffer 100m | save {tmp}/e06.gpkg
 
 # ------------------------------------------------------------------------ type mismatches
 # ===== TEST 07 | type | raster verb on a vector layer → error, no output =====
-load "/home/jcz/Github/niva/data/study_area_bbox.gpkg" | hillshade | save {tmp}/e07.tif
+load "{data}/study_area_bbox.gpkg" | hillshade | save {tmp}/e07.tif
 #@fails algorithm
 #@check not exists("{tmp}/e07.tif")
 
 # ===== TEST 08 | type | vector verb on a raster layer → error, no output =====
-load "/home/jcz/Github/niva/data/dem_clip.tif" | buffer 10m | save {tmp}/e08.gpkg
+load "{data}/dem_clip.tif" | buffer 10m | save {tmp}/e08.gpkg
 #@fails algorithm
 #@check not exists("{tmp}/e08.gpkg")
 
 # ===== TEST 09 | overlay | clip with a missing overlay → error, no output =====
-load "/home/jcz/Github/niva/data/study_area_bbox.gpkg" | clip "/home/jcz/Github/niva/data/nope.gpkg" | save {tmp}/e09.gpkg
+load "{data}/study_area_bbox.gpkg" | clip "{data}/nope.gpkg" | save {tmp}/e09.gpkg
 #@fails algorithm
 #@check not exists("{tmp}/e09.gpkg")
 
 
 # ------------------------------------------------------------------------ save targets
 # ===== TEST 10 | save | mode= on a file is database-only → guiding error =====
-load "/home/jcz/Github/niva/data/study_area_bbox.gpkg" | save {tmp}/e10.gpkg mode=append
+load "{data}/study_area_bbox.gpkg" | save {tmp}/e10.gpkg mode=append
 #@fails database
 #@check not exists("{tmp}/e10.gpkg")
 
 # ===== TEST 11 | save | bare @conn (no table) =====
-load "/home/jcz/Github/niva/data/study_area_bbox.gpkg" | save @localpg
+load "{data}/study_area_bbox.gpkg" | save @localpg
 #@fails table name
 
 # ===== TEST 12 | save | mode=create onto an existing table → fail, existing unchanged =====
-load "/home/jcz/Github/niva/data/study_area_bbox.gpkg" | save @localpg.public.nv_err mode=replace
-load "/home/jcz/Github/niva/data/study_area_bbox.gpkg" | save @localpg.public.nv_err mode=create
+load "{data}/study_area_bbox.gpkg" | save @localpg.public.nv_err mode=replace
+load "{data}/study_area_bbox.gpkg" | save @localpg.public.nv_err mode=create
 #@fails exist
 #@check count("@localpg.public.nv_err") == 1
 #@cleanup flow sql @localpg "DROP TABLE IF EXISTS public.nv_err"
@@ -121,7 +121,7 @@ remove {tmp}
 #@fails directories
 
 # ===== TEST 19 | remove | refuses a non-geodata type without force =====
-load "/home/jcz/Github/niva/data/study_area_bbox.gpkg" | assess to {tmp}/e19.md
+load "{data}/study_area_bbox.gpkg" | assess to {tmp}/e19.md
 remove {tmp}/e19.md
 #@fails recognised geodata
 #@check exists("{tmp}/e19.md")

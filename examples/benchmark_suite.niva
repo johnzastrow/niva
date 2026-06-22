@@ -30,118 +30,118 @@
 
 
 # ===== PREAMBLE | env | confirm the large sources exist before benchmarking =====
-catalog "/home/jcz/Github/niva/data" to=/tmp/niva_benchmark/00_catalog.md
+catalog "{data}" to=/tmp/niva_benchmark/00_catalog.md
 #@out /tmp/niva_benchmark/00_catalog.md :: file
 #@cleanup remove /tmp/niva_benchmark/00_catalog.md force
 
 
 # ------------------------------------------------------------------ CPU (geometry throughput)
 # ===== TEST 01 | cpu | buffer — 691 polygons (small tier) =====
-load "/home/jcz/Github/niva/data/basemap.gpkg|layername=parking-polygon" | buffer 10m | save /tmp/niva_benchmark/b01.gpkg
+load "{data}/basemap.gpkg|layername=parking-polygon" | buffer 10m | save /tmp/niva_benchmark/b01.gpkg
 #@out /tmp/niva_benchmark/b01.gpkg :: vector >=1
 #@cleanup remove /tmp/niva_benchmark/b01.gpkg
 
 # ===== TEST 02 | cpu | buffer — 2 104 polygons (medium tier) =====
-load "/home/jcz/Github/niva/data/basemap.gpkg|layername=landuse-polygon" | buffer 10m | save /tmp/niva_benchmark/b02.gpkg
+load "{data}/basemap.gpkg|layername=landuse-polygon" | buffer 10m | save /tmp/niva_benchmark/b02.gpkg
 #@out /tmp/niva_benchmark/b02.gpkg :: vector >=1
 #@cleanup remove /tmp/niva_benchmark/b02.gpkg
 
 # ===== TEST 03 | cpu | buffer — 101 968 polygons (large tier) =====
-load "/home/jcz/Github/niva/data/basemap.gpkg|layername=building-polygon" | buffer 5m | save /tmp/niva_benchmark/b03.gpkg
+load "{data}/basemap.gpkg|layername=building-polygon" | buffer 5m | save /tmp/niva_benchmark/b03.gpkg
 #@out /tmp/niva_benchmark/b03.gpkg :: vector >=1
 #@cleanup remove /tmp/niva_benchmark/b03.gpkg
 
 # ===== TEST 04 | cpu | reproject — 2 104 polygons → EPSG:4326 (medium) =====
-load "/home/jcz/Github/niva/data/basemap.gpkg|layername=landuse-polygon" | reproject EPSG:4326 | save /tmp/niva_benchmark/b04.gpkg
+load "{data}/basemap.gpkg|layername=landuse-polygon" | reproject EPSG:4326 | save /tmp/niva_benchmark/b04.gpkg
 #@out /tmp/niva_benchmark/b04.gpkg :: vector >=1
 #@cleanup remove /tmp/niva_benchmark/b04.gpkg
 
 # ===== TEST 05 | cpu | reproject — 101 968 polygons → EPSG:4326 (large) =====
-load "/home/jcz/Github/niva/data/basemap.gpkg|layername=building-polygon" | reproject EPSG:4326 | save /tmp/niva_benchmark/b05.gpkg
+load "{data}/basemap.gpkg|layername=building-polygon" | reproject EPSG:4326 | save /tmp/niva_benchmark/b05.gpkg
 #@out /tmp/niva_benchmark/b05.gpkg :: vector >=1
 #@cleanup remove /tmp/niva_benchmark/b05.gpkg
 
 # ===== TEST 06 | cpu | simplify — 24 953 lines (highway) =====
-load "/home/jcz/Github/niva/data/basemap.gpkg|layername=highway-line" | simplify 10 | save /tmp/niva_benchmark/b06.gpkg
+load "{data}/basemap.gpkg|layername=highway-line" | simplify 10 | save /tmp/niva_benchmark/b06.gpkg
 #@out /tmp/niva_benchmark/b06.gpkg :: vector >=1
 #@cleanup remove /tmp/niva_benchmark/b06.gpkg
 
 # ===== TEST 07 | cpu | delaunay — 9 569 points (overture place) =====
-load "/home/jcz/Github/niva/data/overture.gpkg|layername=place_point" | delaunay | save /tmp/niva_benchmark/b07.gpkg
+load "{data}/overture.gpkg|layername=place_point" | delaunay | save /tmp/niva_benchmark/b07.gpkg
 #@out /tmp/niva_benchmark/b07.gpkg :: vector >=1
 #@cleanup remove /tmp/niva_benchmark/b07.gpkg
 
 # ===== TEST 08 | cpu | voronoi — 3 669 points (power) =====
-load "/home/jcz/Github/niva/data/basemap.gpkg|layername=power-point" | voronoi | save /tmp/niva_benchmark/b08.gpkg
+load "{data}/basemap.gpkg|layername=power-point" | voronoi | save /tmp/niva_benchmark/b08.gpkg
 #@out /tmp/niva_benchmark/b08.gpkg :: vector >=1
 #@cleanup remove /tmp/niva_benchmark/b08.gpkg
 
 # ===== TEST 09 | cpu | dissolve — 2 104 polygons into one =====
-load "/home/jcz/Github/niva/data/basemap.gpkg|layername=landuse-polygon" | dissolve | save /tmp/niva_benchmark/b09.gpkg
+load "{data}/basemap.gpkg|layername=landuse-polygon" | dissolve | save /tmp/niva_benchmark/b09.gpkg
 #@out /tmp/niva_benchmark/b09.gpkg :: vector >=1
 #@cleanup remove /tmp/niva_benchmark/b09.gpkg
 
 # ===== TEST 10 | cpu | intersect — 2 104 polygons × study-area bbox =====
-load "/home/jcz/Github/niva/data/basemap.gpkg|layername=landuse-polygon" | intersect "/home/jcz/Github/niva/data/study_area_bbox.gpkg" | save /tmp/niva_benchmark/b10.gpkg
+load "{data}/basemap.gpkg|layername=landuse-polygon" | intersect "{data}/study_area_bbox.gpkg" | save /tmp/niva_benchmark/b10.gpkg
 #@out /tmp/niva_benchmark/b10.gpkg :: vector >=1
 #@cleanup remove /tmp/niva_benchmark/b10.gpkg
 
 # ===== TEST 11 | cpu | subdivide — 2 104 polygons (fixgeom → subdivide) =====
-load "/home/jcz/Github/niva/data/basemap.gpkg|layername=landuse-polygon" | fixgeom | subdivide max_nodes=64 | save /tmp/niva_benchmark/b11.gpkg
+load "{data}/basemap.gpkg|layername=landuse-polygon" | fixgeom | subdivide max_nodes=64 | save /tmp/niva_benchmark/b11.gpkg
 #@out /tmp/niva_benchmark/b11.gpkg :: vector >=1
 #@cleanup remove /tmp/niva_benchmark/b11.gpkg
 
 
 # --------------------------------------------------------------- MEMORY (large in-memory sets)
 # ===== TEST 12 | memory | load 117 881 points + reproject =====
-load "/home/jcz/Github/niva/data/overture.gpkg|layername=address_point" | reproject EPSG:3857 | save /tmp/niva_benchmark/b12.gpkg
+load "{data}/overture.gpkg|layername=address_point" | reproject EPSG:3857 | save /tmp/niva_benchmark/b12.gpkg
 #@out /tmp/niva_benchmark/b12.gpkg :: vector >=1
 #@cleanup remove /tmp/niva_benchmark/b12.gpkg
 
 # ===== TEST 13 | memory | collect 2 104 polygons into a single multipart =====
-load "/home/jcz/Github/niva/data/basemap.gpkg|layername=landuse-polygon" | collect | save /tmp/niva_benchmark/b13.gpkg
+load "{data}/basemap.gpkg|layername=landuse-polygon" | collect | save /tmp/niva_benchmark/b13.gpkg
 #@out /tmp/niva_benchmark/b13.gpkg :: vector >=1
 #@cleanup remove /tmp/niva_benchmark/b13.gpkg
 
 # ===== TEST 14 | memory | load 120 351 polygons + centroid =====
-load "/home/jcz/Github/niva/data/overture.gpkg|layername=building_polygon" | centroid | save /tmp/niva_benchmark/b14.gpkg
+load "{data}/overture.gpkg|layername=building_polygon" | centroid | save /tmp/niva_benchmark/b14.gpkg
 #@out /tmp/niva_benchmark/b14.gpkg :: vector >=1
 #@cleanup remove /tmp/niva_benchmark/b14.gpkg
 
 
 # ----------------------------------------------------------------- DISK (write / raster I/O)
 # ===== TEST 15 | disk | write 691 polygons → GeoPackage (small) =====
-load "/home/jcz/Github/niva/data/basemap.gpkg|layername=parking-polygon" | save /tmp/niva_benchmark/b15.gpkg
+load "{data}/basemap.gpkg|layername=parking-polygon" | save /tmp/niva_benchmark/b15.gpkg
 #@out /tmp/niva_benchmark/b15.gpkg :: vector >=1
 #@cleanup remove /tmp/niva_benchmark/b15.gpkg
 
 # ===== TEST 16 | disk | write 101 968 polygons → GeoPackage (large) =====
-load "/home/jcz/Github/niva/data/basemap.gpkg|layername=building-polygon" | save /tmp/niva_benchmark/b16.gpkg
+load "{data}/basemap.gpkg|layername=building-polygon" | save /tmp/niva_benchmark/b16.gpkg
 #@out /tmp/niva_benchmark/b16.gpkg :: vector >=1
 #@cleanup remove /tmp/niva_benchmark/b16.gpkg
 
 # ===== TEST 17 | disk | write 117 881 points → Shapefile =====
-load "/home/jcz/Github/niva/data/overture.gpkg|layername=address_point" | save /tmp/niva_benchmark/b17.shp
+load "{data}/overture.gpkg|layername=address_point" | save /tmp/niva_benchmark/b17.shp
 #@out /tmp/niva_benchmark/b17.shp :: vector >=1
 #@cleanup remove /tmp/niva_benchmark/b17.shp
 
 # ===== TEST 18 | disk | write 120 351 polygons → GeoPackage (largest) =====
-load "/home/jcz/Github/niva/data/overture.gpkg|layername=building_polygon" | save /tmp/niva_benchmark/b18.gpkg
+load "{data}/overture.gpkg|layername=building_polygon" | save /tmp/niva_benchmark/b18.gpkg
 #@out /tmp/niva_benchmark/b18.gpkg :: vector >=1
 #@cleanup remove /tmp/niva_benchmark/b18.gpkg
 
 # ===== TEST 19 | disk | raster copy — dem.tif (6000×6000) =====
-load "/home/jcz/Github/niva/data/dem.tif" | save /tmp/niva_benchmark/b19.tif
+load "{data}/dem.tif" | save /tmp/niva_benchmark/b19.tif
 #@out /tmp/niva_benchmark/b19.tif :: raster
 #@cleanup remove /tmp/niva_benchmark/b19.tif
 
 # ===== TEST 20 | disk | warp dem.tif (6000²) → EPSG:3857 =====
-load "/home/jcz/Github/niva/data/dem.tif" | warp EPSG:3857 | save /tmp/niva_benchmark/b20.tif
+load "{data}/dem.tif" | warp EPSG:3857 | save /tmp/niva_benchmark/b20.tif
 #@out /tmp/niva_benchmark/b20.tif :: raster
 #@cleanup remove /tmp/niva_benchmark/b20.tif
 
 # ===== TEST 21 | disk | warp orthophoto_clip.jp2 (16 614×15 239, 4-band) → EPSG:3857 =====
-load "/home/jcz/Github/niva/data/orthophoto_clip.jp2" | warp EPSG:3857 | save /tmp/niva_benchmark/b21.tif
+load "{data}/orthophoto_clip.jp2" | warp EPSG:3857 | save /tmp/niva_benchmark/b21.tif
 #@out /tmp/niva_benchmark/b21.tif :: raster
 #@cleanup remove /tmp/niva_benchmark/b21.tif
 

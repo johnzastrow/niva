@@ -29,7 +29,7 @@ sql @localpg "SELECT 1 AS id, ST_SetSRID(ST_MakePoint(0,0), 4326) AS geom" | sav
 #@cleanup remove {tmp}/s02.gpkg
 
 # ===== TEST 03 | creds | writing to @conn leaves no URI/credentials in the journal =====
-load "/home/jcz/Github/niva/data/study_area_bbox.gpkg" | save @localpg.public.nv_sec mode=replace
+load "{data}/study_area_bbox.gpkg" | save @localpg.public.nv_sec mode=replace
 #@check not leaks(journal())
 #@cleanup flow sql @localpg "DROP TABLE IF EXISTS public.nv_sec"
 
@@ -73,7 +73,7 @@ load "@localpg.public.café points" | save {tmp}/s10.gpkg
 
 # ------------------------------------------------ `remove` allowlist is spelling-independent
 # ===== TEST 11 | remove | a non-geodata file via a `..` path is still refused (no force) =====
-load "/home/jcz/Github/niva/data/study_area_bbox.gpkg" | assess to {tmp}/sub/secret.conf
+load "{data}/study_area_bbox.gpkg" | assess to {tmp}/sub/secret.conf
 remove {tmp}/sub/../sub/secret.conf
 #@fails recognised geodata
 #@check exists("{tmp}/sub/secret.conf")

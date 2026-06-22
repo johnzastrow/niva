@@ -35,7 +35,7 @@
 
 
 # ===== PREAMBLE | environment | confirm sources for the deep chains =====
-load "/home/jcz/Github/niva/data/basemap.gpkg|layername=settlement-point" | assess to /tmp/niva_validation/out/s3_00_points.md
+load "{data}/basemap.gpkg|layername=settlement-point" | assess to /tmp/niva_validation/out/s3_00_points.md
 load "@actual_spatialite.sqlite.park_polygons" | assess to /tmp/niva_validation/out/s3_00_parks.md
 #@out /tmp/niva_validation/out/s3_00_points.md :: file
 #@out /tmp/niva_validation/out/s3_00_parks.md :: file
@@ -45,27 +45,27 @@ load "@actual_spatialite.sqlite.park_polygons" | assess to /tmp/niva_validation/
 
 # ------------------------------------------------ geometry-type flapping (point↔line↔polygon)
 # ===== TEST 01 | poly→pt→poly→poly | centroid → buffer → convexhull =====
-load "/home/jcz/Github/niva/data/basemap.gpkg|layername=nature_reserve-polygon" | centroid | buffer 250m | convexhull | save /tmp/niva_validation/out/s3_01.gpkg
+load "{data}/basemap.gpkg|layername=nature_reserve-polygon" | centroid | buffer 250m | convexhull | save /tmp/niva_validation/out/s3_01.gpkg
 #@out /tmp/niva_validation/out/s3_01.gpkg :: vector >=1
 #@cleanup remove /tmp/niva_validation/out/s3_01.gpkg
 
 # ===== TEST 02 | poly→pt→poly→poly | vertices → voronoi → dissolve =====
-load "/home/jcz/Github/niva/data/basemap.gpkg|layername=nature_reserve-polygon" | vertices | voronoi | dissolve | save /tmp/niva_validation/out/s3_02.gpkg
+load "{data}/basemap.gpkg|layername=nature_reserve-polygon" | vertices | voronoi | dissolve | save /tmp/niva_validation/out/s3_02.gpkg
 #@out /tmp/niva_validation/out/s3_02.gpkg :: vector >=1
 #@cleanup remove /tmp/niva_validation/out/s3_02.gpkg
 
 # ===== TEST 03 | line→pt→poly | pointsalong → buffer → dissolve → convexhull =====
-load "/home/jcz/Github/niva/data/basemap.gpkg|layername=railway-line" | pointsalong 500m | buffer 100m | dissolve | convexhull | save /tmp/niva_validation/out/s3_03.gpkg
+load "{data}/basemap.gpkg|layername=railway-line" | pointsalong 500m | buffer 100m | dissolve | convexhull | save /tmp/niva_validation/out/s3_03.gpkg
 #@out /tmp/niva_validation/out/s3_03.gpkg :: vector >=1
 #@cleanup remove /tmp/niva_validation/out/s3_03.gpkg
 
 # ===== TEST 04 | poly→box→pt→poly→poly | boundingbox → centroid → buffer → minrect =====
-load "/home/jcz/Github/niva/data/collected.gpkg|layername=park_polygons" | boundingbox | centroid | buffer 300m | minrect | save /tmp/niva_validation/out/s3_04.gpkg
+load "{data}/collected.gpkg|layername=park_polygons" | boundingbox | centroid | buffer 300m | minrect | save /tmp/niva_validation/out/s3_04.gpkg
 #@out /tmp/niva_validation/out/s3_04.gpkg :: vector >=1
 #@cleanup remove /tmp/niva_validation/out/s3_04.gpkg
 
 # ===== TEST 05 | pt→poly→pt | collect → convexhull → buffer → vertices =====
-load "/home/jcz/Github/niva/data/basemap.gpkg|layername=settlement-point" | collect | convexhull | buffer 1000m | vertices | save /tmp/niva_validation/out/s3_05.gpkg
+load "{data}/basemap.gpkg|layername=settlement-point" | collect | convexhull | buffer 1000m | vertices | save /tmp/niva_validation/out/s3_05.gpkg
 #@out /tmp/niva_validation/out/s3_05.gpkg :: vector >=1
 #@cleanup remove /tmp/niva_validation/out/s3_05.gpkg
 
@@ -74,29 +74,29 @@ load "/home/jcz/Github/niva/data/basemap.gpkg|layername=settlement-point" | coll
 # ===== TEST 06 | multipart churn | fixgeom → explode → promote → collect → fixgeom → explode =====
 # (a raw water-polygon collect makes a GeometryCollection that explode's typed output rejects —
 #  the hand-off artifact this suite hunts; `fixgeom` at the seam is the fix.)
-load "/home/jcz/Github/niva/data/basemap.gpkg|layername=water-polygon" | fixgeom | explode | promote | collect | fixgeom | explode | save /tmp/niva_validation/out/s3_06.gpkg
+load "{data}/basemap.gpkg|layername=water-polygon" | fixgeom | explode | promote | collect | fixgeom | explode | save /tmp/niva_validation/out/s3_06.gpkg
 #@out /tmp/niva_validation/out/s3_06.gpkg :: vector >=1
 #@cleanup remove /tmp/niva_validation/out/s3_06.gpkg
 
 # ===== TEST 07 | clean+churn | fixgeom → explode → buffer → dissolve → explode =====
-load "/home/jcz/Github/niva/data/basemap.gpkg|layername=nature_reserve-polygon" | fixgeom | explode | buffer 50m | dissolve | explode | save /tmp/niva_validation/out/s3_07.gpkg
+load "{data}/basemap.gpkg|layername=nature_reserve-polygon" | fixgeom | explode | buffer 50m | dissolve | explode | save /tmp/niva_validation/out/s3_07.gpkg
 #@out /tmp/niva_validation/out/s3_07.gpkg :: vector >=1
 #@cleanup remove /tmp/niva_validation/out/s3_07.gpkg
 
 # ===== TEST 08 | line churn | promote → explode → promote =====
-load "/home/jcz/Github/niva/data/collected.gpkg|layername=park_lines" | promote | explode | promote | save /tmp/niva_validation/out/s3_08.gpkg
+load "{data}/collected.gpkg|layername=park_lines" | promote | explode | promote | save /tmp/niva_validation/out/s3_08.gpkg
 #@out /tmp/niva_validation/out/s3_08.gpkg :: vector >=1
 #@cleanup remove /tmp/niva_validation/out/s3_08.gpkg
 
 
 # ------------------------------------------------ CRS drift (reproject through several CRSs)
 # ===== TEST 09 | CRS round-trip | 6346→4326→3857→6346 → buffer =====
-load "/home/jcz/Github/niva/data/collected.gpkg|layername=park_polygons" | reproject EPSG:4326 | reproject EPSG:3857 | reproject EPSG:6346 | buffer 100m | save /tmp/niva_validation/out/s3_09.gpkg
+load "{data}/collected.gpkg|layername=park_polygons" | reproject EPSG:4326 | reproject EPSG:3857 | reproject EPSG:6346 | buffer 100m | save /tmp/niva_validation/out/s3_09.gpkg
 #@out /tmp/niva_validation/out/s3_09.gpkg :: vector >=1
 #@cleanup remove /tmp/niva_validation/out/s3_09.gpkg
 
 # ===== TEST 10 | buffer in 3857 then back | 6346→3857 → buffer → 4326 → 6346 =====
-load "/home/jcz/Github/niva/data/basemap.gpkg|layername=settlement-point" | reproject EPSG:3857 | buffer 500m | reproject EPSG:4326 | reproject EPSG:6346 | centroid | save /tmp/niva_validation/out/s3_10.gpkg
+load "{data}/basemap.gpkg|layername=settlement-point" | reproject EPSG:3857 | buffer 500m | reproject EPSG:4326 | reproject EPSG:6346 | centroid | save /tmp/niva_validation/out/s3_10.gpkg
 #@out /tmp/niva_validation/out/s3_10.gpkg :: vector >=1
 #@cleanup remove /tmp/niva_validation/out/s3_10.gpkg
 
@@ -108,58 +108,58 @@ sql @localpg "SELECT row_number() OVER () AS id, geom FROM public.\"My Roads\"" 
 
 # ------------------------------------------------ attribute hand-offs (field set/used across ops)
 # ===== TEST 12 | rename→keep→use | renamefield then reference the NEW name downstream =====
-load "/home/jcz/Github/niva/data/basemap.gpkg|layername=boundary-polygon" | renamefield NAME label | keepfields "label" | centroid | buffer 100m | save /tmp/niva_validation/out/s3_12.gpkg
+load "{data}/basemap.gpkg|layername=boundary-polygon" | renamefield NAME label | keepfields "label" | centroid | buffer 100m | save /tmp/niva_validation/out/s3_12.gpkg
 #@out /tmp/niva_validation/out/s3_12.gpkg :: vector >=1
 #@cleanup remove /tmp/niva_validation/out/s3_12.gpkg
 
 # ===== TEST 13 | drop→dissolve-by-kept-field | dropfields then group by a surviving field =====
-load "/home/jcz/Github/niva/data/basemap.gpkg|layername=boundary-polygon" | dropfields "OSM_TYPE,NAME_EN" | dissolve ADMIN_LVL | buffer 50m | save /tmp/niva_validation/out/s3_13.gpkg
+load "{data}/basemap.gpkg|layername=boundary-polygon" | dropfields "OSM_TYPE,NAME_EN" | dissolve ADMIN_LVL | buffer 50m | save /tmp/niva_validation/out/s3_13.gpkg
 #@out /tmp/niva_validation/out/s3_13.gpkg :: vector >=1
 #@cleanup remove /tmp/niva_validation/out/s3_13.gpkg
 
 # ===== TEST 14 | computed field used downstream | countpoints → filter on NUMPOINTS → centroid =====
-load "/home/jcz/Github/niva/data/collected.gpkg|layername=park_polygons" | countpoints points="@actual_spatialite.sqlite.park_points" | filter "NUMPOINTS >= 0" | centroid | buffer 100m | save /tmp/niva_validation/out/s3_14.gpkg
+load "{data}/collected.gpkg|layername=park_polygons" | countpoints points="@actual_spatialite.sqlite.park_points" | filter "NUMPOINTS >= 0" | centroid | buffer 100m | save /tmp/niva_validation/out/s3_14.gpkg
 #@out /tmp/niva_validation/out/s3_14.gpkg :: vector >=1
 #@cleanup remove /tmp/niva_validation/out/s3_14.gpkg
 
 # ===== TEST 15 | raster stat then geometry op | zonalstats → centroid → buffer =====
-load "/home/jcz/Github/niva/data/basemap.gpkg|layername=nature_reserve-polygon" | zonalstats raster="/home/jcz/Github/niva/data/dem_clip.tif" stats=mean,count prefix=z | centroid | buffer 100m | save /tmp/niva_validation/out/s3_15.gpkg
+load "{data}/basemap.gpkg|layername=nature_reserve-polygon" | zonalstats raster="{data}/dem_clip.tif" stats=mean,count prefix=z | centroid | buffer 100m | save /tmp/niva_validation/out/s3_15.gpkg
 #@out /tmp/niva_validation/out/s3_15.gpkg :: vector >=1
 #@cleanup remove /tmp/niva_validation/out/s3_15.gpkg
 
 
 # ------------------------------------------------ overlay chains (geometry + attribute merges)
 # ===== TEST 16 | three overlays | clip → difference → buffer =====
-load "/home/jcz/Github/niva/data/basemap.gpkg|layername=landuse-polygon" | clip "/home/jcz/Github/niva/data/study_area_bbox.gpkg" | difference "@actual_spatialite.sqlite.park_polygons" | buffer 10m | save /tmp/niva_validation/out/s3_16.gpkg
+load "{data}/basemap.gpkg|layername=landuse-polygon" | clip "{data}/study_area_bbox.gpkg" | difference "@actual_spatialite.sqlite.park_polygons" | buffer 10m | save /tmp/niva_validation/out/s3_16.gpkg
 #@out /tmp/niva_validation/out/s3_16.gpkg :: vector >=1
 #@cleanup remove /tmp/niva_validation/out/s3_16.gpkg
 
 # ===== TEST 17 | clip+overlay | clip @conn → dissolve → buffer → difference @conn =====
-load "/home/jcz/Github/niva/data/study_area_bbox.gpkg" | clip "@actual_spatialite.sqlite.park_polygons" | dissolve | buffer 25m | difference "@actual_spatialite.sqlite.park_polygons" | save /tmp/niva_validation/out/s3_17.gpkg
+load "{data}/study_area_bbox.gpkg" | clip "@actual_spatialite.sqlite.park_polygons" | dissolve | buffer 25m | difference "@actual_spatialite.sqlite.park_polygons" | save /tmp/niva_validation/out/s3_17.gpkg
 #@out /tmp/niva_validation/out/s3_17.gpkg :: vector >=1
 #@cleanup remove /tmp/niva_validation/out/s3_17.gpkg
 
 # ===== TEST 18 | overlay+clean | intersect → fixgeom → simplify → union =====
-load "/home/jcz/Github/niva/data/basemap.gpkg|layername=landuse-polygon" | intersect "/home/jcz/Github/niva/data/study_area_bbox.gpkg" | fixgeom | simplify 5 | union "@actual_spatialite.sqlite.park_polygons" | save /tmp/niva_validation/out/s3_18.gpkg
+load "{data}/basemap.gpkg|layername=landuse-polygon" | intersect "{data}/study_area_bbox.gpkg" | fixgeom | simplify 5 | union "@actual_spatialite.sqlite.park_polygons" | save /tmp/niva_validation/out/s3_18.gpkg
 #@out /tmp/niva_validation/out/s3_18.gpkg :: vector >=1
 #@cleanup remove /tmp/niva_validation/out/s3_18.gpkg
 
 # ===== TEST 19 | selectloc+reduce | selectloc → buffer → dissolve → centroid =====
-load "/home/jcz/Github/niva/data/basemap.gpkg|layername=poi-point" | selectloc "/home/jcz/Github/niva/data/study_area_bbox.gpkg" predicate=within | buffer 50m | dissolve | centroid | save /tmp/niva_validation/out/s3_19.gpkg
+load "{data}/basemap.gpkg|layername=poi-point" | selectloc "{data}/study_area_bbox.gpkg" predicate=within | buffer 50m | dissolve | centroid | save /tmp/niva_validation/out/s3_19.gpkg
 #@out /tmp/niva_validation/out/s3_19.gpkg :: vector >=1
 #@cleanup remove /tmp/niva_validation/out/s3_19.gpkg
 
 
 # ------------------------------------------------ memory↔file↔DB hand-offs
 # ===== TEST 20 | file hand-off | save mid-chain, reload, keep processing =====
-load "/home/jcz/Github/niva/data/basemap.gpkg|layername=settlement-point" | buffer 500m | save /tmp/niva_validation/out/s3_20_tmp.gpkg
+load "{data}/basemap.gpkg|layername=settlement-point" | buffer 500m | save /tmp/niva_validation/out/s3_20_tmp.gpkg
 load "/tmp/niva_validation/out/s3_20_tmp.gpkg" | dissolve | centroid | save /tmp/niva_validation/out/s3_20.gpkg
 #@out /tmp/niva_validation/out/s3_20.gpkg :: vector >=1
 #@cleanup remove /tmp/niva_validation/out/s3_20.gpkg
 #@cleanup remove /tmp/niva_validation/out/s3_20_tmp.gpkg
 
 # ===== TEST 21 | multi-layer hand-off | write a named layer, reload it, process =====
-load "/home/jcz/Github/niva/data/collected.gpkg|layername=park_polygons" | save /tmp/niva_validation/out/s3_21_c.gpkg as parks
+load "{data}/collected.gpkg|layername=park_polygons" | save /tmp/niva_validation/out/s3_21_c.gpkg as parks
 load "/tmp/niva_validation/out/s3_21_c.gpkg|layername=parks" | buffer 50m | dissolve | save /tmp/niva_validation/out/s3_21.gpkg
 #@out /tmp/niva_validation/out/s3_21.gpkg :: vector >=1
 #@cleanup remove /tmp/niva_validation/out/s3_21.gpkg
@@ -180,80 +180,80 @@ sql "@actual_spatialite.sqlite" "SELECT ST_Centroid(geom) AS geom FROM park_poly
 
 # ------------------------------------------------ vertex-count round-trips
 # ===== TEST 24 | add then remove vertices | densify → smooth → simplify =====
-load "/home/jcz/Github/niva/data/collected.gpkg|layername=park_lines" | densify 5m | smooth iterations=2 | simplify 10 | save /tmp/niva_validation/out/s3_24.gpkg
+load "{data}/collected.gpkg|layername=park_lines" | densify 5m | smooth iterations=2 | simplify 10 | save /tmp/niva_validation/out/s3_24.gpkg
 #@out /tmp/niva_validation/out/s3_24.gpkg :: vector >=1
 #@cleanup remove /tmp/niva_validation/out/s3_24.gpkg
 
 # ===== TEST 25 | split then merge | fixgeom → subdivide → fixgeom → dissolve =====
-load "/home/jcz/Github/niva/data/basemap.gpkg|layername=water-polygon" | fixgeom | subdivide max_nodes=64 | fixgeom | dissolve | save /tmp/niva_validation/out/s3_25.gpkg
+load "{data}/basemap.gpkg|layername=water-polygon" | fixgeom | subdivide max_nodes=64 | fixgeom | dissolve | save /tmp/niva_validation/out/s3_25.gpkg
 #@out /tmp/niva_validation/out/s3_25.gpkg :: vector >=1
 #@cleanup remove /tmp/niva_validation/out/s3_25.gpkg
 
 # ===== TEST 26 | simplify → densify → vertices | coarsen, re-densify, extract =====
-load "/home/jcz/Github/niva/data/basemap.gpkg|layername=nature_reserve-polygon" | simplify 20 | densify 25m | vertices | save /tmp/niva_validation/out/s3_26.gpkg
+load "{data}/basemap.gpkg|layername=nature_reserve-polygon" | simplify 20 | densify 25m | vertices | save /tmp/niva_validation/out/s3_26.gpkg
 #@out /tmp/niva_validation/out/s3_26.gpkg :: vector >=1
 #@cleanup remove /tmp/niva_validation/out/s3_26.gpkg
 
 
 # ------------------------------------------------ clean/transform chains
 # ===== TEST 27 | snap → fixgeom → promote | clean lines through a chain =====
-load "/home/jcz/Github/niva/data/collected.gpkg|layername=park_lines" | snap "@actual_spatialite.sqlite.park_lines" 5m | fixgeom | promote | save /tmp/niva_validation/out/s3_27.gpkg
+load "{data}/collected.gpkg|layername=park_lines" | snap "@actual_spatialite.sqlite.park_lines" 5m | fixgeom | promote | save /tmp/niva_validation/out/s3_27.gpkg
 #@out /tmp/niva_validation/out/s3_27.gpkg :: vector >=1
 #@cleanup remove /tmp/niva_validation/out/s3_27.gpkg
 
 # ===== TEST 28 | swapxy twice = identity | fixgeom → forcerhr → swapxy → swapxy =====
-load "/home/jcz/Github/niva/data/collected.gpkg|layername=park_polygons" | fixgeom | forcerhr | swapxy | swapxy | save /tmp/niva_validation/out/s3_28.gpkg
+load "{data}/collected.gpkg|layername=park_polygons" | fixgeom | forcerhr | swapxy | swapxy | save /tmp/niva_validation/out/s3_28.gpkg
 #@out /tmp/niva_validation/out/s3_28.gpkg :: vector >=1
 #@cleanup remove /tmp/niva_validation/out/s3_28.gpkg
 
 
 # ------------------------------------------------ @conn deep in a chain
 # ===== TEST 29 | @conn deep | reproject → clip @conn → dissolve → buffer → difference @conn =====
-load "/home/jcz/Github/niva/data/study_area_bbox.gpkg" | reproject EPSG:6346 | clip "@actual_spatialite.sqlite.park_polygons" | dissolve | buffer 20m | difference "@actual_spatialite.sqlite.park_polygons" | save /tmp/niva_validation/out/s3_29.gpkg
+load "{data}/study_area_bbox.gpkg" | reproject EPSG:6346 | clip "@actual_spatialite.sqlite.park_polygons" | dissolve | buffer 20m | difference "@actual_spatialite.sqlite.park_polygons" | save /tmp/niva_validation/out/s3_29.gpkg
 #@out /tmp/niva_validation/out/s3_29.gpkg :: vector >=1
 #@cleanup remove /tmp/niva_validation/out/s3_29.gpkg
 
 # ===== TEST 30 | @conn source | clean → spatialjoin file → centroid =====
-load "@actual_spatialite.sqlite.park_polygons" | fixgeom | simplify 2 | spatialjoin with="/home/jcz/Github/niva/data/collected.gpkg|layername=park_points" predicate=intersect | centroid | save /tmp/niva_validation/out/s3_30.gpkg
+load "@actual_spatialite.sqlite.park_polygons" | fixgeom | simplify 2 | spatialjoin with="{data}/collected.gpkg|layername=park_points" predicate=intersect | centroid | save /tmp/niva_validation/out/s3_30.gpkg
 #@out /tmp/niva_validation/out/s3_30.gpkg :: vector >=1
 #@cleanup remove /tmp/niva_validation/out/s3_30.gpkg
 
 
 # ------------------------------------------------ raster → vector → deep vector chains
 # ===== TEST 31 | raster→vector→deep | warp → polygonize → fixgeom → dissolve → centroid =====
-load "/home/jcz/Github/niva/data/dem_clip.tif" | warp EPSG:6346 resolution=300 | polygonize | fixgeom | dissolve | centroid | save /tmp/niva_validation/out/s3_31.gpkg
+load "{data}/dem_clip.tif" | warp EPSG:6346 resolution=300 | polygonize | fixgeom | dissolve | centroid | save /tmp/niva_validation/out/s3_31.gpkg
 #@out /tmp/niva_validation/out/s3_31.gpkg :: vector >=1
 #@cleanup remove /tmp/niva_validation/out/s3_31.gpkg
 
 # ===== TEST 32 | clipraster → vectorize → simplify | raster clip then vector clean =====
-load "/home/jcz/Github/niva/data/dem_clip.tif" | clipraster "/home/jcz/Github/niva/data/study_area_bbox.gpkg" | warp EPSG:6346 resolution=300 | polygonize | simplify 10 | save /tmp/niva_validation/out/s3_32.gpkg
+load "{data}/dem_clip.tif" | clipraster "{data}/study_area_bbox.gpkg" | warp EPSG:6346 resolution=300 | polygonize | simplify 10 | save /tmp/niva_validation/out/s3_32.gpkg
 #@out /tmp/niva_validation/out/s3_32.gpkg :: vector >=1
 #@cleanup remove /tmp/niva_validation/out/s3_32.gpkg
 
 # ===== TEST 33 | slope→vectorize→buffer | derivative raster → vector → buffer =====
-load "/home/jcz/Github/niva/data/dem_clip.tif" | slope | warp EPSG:6346 resolution=300 | polygonize | buffer 0m | fixgeom | save /tmp/niva_validation/out/s3_33.gpkg
+load "{data}/dem_clip.tif" | slope | warp EPSG:6346 resolution=300 | polygonize | buffer 0m | fixgeom | save /tmp/niva_validation/out/s3_33.gpkg
 #@out /tmp/niva_validation/out/s3_33.gpkg :: vector >=1
 #@cleanup remove /tmp/niva_validation/out/s3_33.gpkg
 
 
 # ------------------------------------------------ long mixed chains (7–9 ops)
 # ===== TEST 34 | 8-op flap | buffer → dissolve → explode → centroid → voronoi → clip → fixgeom =====
-load "/home/jcz/Github/niva/data/basemap.gpkg|layername=settlement-point" | buffer 800m | dissolve | explode | centroid | voronoi | clip "/home/jcz/Github/niva/data/study_area_bbox.gpkg" | fixgeom | save /tmp/niva_validation/out/s3_34.gpkg
+load "{data}/basemap.gpkg|layername=settlement-point" | buffer 800m | dissolve | explode | centroid | voronoi | clip "{data}/study_area_bbox.gpkg" | fixgeom | save /tmp/niva_validation/out/s3_34.gpkg
 #@out /tmp/niva_validation/out/s3_34.gpkg :: vector >=1
 #@cleanup remove /tmp/niva_validation/out/s3_34.gpkg
 
 # ===== TEST 35 | clean+churn+box | fixgeom → simplify → explode → promote → collect → fixgeom → boundingbox =====
-load "/home/jcz/Github/niva/data/basemap.gpkg|layername=nature_reserve-polygon" | fixgeom | simplify 5 | explode | promote | collect | fixgeom | boundingbox | save /tmp/niva_validation/out/s3_35.gpkg
+load "{data}/basemap.gpkg|layername=nature_reserve-polygon" | fixgeom | simplify 5 | explode | promote | collect | fixgeom | boundingbox | save /tmp/niva_validation/out/s3_35.gpkg
 #@out /tmp/niva_validation/out/s3_35.gpkg :: vector >=1
 #@cleanup remove /tmp/niva_validation/out/s3_35.gpkg
 
 # ===== TEST 36 | line CRS+pts+poly | reproject → pointsalong → buffer → dissolve → convexhull → reproject =====
-load "/home/jcz/Github/niva/data/basemap.gpkg|layername=railway-line" | reproject EPSG:3857 | pointsalong 400m | buffer 200m | dissolve | convexhull | reproject EPSG:6346 | save /tmp/niva_validation/out/s3_36.gpkg
+load "{data}/basemap.gpkg|layername=railway-line" | reproject EPSG:3857 | pointsalong 400m | buffer 200m | dissolve | convexhull | reproject EPSG:6346 | save /tmp/niva_validation/out/s3_36.gpkg
 #@out /tmp/niva_validation/out/s3_36.gpkg :: vector >=1
 #@cleanup remove /tmp/niva_validation/out/s3_36.gpkg
 
 # ===== TEST 37 | overlay→clean→reduce | clip → intersect → dissolve → buffer → simplify → centroid =====
-load "/home/jcz/Github/niva/data/basemap.gpkg|layername=landuse-polygon" | clip "/home/jcz/Github/niva/data/study_area_bbox.gpkg" | intersect "/home/jcz/Github/niva/data/study_area_bbox.gpkg" | dissolve | buffer 30m | simplify 5 | centroid | save /tmp/niva_validation/out/s3_37.gpkg
+load "{data}/basemap.gpkg|layername=landuse-polygon" | clip "{data}/study_area_bbox.gpkg" | intersect "{data}/study_area_bbox.gpkg" | dissolve | buffer 30m | simplify 5 | centroid | save /tmp/niva_validation/out/s3_37.gpkg
 #@out /tmp/niva_validation/out/s3_37.gpkg :: vector >=1
 #@cleanup remove /tmp/niva_validation/out/s3_37.gpkg
 
@@ -263,8 +263,8 @@ sql @localpg "SELECT row_number() OVER () AS id, ST_Centroid(geom) AS geom FROM 
 #@cleanup remove /tmp/niva_validation/out/s3_38.gpkg
 
 # ===== TEST 39 | each batch of chains | per-file: reproject→buffer→dissolve→centroid, templated out =====
-load "/home/jcz/Github/niva/data/basemap.gpkg|layername=settlement-point" | save /tmp/niva_validation/s3batch/towns.gpkg
-load "/home/jcz/Github/niva/data/collected.gpkg|layername=park_points" | save /tmp/niva_validation/s3batch/parks.gpkg
+load "{data}/basemap.gpkg|layername=settlement-point" | save /tmp/niva_validation/s3batch/towns.gpkg
+load "{data}/collected.gpkg|layername=park_points" | save /tmp/niva_validation/s3batch/parks.gpkg
 each "/tmp/niva_validation/s3batch/*.gpkg" | reproject EPSG:3857 | buffer 300m | dissolve | centroid | save "/tmp/niva_validation/out/s3_39_{name}.gpkg"
 #@out /tmp/niva_validation/out/s3_39_towns.gpkg :: vector >=1
 #@out /tmp/niva_validation/out/s3_39_parks.gpkg :: vector >=1
@@ -274,6 +274,6 @@ each "/tmp/niva_validation/s3batch/*.gpkg" | reproject EPSG:3857 | buffer 300m |
 #@cleanup remove /tmp/niva_validation/s3batch/parks.gpkg
 
 # ===== TEST 40 | raster→vector 8-op | polygonize → fixgeom → dissolve → buffer → centroid → vertices =====
-load "/home/jcz/Github/niva/data/dem_clip.tif" | warp EPSG:6346 resolution=300 | polygonize | fixgeom | dissolve | buffer 50m | centroid | vertices | save /tmp/niva_validation/out/s3_40.gpkg
+load "{data}/dem_clip.tif" | warp EPSG:6346 resolution=300 | polygonize | fixgeom | dissolve | buffer 50m | centroid | vertices | save /tmp/niva_validation/out/s3_40.gpkg
 #@out /tmp/niva_validation/out/s3_40.gpkg :: vector >=1
 #@cleanup remove /tmp/niva_validation/out/s3_40.gpkg

@@ -11,14 +11,14 @@
 #     QT_QPA_PLATFORM=offscreen python3 examples/run_assert_suite.py examples/round_trip_suite.niva
 #
 # Helpers: count(p) crs(p) gtype(p) fields(p) values(p,field) area(p) bbox(p) approx(a,b,tol).
-# SRC is basemap boundary-polygon (35 MultiPolygons, EPSG:6346, fields NAME/NAME_EN/ADMIN_LVL/…).
+# SRC is basemap boundary-polygon (16 Polygons, EPSG:6346, fields NAME/NAME_EN/ADMIN_LVL/…).
 # {tmp} = /tmp/niva_assert.
 # =============================================================================
 
 
 # ===== PREAMBLE | setup | stage the source as a clean GeoPackage =====
-load "/home/jcz/Github/niva/data/basemap.gpkg|layername=boundary-polygon" | save {tmp}/src.gpkg
-#@check count("{tmp}/src.gpkg") == 35
+load "{data}/basemap.gpkg|layername=boundary-polygon" | save {tmp}/src.gpkg
+#@check count("{tmp}/src.gpkg") == 16
 #@check crs("{tmp}/src.gpkg") == "EPSG:6346"
 
 
@@ -125,8 +125,8 @@ load "@localpg.public.My Roads" | save {tmp}/rt14.gpkg
 #@cleanup remove {tmp}/rt14.gpkg
 
 # ===== TEST 15 | special names | a layer named with a hyphen round-trips losslessly =====
-load "/home/jcz/Github/niva/data/basemap.gpkg|layername=nature_reserve-polygon" | save {tmp}/rt15.gpkg as nature-reserve
-#@check count("{tmp}/rt15.gpkg|layername=nature-reserve") == count("/home/jcz/Github/niva/data/basemap.gpkg|layername=nature_reserve-polygon")
+load "{data}/basemap.gpkg|layername=nature_reserve-polygon" | save {tmp}/rt15.gpkg as nature-reserve
+#@check count("{tmp}/rt15.gpkg|layername=nature-reserve") == count("{data}/basemap.gpkg|layername=nature_reserve-polygon")
 #@cleanup remove {tmp}/rt15.gpkg
 
 

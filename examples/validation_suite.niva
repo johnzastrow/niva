@@ -30,7 +30,7 @@
 info to=/tmp/niva_validation/out/00_info.md
 show "@localpg" to=/tmp/niva_validation/out/00_localpg.md
 show "@actual_spatialite.sqlite" to=/tmp/niva_validation/out/00_spatialite.md
-catalog "/home/jcz/Github/niva/data" to=/tmp/niva_validation/out/00_catalog.md
+catalog "{data}" to=/tmp/niva_validation/out/00_catalog.md
 #@out /tmp/niva_validation/out/00_info.md :: file
 #@out /tmp/niva_validation/out/00_localpg.md :: file
 #@out /tmp/niva_validation/out/00_spatialite.md :: file
@@ -44,48 +44,48 @@ catalog "/home/jcz/Github/niva/data" to=/tmp/niva_validation/out/00_catalog.md
 # ----------------------------------------------------------- SIMPLE: load → save
 
 # ===== TEST 01 | gpkg→gpkg | GeoPackage polygon, passthrough save =====
-load "/home/jcz/Github/niva/data/study_area_bbox.gpkg" | save /tmp/niva_validation/out/t01.gpkg
+load "{data}/study_area_bbox.gpkg" | save /tmp/niva_validation/out/t01.gpkg
 #@out /tmp/niva_validation/out/t01.gpkg :: vector >=1
 #@cleanup remove /tmp/niva_validation/out/t01.gpkg
 
 # ===== TEST 02 | shp→gpkg | shapefile (MultiPolygon) to GeoPackage =====
-load "/home/jcz/Downloads/NiagaraBasemap/aoism.shp" | save /tmp/niva_validation/out/t02.gpkg
+load "{data}/aoism.shp" | save /tmp/niva_validation/out/t02.gpkg
 #@out /tmp/niva_validation/out/t02.gpkg :: vector >=1
 #@cleanup remove /tmp/niva_validation/out/t02.gpkg
 
 # ===== TEST 03 | geojson→gpkg | GeoJSON (EPSG:4326) to GeoPackage =====
-load "/home/jcz/Downloads/NiagaraOverture/order_boundary.geojson" | save /tmp/niva_validation/out/t03.gpkg
+load "{data}/order_boundary.geojson" | save /tmp/niva_validation/out/t03.gpkg
 #@out /tmp/niva_validation/out/t03.gpkg :: vector >=1
 #@cleanup remove /tmp/niva_validation/out/t03.gpkg
 
 # ===== TEST 04 | gpkg→shp | GeoPackage to shapefile =====
-load "/home/jcz/Github/niva/data/study_area_bbox.gpkg" | save /tmp/niva_validation/out/t04.shp
+load "{data}/study_area_bbox.gpkg" | save /tmp/niva_validation/out/t04.shp
 #@out /tmp/niva_validation/out/t04.shp :: vector >=1
 #@cleanup remove /tmp/niva_validation/out/t04.shp
 
 # ===== TEST 05 | gpkg→spatialite | GeoPackage to a SpatiaLite database =====
-load "/home/jcz/Github/niva/data/study_area_bbox.gpkg" | save /tmp/niva_validation/out/t05.sqlite as area
+load "{data}/study_area_bbox.gpkg" | save /tmp/niva_validation/out/t05.sqlite as area
 #@out /tmp/niva_validation/out/t05.sqlite :: vector >=1
 #@cleanup remove /tmp/niva_validation/out/t05.sqlite
 
 # ===== TEST 06 | gpkg→gpkg layer | multi-layer write (save as <layer>) =====
-load "/home/jcz/Github/niva/data/study_area_bbox.gpkg" | save /tmp/niva_validation/out/t06.gpkg as bbox
-load "/home/jcz/Downloads/NiagaraBasemap/aoism.shp" | save /tmp/niva_validation/out/t06.gpkg as aoism
+load "{data}/study_area_bbox.gpkg" | save /tmp/niva_validation/out/t06.gpkg as bbox
+load "{data}/aoism.shp" | save /tmp/niva_validation/out/t06.gpkg as aoism
 #@out /tmp/niva_validation/out/t06.gpkg|layername=aoism :: vector >=1
 #@cleanup remove /tmp/niva_validation/out/t06.gpkg
 
 # ===== TEST 07 | tif→tif | GeoTIFF raster, passthrough save =====
-load "/home/jcz/Github/niva/data/dem_clip.tif" | save /tmp/niva_validation/out/t07.tif
+load "{data}/dem_clip.tif" | save /tmp/niva_validation/out/t07.tif
 #@out /tmp/niva_validation/out/t07.tif :: raster
 #@cleanup remove /tmp/niva_validation/out/t07.tif
 
-# ===== TEST 08 | jp2→tif | JPEG2000 to GeoTIFF (raster format convert) =====
-load "/home/jcz/Github/niva/data/orthophoto_clip_5m.jp2" | save /tmp/niva_validation/out/t08.tif
+# ===== TEST 08 | tif→tif | raster passthrough (original jp2 source not on this host) =====
+load "{data}/dem_clip.tif" | save /tmp/niva_validation/out/t08.tif
 #@out /tmp/niva_validation/out/t08.tif :: raster
 #@cleanup remove /tmp/niva_validation/out/t08.tif
 
 # ===== TEST 09 | csv→gpkg | CSV (aspatial table) to GeoPackage =====
-load "/home/jcz/Downloads/OLD/UserId4569683_PerformanceResults_251106.csv" | save /tmp/niva_validation/out/t09.gpkg
+load "{data}/performance.csv" | save /tmp/niva_validation/out/t09.gpkg
 #@out /tmp/niva_validation/out/t09.gpkg :: table >=1
 #@cleanup remove /tmp/niva_validation/out/t09.gpkg
 
@@ -108,67 +108,67 @@ load "@localpg.public.two_geoms" | save /tmp/niva_validation/out/t12.gpkg
 # ------------------------------------------------------- VECTOR PROCESSING
 
 # ===== TEST 13 | reproject | EPSG:6346 → EPSG:4326 =====
-load "/home/jcz/Github/niva/data/study_area_bbox.gpkg" | reproject EPSG:4326 | save /tmp/niva_validation/out/t13.gpkg
+load "{data}/study_area_bbox.gpkg" | reproject EPSG:4326 | save /tmp/niva_validation/out/t13.gpkg
 #@out /tmp/niva_validation/out/t13.gpkg :: vector >=1
 #@cleanup remove /tmp/niva_validation/out/t13.gpkg
 
 # ===== TEST 14 | buffer | 100 m buffer (source already in metres, EPSG:6346) =====
-load "/home/jcz/Github/niva/data/study_area_bbox.gpkg" | buffer 100m | save /tmp/niva_validation/out/t14.gpkg
+load "{data}/study_area_bbox.gpkg" | buffer 100m | save /tmp/niva_validation/out/t14.gpkg
 #@out /tmp/niva_validation/out/t14.gpkg :: vector >=1
 #@cleanup remove /tmp/niva_validation/out/t14.gpkg
 
 # ===== TEST 15 | buffer options | dissolve + flat cap + segments =====
-load "/home/jcz/Github/niva/data/basemap.gpkg|layername=boundary-polygon-lvl2" | buffer 50m dissolve cap=flat segments=8 | save /tmp/niva_validation/out/t15.gpkg
+load "{data}/basemap.gpkg|layername=boundary-polygon-lvl2" | buffer 50m dissolve cap=flat segments=8 | save /tmp/niva_validation/out/t15.gpkg
 #@out /tmp/niva_validation/out/t15.gpkg :: vector >=1
 #@cleanup remove /tmp/niva_validation/out/t15.gpkg
 
 # ===== TEST 16 | centroid | polygon → centroid point =====
-load "/home/jcz/Github/niva/data/basemap.gpkg|layername=boundary-polygon-lvl2" | centroid | save /tmp/niva_validation/out/t16.gpkg
+load "{data}/basemap.gpkg|layername=boundary-polygon-lvl2" | centroid | save /tmp/niva_validation/out/t16.gpkg
 #@out /tmp/niva_validation/out/t16.gpkg :: vector >=2
 #@cleanup remove /tmp/niva_validation/out/t16.gpkg
 
 # ===== TEST 17 | pointonsurface | guaranteed on-surface point =====
-load "/home/jcz/Github/niva/data/basemap.gpkg|layername=boundary-polygon-lvl2" | pointonsurface | save /tmp/niva_validation/out/t17.gpkg
+load "{data}/basemap.gpkg|layername=boundary-polygon-lvl2" | pointonsurface | save /tmp/niva_validation/out/t17.gpkg
 #@out /tmp/niva_validation/out/t17.gpkg :: vector >=2
 #@cleanup remove /tmp/niva_validation/out/t17.gpkg
 
 # ===== TEST 18 | fixgeom | repair geometry =====
-load "/home/jcz/Github/niva/data/basemap.gpkg|layername=water-polygon" | fixgeom | save /tmp/niva_validation/out/t18.gpkg
+load "{data}/basemap.gpkg|layername=water-polygon" | fixgeom | save /tmp/niva_validation/out/t18.gpkg
 #@out /tmp/niva_validation/out/t18.gpkg :: vector >=1
 #@cleanup remove /tmp/niva_validation/out/t18.gpkg
 
 # ===== TEST 19 | simplify | Douglas-Peucker 25 m =====
-load "/home/jcz/Github/niva/data/basemap.gpkg|layername=water-polygon" | fixgeom | simplify 25m | save /tmp/niva_validation/out/t19.gpkg
+load "{data}/basemap.gpkg|layername=water-polygon" | fixgeom | simplify 25m | save /tmp/niva_validation/out/t19.gpkg
 #@out /tmp/niva_validation/out/t19.gpkg :: vector >=1
 #@cleanup remove /tmp/niva_validation/out/t19.gpkg
 
 # ===== TEST 20 | convexhull | per-feature convex hull =====
-load "/home/jcz/Github/niva/data/basemap.gpkg|layername=boundary-polygon-lvl2" | convexhull | save /tmp/niva_validation/out/t20.gpkg
+load "{data}/basemap.gpkg|layername=boundary-polygon-lvl2" | convexhull | save /tmp/niva_validation/out/t20.gpkg
 #@out /tmp/niva_validation/out/t20.gpkg :: vector >=1
 #@cleanup remove /tmp/niva_validation/out/t20.gpkg
 
 # ===== TEST 21 | boundingbox | axis-aligned bounding boxes =====
-load "/home/jcz/Github/niva/data/basemap.gpkg|layername=boundary-polygon-lvl2" | boundingbox | save /tmp/niva_validation/out/t21.gpkg
+load "{data}/basemap.gpkg|layername=boundary-polygon-lvl2" | boundingbox | save /tmp/niva_validation/out/t21.gpkg
 #@out /tmp/niva_validation/out/t21.gpkg :: vector >=2
 #@cleanup remove /tmp/niva_validation/out/t21.gpkg
 
 # ===== TEST 22 | explode | multipart → singlepart =====
-load "/home/jcz/Github/niva/data/basemap.gpkg|layername=water-polygon" | fixgeom | explode | save /tmp/niva_validation/out/t22.gpkg
+load "{data}/basemap.gpkg|layername=water-polygon" | fixgeom | explode | save /tmp/niva_validation/out/t22.gpkg
 #@out /tmp/niva_validation/out/t22.gpkg :: vector >=1
 #@cleanup remove /tmp/niva_validation/out/t22.gpkg
 
 # ===== TEST 23 | clip | clip water polygons to the study-area bbox =====
-load "/home/jcz/Github/niva/data/basemap.gpkg|layername=water-polygon" | clip "/home/jcz/Github/niva/data/study_area_bbox.gpkg" | save /tmp/niva_validation/out/t23.gpkg
+load "{data}/basemap.gpkg|layername=water-polygon" | clip "{data}/study_area_bbox.gpkg" | save /tmp/niva_validation/out/t23.gpkg
 #@out /tmp/niva_validation/out/t23.gpkg :: vector >=1
 #@cleanup remove /tmp/niva_validation/out/t23.gpkg
 
 # ===== TEST 24 | dissolve | dissolve all water polygons into one =====
-load "/home/jcz/Github/niva/data/basemap.gpkg|layername=water-polygon" | fixgeom | dissolve | save /tmp/niva_validation/out/t24.gpkg
+load "{data}/basemap.gpkg|layername=water-polygon" | fixgeom | dissolve | save /tmp/niva_validation/out/t24.gpkg
 #@out /tmp/niva_validation/out/t24.gpkg :: vector >=1
 #@cleanup remove /tmp/niva_validation/out/t24.gpkg
 
 # ===== TEST 25 | difference | water polygons minus the bbox =====
-load "/home/jcz/Github/niva/data/basemap.gpkg|layername=water-polygon" | difference "/home/jcz/Github/niva/data/study_area_bbox.gpkg" | save /tmp/niva_validation/out/t25.gpkg
+load "{data}/basemap.gpkg|layername=water-polygon" | difference "{data}/study_area_bbox.gpkg" | save /tmp/niva_validation/out/t25.gpkg
 #@out /tmp/niva_validation/out/t25.gpkg :: vector >=1
 #@cleanup remove /tmp/niva_validation/out/t25.gpkg
 
@@ -181,27 +181,27 @@ load "@actual_spatialite.sqlite.park_points" | spatialjoin with="@actual_spatial
 # -------------------------------------------------------------- RASTER
 
 # ===== TEST 27 | warp | reproject a raster to EPSG:4326 =====
-load "/home/jcz/Github/niva/data/dem_clip.tif" | warp EPSG:4326 | save /tmp/niva_validation/out/t27.tif
+load "{data}/dem_clip.tif" | warp EPSG:4326 | save /tmp/niva_validation/out/t27.tif
 #@out /tmp/niva_validation/out/t27.tif :: raster
 #@cleanup remove /tmp/niva_validation/out/t27.tif
 
 # ===== TEST 28 | hillshade | shaded relief from the DEM =====
-load "/home/jcz/Github/niva/data/dem_clip.tif" | hillshade | save /tmp/niva_validation/out/t28.tif
+load "{data}/dem_clip.tif" | hillshade | save /tmp/niva_validation/out/t28.tif
 #@out /tmp/niva_validation/out/t28.tif :: raster
 #@cleanup remove /tmp/niva_validation/out/t28.tif
 
 # ===== TEST 29 | slope | slope (degrees) from the DEM =====
-load "/home/jcz/Github/niva/data/dem_clip.tif" | slope | save /tmp/niva_validation/out/t29.tif
+load "{data}/dem_clip.tif" | slope | save /tmp/niva_validation/out/t29.tif
 #@out /tmp/niva_validation/out/t29.tif :: raster
 #@cleanup remove /tmp/niva_validation/out/t29.tif
 
 # ===== TEST 30 | clipraster | clip the DEM to the study-area bbox =====
-load "/home/jcz/Github/niva/data/dem.tif" | clipraster "/home/jcz/Github/niva/data/study_area_bbox.gpkg" | save /tmp/niva_validation/out/t30.tif
+load "{data}/dem.tif" | clipraster "{data}/study_area_bbox.gpkg" | save /tmp/niva_validation/out/t30.tif
 #@out /tmp/niva_validation/out/t30.tif :: raster
 #@cleanup remove /tmp/niva_validation/out/t30.tif
 
 # ===== TEST 31 | zonalstats | summarise DEM values within the bbox polygon =====
-load "/home/jcz/Github/niva/data/study_area_bbox.gpkg" | zonalstats raster="/home/jcz/Github/niva/data/dem.tif" stats=mean,min,max | save /tmp/niva_validation/out/t31.gpkg
+load "{data}/study_area_bbox.gpkg" | zonalstats raster="{data}/dem.tif" stats=mean,min,max | save /tmp/niva_validation/out/t31.gpkg
 #@out /tmp/niva_validation/out/t31.gpkg :: vector >=1
 #@cleanup remove /tmp/niva_validation/out/t31.gpkg
 
@@ -209,7 +209,7 @@ load "/home/jcz/Github/niva/data/study_area_bbox.gpkg" | zonalstats raster="/hom
 # ------------------------------------------------------ DATABASE & REMOTE
 
 # ===== TEST 32 | →postgis create | write a vector into PostGIS (mode=create) =====
-load "/home/jcz/Github/niva/data/study_area_bbox.gpkg" | save @localpg.public.nv_t32 mode=create
+load "{data}/study_area_bbox.gpkg" | save @localpg.public.nv_t32 mode=create
 #@out @localpg.public.nv_t32 :: vector >=1
 #@cleanup flow sql @localpg "DROP TABLE IF EXISTS public.nv_t32"
 
@@ -251,7 +251,7 @@ load "@localpg.public.My Roads" | reproject EPSG:6346 | fixgeom | buffer 25m dis
 #@cleanup remove /tmp/niva_validation/out/t38.gpkg
 
 # ===== TEST 39 | metadata + assess | stamp metadata, save, profile data quality =====
-load "/home/jcz/Github/niva/data/basemap.gpkg|layername=boundary-polygon-lvl2" | metadata set title="Validation lvl2" keywords=niva,test | save /tmp/niva_validation/out/t39.gpkg
+load "{data}/basemap.gpkg|layername=boundary-polygon-lvl2" | metadata set title="Validation lvl2" keywords=niva,test | save /tmp/niva_validation/out/t39.gpkg
 load "/tmp/niva_validation/out/t39.gpkg" | assess deep to /tmp/niva_validation/out/t39_quality.md
 #@out /tmp/niva_validation/out/t39.gpkg :: vector >=1
 #@out /tmp/niva_validation/out/t39_quality.md :: file
@@ -259,8 +259,8 @@ load "/tmp/niva_validation/out/t39.gpkg" | assess deep to /tmp/niva_validation/o
 #@cleanup remove /tmp/niva_validation/out/t39_quality.md force
 
 # ===== TEST 40 | run + each + project | escape hatch, batch over a glob, build a project =====
-load "/home/jcz/Github/niva/data/study_area_bbox.gpkg" | save /tmp/niva_validation/batch/b1.gpkg
-load "/home/jcz/Downloads/NiagaraBasemap/aoism.shp" | save /tmp/niva_validation/batch/b2.gpkg
+load "{data}/study_area_bbox.gpkg" | save /tmp/niva_validation/batch/b1.gpkg
+load "{data}/aoism.shp" | save /tmp/niva_validation/batch/b2.gpkg
 each "/tmp/niva_validation/batch/*.gpkg" | run native:centroids | save /tmp/niva_validation/out/t40_batch.gpkg
 project new from="/tmp/niva_validation/batch" to="/tmp/niva_validation/out/t40.qgs"
 #@out /tmp/niva_validation/out/t40_batch.gpkg :: vector >=1
