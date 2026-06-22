@@ -135,7 +135,7 @@ class Backend(abc.ABC):
 
     @abc.abstractmethod
     def list_tables(self, conn: str, schema: str | None = None,
-                    table: str | None = None) -> list:
+                    table: str | None = None, warn=None) -> list:
         """List the tables in a database connection (the loadable ``@conn`` targets).
         ``schema`` limits to one schema (PostGIS); ``table`` limits to one table. Returns
         the same per-entry dicts as :meth:`list_layers`, with ``ref`` an
@@ -310,7 +310,7 @@ class MockBackend(Backend):
         ]
 
     def list_tables(self, conn: str, schema: str | None = None,
-                    table: str | None = None) -> list:
+                    table: str | None = None, warn=None) -> list:
         self.calls.append(("list_tables", conn, schema, table))
         prefix = f"@{conn}." + (f"{schema}." if schema else "")
         rows = [
