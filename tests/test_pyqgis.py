@@ -281,6 +281,16 @@ class TestPyqgisConnections(unittest.TestCase):
         with self.assertRaises(OpError):
             niva.flow(f"load @no_such_conn_xyz.homes | save {self.tmp}/x.gpkg")
 
+    def test_geometry_column_found_by_type_not_name(self):
+        # The aspatial-load rescue uses the connection's *type-detected* geometry column,
+        # whatever it's named — never assumes `geom`. (Here SpatiaLite reports the column.)
+        from niva.engine.pyqgis import PyqgisBackend
+
+        _md, conn = PyqgisBackend()._find_connection(self.CONN)
+        col = PyqgisBackend._table_geometry_column(conn, "", "homes")
+        self.assertTrue(col)  # a real column name, detected by type
+        self.assertIsNone(PyqgisBackend._table_geometry_column(conn, "", "no_such_table"))
+
     def test_show_lists_connection_tables(self):
         from niva.engine.pyqgis import PyqgisBackend
 

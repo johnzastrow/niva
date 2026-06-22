@@ -551,6 +551,10 @@ class PyqgisBackend(Backend):
                         if progress:
                             progress("   ⚠ " + note)
                         return retried
+                    # No lossless retry (e.g. a mid-pipe memory layer, or an op without a GDAL
+                    # equivalent) — raise the honest geometry-type error for ANY input, not the
+                    # raw QGIS message.
+                    raise self._geometry_type_error(algorithm)
                 raise self._run_error(algorithm, full, cancel, exc)
         self._raise_on_command_failure(algorithm, full, feedback)
         self._note_qgis_messages(captured)
@@ -840,12 +844,17 @@ class PyqgisBackend(Backend):
             if out is None:
                 return None
             return Layer(MEMORY, self.load(out).ref, facet="vector", name=algorithm)
-        # Other operations that reject a feature's geometry have no lossless reimplementation
-        # here. The cause is one of two things — be honest about both rather than guess:
-        #   1) mixed geometry (e.g. a stray GeometryCollection) — `fixgeom` coerces it;
-        #   2) invalid/empty geometry (NaN coordinates, no CRS) — `fixgeom` can't help and the
-        #      layer is likely corrupt; `assess`/`show` reveal it.
-        raise OpError(
+        # Other operations have no lossless reimplementation here — let the caller raise the
+        # honest geometry-type error (so it fires for memory-backed inputs too).
+        return None
+
+    @staticmethod
+    def _geometry_type_error(algorithm: str) -> "OpError":
+        """The honest, actionable error when a typed-output op (centroid, point-on-surface, …)
+        can't write a feature's geometry. Names BOTH real causes rather than guessing: mixed
+        geometry (`fixgeom` coerces it) or invalid/empty geometry (NaN coordinates / no CRS,
+        which `fixgeom` can't repair — the layer is likely corrupt; `assess`/`show` reveal it)."""
+        return OpError(
             f"`{algorithm}` couldn't write a feature's geometry into its typed output. If the "
             "layer has mixed geometry types, insert `fixgeom` before it to coerce them. If "
             "`fixgeom` doesn't help, the geometry is likely invalid or empty (e.g. NaN "
@@ -1046,12 +1055,59 @@ class PyqgisBackend(Backend):
                 algorithm="load", params={"connection": conn, "table": table}, backend="pyqgis",
             ) from exc
         layer = QgsVectorLayer(uri, table, md.key())
+        # Some `tableUri` results omit the geometry column (seen with PostGIS tables whose name
+        # has unusual characters, or whose geometry isn't in the server's `geometry_columns`
+        # view) — the layer then opens *aspatial* (NoGeometry) with empty geometry, which
+        # silently breaks every downstream geometry op (reproject/buffer/centroid → empty). If
+        # the connection's own metadata reports a geometry column, rebuild the URI with it.
+        if layer.isValid() and self._is_aspatial(layer):
+            geom_col = self._table_geometry_column(connection, schema or "", table)
+            if geom_col:
+                spatial = self._spatial_table_layer(connection, schema or "", table,
+                                                    geom_col, md.key())
+                if spatial is not None:
+                    layer = spatial
         if not layer.isValid():
             raise OpError(
                 f"could not load table `{table}` from connection `{conn}`",
                 algorithm="load", params={"connection": conn, "table": table}, backend="pyqgis",
             )
         return Layer(DB_TABLE, layer, facet="vector", name=table)
+
+    @staticmethod
+    def _is_aspatial(layer) -> bool:
+        from qgis.core import QgsWkbTypes
+
+        return QgsWkbTypes.displayString(layer.wkbType()) == "NoGeometry"
+
+    @staticmethod
+    def _table_geometry_column(connection, schema: str, table: str):
+        """The geometry column name the connection reports for ``table`` (or None). Used to
+        rescue a spatial table that ``tableUri`` opened as aspatial."""
+        try:
+            for t in connection.tables(schema):
+                if t.tableName() == table and t.geometryColumnCount() > 0:
+                    return t.geometryColumn()
+        except Exception:  # noqa: BLE001 — best effort
+            pass
+        return None
+
+    @staticmethod
+    def _spatial_table_layer(connection, schema: str, table: str, geom_col: str, provider: str):
+        """Open ``table`` as a layer with an explicit geometry column, building the URI from
+        the live connection (host/credentials stay in QGIS). Returns the layer if it is valid
+        and actually spatial, else None."""
+        from qgis.core import QgsDataSourceUri, QgsVectorLayer
+
+        try:
+            uri = QgsDataSourceUri(connection.uri())
+            uri.setDataSource(schema, table, geom_col)
+            layer = QgsVectorLayer(uri.uri(False), table, provider)
+            if layer.isValid() and not PyqgisBackend._is_aspatial(layer):
+                return layer
+        except Exception:  # noqa: BLE001
+            pass
+        return None
 
     def run_sql(self, conn: str, query: str) -> Layer:
         from qgis.core import QgsAbstractDatabaseProviderConnection as DbConn

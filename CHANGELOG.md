@@ -11,6 +11,23 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.32.1] - 2026-06-22
+
+### Fixed
+- **A database table now loads with its geometry — not as an empty aspatial layer.** For some
+  PostGIS tables (seen with an unusual table name, or when the geometry isn't in the server's
+  `geometry_columns` view), QGIS's `tableUri` returned a URI *without* the geometry column, so
+  `load @conn.table` opened the table as **NoGeometry** with empty geometry — and every
+  downstream op (`reproject`/`buffer`/`centroid`) silently produced empty results. `load_table`
+  now detects this and rebuilds the URI with the geometry column from the connection's own
+  metadata. The column is found **by type, whatever it's named** (`geom`, `the_geom`, `shape`, …),
+  never assumed.
+- **The honest geometry-type error now also fires mid-pipe.** When a typed-output op
+  (`centroid`/`pointonsurface`) couldn't write a geometry, the helpful message (mixed geometry →
+  `fixgeom`, or invalid/empty geometry → inspect with `assess`/`show`) only appeared when its
+  input was a file; after e.g. `fixgeom` (a memory layer) you got the raw QGIS error. It now
+  fires for any input.
+
 ## [0.32.0] - 2026-06-21
 
 ### Changed
