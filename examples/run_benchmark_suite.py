@@ -49,6 +49,14 @@ SUITE = os.path.abspath(_ARGS[0]) if _ARGS else os.path.join(REPO, "examples", "
 OUTDIR = str(_suite_report.results_dir())
 if "--out" in sys.argv:
     OUTDIR = os.path.abspath(sys.argv[sys.argv.index("--out") + 1])
+# {data}/{testdata}/{examples} path tokens (see _suite_report.data_tokens). The benchmark uses
+# {data} (generate it with make_bigdata.py). Tokens let the suite run unchanged on any clone.
+_TOKENS = _suite_report.data_tokens(REPO)
+
+
+def _subst(text):
+    return _suite_report.subst(text, _TOKENS)
+
 
 _HDR = re.compile(r"#\s*=+\s*(PREAMBLE|TEST\s+\d+)\s*\|\s*(.*?)\s*\|\s*(.*?)\s*=+\s*$")
 _PAGE = os.sysconf("SC_PAGE_SIZE")
@@ -240,7 +248,7 @@ def main():
         t0 = time.monotonic()
         try:
             for fl in b["flows"]:
-                niva_flow(fl)
+                niva_flow(_subst(fl))
         except Exception as exc:  # noqa: BLE001 — record the failure, keep benchmarking
             err = f"{type(exc).__name__}: {str(exc).splitlines()[0][:120]}"
         wall = time.monotonic() - t0
@@ -250,11 +258,11 @@ def main():
         out_bytes = feats = 0
         for o in b["outs"]:
             with contextlib.suppress(Exception):
-                ob, fc = measure_output(o)
+                ob, fc = measure_output(_subst(o))
                 out_bytes += ob
                 feats += fc
         for c in b["cleanups"]:
-            cleanup(c)
+            cleanup(_subst(c))
         rec = {
             "id": b["id"], "cat": b["cat"], "desc": b["desc"], "ok": err is None,
             "error": err,

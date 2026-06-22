@@ -40,17 +40,13 @@ _ARGS = [a for a in sys.argv[1:] if not a.startswith("--")]
 SUITE = os.path.abspath(_ARGS[0]) if _ARGS else os.path.join(REPO, "examples", "validation_suite.niva")
 SCRATCH = "/tmp/niva_validation"
 OUT = os.path.join(SCRATCH, "out")
-# Portable test-data dir: $NIVA_TESTDATA, else examples/testdata, else data/. Suites reference
-# it as `{data}` so they run unchanged on any machine that has the data directory available.
-DATA = (os.environ.get("NIVA_TESTDATA")
-        or next((d for d in (os.path.join(REPO, "examples", "testdata"),
-                             os.path.join(REPO, "data")) if os.path.isdir(d)),
-                os.path.join(REPO, "data")))
+# {data}/{testdata}/{examples} path tokens (see _suite_report.data_tokens), so suites run
+# unchanged on any clone. {data} prefers data/ (make_data.py / make_bigdata.py write there).
+_TOKENS = _suite_report.data_tokens(REPO)
 
 
 def _subst(text: str) -> str:
-    # Only substitute known tokens; leave {name} and other niva-internal templates alone.
-    return text.replace("{data}", DATA)
+    return _suite_report.subst(text, _TOKENS)
 
 _HDR = re.compile(r"#\s*=+\s*(PREAMBLE|TEST\s+\d+)\s*\|\s*(.*?)\s*\|\s*(.*?)\s*=+\s*$")
 

@@ -44,16 +44,13 @@ _ARGS = [a for a in sys.argv[1:] if not a.startswith("--")]
 SUITE = os.path.abspath(_ARGS[0]) if _ARGS else ""
 TMP = "/tmp/niva_assert"
 JDIR = os.path.join(TMP, "journal")
-# Portable test-data dir: $NIVA_TESTDATA, else examples/testdata, else the repo's data/. Suites
-# reference it as `{data}` so they run unchanged on any machine that has the data copied over.
-DATA = (os.environ.get("NIVA_TESTDATA")
-        or next((d for d in (os.path.join(REPO, "examples", "testdata"),
-                             os.path.join(REPO, "data")) if os.path.isdir(d)),
-                os.path.join(REPO, "data")))
+# {data}/{testdata}/{examples} path tokens (see _suite_report.data_tokens) + {tmp} scratch, so
+# suites run unchanged on any clone. The portable suite uses {testdata}; others use {data}.
+_TOKENS = {**_suite_report.data_tokens(REPO), "tmp": TMP}
 
 
 def _subst(text):
-    return text.format(tmp=TMP, data=DATA)
+    return _suite_report.subst(text, _TOKENS)
 
 _HDR = re.compile(r"#\s*=+\s*(PREAMBLE|TEST\s+\d+)\s*\|\s*(.*?)\s*\|\s*(.*?)\s*=+\s*$")
 

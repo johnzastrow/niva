@@ -79,6 +79,31 @@ def _stamp():
     return datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
 
 
+def data_tokens(repo: str) -> dict:
+    """Resolve the path tokens the suites use, so they run unchanged on any clone:
+
+      {data}      the full machine-local test dir — where make_data.py / make_bigdata.py write.
+                  `$NIVA_TESTDATA` if set, else `<repo>/data` if it exists, else examples/testdata.
+      {testdata}  always `<repo>/examples/testdata` — the portable fixtures (make_testdata.py).
+      {examples}  always `<repo>/examples` — committed real-world data (the .geojson / .kmz files).
+
+    `{data}` prefers `data/` over `examples/testdata` so the validation/benchmark suites and the
+    portable suite can both run on the same machine without juggling environment variables.
+    """
+    testdata = os.path.join(repo, "examples", "testdata")
+    data = os.path.join(repo, "data")
+    full = os.environ.get("NIVA_TESTDATA") or (data if os.path.isdir(data) else testdata)
+    return {"data": full, "testdata": testdata, "examples": os.path.join(repo, "examples")}
+
+
+def subst(text: str, tokens: dict) -> str:
+    """Replace `{data}`/`{testdata}`/`{examples}` tokens. Uses str.replace (not str.format) so
+    niva's own `{name}` batch templates in `each … save {name}` flows pass through untouched."""
+    for key, val in tokens.items():
+        text = text.replace("{" + key + "}", val)
+    return text
+
+
 _ENV_ORDER = ("host", "os", "os_release", "platform", "machine", "processor", "cpu_count",
               "ram_total_mb", "python", "niva_version", "qgis_version")
 

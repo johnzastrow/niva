@@ -5,6 +5,11 @@ Creates data/ from the portable testdata (examples/testdata/) and example.gpkg,
 registers the needed QGIS connections (@localpg, @actual_spatialite.sqlite), and
 populates PostGIS with the fixture tables used by the security and round-trip suites.
 
+The PostGIS instance is DESIGNATED BY THE USER via environment variables (so you can point
+the fixtures at any database — local, CI service, or remote dev DB):
+    NIVA_PG_HOST (localhost)  NIVA_PG_PORT (5432)  NIVA_PG_DB (niva_test)
+    NIVA_PG_USER ($USER)      NIVA_PG_PASSWORD ('' — peer/trust auth by default)
+
 Run under QGIS's Python:
 
     PYTHONHOME=/Applications/QGIS-final-4_0_3.app/Contents/Frameworks \\
@@ -23,10 +28,15 @@ TESTDATA = REPO / "examples" / "testdata"
 EX_GPKG  = REPO / "examples" / "example.gpkg"
 DATA     = REPO / "data"
 
-PG_HOST = "localhost"
-PG_PORT = "5432"
-PG_DB   = "niva_test"
-PG_USER = os.environ.get("USER", os.environ.get("USERNAME", "jcz"))
+# The PostGIS instance is DESIGNATED BY THE USER via environment variables, so the fixtures can
+# be pushed into whatever database you point at (a local PostGIS, a CI service, a remote dev DB).
+# Defaults target a local `niva_test` database. The password comes only from the environment.
+PG_HOST = os.environ.get("NIVA_PG_HOST", "localhost")
+PG_PORT = os.environ.get("NIVA_PG_PORT", "5432")
+PG_DB   = os.environ.get("NIVA_PG_DB", "niva_test")
+PG_USER = os.environ.get("NIVA_PG_USER",
+                         os.environ.get("USER", os.environ.get("USERNAME", "postgres")))
+PG_PASSWORD = os.environ.get("NIVA_PG_PASSWORD", "")
 
 
 def main() -> None:
@@ -183,7 +193,7 @@ def main() -> None:
     # ── QGIS connections ──────────────────────────────────────────────────────
     s = QgsSettings()
     for k, v in [("host", PG_HOST), ("port", PG_PORT), ("database", PG_DB),
-                  ("username", PG_USER), ("password", ""),
+                  ("username", PG_USER), ("password", PG_PASSWORD),
                   ("saveUsername", "true"), ("savePassword", "true"),
                   ("allowGeometrylessTables", "true")]:
         s.setValue(f"PostgreSQL/connections/localpg/{k}", v)
