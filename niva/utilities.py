@@ -296,20 +296,23 @@ def _show_examples(entries: list) -> list:
     src = _show_src(pick)
     kind = pick.get("kind")
     if kind == "raster":
-        return [f"load {src} | warp EPSG:3857 | save reprojected.tif",
-                f"load {src} | hillshade | save hillshade.tif"]
+        # ~/  prefix keeps examples writable from the QGIS plugin (relative paths resolve
+        # against the app bundle's working directory, which is not writable on macOS/Linux).
+        return [f"load {src} | warp EPSG:3857 | save ~/reprojected.tif",
+                f"load {src} | hillshade | save ~/hillshade.tif"]
     if kind == "table":
         # `assess` always writes to a file — it has no stdout form — so the example must
         # name one, or copying it yields a flow that errors (`assess needs an output`).
-        return [f"load {src} | assess to assessment.md",
-                f"load {src} | save extract.gpkg"]
+        return [f"load {src} | assess to ~/assessment.md",
+                f"load {src} | save ~/extract.gpkg"]
     # Both examples must run on ANY vector source, whatever its CRS or geometry. `reproject`
     # first makes `100m` valid even on a geographic (degrees) layer; `buffer` then accepts any
     # geometry. `fixgeom` is geometry-agnostic (and exactly what niva recommends for the mixed /
     # GeometryCollection layers that break a typed-output op like `centroid`). We can't tell a
     # layer's *actual* (vs declared) geometry from the listing, so we avoid type-constrained ops.
-    return [f"load {src} | reproject EPSG:3857 | buffer 100m | save buffered.gpkg",
-            f"load {src} | fixgeom | save fixed.gpkg"]
+    # ~/  prefix keeps examples writable from the QGIS plugin (see raster note above).
+    return [f"load {src} | reproject EPSG:3857 | buffer 100m | save ~/buffered.gpkg",
+            f"load {src} | fixgeom | save ~/fixed.gpkg"]
 
 
 def _show_write_examples(entries: list) -> list:
@@ -317,5 +320,7 @@ def _show_write_examples(entries: list) -> list:
     into a database table — the common 'write into something that already exists' cases."""
     pick = next((e for e in entries if e.get("kind") in ("vector", "table")), entries[0])
     src, name = _show_src(pick), _safe_name(pick)
-    return [f"load {src} | save analysis.gpkg as {name}",
+    # ~/  prefix keeps examples writable from the QGIS plugin (relative paths resolve against
+    # the app bundle's working directory, which is not writable on macOS/Linux).
+    return [f"load {src} | save ~/analysis.gpkg as {name}",
             f"load {src} | save @conn.public.{name} mode=append"]

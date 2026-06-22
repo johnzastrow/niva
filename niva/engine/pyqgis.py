@@ -803,6 +803,14 @@ class PyqgisBackend(Backend):
                 hint = (" — Shapefile stores a single geometry type, so it can't hold "
                         "mixed/GeometryCollection geometry; save to .gpkg or .sqlite "
                         "instead.")
+            elif not os.path.isabs(dest) and ("unable to open" in err[1].lower()
+                                               or "creation of data source" in err[1].lower()):
+                # A relative path resolves against the QGIS plugin's working directory
+                # (inside the app bundle on macOS, or another non-writable location).
+                # Give a concrete corrective hint instead of a raw OGR error.
+                hint = (f" — `{dest}` is a relative path; the QGIS plugin's working "
+                        "directory is not writable. Use an absolute path, e.g. "
+                        f"`~/Desktop/{dest}` or `/Users/you/Documents/{dest}`.")
             raise OpError(
                 f"could not write `{dest}`: {err[1]}{hint}",
                 algorithm="save", params={"dest": dest}, backend="pyqgis",
