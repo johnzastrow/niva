@@ -994,7 +994,7 @@ class Engine:
         if is_connection_ref(target):
             is_db = True
             conn, schema, table = self._resolve_show_connection(target, stage)
-            entries = self.backend.list_tables(conn, schema, table)
+            entries = self.backend.list_tables(conn, schema, table, warn=self._emit)
             label = target
         elif is_service_url(target):
             is_service = True

@@ -1604,11 +1604,15 @@ class PyqgisBackend(Backend):
             return "raster"
 
     def list_tables(self, conn: str, schema: str | None = None,
-                    table: str | None = None) -> list:
+                    table: str | None = None, warn=None) -> list:
         """List a connection's tables via the QGIS connection API. SpatiaLite has no
         schemas (``schemas()`` raises) → a single unnamed schema; PostGIS iterates
         schemas (or just the one requested). Geometry type from the table's first
-        geometry column; aspatial tables show as `table`, raster tables as `raster`."""
+        geometry column; aspatial tables show as `table`, raster tables as `raster`.
+
+        ``warn`` is an optional callable(str) for surfacing per-schema errors (e.g.
+        network failures or auth problems) that would otherwise be silently skipped.
+        The engine passes ``self._emit`` so errors appear in the plugin output panel."""
         from qgis.core import QgsAbstractDatabaseProviderConnection as DbConn
         from qgis.core import QgsWkbTypes
 
@@ -1619,14 +1623,23 @@ class PyqgisBackend(Backend):
         else:
             try:
                 schemas = list(connection.schemas()) or [None]
-            except Exception:  # noqa: BLE001 — provider has no schema concept (SpatiaLite)
+            except Exception as exc:  # noqa: BLE001 — provider has no schema concept (SpatiaLite)
+                # Surface the error if a warn callback is provided: a connection error here
+                # (e.g. auth failure, host unreachable) is indistinguishable from a provider
+                # that simply has no schema API, so we report it and fall back to [None].
+                if warn and str(exc):
+                    warn(f"  show @{conn}: schemas() — {exc}")
                 schemas = [None]
 
         rows = []
         for sch in schemas:
             try:
                 props = connection.tables(sch or "")
-            except Exception:  # noqa: BLE001
+            except Exception as exc:  # noqa: BLE001
+                # Surface per-schema failures (auth, network, permissions) so the user
+                # sees a meaningful message instead of a silent empty listing.
+                if warn:
+                    warn(f"  show @{conn}{('.' + sch) if sch else ''}: tables() — {exc}")
                 continue
             for t in props:
                 name = t.tableName()
