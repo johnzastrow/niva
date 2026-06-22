@@ -11,6 +11,31 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Added (testing)
+- **`examples/make_data.py`** — generates the machine-local `data/` test-data directory from the
+  portable `examples/testdata/` fixtures. Produces `basemap.gpkg` (7 layers including
+  `boundary-polygon` with `NAME`/`NAME_EN`/`ADMIN_LVL` fields, `railway-line`, `poi-point`),
+  `study_area_bbox.gpkg`, `collected.gpkg` (`park_lines`/`park_polygons`/`park_points`),
+  `actual_spatialite.sqlite` (`park_points` from SpatiaLite, `park_polygons` from multipolys,
+  `park_lines` from SpatiaLite), `dem_clip.tif` / `dem.tif`, `aoism.shp` / `aoism.gpkg`,
+  `order_boundary.geojson`, `performance.csv`, and 7 PostGIS fixture tables with hostile names
+  (`My Roads`, `café points`, `Mixed.Case.Dots`, `select`, `123_leading`, `name-with-dash#hash`,
+  `two_geoms`). Also registers the `@localpg` and `@actual_spatialite.sqlite` QGIS connections.
+- **`{data}` substitution in all suite runners** (`run_assert_suite.py`,
+  `run_validation_suite.py`). Suite files now use `{data}` as a portable token for the test-data
+  directory; the runners resolve it in order: `$NIVA_TESTDATA`, then `examples/testdata/` (if
+  present), then `data/`. Substitution uses `str.replace()` not `str.format()` so niva-internal
+  `{name}` batch templates in `each … save {name}` flows are left untouched.
+- **`examples/validation_suite_3.niva`** — third 40-pipeline validation suite covering deep
+  multi-op chains (up to 8 ops), geometry-type transitions (poly→pt→poly, line→pt→poly, etc.),
+  CRS round-trips, field-surgery-then-use-downstream, mid-chain file hand-offs, DB write-then-
+  read-back chains, raster→vector→deep-vector, and `each` batch chains with templated outputs.
+- All example suite `.niva` files updated to use `{data}` instead of hard-coded
+  `/home/jcz/Github/niva/data/` paths, making them runnable on any machine with `data/` or
+  `examples/testdata/` present. The `portable_suite` must be run **without** `NIVA_TESTDATA` set
+  (or with it pointing to `examples/testdata/`), because it loads `niva_testdata.gpkg` which
+  lives in `examples/testdata/` rather than the machine-generated `data/`.
+
 ## [0.34.1] - 2026-06-22
 
 ### Fixed
