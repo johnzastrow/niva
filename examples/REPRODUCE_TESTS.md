@@ -81,9 +81,22 @@ beyond step 1; the data-backed suites use `{data}` from step 2.
 ## Pushing harder on real data (optional)
 
 The benchmark runs at full weight on generated data. For real-world stress (irregular geometry,
-true raster size), [`bigdata_urls.md`](bigdata_urls.md) lists public, license-clear datasets you
-can `wget`/`curl` into `data/` (Natural Earth, an OSM extract, a Copernicus/USGS DEM) and point a
-flow at. These are never committed (`data/` is gitignored).
+true raster size, a wide format mix), fetch public datasets:
+
+```bash
+sh examples/fetch_testdata.sh          # ~35 MB: Shapefile + GeoJSON + TIGER (a good mix, fast)
+sh examples/fetch_testdata.sh big      # + ~800 MB: GADM gpkg, OSM PBF, USGS DEM
+```
+
+[`fetch_testdata.sh`](fetch_testdata.sh) pulls a curated, no-auth set into `data/downloaded/`
+(gitignored) covering Shapefile · GeoJSON · GeoPackage · OSM PBF · GeoTIFF. The URLs come from
+[`free_geospatial_data_report.md`](free_geospatial_data_report.md) — a catalog of free,
+`wget`-able sources — summarised in [`bigdata_urls.md`](bigdata_urls.md). Nothing is committed
+(`data/` is gitignored); the suites stay runnable from a bare clone using only generated +
+committed data.
+
+If you have a `data.zip` backup of a full `data/` directory, `unzip data.zip` at the repo root
+rebuilds it (a convenience; the generators above are the portable path).
 
 ## What lives where
 

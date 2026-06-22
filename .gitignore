@@ -254,3 +254,7 @@ examples/testdata/
 
 # macOS metadata files
 .DS_Store
+
+# Local data backup — never commit (1.6GB); rebuild data/ by unzipping it
+data.zip
+/data.zip
