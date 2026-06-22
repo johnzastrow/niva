@@ -40,6 +40,16 @@ _ARGS = [a for a in sys.argv[1:] if not a.startswith("--")]
 SUITE = os.path.abspath(_ARGS[0]) if _ARGS else os.path.join(REPO, "examples", "validation_suite.niva")
 SCRATCH = "/tmp/niva_validation"
 OUT = os.path.join(SCRATCH, "out")
+# Portable test-data dir: $NIVA_TESTDATA, else examples/testdata, else data/. Suites reference
+# it as `{data}` so they run unchanged on any machine that has the data directory available.
+DATA = (os.environ.get("NIVA_TESTDATA")
+        or next((d for d in (os.path.join(REPO, "examples", "testdata"),
+                             os.path.join(REPO, "data")) if os.path.isdir(d)),
+                os.path.join(REPO, "data")))
+
+
+def _subst(text: str) -> str:
+    return text.format(data=DATA)
 
 _HDR = re.compile(r"#\s*=+\s*(PREAMBLE|TEST\s+\d+)\s*\|\s*(.*?)\s*\|\s*(.*?)\s*=+\s*$")
 
@@ -187,18 +197,19 @@ def main():
         t0 = time.monotonic()
         try:
             for fl in b["flows"]:
-                niva_flow(fl)
+                niva_flow(_subst(fl))
         except Exception as exc:  # noqa: BLE001
             err = f"{type(exc).__name__}: {str(exc).splitlines()[0][:100]}"
         results = []
         if err is None:
             for o in b["outs"]:
+                o_s = _subst(o)
                 try:
-                    results.append((*assess(o), o.split("::")[0].strip()))
+                    results.append((*assess(o_s), o_s.split("::")[0].strip()))
                 except Exception as exc:  # noqa: BLE001
-                    results.append((False, f"assess error: {exc}", o.split('::')[0].strip()))
+                    results.append((False, f"assess error: {exc}", o_s.split('::')[0].strip()))
         for c in b["cleanups"]:
-            cleanup(c)
+            cleanup(_subst(c))
         dt = time.monotonic() - t0
         ok = err is None and all(r[0] for r in results)
         npass += ok
