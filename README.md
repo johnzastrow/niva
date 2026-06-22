@@ -2,7 +2,7 @@
 
 [![Latest release](https://img.shields.io/github/v/release/johnzastrow/niva?sort=semver)](https://github.com/johnzastrow/niva/releases/latest)
 [![License: GPLv3](https://img.shields.io/badge/license-GPLv3-blue.svg)](LICENSE)
-[![QGIS](https://img.shields.io/badge/QGIS-3.22%2B%20%7C%204.x-589632.svg?logo=qgis&logoColor=white)](https://qgis.org)
+[![QGIS](https://img.shields.io/badge/QGIS-3.22%2B%20%7C%204.0%2B-589632.svg?logo=qgis&logoColor=white)](https://qgis.org)
 [![Python](https://img.shields.io/badge/python-3.9%2B-3776AB.svg?logo=python&logoColor=white)](https://www.python.org)
 [![Dependencies](https://img.shields.io/badge/runtime%20deps-none%20%28QGIS%20only%29-success.svg)](docs/guide/faq.md)
 
@@ -179,6 +179,18 @@ niva.flow('load "data.gpkg|layername=roads" | buffer 100m dissolve | save out.gp
 769-algorithm appendix) is also one PDF: [`niva-guide.pdf`](https://github.com/johnzastrow/niva/blob/9206e42d0c55ef96238c514e9bbf3a038bc69c7c/docs/guide/niva-guide.pdf)** (also
 attached to the [latest release](https://github.com/johnzastrow/niva/releases/latest); rebuild
 with `python3 scripts/build_guide_pdf.py`, which needs `pandoc` + a LaTeX engine).
+
+## Tested platforms
+
+The table below records platforms where the full test suite has been run against a release.
+See [`tests/TESTING_LOG.md`](tests/TESTING_LOG.md) for per-run details (suite counts, notes,
+and a how-to-update template for adding new platforms).
+
+| Platform | OS | QGIS | Python | niva | Result | Date |
+|---|---|---|---|---|---|---|
+| macOS 26.5.1 · x86\_64 | Darwin 25.5.0 | 4.0.3-Norrköping | 3.12.11 | 0.34.1 | ✅ 668/668 + 3 skip | 2026-06-22 |
+
+> Linux and Windows entries will appear here once runs are completed on those hosts.
 
 ## License
 
