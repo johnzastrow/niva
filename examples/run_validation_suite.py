@@ -16,7 +16,7 @@ Block format in the .niva file (see validation_suite.niva):
     # ===== TEST 07 | raster gpkg->tif | description =====
     <pipeline flow line(s)>                       run in order via niva.flow
     #@out <path|@conn.table> :: <vector|raster|table|file> [>=N]   one or more assertions
-    #@cleanup rm <path>                           delete a file output (+ sidecars)
+    #@cleanup remove <path> [force]               delete a file output via niva's own `remove`
     #@cleanup flow <niva flow>                    run a cleanup flow (e.g. sql … DROP TABLE)
 
 A `# ===== PREAMBLE | … =====` block runs first (environment/data validation).
@@ -119,18 +119,20 @@ def assess(spec):
 
 
 def cleanup(directive):
-    if directive.startswith("rm "):
-        path = directive[3:].strip()
-        for p in {path, path + "-wal", path + "-shm", path + ".aux.xml",
-                  *glob.glob(os.path.splitext(path)[0] + ".*")}:
-            try:
-                if os.path.isfile(p):
-                    os.remove(p)
-            except OSError:
-                pass
+    # Cleanups are run as real niva flows — the suite dogfoods its own verbs. `remove <path>`
+    # deletes a file output (and its sidecar family) via niva's `remove`; `flow <…>` runs an
+    # arbitrary cleanup flow (e.g. `sql @conn "DROP TABLE …"`). Best-effort: a failing cleanup
+    # never fails the test (the assertion already ran), and `remove` is idempotent anyway.
+    if directive.startswith("remove "):
+        flow = directive
     elif directive.startswith("flow "):
-        with contextlib.suppress(Exception):
-            niva_flow(directive[len("flow "):].strip())
+        flow = directive[len("flow "):].strip()
+    elif directive.startswith("rm "):  # back-compat shorthand → niva `remove`
+        flow = "remove " + directive[len("rm "):].strip()
+    else:
+        return
+    with contextlib.suppress(Exception):
+        niva_flow(flow)
 
 
 def emit_pure(blocks, path):
@@ -149,12 +151,13 @@ def emit_pure(blocks, path):
         out.append(f"# ── {b['id']} | {b['cat']} | {b['desc']}")
         out.extend(b["flows"])
         for c in b["cleanups"]:
-            if c.startswith("flow "):
+            if c.startswith("remove "):  # already a niva flow — emit verbatim
+                out.append(c + "    # cleanup")
+            elif c.startswith("flow "):
                 out.append(c[len("flow "):].strip() + "    # cleanup")
-            elif c.startswith("rm "):
-                p = c[len("rm "):].strip()
-                # niva's `remove` refuses non-geodata types (e.g. .md reports) without `force`.
+            elif c.startswith("rm "):  # back-compat shorthand → niva `remove`
                 from niva import remove_policy as _rp
+                p = c[len("rm "):].strip()
                 force = "" if _rp.on_allowlist(p.strip('"')) else " force"
                 out.append(f"remove {p}{force}    # cleanup")
         out.append("")

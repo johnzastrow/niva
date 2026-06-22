@@ -29,7 +29,8 @@
 #   # ===== TEST NN | category | description =====   block header
 #   <flow line(s)>                                    executed in order
 #   #@out <path|@conn.table> :: <vector|raster|table|file> [>=N]   output assertion(s)
-#   #@cleanup rm <path>                               delete a file output (+ sidecars)
+#   #@cleanup remove <path> [force]                   delete a file output via niva's `remove`
+#                                                     (handles sidecars; `force` for non-geodata)
 #   #@cleanup flow <niva flow>                        run a cleanup flow (e.g. sql DROP)
 #
 # All spatialite park_* tables and the basemap layers are EPSG:6346, so @conn overlays
@@ -45,215 +46,215 @@ catalog "/home/jcz/Github/niva/data" to=/tmp/niva_validation/out/b2_00_catalog.m
 #@out /tmp/niva_validation/out/b2_00_spatialite.md :: file
 #@out /tmp/niva_validation/out/b2_00_parks.md :: file
 #@out /tmp/niva_validation/out/b2_00_catalog.md :: file
-#@cleanup rm /tmp/niva_validation/out/b2_00_spatialite.md
-#@cleanup rm /tmp/niva_validation/out/b2_00_parks.md
-#@cleanup rm /tmp/niva_validation/out/b2_00_catalog.md
+#@cleanup remove /tmp/niva_validation/out/b2_00_spatialite.md force
+#@cleanup remove /tmp/niva_validation/out/b2_00_parks.md force
+#@cleanup remove /tmp/niva_validation/out/b2_00_catalog.md force
 
 
 # ----------------------------------------------------------------- attribute / field ops
 # ===== TEST 01 | filter | extract by expression ($area) =====
 load "/home/jcz/Github/niva/data/basemap.gpkg|layername=landuse-polygon" | filter "$area > 1000" | save /tmp/niva_validation/out/b2_01.gpkg
 #@out /tmp/niva_validation/out/b2_01.gpkg :: vector >=1
-#@cleanup rm /tmp/niva_validation/out/b2_01.gpkg
+#@cleanup remove /tmp/niva_validation/out/b2_01.gpkg
 
 # ===== TEST 02 | keepfields | retain only two attributes =====
 load "/home/jcz/Github/niva/data/basemap.gpkg|layername=boundary-polygon" | keepfields "NAME,ADMIN_LVL" | save /tmp/niva_validation/out/b2_02.gpkg
 #@out /tmp/niva_validation/out/b2_02.gpkg :: vector >=1
-#@cleanup rm /tmp/niva_validation/out/b2_02.gpkg
+#@cleanup remove /tmp/niva_validation/out/b2_02.gpkg
 
 # ===== TEST 03 | dropfields | delete two attributes =====
 load "/home/jcz/Github/niva/data/basemap.gpkg|layername=boundary-polygon" | dropfields "OSM_TYPE,NAME_EN" | save /tmp/niva_validation/out/b2_03.gpkg
 #@out /tmp/niva_validation/out/b2_03.gpkg :: vector >=1
-#@cleanup rm /tmp/niva_validation/out/b2_03.gpkg
+#@cleanup remove /tmp/niva_validation/out/b2_03.gpkg
 
 # ===== TEST 04 | renamefield | rename an attribute =====
 load "/home/jcz/Github/niva/data/basemap.gpkg|layername=settlement-point" | renamefield NAME label | save /tmp/niva_validation/out/b2_04.gpkg
 #@out /tmp/niva_validation/out/b2_04.gpkg :: vector >=1
-#@cleanup rm /tmp/niva_validation/out/b2_04.gpkg
+#@cleanup remove /tmp/niva_validation/out/b2_04.gpkg
 
 # ===== TEST 05 | join | attribute join on a field =====
 load "/home/jcz/Github/niva/data/collected.gpkg|layername=park_polygons" | join with="/home/jcz/Github/niva/data/collected.gpkg|layername=park_points" field=id field2=id | save /tmp/niva_validation/out/b2_05.gpkg
 #@out /tmp/niva_validation/out/b2_05.gpkg :: vector >=1
-#@cleanup rm /tmp/niva_validation/out/b2_05.gpkg
+#@cleanup remove /tmp/niva_validation/out/b2_05.gpkg
 
 
 # --------------------------------------------------------- point/line creation geometry
 # ===== TEST 06 | voronoi | Thiessen polygons from points =====
 load "/home/jcz/Github/niva/data/basemap.gpkg|layername=settlement-point" | voronoi | save /tmp/niva_validation/out/b2_06.gpkg
 #@out /tmp/niva_validation/out/b2_06.gpkg :: vector >=1
-#@cleanup rm /tmp/niva_validation/out/b2_06.gpkg
+#@cleanup remove /tmp/niva_validation/out/b2_06.gpkg
 
 # ===== TEST 07 | delaunay | triangulation from points =====
 load "/home/jcz/Github/niva/data/basemap.gpkg|layername=settlement-point" | delaunay | save /tmp/niva_validation/out/b2_07.gpkg
 #@out /tmp/niva_validation/out/b2_07.gpkg :: vector >=1
-#@cleanup rm /tmp/niva_validation/out/b2_07.gpkg
+#@cleanup remove /tmp/niva_validation/out/b2_07.gpkg
 
 # ===== TEST 08 | collect | aggregate points to one multipoint =====
 load "/home/jcz/Github/niva/data/basemap.gpkg|layername=settlement-point" | collect | save /tmp/niva_validation/out/b2_08.gpkg
 #@out /tmp/niva_validation/out/b2_08.gpkg :: vector >=1
-#@cleanup rm /tmp/niva_validation/out/b2_08.gpkg
+#@cleanup remove /tmp/niva_validation/out/b2_08.gpkg
 
 # ===== TEST 09 | pointsalong | points spaced along lines =====
 load "/home/jcz/Github/niva/data/basemap.gpkg|layername=railway-line" | pointsalong 500m | save /tmp/niva_validation/out/b2_09.gpkg
 #@out /tmp/niva_validation/out/b2_09.gpkg :: vector >=1
-#@cleanup rm /tmp/niva_validation/out/b2_09.gpkg
+#@cleanup remove /tmp/niva_validation/out/b2_09.gpkg
 
 # ===== TEST 10 | vertices | explode geometries to their vertices =====
 load "/home/jcz/Github/niva/data/basemap.gpkg|layername=nature_reserve-polygon" | vertices | save /tmp/niva_validation/out/b2_10.gpkg
 #@out /tmp/niva_validation/out/b2_10.gpkg :: vector >=1
-#@cleanup rm /tmp/niva_validation/out/b2_10.gpkg
+#@cleanup remove /tmp/niva_validation/out/b2_10.gpkg
 
 
 # ------------------------------------------------------------------- line/poly transforms
 # ===== TEST 11 | offset | parallel line at a distance =====
 load "/home/jcz/Github/niva/data/collected.gpkg|layername=park_lines" | offset 25m | save /tmp/niva_validation/out/b2_11.gpkg
 #@out /tmp/niva_validation/out/b2_11.gpkg :: vector >=1
-#@cleanup rm /tmp/niva_validation/out/b2_11.gpkg
+#@cleanup remove /tmp/niva_validation/out/b2_11.gpkg
 
 # ===== TEST 12 | densify | add vertices at fixed spacing =====
 load "/home/jcz/Github/niva/data/collected.gpkg|layername=park_lines" | densify 10m | save /tmp/niva_validation/out/b2_12.gpkg
 #@out /tmp/niva_validation/out/b2_12.gpkg :: vector >=1
-#@cleanup rm /tmp/niva_validation/out/b2_12.gpkg
+#@cleanup remove /tmp/niva_validation/out/b2_12.gpkg
 
 # ===== TEST 13 | smooth | round off sharp corners =====
 load "/home/jcz/Github/niva/data/collected.gpkg|layername=park_lines" | smooth iterations=2 | save /tmp/niva_validation/out/b2_13.gpkg
 #@out /tmp/niva_validation/out/b2_13.gpkg :: vector >=1
-#@cleanup rm /tmp/niva_validation/out/b2_13.gpkg
+#@cleanup remove /tmp/niva_validation/out/b2_13.gpkg
 
 # ===== TEST 14 | subdivide | cap vertices per part =====
 load "/home/jcz/Github/niva/data/basemap.gpkg|layername=nature_reserve-polygon" | subdivide max_nodes=64 | save /tmp/niva_validation/out/b2_14.gpkg
 #@out /tmp/niva_validation/out/b2_14.gpkg :: vector >=1
-#@cleanup rm /tmp/niva_validation/out/b2_14.gpkg
+#@cleanup remove /tmp/niva_validation/out/b2_14.gpkg
 
 # ===== TEST 15 | minrect | oriented minimum bounding rectangle =====
 load "/home/jcz/Github/niva/data/collected.gpkg|layername=park_polygons" | minrect | save /tmp/niva_validation/out/b2_15.gpkg
 #@out /tmp/niva_validation/out/b2_15.gpkg :: vector >=1
-#@cleanup rm /tmp/niva_validation/out/b2_15.gpkg
+#@cleanup remove /tmp/niva_validation/out/b2_15.gpkg
 
 # ===== TEST 16 | swapxy | swap X/Y coordinates =====
 load "/home/jcz/Github/niva/data/study_area_bbox.gpkg" | swapxy | save /tmp/niva_validation/out/b2_16.gpkg
 #@out /tmp/niva_validation/out/b2_16.gpkg :: vector >=1
-#@cleanup rm /tmp/niva_validation/out/b2_16.gpkg
+#@cleanup remove /tmp/niva_validation/out/b2_16.gpkg
 
 # ===== TEST 17 | forcerhr | enforce right-hand-rule ring order =====
 load "/home/jcz/Github/niva/data/basemap.gpkg|layername=nature_reserve-polygon" | forcerhr | save /tmp/niva_validation/out/b2_17.gpkg
 #@out /tmp/niva_validation/out/b2_17.gpkg :: vector >=1
-#@cleanup rm /tmp/niva_validation/out/b2_17.gpkg
+#@cleanup remove /tmp/niva_validation/out/b2_17.gpkg
 
 # ===== TEST 18 | promote | singlepart → multipart =====
 load "/home/jcz/Github/niva/data/collected.gpkg|layername=park_lines" | promote | save /tmp/niva_validation/out/b2_18.gpkg
 #@out /tmp/niva_validation/out/b2_18.gpkg :: vector >=1
-#@cleanup rm /tmp/niva_validation/out/b2_18.gpkg
+#@cleanup remove /tmp/niva_validation/out/b2_18.gpkg
 
 # ===== TEST 19 | sample | random subset of N features =====
 load "/home/jcz/Github/niva/data/basemap.gpkg|layername=poi-point" | sample 10 | save /tmp/niva_validation/out/b2_19.gpkg
 #@out /tmp/niva_validation/out/b2_19.gpkg :: vector >=10
-#@cleanup rm /tmp/niva_validation/out/b2_19.gpkg
+#@cleanup remove /tmp/niva_validation/out/b2_19.gpkg
 
 
 # ------------------------------------------------ @conn as a SECONDARY layer (v0.33.0)
 # ===== TEST 20 | clip @conn | clip the study-area bbox down to a SpatiaLite layer =====
 load "/home/jcz/Github/niva/data/study_area_bbox.gpkg" | clip "@actual_spatialite.sqlite.park_polygons" | save /tmp/niva_validation/out/b2_20.gpkg
 #@out /tmp/niva_validation/out/b2_20.gpkg :: vector >=1
-#@cleanup rm /tmp/niva_validation/out/b2_20.gpkg
+#@cleanup remove /tmp/niva_validation/out/b2_20.gpkg
 
 # ===== TEST 21 | intersect @conn | intersect the study-area bbox with a SpatiaLite layer =====
 load "/home/jcz/Github/niva/data/study_area_bbox.gpkg" | intersect "@actual_spatialite.sqlite.park_polygons" | save /tmp/niva_validation/out/b2_21.gpkg
 #@out /tmp/niva_validation/out/b2_21.gpkg :: vector >=1
-#@cleanup rm /tmp/niva_validation/out/b2_21.gpkg
+#@cleanup remove /tmp/niva_validation/out/b2_21.gpkg
 
 # ===== TEST 22 | difference @conn | erase SpatiaLite parks from basemap water =====
 load "/home/jcz/Github/niva/data/basemap.gpkg|layername=water-polygon" | difference "@actual_spatialite.sqlite.park_polygons" | save /tmp/niva_validation/out/b2_22.gpkg
 #@out /tmp/niva_validation/out/b2_22.gpkg :: vector >=1
-#@cleanup rm /tmp/niva_validation/out/b2_22.gpkg
+#@cleanup remove /tmp/niva_validation/out/b2_22.gpkg
 
 # ===== TEST 23 | union @conn | union with a SpatiaLite layer =====
 load "/home/jcz/Github/niva/data/collected.gpkg|layername=park_polygons" | union "@actual_spatialite.sqlite.park_polygons" | save /tmp/niva_validation/out/b2_23.gpkg
 #@out /tmp/niva_validation/out/b2_23.gpkg :: vector >=1
-#@cleanup rm /tmp/niva_validation/out/b2_23.gpkg
+#@cleanup remove /tmp/niva_validation/out/b2_23.gpkg
 
 # ===== TEST 24 | symdifference @conn | symmetric difference with SpatiaLite =====
 load "/home/jcz/Github/niva/data/basemap.gpkg|layername=nature_reserve-polygon" | symdifference "@actual_spatialite.sqlite.park_polygons" | save /tmp/niva_validation/out/b2_24.gpkg
 #@out /tmp/niva_validation/out/b2_24.gpkg :: vector >=1
-#@cleanup rm /tmp/niva_validation/out/b2_24.gpkg
+#@cleanup remove /tmp/niva_validation/out/b2_24.gpkg
 
 # ===== TEST 25 | spatialjoin with=@conn | join SpatiaLite attrs onto basemap points =====
 load "/home/jcz/Github/niva/data/basemap.gpkg|layername=poi-point" | spatialjoin with="@actual_spatialite.sqlite.park_polygons" predicate=within | save /tmp/niva_validation/out/b2_25.gpkg
 #@out /tmp/niva_validation/out/b2_25.gpkg :: vector >=1
-#@cleanup rm /tmp/niva_validation/out/b2_25.gpkg
+#@cleanup remove /tmp/niva_validation/out/b2_25.gpkg
 
 # ===== TEST 26 | selectloc against=@conn | keep features intersecting a SpatiaLite layer =====
 load "/home/jcz/Github/niva/data/study_area_bbox.gpkg" | selectloc "@actual_spatialite.sqlite.park_polygons" predicate=intersect | save /tmp/niva_validation/out/b2_26.gpkg
 #@out /tmp/niva_validation/out/b2_26.gpkg :: vector >=1
-#@cleanup rm /tmp/niva_validation/out/b2_26.gpkg
+#@cleanup remove /tmp/niva_validation/out/b2_26.gpkg
 
 # ===== TEST 27 | snap reference=@conn | snap park lines to SpatiaLite park lines =====
 load "/home/jcz/Github/niva/data/collected.gpkg|layername=park_lines" | snap "@actual_spatialite.sqlite.park_lines" 5m | save /tmp/niva_validation/out/b2_27.gpkg
 #@out /tmp/niva_validation/out/b2_27.gpkg :: vector >=1
-#@cleanup rm /tmp/niva_validation/out/b2_27.gpkg
+#@cleanup remove /tmp/niva_validation/out/b2_27.gpkg
 
 # ===== TEST 28 | countpoints points=@conn | count SpatiaLite points per polygon =====
 load "/home/jcz/Github/niva/data/collected.gpkg|layername=park_polygons" | countpoints points="@actual_spatialite.sqlite.park_points" | save /tmp/niva_validation/out/b2_28.gpkg
 #@out /tmp/niva_validation/out/b2_28.gpkg :: vector >=1
-#@cleanup rm /tmp/niva_validation/out/b2_28.gpkg
+#@cleanup remove /tmp/niva_validation/out/b2_28.gpkg
 
 
 # -------------------------------------------------------- SQL that COMPUTES geometry
 # ===== TEST 29 | sql ST_Centroid (PostGIS) | computed geometry must survive =====
 sql @localpg "SELECT row_number() OVER () AS id, ST_Centroid(geom) AS geom FROM public.\"My Roads\"" | save /tmp/niva_validation/out/b2_29.gpkg
 #@out /tmp/niva_validation/out/b2_29.gpkg :: vector >=1
-#@cleanup rm /tmp/niva_validation/out/b2_29.gpkg
+#@cleanup remove /tmp/niva_validation/out/b2_29.gpkg
 
 # ===== TEST 30 | sql ST_Buffer (PostGIS) | computed polygon geometry must survive =====
 sql @localpg "SELECT row_number() OVER () AS id, ST_Buffer(geom, 0.001) AS geom FROM public.\"My Roads\"" | save /tmp/niva_validation/out/b2_30.gpkg
 #@out /tmp/niva_validation/out/b2_30.gpkg :: vector >=1
-#@cleanup rm /tmp/niva_validation/out/b2_30.gpkg
+#@cleanup remove /tmp/niva_validation/out/b2_30.gpkg
 
 # ===== TEST 31 | sql ST_Centroid (SpatiaLite) | computed geometry, other backend =====
 sql "@actual_spatialite.sqlite" "SELECT ST_Centroid(geom) AS geom FROM park_polygons" | save /tmp/niva_validation/out/b2_31.gpkg
 #@out /tmp/niva_validation/out/b2_31.gpkg :: vector >=1
-#@cleanup rm /tmp/niva_validation/out/b2_31.gpkg
+#@cleanup remove /tmp/niva_validation/out/b2_31.gpkg
 
 
 # ----------------------------------------------------------- raster ops & raster→vector
 # ===== TEST 32 | aspect | DEM → aspect raster =====
 load "/home/jcz/Github/niva/data/dem_clip.tif" | aspect | save /tmp/niva_validation/out/b2_32.tif
 #@out /tmp/niva_validation/out/b2_32.tif :: raster
-#@cleanup rm /tmp/niva_validation/out/b2_32.tif
+#@cleanup remove /tmp/niva_validation/out/b2_32.tif
 
 # ===== TEST 33 | slope percent | DEM → slope raster (as percent) =====
 load "/home/jcz/Github/niva/data/dem_clip.tif" | slope percent | save /tmp/niva_validation/out/b2_33.tif
 #@out /tmp/niva_validation/out/b2_33.tif :: raster
-#@cleanup rm /tmp/niva_validation/out/b2_33.tif
+#@cleanup remove /tmp/niva_validation/out/b2_33.tif
 
 # ===== TEST 34 | warp→polygonize | coarsen a DEM then vectorize it (raster→vector) =====
 load "/home/jcz/Github/niva/data/dem_clip.tif" | warp EPSG:6346 resolution=300 | polygonize | save /tmp/niva_validation/out/b2_34.gpkg
 #@out /tmp/niva_validation/out/b2_34.gpkg :: vector >=1
-#@cleanup rm /tmp/niva_validation/out/b2_34.gpkg
+#@cleanup remove /tmp/niva_validation/out/b2_34.gpkg
 
 
 # ------------------------------------------------------------------- deep multi-op chains
 # ===== TEST 35 | corridor | lines → buffer+dissolve → fixgeom (3 ops) =====
 load "/home/jcz/Github/niva/data/basemap.gpkg|layername=railway-line" | buffer 50m dissolve | fixgeom | save /tmp/niva_validation/out/b2_35.gpkg
 #@out /tmp/niva_validation/out/b2_35.gpkg :: vector >=1
-#@cleanup rm /tmp/niva_validation/out/b2_35.gpkg
+#@cleanup remove /tmp/niva_validation/out/b2_35.gpkg
 
 # ===== TEST 36 | point footprint | points → buffer → dissolve → convexhull (4 ops) =====
 load "/home/jcz/Github/niva/data/basemap.gpkg|layername=settlement-point" | buffer 1000m | dissolve | convexhull | save /tmp/niva_validation/out/b2_36.gpkg
 #@out /tmp/niva_validation/out/b2_36.gpkg :: vector >=1
-#@cleanup rm /tmp/niva_validation/out/b2_36.gpkg
+#@cleanup remove /tmp/niva_validation/out/b2_36.gpkg
 
 # ===== TEST 37 | clean+overlay chain | fixgeom → simplify → difference @conn (3 ops, @conn) =====
 load "/home/jcz/Github/niva/data/basemap.gpkg|layername=water-polygon" | fixgeom | simplify 5 | difference "@actual_spatialite.sqlite.park_polygons" | save /tmp/niva_validation/out/b2_37.gpkg
 #@out /tmp/niva_validation/out/b2_37.gpkg :: vector >=1
-#@cleanup rm /tmp/niva_validation/out/b2_37.gpkg
+#@cleanup remove /tmp/niva_validation/out/b2_37.gpkg
 
 
 # -------------------------------------------------------- split / each / style / project
 # ===== TEST 38 | split | extract one geometry type =====
 load "/home/jcz/Github/niva/data/basemap.gpkg|layername=poi-point" | split point | save /tmp/niva_validation/out/b2_38.gpkg
 #@out /tmp/niva_validation/out/b2_38.gpkg :: vector >=1
-#@cleanup rm /tmp/niva_validation/out/b2_38.gpkg
+#@cleanup remove /tmp/niva_validation/out/b2_38.gpkg
 
 # ===== TEST 39 | each {name} templating | batch over a folder, templated outputs =====
 load "/home/jcz/Github/niva/data/basemap.gpkg|layername=settlement-point" | save /tmp/niva_validation/b2batch/towns.gpkg
@@ -261,16 +262,16 @@ load "/home/jcz/Github/niva/data/basemap.gpkg|layername=poi-point" | sample 20 |
 each "/tmp/niva_validation/b2batch/*.gpkg" | voronoi | save "/tmp/niva_validation/out/b2_39_{name}.gpkg"
 #@out /tmp/niva_validation/out/b2_39_towns.gpkg :: vector >=1
 #@out /tmp/niva_validation/out/b2_39_poi.gpkg :: vector >=1
-#@cleanup rm /tmp/niva_validation/out/b2_39_towns.gpkg
-#@cleanup rm /tmp/niva_validation/out/b2_39_poi.gpkg
-#@cleanup rm /tmp/niva_validation/b2batch/towns.gpkg
-#@cleanup rm /tmp/niva_validation/b2batch/poi.gpkg
+#@cleanup remove /tmp/niva_validation/out/b2_39_towns.gpkg
+#@cleanup remove /tmp/niva_validation/out/b2_39_poi.gpkg
+#@cleanup remove /tmp/niva_validation/b2batch/towns.gpkg
+#@cleanup remove /tmp/niva_validation/b2batch/poi.gpkg
 
 # ===== TEST 40 | style + project | export a style, then build a project from outputs =====
 load "/home/jcz/Github/niva/data/study_area_bbox.gpkg" | metadata set title="Suite2 study area" keywords="niva,qa" | save /tmp/niva_validation/b2proj/study.gpkg | style save /tmp/niva_validation/out/b2_40.qml
 project new from="/tmp/niva_validation/b2proj" to="/tmp/niva_validation/out/b2_40.qgs" crs=EPSG:6346 title="Suite 2"
 #@out /tmp/niva_validation/out/b2_40.qml :: file
 #@out /tmp/niva_validation/out/b2_40.qgs :: file
-#@cleanup rm /tmp/niva_validation/out/b2_40.qml
-#@cleanup rm /tmp/niva_validation/out/b2_40.qgs
-#@cleanup rm /tmp/niva_validation/b2proj/study.gpkg
+#@cleanup remove /tmp/niva_validation/out/b2_40.qml
+#@cleanup remove /tmp/niva_validation/out/b2_40.qgs
+#@cleanup remove /tmp/niva_validation/b2proj/study.gpkg
