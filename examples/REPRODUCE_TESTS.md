@@ -39,6 +39,10 @@ createdb "$NIVA_PG_DB" && psql -d "$NIVA_PG_DB" -c 'CREATE EXTENSION IF NOT EXIS
 $PY examples/make_data.py          # → data/{basemap,collected,…}.gpkg + @localpg fixture tables
 ```
 
+> **Local peer/socket auth (no password):** set `NIVA_PG_HOST=""` (empty) so QGIS uses the unix
+> socket. A TCP `localhost` connection usually requires a password (`md5`/`scram-sha-256` in
+> `pg_hba.conf`); the empty host avoids that and connects as the OS user via `peer`.
+
 `make_data.py` registers the QGIS connections `@localpg` (your PostGIS) and
 `@actual_spatialite.sqlite`, and creates the deliberately hostile-named fixtures the security and
 round-trip suites exercise (`My Roads`, `café points`, `Mixed.Case.Dots`, `select`, …).

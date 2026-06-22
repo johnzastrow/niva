@@ -52,16 +52,14 @@ One row per run, newest first. `Pass/Total` sums unit tests + all suite blocks f
 
 | Date (UTC) | niva | OS | QGIS | Python | Result | Pass / Total | Skip | Details |
 |---|---|---|---|---|---|---|---|---|
-| 2026-06-22 | 0.35.0 | Linux 7.0 · x86_64 | 4.0.3 | 3.14.4 | ⚠️ | 710 / 718 | 10 | [↓](#0350--linux--2026-06-22) |
+| 2026-06-22 | 0.35.0 | Linux 7.0 · x86_64 | 4.0.3 | 3.14.4 | ✅ | 718 / 718 | 10 | [↓](#0350--linux--2026-06-22) |
 | 2026-06-22 | 0.34.1 | macOS 26.5 · x86_64 | 4.0.3 | 3.12.11 | ✅ | 668 / 668 | 3 | [↓](#0341--macos-265--2026-06-22) |
-
-> ⚠️ on the Linux 0.35.0 run is **data provisioning on that host, not code defects** — see its notes.
 
 ### Coverage matrix (release × platform)
 
 | Release | Linux · QGIS 4.0.3 | macOS 26.5 · QGIS 4.0.3 | Windows |
 |---|---|---|---|
-| 0.35.0 | ⚠️ data-gapped | — | — |
+| 0.35.0 | ✅ 718/718 | — | — |
 | 0.34.1 | — | ✅ 668/668 | — |
 
 ---
@@ -70,7 +68,7 @@ One row per run, newest first. `Pass/Total` sums unit tests + all suite blocks f
 
 ### 0.35.0 · Linux · 2026-06-22
 
-**Result: ⚠️ green except validation/round-trip gaps from this host's legacy `data/` (not code).**
+**Result: ✅ all tests passed (718/718, 10 skipped)** — on a `make_data.py`-regenerated `data/`.
 
 | Key | Value |
 |---|---|
@@ -82,37 +80,37 @@ One row per run, newest first. `Pass/Total` sums unit tests + all suite blocks f
 | Architecture | x86_64 |
 | Host | RAINBOZEN |
 | RAM / CPU | 32 GB / 12 cores |
+| PostGIS | local `gisdb3`, unix-socket peer auth (`@localpg`) |
 
 | Suite | Passed | Total | Result | Note |
 |---|---:|---:|---|---|
 | unit (full discover, under QGIS) | 457 | 457 | ✅ | 10 skipped (postgres/remote gated) |
+| validation_suite | 41 | 41 | ✅ | |
+| validation_suite_2 | 41 | 41 | ✅ | |
+| validation_suite_3 | 41 | 41 | ✅ | |
 | portable_suite | 25 | 25 | ✅ | committed + generated data |
 | format_matrix_suite | 16 | 16 | ✅ | incl. PostGIS targets via `@localpg` |
 | numerical_suite | 21 | 21 | ✅ | |
+| round_trip_suite | 17 | 17 | ✅ | |
 | security_suite | 14 | 14 | ✅ | |
 | error_path_suite | 20 | 20 | ✅ | |
-| round_trip_suite | 16 | 17 | ⚠️ | gpkg FID-bookkeeping on this host's `basemap.gpkg` (pre-existing `fid` column) |
-| validation_suite | 36 | 41 | ⚠️ | missing `aoism.shp` / `order_boundary.geojson` / `performance.csv` on this host |
-| validation_suite_2 | 40 | 41 | ⚠️ | SpatiaLite `ST_Centroid` data quirk in the full-run state |
-| validation_suite_3 | 40 | 41 | ⚠️ | same SpatiaLite quirk |
 | benchmark_suite | 25 | 25 | ✅ | metrics only — all blocks ran clean on generated `bench.*` |
-| **TOTAL** | **710** | **718** | **⚠️** | 10 skipped |
+| **TOTAL** | **718** | **718** | **✅ 100 %** | 10 skipped |
 
 #### Notes
 
-- **The 8 suite failures are data provisioning, verified not code defects.** This host's `data/`
-  is the original hand-curated heavy dataset, which predates `make_data.py`; the validation suites
-  were (re)authored against `make_data.py` output, so they reference files this host doesn't have
-  (`aoism.shp`, `order_boundary.geojson`, `performance.csv`) and assert counts for synthetic layers.
-  A `make_data.py`-generated `data/` yields full green (cf. the 0.34.1 macOS run, 41/41 each).
-  Confirmed independently: `sql @actual_spatialite.sqlite "SELECT ST_Centroid(geom) …"` succeeds in
-  isolation (5 features), so the validation_suite_2/3 SpatiaLite line is a full-run state artifact.
-- The clone-reproducible suites (portable, format_matrix, numerical, security, error_path) and the
-  full unit suite are **100 %** — these use only committed + generated data, i.e. what a fresh clone
-  gets, so they are the true cross-platform signal.
-- New since 0.34.1: **format_matrix_suite** (16) and the **native CSV lon/lat point loading** it and
-  the unit suite exercise; the macOS **`.app`-prefix provider fix**.
-- Per-suite timestamped reports written to `~/niva-test-results/`.
+- `data/` was (re)generated for this run with `python examples/make_data.py` (from the committed
+  `examples/example.gpkg` + `examples/testdata/`) and `make_bigdata.py` (benchmark `bench.*`). An
+  earlier pass of this run on the host's *legacy* hand-curated `data/` had 8 suite failures
+  (validation file mismatches, a gpkg FID-bookkeeping quirk, a SpatiaLite artifact) — **all data
+  provisioning, none code**; regenerating `data/` cleared every one. Confirms the suites are green
+  on the canonical generated data on Linux as on macOS.
+- **PostGIS gotcha:** `make_data.py` writes `host` from `NIVA_PG_HOST`. For local **peer/socket
+  auth** set `NIVA_PG_HOST=""` (empty) so QGIS uses the unix socket — TCP `localhost` here requires
+  `scram-sha-256` (a password). With the right host it pushes all 7 hostile-name fixtures fine.
+- The 10 skipped unit tests are gated on `NIVA_TEST_PG` / remote features (expected).
+- New since 0.34.1: **format_matrix_suite** (16) + **native CSV lon/lat point loading**; the macOS
+  **`.app`-prefix provider fix**. Per-suite timestamped reports under `~/niva-test-results/`.
 
 ### 0.34.1 · macOS 26.5 · 2026-06-22
 

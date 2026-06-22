@@ -10,6 +10,9 @@ the fixtures at any database — local, CI service, or remote dev DB):
     NIVA_PG_HOST (localhost)  NIVA_PG_PORT (5432)  NIVA_PG_DB (niva_test)
     NIVA_PG_USER ($USER)      NIVA_PG_PASSWORD ('' — peer/trust auth by default)
 
+For local **peer/socket** auth (no password), set NIVA_PG_HOST="" (empty) so QGIS connects via
+the unix socket — a TCP `localhost` connection usually needs a password (md5/scram in pg_hba).
+
 Run under QGIS's Python:
 
     PYTHONHOME=/Applications/QGIS-final-4_0_3.app/Contents/Frameworks \\
