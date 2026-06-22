@@ -141,6 +141,27 @@ def _desktop_profile_folder() -> str | None:
         return None
 
 
+def _qgis_prefix_path() -> str:
+    """Infer the QGIS prefix path from the running interpreter.
+
+    On macOS, QGIS ships as a .app bundle where the interpreter lives at
+    ``<Bundle>.app/Contents/MacOS/python3.x`` and the provider plugins live at
+    ``<Bundle>.app/Contents/PlugIns/qgis``. QgsApplication.setPrefixPath() must
+    receive the bundle root (``<Bundle>.app``) so it resolves the plugin path
+    as ``Contents/PlugIns/qgis`` — passing the inner ``Contents/MacOS`` level
+    causes a doubly-nested path that misses all database providers (spatialite,
+    postgres, WFS, …). On Linux the QGIS prefix is typically ``/usr``.
+    """
+    import sys
+    exe = sys.executable  # e.g. .../QGIS.app/Contents/MacOS/python3.12
+    parts = exe.replace("\\", "/").split("/")
+    # Walk up to find the .app bundle root on macOS.
+    for i, part in enumerate(parts):
+        if part.endswith(".app"):
+            return "/".join(parts[: i + 1])
+    return "/usr"
+
+
 def ensure_qgis(prefix: str | None = None):
     """Make sure a QGIS application and Processing are available.
 
@@ -153,7 +174,7 @@ def ensure_qgis(prefix: str | None = None):
     owns = False
     if app is None:
         os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-        prefix = prefix or os.environ.get("QGIS_PREFIX_PATH") or "/usr"
+        prefix = prefix or os.environ.get("QGIS_PREFIX_PATH") or _qgis_prefix_path()
         profile_folder = _desktop_profile_folder()
         QgsApplication.setPrefixPath(prefix, True)
         # Pass the desktop profile folder so `@conn` names match the QGIS GUI.

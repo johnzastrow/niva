@@ -167,9 +167,21 @@ class TestDiscoveryCascade(unittest.TestCase):
 
     @staticmethod
     def _examples(report):
-        """The runnable example flows (4-space-indented `load …` lines) from a `show`."""
-        return [line[4:] for line in report.splitlines()
-                if line.startswith("    load ")]
+        """Runnable flows from the first ``    niva '…'`` block in a `show` report.
+
+        format_show() produces two indented blocks: the runnable "Examples" section
+        and the "Write into an existing container" section. The write section uses a
+        literal ``@conn`` placeholder (users fill in the real name) and ``mode=append``
+        into a table that doesn't exist yet, so it must not be executed by the cascade.
+        Stop extracting at the write-examples header so only the standalone examples run.
+        """
+        flows = []
+        for line in report.splitlines():
+            if line.startswith("Write into an"):
+                break
+            if line.startswith("    niva '") and line.endswith("'"):
+                flows.append(line[10:-1])  # strip leading "    niva '" and trailing "'"
+        return flows
 
     def _assert_loads(self, kind, source):
         """`load "<source>"` (verbatim, as the tip says to copy it) yields a valid layer.
@@ -193,9 +205,16 @@ class TestDiscoveryCascade(unittest.TestCase):
 
     def _run_example(self, flow):
         """Run an example flow verbatim in a scratch cwd; assert its `save` target lands and
-        return that target's absolute path (so the cascade can continue *into* the output)."""
+        return that target's absolute path (so the cascade can continue *into* the output).
+
+        Examples from format_show() use ``~/`` save targets so they work from the QGIS plugin
+        dock (where relative paths would resolve against the app bundle). Redirect those into
+        self.scratch so test output doesn't land in the user's home directory.
+        """
         import niva
 
+        # Redirect ~/file saves into scratch — keeps test output out of the user's home dir.
+        flow = re.sub(r"\bsave ~/", f"save {self.scratch}/", flow)
         m = re.search(r"\bsave\s+(\S+)", flow)
         target = m.group(1) if m else None
         cwd = os.getcwd()
@@ -206,7 +225,7 @@ class TestDiscoveryCascade(unittest.TestCase):
             os.chdir(cwd)
         if not target:
             return None
-        produced = os.path.join(self.scratch, target)
+        produced = target if os.path.isabs(target) else os.path.join(self.scratch, target)
         self.assertTrue(os.path.exists(produced),
                         f"example did not produce `{target}`: {flow}")
         return produced
