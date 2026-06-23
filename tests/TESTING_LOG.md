@@ -52,6 +52,7 @@ One row per run, newest first. `Pass/Total` sums unit tests + all suite blocks f
 
 | Date (UTC) | niva | OS | QGIS | Python | Result | Pass / Total | Skip | Details |
 |---|---|---|---|---|---|---|---|---|
+| 2026-06-23 | 0.35.1 | Linux 7.0 · x86_64 | 4.0.3 | 3.14.4 | ✅ | 718 / 718 | 10 | [↓](#0351--linux--2026-06-23) |
 | 2026-06-23 | 0.35.0 | Windows 11 · x86_64 | 4.0.3 | 3.12.13 | ✅ | 718 / 718 | 3 | [↓](#0350--windows-11--2026-06-23) |
 | 2026-06-23 | 0.35.0 | Windows 11 · x86_64 | 3.44.11 | 3.12.13 | ✅ | 718 / 718 | 3 | [↓](#0350--windows-11--2026-06-23) |
 | 2026-06-22 | 0.35.0 | macOS 26.5 · x86_64 | 4.0.3 | 3.12.11 | ✅ | 715 / 715 | 3 | [↓](#0350--macos-265--2026-06-22) |
@@ -62,12 +63,51 @@ One row per run, newest first. `Pass/Total` sums unit tests + all suite blocks f
 
 | Release | Linux · QGIS 4.0.3 | macOS 26.5 · QGIS 4.0.3 | Windows 11 · QGIS 4.0.3 / 3.44.11 |
 |---|---|---|---|
+| 0.35.1 | ✅ 718/718 | — | — |
 | 0.35.0 | ✅ 718/718 | ✅ 715/715 | ✅ 718/718 (both QGIS) |
 | 0.34.1 | — | ✅ 668/668 | — |
 
 ---
 
 ## 3. Run details
+
+### 0.35.1 · Linux · 2026-06-23
+
+**Result: ✅ all tests passed (718/718, 10 skipped)** — regression check after merging the
+`windows-test-support` work to `main`. Confirms the cross-platform harness changes and the
+SpatiaLite system-table filter (0.35.1) left Linux byte-for-byte green.
+
+| Key | Value |
+|---|---|
+| Date (UTC) | 2026-06-23 |
+| niva | 0.35.1 |
+| QGIS | 4.0.3-Norrköping (40003) |
+| Python | 3.14.4 |
+| OS / kernel | Linux 7.0.0-22-generic |
+| Architecture | x86_64 |
+| Host | RAINBOZEN |
+| PostGIS | local `gisdb3` clone, `@localpg` |
+
+| Suite | Passed | Total | Result | Note |
+|---|---:|---:|---|---|
+| unit (full discover, under QGIS) | 457 | 457 | ✅ | 10 skipped (postgres/remote gated) |
+| validation_suite | 41 | 41 | ✅ | |
+| validation_suite_2 | 41 | 41 | ✅ | |
+| validation_suite_3 | 41 | 41 | ✅ | |
+| portable_suite | 25 | 25 | ✅ | |
+| format_matrix_suite | 16 | 16 | ✅ | incl. PostGIS targets via `@localpg` |
+| numerical_suite | 21 | 21 | ✅ | |
+| round_trip_suite | 17 | 17 | ✅ | |
+| security_suite | 14 | 14 | ✅ | |
+| error_path_suite | 20 | 20 | ✅ | |
+| benchmark_suite | 25 | 25 | ✅ | metrics only; all blocks clean |
+| **TOTAL** | **718** | **718** | **✅ 100 %** | 10 skipped |
+
+#### Notes
+
+- Same `data/` and `@localpg` setup as the 0.35.0 Linux run; no data regeneration needed.
+- The merge's only code change (the SpatiaLite system-table filter in `list_tables`) is exercised
+  by the unit + `show`/discovery tests, which all pass — no real layer is hidden on Linux/QGIS 4.
 
 ### 0.35.0 · Windows 11 · 2026-06-23
 

@@ -11,6 +11,29 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.35.1] - 2026-06-23
+
+### Fixed
+- **`show` no longer advertises SpatiaLite's internal tables.** `list_tables` now filters
+  SpatiaLite-reserved metadata/virtual tables (the KNN/KNN2 nearest-neighbour modules,
+  `ElementaryGeometries`, `SpatialIndex`, `data_licenses`, `sqlite_sequence`, and the
+  `*_geometry_columns` registries) from a connection's table listing. QGIS 4 already hid these,
+  but QGIS 3.44 reported `KNN2` and `data_licenses` as ordinary spatial layers, so `show @conn`
+  offered them as loadable. The names are SpatiaLite-reserved, so this can't hide user data —
+  discovery now lists only real layers consistently across QGIS versions.
+
+### Testing
+- **Windows brought online.** The full suite (718/718, 3 skipped) now passes on Windows 11 under
+  both **QGIS 4.0.3-Norrköping and QGIS 3.44.11-Solothurn (LTR)** via OSGeo4W — the first Windows
+  entry in `tests/TESTING_LOG.md` and the first run to exercise the QGIS 3.x line. Cross-platform
+  harness fixes, all guarded on `os.name` so POSIX behaviour is byte-for-byte unchanged: the suite
+  runners fall back to the OS temp dir (instead of hardcoded `/tmp`) and sample RSS/CPU via ctypes
+  `GetProcessMemoryInfo` + `os.times()` on Windows (instead of the Unix `resource`/`/proc` probes);
+  the validation runner uses a unique scratch `_assess.gpkg` per assessment (Windows held a file
+  lock on the reused one); and three tests assert on `/`-separated / separator-normalised paths
+  (QGIS `.source()` returns `/` on every OS). Re-verified on Linux (QGIS 4.0.3, Python 3.14):
+  **718/718**, no regressions.
+
 ## [0.35.0] - 2026-06-22
 
 ### Added
