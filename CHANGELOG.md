@@ -1619,3 +1619,4 @@ CLI and a `niva.flow()` Python API; near-zero runtime dependencies.
 - This changelog.
 
 [Unreleased]: https://github.com/johnzastrow/niva/commits/main
+[0.35.1]: https://github.com/johnzastrow/niva/releases/tag/v0.35.1
