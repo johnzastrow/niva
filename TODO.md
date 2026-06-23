@@ -4,6 +4,33 @@ Parked work. See [`docs/planning/04-roadmap.md`](docs/planning/04-roadmap.md),
 [`docs/planning/15-postgis-and-project-design.md`](docs/planning/15-postgis-and-project-design.md),
 and [`docs/planning/16-anatomy-of-a-verb.md`](docs/planning/16-anatomy-of-a-verb.md) for context.
 
+## marimo integration — niva (and figures) usable in a notebook (finish; v1.0)
+
+Make niva a first-class citizen inside a [marimo](https://marimo.io) notebook running on QGIS's own
+Python — the worked **marimo-qgis integration** noted in
+[`04-roadmap.md`](docs/planning/04-roadmap.md) §v1.0. Today the docstring only *says* `niva.flow(...)`
+works "inside a marimo notebook on QGIS's interpreter"; this finishes and proves it, and makes the
+graphical outputs (the `figure` verb below) render **inline in a cell** — not just to a file.
+
+- [ ] **niva itself in marimo** — confirm + document the working setup: a marimo notebook on QGIS's
+  interpreter (`python-qgis`/`python-qgis-ltr` on Windows, the system QGIS Python on Linux, the
+  `.app` Python on macOS) with `ensure_qgis()` initialising QGIS once per kernel. A reusable preload
+  cell (mirror the QGIS-console `startup.py` snippet from the roadmap) that imports niva and brings
+  up QGIS headless. Verify a flow runs and re-runs cleanly across cell re-execution (QGIS singletons
+  initialised once, not re-created per cell).
+- [ ] **Figures inline in a cell** — the `figure` verb (see next section) must return / expose its
+  rendered image so a marimo cell displays it (e.g. `mo.image(...)` or a returned object marimo
+  renders), in addition to writing the file. Decide the surface: a Python return value from
+  `niva.flow(...)` / a helper, or a thin `niva.marimo` shim. Map preview (the layer canvas) inline
+  is a stretch goal; the layout-`figure` PNG/PDF/SVG is the MVP.
+- [ ] **Example notebook** — commit a runnable `.py` marimo notebook (per the `marimo-notebook`
+  format) under `examples/` that loads data, runs a niva flow, and shows a figure inline; wire it
+  into the docs/cookbook. Smoke-test it headless in CI where feasible.
+- Cross-platform: this is exactly where the recent Windows/OSGeo4W work pays off — the notebook
+  must come up on all three OSes' QGIS Python.
+- Two-tier tests: MockBackend asserts the inline-figure surface returns the expected object; a
+  live-QGIS test renders a real image and asserts it's non-empty.
+
 ## Graphical figure generation — render figures at the end of a flow (new scope)
 
 A final-step verb that renders a **map figure** (PNG / PDF / SVG) from a flow's outputs using a
@@ -20,7 +47,14 @@ frame + world-file map).
   via `QgsLayoutExporter` (`exportToImage` / `exportToPdf` / `exportToSvg`). Default template =
   `examples/layout_template.qpt`, else resolve by name like project templates
   (`$NIVA_TEMPLATES` / `~/.niva/templates`).
+- [ ] **Inline in marimo** — `figure` must also expose its rendered image as a value a marimo cell
+  can display (not only write to disk). See the "marimo integration" section above — this is the
+  shared requirement between the two scopes.
 - [ ] **Atlas / multi-map** — one figure per feature of a coverage layer (`QgsLayoutAtlas`). Later.
+- [ ] **More graphical outputs (and more)** — beyond a single layout export: e.g. a quick
+  **map preview / thumbnail** of the current layer (no `.qpt` needed), **charts/plots** of attribute
+  data (histogram, scatter, classified-value bar), and **multi-page / multi-format** exports. Scope
+  each as it’s pulled in; the layout `figure` PNG/PDF/SVG is the anchor MVP.
 - [ ] Add a final-step `figure …` smoke to the validation (and portable) suites once it ships.
 - Two-tier tests (MockBackend records the call; live-QGIS asserts a non-empty image is written).
 - Note: distinct from the *print-layouts-in-project-files* item below — that bakes a layout into a
