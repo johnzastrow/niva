@@ -118,17 +118,17 @@ class _RSSSampler(threading.Thread):
     process-wide high-water mark."""
     def __init__(self, interval=0.05):
         super().__init__(daemon=True)
-        self.interval, self.peak, self._stop = interval, _rss_kb(), threading.Event()
+        self.interval, self.peak, self._done = interval, _rss_kb(), threading.Event()
 
     def run(self):
-        while not self._stop.is_set():
+        while not self._done.is_set():
             cur = _rss_kb()
             if cur > self.peak:
                 self.peak = cur
-            self._stop.wait(self.interval)
+            self._done.wait(self.interval)
 
     def stop(self):
-        self._stop.set()
+        self._done.set()
         self.join(timeout=1.0)
         return self.peak
 

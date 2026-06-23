@@ -52,7 +52,7 @@ One row per run, newest first. `Pass/Total` sums unit tests + all suite blocks f
 
 | Date (UTC) | niva | OS | QGIS | Python | Result | Pass / Total | Skip | Details |
 |---|---|---|---|---|---|---|---|---|
-| 2026-06-22 | 0.35.0 | macOS 26.5 · x86_64 | 4.0.3 | 3.12.11 | ✅ | 690 / 690 | 3 | [↓](#0350--macos-265--2026-06-22) |
+| 2026-06-22 | 0.35.0 | macOS 26.5 · x86_64 | 4.0.3 | 3.12.11 | ✅ | 715 / 715 | 3 | [↓](#0350--macos-265--2026-06-22) |
 | 2026-06-22 | 0.35.0 | Linux 7.0 · x86_64 | 4.0.3 | 3.14.4 | ✅ | 718 / 718 | 10 | [↓](#0350--linux--2026-06-22) |
 | 2026-06-22 | 0.34.1 | macOS 26.5 · x86_64 | 4.0.3 | 3.12.11 | ✅ | 668 / 668 | 3 | [↓](#0341--macos-265--2026-06-22) |
 
@@ -60,7 +60,7 @@ One row per run, newest first. `Pass/Total` sums unit tests + all suite blocks f
 
 | Release | Linux · QGIS 4.0.3 | macOS 26.5 · QGIS 4.0.3 | Windows |
 |---|---|---|---|
-| 0.35.0 | ✅ 718/718 | ✅ 690/690 | — |
+| 0.35.0 | ✅ 718/718 | ✅ 715/715 | — |
 | 0.34.1 | — | ✅ 668/668 | — |
 
 ---
@@ -69,7 +69,7 @@ One row per run, newest first. `Pass/Total` sums unit tests + all suite blocks f
 
 ### 0.35.0 · macOS 26.5 · 2026-06-22
 
-**Result: ✅ all tests passed (690/690, 3 skipped)**
+**Result: ✅ all tests passed (715/715, 3 skipped)**
 
 | Key | Value |
 |---|---|
@@ -95,22 +95,22 @@ One row per run, newest first. `Pass/Total` sums unit tests + all suite blocks f
 | validation\_suite | 41 | 41 | ✅ | |
 | validation\_suite\_2 | 41 | 41 | ✅ | |
 | validation\_suite\_3 | 41 | 41 | ✅ | |
-| benchmark\_suite | n/a | — | — | not run — `make_bigdata.py` data not generated on this host |
-| **TOTAL** | **690** | **690** | **✅ 100 %** | 3 skipped |
+| benchmark\_suite | 25 | 25 | ✅ | metrics only; all 25 blocks ran; scale=1.0 |
+| **TOTAL** | **715** | **715** | **✅ 100 %** | 3 skipped |
 
 #### Notes
 
 - `examples/testdata/` regenerated with `make_testdata.py` to pick up the 0.35.0 additions
   (`niva_testdata.gdb`, `.kml`, `.jp2`, `_points.csv`). Requires `PROJ_LIB` on macOS:
   `PROJ_LIB=/Applications/QGIS-final-4_0_3.app/Contents/Resources/qgis/proj`.
-- `data/` regenerated with `make_data.py` (new 0.35.0 env-var interface for PostGIS creds:
-  `NIVA_PG_HOST`, `NIVA_PG_PORT`, `NIVA_PG_DB`, `NIVA_PG_USER`, `NIVA_PG_PASSWORD`).
-- `portable_suite` now uses `{testdata}` token (no longer needs to be run separately without
-  `NIVA_TESTDATA`); all suites can be run together.
-- `validation_suite` TEST 08 still uses `dem_clip.tif` passthrough (JP2 format tested via
-  `format_matrix_suite` TEST 04 instead, using the generated `niva_testdata.jp2`).
-- benchmark_suite skipped — `bench.gpkg` / `bench_dem.tif` were not generated (`make_bigdata.py`
-  not run); not a code failure.
+- `data/` regenerated with `make_data.py`; `bench.gpkg` + `bench_dem.tif` generated with
+  `make_bigdata.py` (scale=1.0: 60k polygons, 60k points, 5k lines, 2000×2000 DEM).
+- **benchmark runner fix:** `_RSSSampler` named its stop flag `self._stop`, shadowing
+  `threading.Thread._stop()` — Python 3.12's `join()` then called the Event as a function
+  and crashed. Renamed to `self._done`. Fixed in `examples/run_benchmark_suite.py`.
+- `portable_suite` now uses `{testdata}` token; all suites run together with `NIVA_TESTDATA` set.
+- `validation_suite` TEST 08 still uses `dem_clip.tif` passthrough (JP2 tested via
+  `format_matrix_suite` TEST 04 using the generated `niva_testdata.jp2`).
 - Per-suite timestamped reports written to `~/niva-test-results/`.
 
 ### 0.35.0 · Linux · 2026-06-22
