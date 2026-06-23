@@ -29,6 +29,7 @@ import io
 import os
 import re
 import sys
+import tempfile
 import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # find the sibling report module
@@ -38,7 +39,10 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # Optional positional arg picks the suite (default = suite 1); --emit writes the pure .niva.
 _ARGS = [a for a in sys.argv[1:] if not a.startswith("--")]
 SUITE = os.path.abspath(_ARGS[0]) if _ARGS else os.path.join(REPO, "examples", "validation_suite.niva")
-SCRATCH = "/tmp/niva_validation"
+# Keep the exact POSIX path (`/tmp/niva_validation`) on Linux/macOS; on Windows (no /tmp) fall
+# back to the OS temp dir. The suites embed the literal `/tmp/niva_validation`, so `_subst`
+# redirects that prefix to SCRATCH (a no-op on POSIX, where they're identical).
+SCRATCH = os.path.join("/tmp" if os.name != "nt" else tempfile.gettempdir(), "niva_validation")
 OUT = os.path.join(SCRATCH, "out")
 # {data}/{testdata}/{examples} path tokens (see _suite_report.data_tokens), so suites run
 # unchanged on any clone. {data} prefers data/ (make_data.py / make_bigdata.py write there).
@@ -46,7 +50,7 @@ _TOKENS = _suite_report.data_tokens(REPO)
 
 
 def _subst(text: str) -> str:
-    return _suite_report.subst(text, _TOKENS)
+    return _suite_report.subst(text.replace("/tmp/niva_validation", SCRATCH), _TOKENS)
 
 _HDR = re.compile(r"#\s*=+\s*(PREAMBLE|TEST\s+\d+)\s*\|\s*(.*?)\s*\|\s*(.*?)\s*=+\s*$")
 
@@ -84,13 +88,22 @@ def niva_flow(text):
         niva.flow(text)
 
 
+_assess_seq = 0
+
+
 def _vector(target):
     """A QgsVectorLayer for a file path or an @conn.table (via niva's own load)."""
+    global _assess_seq
     from qgis.core import QgsVectorLayer
     if target.startswith("@"):
-        tmp = os.path.join(OUT, "_assess.gpkg")
+        # Use a fresh scratch file per @-assessment. Reusing one name fails on Windows, where the
+        # previous assessment's still-open QgsVectorLayer locks the .gpkg and os.remove raises
+        # WinError 32 (POSIX allows unlinking an open file, so this only bit on Windows).
+        _assess_seq += 1
+        tmp = os.path.join(OUT, f"_assess_{_assess_seq}.gpkg")
         for p in glob.glob(tmp + "*"):
-            os.remove(p)
+            with contextlib.suppress(OSError):
+                os.remove(p)
         niva_flow(f'load "{target}" | save "{tmp}"')
         return QgsVectorLayer(tmp, "a", "ogr")
     return QgsVectorLayer(target, "a", "ogr")

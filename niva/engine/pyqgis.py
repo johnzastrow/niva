@@ -95,6 +95,28 @@ def _layer_source_path(layer):
 _QGIS_APP = None
 _NATIVE_PROVIDER = None
 
+# SpatiaLite ships internal metadata + virtual tables (the KNN/KNN2 nearest-neighbour modules,
+# ElementaryGeometries, SpatialIndex, data_licenses, and the *_geometry_columns* registries).
+# These are not user data. QGIS 4 hides them from a connection's table listing, but older QGIS
+# (3.x) reports some — e.g. KNN2 and data_licenses — as ordinary spatial tables, so `show @conn`
+# would advertise them as loadable layers. Drop them so discovery lists only real layers
+# consistently across QGIS versions. Names are SpatiaLite-reserved, so this can't hide user data.
+_SPATIALITE_SYSTEM_TABLES = frozenset({
+    "spatial_ref_sys", "spatial_ref_sys_aux", "spatialite_history", "sql_statements_log",
+    "geometry_columns", "geometry_columns_auth", "geometry_columns_field_infos",
+    "geometry_columns_statistics", "geometry_columns_time",
+    "views_geometry_columns", "views_geometry_columns_auth",
+    "views_geometry_columns_field_infos", "views_geometry_columns_statistics",
+    "virts_geometry_columns", "virts_geometry_columns_auth",
+    "virts_geometry_columns_field_infos", "virts_geometry_columns_statistics",
+    "spatialindex", "elementarygeometries", "knn", "knn2", "data_licenses", "sqlite_sequence",
+})
+
+
+def _is_spatialite_system_table(name: str) -> bool:
+    """True for a SpatiaLite-internal metadata/virtual table that isn't user data."""
+    return name.lower() in _SPATIALITE_SYSTEM_TABLES
+
 
 def _desktop_profile_folder() -> str | None:
     """Point a standalone niva at the SAME QGIS user profile the desktop uses, so the
@@ -1718,6 +1740,11 @@ class PyqgisBackend(Backend):
             for t in props:
                 name = t.tableName()
                 if table is not None and name != table:
+                    continue
+                # Skip SpatiaLite's internal metadata/virtual tables (older QGIS lists some as
+                # ordinary spatial tables); they aren't loadable user layers. See the note on
+                # _SPATIALITE_SYSTEM_TABLES.
+                if provider == "spatialite" and _is_spatialite_system_table(name):
                     continue
                 gtypes = t.geometryColumnTypes()
                 flags = int(t.flags())

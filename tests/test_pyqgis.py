@@ -774,7 +774,7 @@ class TestPyqgisProject(unittest.TestCase):
         niva.flow(f'project "{rsrc}" to="{out}" repoint="{self.consolidated}" '
                   f'rasters="{new}" missing=keep')
         layer = self._reload(out)[0]
-        self.assertIn(os.path.join("rnew", "dem.tif"), layer.source())
+        self.assertIn("rnew/dem.tif", layer.source())  # QGIS source() uses '/' on every OS
         self.assertTrue(layer.isValid())
 
     def test_raster_left_unchanged_without_rasters_option(self):
@@ -783,7 +783,7 @@ class TestPyqgisProject(unittest.TestCase):
         rsrc, _new = self._raster_project()
         out = os.path.join(self.tmp, "rout2.qgs")
         niva.flow(f'project "{rsrc}" to="{out}" repoint="{self.consolidated}" missing=keep')
-        self.assertIn(os.path.join("rold", "dem.tif"), self._reload(out)[0].source())
+        self.assertIn("rold/dem.tif", self._reload(out)[0].source())
 
     def test_project_new_from_dir(self):
         import niva
@@ -884,11 +884,11 @@ class TestPyqgisProject(unittest.TestCase):
         layers = {layer.name(): layer for layer in self._reload(out)}
         self.assertEqual(set(layers), {"roads", "dem"})
         roads = layers["roads"]
-        self.assertIn(os.path.join("mydata", "roads.gpkg"), roads.source())  # repointed
+        self.assertIn("mydata/roads.gpkg", roads.source())  # repointed
         self.assertEqual(roads.featureCount(), 2)                            # to the user's data
         self.assertTrue(roads.isValid())
         self.assertAlmostEqual(roads.opacity(), 0.42, places=3)             # style rode along
-        self.assertIn(os.path.join("mydata", "dem.tif"), layers["dem"].source())  # raster slot
+        self.assertIn("mydata/dem.tif", layers["dem"].source())  # raster slot
 
     def test_from_template_named_via_env(self):
         import niva
@@ -904,7 +904,7 @@ class TestPyqgisProject(unittest.TestCase):
             niva.flow(f'project from-template=atlas to="{out}" data="{data}"')
         finally:
             del os.environ["NIVA_TEMPLATES"]
-        self.assertIn(os.path.join("mydata", "roads.gpkg"),
+        self.assertIn("mydata/roads.gpkg",
                       {layer.name(): layer.source() for layer in self._reload(out)}["roads"])
 
     def test_from_template_unmatched_slot_kept_by_default(self):
@@ -964,7 +964,7 @@ class TestPyqgisProject(unittest.TestCase):
         layers = self._reload(out)
         self.assertEqual([lay.name() for lay in self._p.layoutManager().layouts()], ["Report"])
         parcels = {layer.name(): layer for layer in layers}["parcels"]
-        self.assertIn(os.path.join("mydata", "parcels.gpkg"), parcels.source())  # display-name match
+        self.assertIn("mydata/parcels.gpkg", parcels.source())  # display-name match
         self.assertEqual(parcels.featureCount(), 3)                              # the user's data
         self.assertAlmostEqual(parcels.opacity(), 0.42, places=3)               # style preserved
 
@@ -986,7 +986,7 @@ class TestPyqgisProject(unittest.TestCase):
             del os.environ["NIVA_TEMPLATES"]
         layers = {layer.name(): layer for layer in self._reload(out)}  # sets self._p
         self.assertEqual([lay.name() for lay in self._p.layoutManager().layouts()], ["Report"])
-        self.assertIn(os.path.join("mydata2", "parcels.gpkg"), layers["parcels"].source())
+        self.assertIn("mydata2/parcels.gpkg", layers["parcels"].source())
 
     def test_bundled_example_instantiates(self):
         import niva
@@ -1003,7 +1003,7 @@ class TestPyqgisProject(unittest.TestCase):
         layers = {layer.name(): layer for layer in self._reload(out)}  # sets self._p
         self.assertEqual(set(layers), {"boundary", "roads", "places"})
         for slot in ("boundary", "roads", "places"):
-            self.assertIn(os.path.join("exdata", f"{slot}.gpkg"), layers[slot].source())
+            self.assertIn(f"exdata/{slot}.gpkg", layers[slot].source())
             self.assertTrue(layers[slot].isValid())
         self.assertEqual([lay.name() for lay in self._p.layoutManager().layouts()], ["Map"])
         self.assertEqual([b.name() for b in self._p.bookmarkManager().bookmarks()],

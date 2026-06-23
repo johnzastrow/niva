@@ -32,11 +32,16 @@ import io
 import json
 import os
 import re
-import resource
 import sys
+import tempfile
 import threading
 import time
 from datetime import datetime, timezone
+
+try:
+    import resource  # Unix-only; CPU/RSS via getrusage + /proc on Linux & macOS
+except ImportError:  # Windows
+    resource = None
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # find the sibling report module
 import _suite_report  # noqa: E402
@@ -52,14 +57,20 @@ if "--out" in sys.argv:
 # {data}/{testdata}/{examples} path tokens (see _suite_report.data_tokens). The benchmark uses
 # {data} (generate it with make_bigdata.py). Tokens let the suite run unchanged on any clone.
 _TOKENS = _suite_report.data_tokens(REPO)
+# Keep the exact POSIX scratch path (`/tmp/niva_benchmark`) on Linux/macOS; on Windows (no /tmp)
+# redirect it to the OS temp dir. The suite embeds the literal prefix, so rewrite it in _subst.
+_BENCH_SCRATCH = os.path.join("/tmp" if os.name != "nt" else tempfile.gettempdir(), "niva_benchmark")
 
 
 def _subst(text):
-    return _suite_report.subst(text, _TOKENS)
+    return _suite_report.subst(text.replace("/tmp/niva_benchmark", _BENCH_SCRATCH), _TOKENS)
 
 
 _HDR = re.compile(r"#\s*=+\s*(PREAMBLE|TEST\s+\d+)\s*\|\s*(.*?)\s*\|\s*(.*?)\s*=+\s*$")
-_PAGE = os.sysconf("SC_PAGE_SIZE")
+try:
+    _PAGE = os.sysconf("SC_PAGE_SIZE")  # Unix
+except (ValueError, AttributeError, OSError):  # Windows has no sysconf
+    _PAGE = 4096
 
 
 def parse(path):
@@ -94,11 +105,45 @@ def niva_flow(text):
 
 # --- metric probes -----------------------------------------------------------------------
 def _rss_kb():
+    # Linux: /proc. macOS: getrusage(ru_maxrss) — bytes on Darwin, KB on Linux. Windows: ctypes.
     try:
         with open("/proc/self/statm") as fh:
             return int(fh.read().split()[1]) * _PAGE // 1024
     except OSError:
-        return 0
+        pass
+    if os.name == "nt":
+        try:
+            import ctypes
+            from ctypes import wintypes
+
+            class _PMC(ctypes.Structure):
+                _fields_ = [("cb", wintypes.DWORD), ("PageFaultCount", wintypes.DWORD),
+                            ("PeakWorkingSetSize", ctypes.c_size_t),
+                            ("WorkingSetSize", ctypes.c_size_t),
+                            ("QuotaPeakPagedPoolUsage", ctypes.c_size_t),
+                            ("QuotaPagedPoolUsage", ctypes.c_size_t),
+                            ("QuotaPeakNonPagedPoolUsage", ctypes.c_size_t),
+                            ("QuotaNonPagedPoolUsage", ctypes.c_size_t),
+                            ("PagefileUsage", ctypes.c_size_t),
+                            ("PeakPagefileUsage", ctypes.c_size_t)]
+
+            # Set restype/argtypes: GetCurrentProcess() returns the pseudo-handle -1, which ctypes
+            # truncates to 32 bits without an explicit HANDLE restype — passing the truncated value
+            # makes GetProcessMemoryInfo fail (returns 0) on 64-bit Python.
+            k32, psapi = ctypes.windll.kernel32, ctypes.windll.psapi
+            k32.GetCurrentProcess.restype = wintypes.HANDLE
+            psapi.GetProcessMemoryInfo.argtypes = [wintypes.HANDLE, ctypes.POINTER(_PMC),
+                                                   wintypes.DWORD]
+            psapi.GetProcessMemoryInfo.restype = wintypes.BOOL
+            pmc = _PMC()
+            pmc.cb = ctypes.sizeof(_PMC)
+            if psapi.GetProcessMemoryInfo(k32.GetCurrentProcess(), ctypes.byref(pmc), pmc.cb):
+                return pmc.WorkingSetSize // 1024
+        except Exception:  # noqa: BLE001
+            pass
+    elif resource is not None:  # macOS: no /proc, use the rusage high-water mark
+        return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss // 1024
+    return 0
 
 
 def _io_counters():
@@ -131,6 +176,15 @@ class _RSSSampler(threading.Thread):
         self._done.set()
         self.join(timeout=1.0)
         return self.peak
+
+
+def _cpu_user_sys():
+    """(user_s, sys_s) process CPU time — getrusage on Unix, os.times() on Windows."""
+    if resource is not None:
+        ru = resource.getrusage(resource.RUSAGE_SELF)
+        return ru.ru_utime, ru.ru_stime
+    t = os.times()  # os.times() reports per-process user/system CPU on Windows too
+    return t.user, t.system
 
 
 def _mb(b):
@@ -240,7 +294,7 @@ def main():
     results = []
     for b in blocks:
         sampler = _RSSSampler()
-        ru0 = resource.getrusage(resource.RUSAGE_SELF)
+        cpu0_u, cpu0_s = _cpu_user_sys()
         io0 = _io_counters()
         rss0 = _rss_kb()
         sampler.start()
@@ -253,7 +307,7 @@ def main():
             err = f"{type(exc).__name__}: {str(exc).splitlines()[0][:120]}"
         wall = time.monotonic() - t0
         peak = sampler.stop()
-        ru1 = resource.getrusage(resource.RUSAGE_SELF)
+        cpu1_u, cpu1_s = _cpu_user_sys()
         io1 = _io_counters()
         out_bytes = feats = 0
         for o in b["outs"]:
@@ -267,9 +321,9 @@ def main():
             "id": b["id"], "cat": b["cat"], "desc": b["desc"], "ok": err is None,
             "error": err,
             "wall_s": round(wall, 3),
-            "cpu_user_s": round(ru1.ru_utime - ru0.ru_utime, 3),
-            "cpu_sys_s": round(ru1.ru_stime - ru0.ru_stime, 3),
-            "cpu_total_s": round((ru1.ru_utime - ru0.ru_utime) + (ru1.ru_stime - ru0.ru_stime), 3),
+            "cpu_user_s": round(cpu1_u - cpu0_u, 3),
+            "cpu_sys_s": round(cpu1_s - cpu0_s, 3),
+            "cpu_total_s": round((cpu1_u - cpu0_u) + (cpu1_s - cpu0_s), 3),
             "rss_peak_mb": round(peak / 1024, 1),
             "rss_delta_mb": round((_rss_kb() - rss0) / 1024, 1),
             "io_read_mb": _mb(io1.get("rchar", 0) - io0.get("rchar", 0)),

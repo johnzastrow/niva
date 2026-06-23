@@ -109,12 +109,16 @@ class TestBinder(unittest.TestCase):
     def test_layer_arg_expands_tilde(self):
         # A layer/raster path arg expands a leading ~ (QGIS/GDAL don't), so
         # `clip "~/aoi.gpkg"` resolves like `load "~/aoi.gpkg"`. Non-~ paths and
-        # @connection refs are unchanged.
+        # @connection refs are unchanged. Compare separator-agnostically: on Windows
+        # expanduser keeps the literal `/` after the home dir (C:\Users\me/aoi.gpkg),
+        # which QGIS/GDAL accept fine — the separator mix is not a meaningful difference.
+        def _norm(p):
+            return p.replace("\\", "/")
         home = os.path.expanduser("~")
-        self.assertEqual(bound('clip "~/aoi.gpkg"').params["OVERLAY"],
-                         os.path.join(home, "aoi.gpkg"))
-        self.assertEqual(bound("clipraster ~/dem/mask.gpkg").params["MASK"],
-                         os.path.join(home, "dem/mask.gpkg"))
+        self.assertEqual(_norm(bound('clip "~/aoi.gpkg"').params["OVERLAY"]),
+                         _norm(os.path.join(home, "aoi.gpkg")))
+        self.assertEqual(_norm(bound("clipraster ~/dem/mask.gpkg").params["MASK"]),
+                         _norm(os.path.join(home, "dem/mask.gpkg")))
         self.assertEqual(bound("clip /abs/city.gpkg").params["OVERLAY"], "/abs/city.gpkg")
 
     def test_reproject_crs_and_flag_defaults(self):
