@@ -52,20 +52,87 @@ One row per run, newest first. `Pass/Total` sums unit tests + all suite blocks f
 
 | Date (UTC) | niva | OS | QGIS | Python | Result | Pass / Total | Skip | Details |
 |---|---|---|---|---|---|---|---|---|
+| 2026-06-23 | 0.35.0 | Windows 11 · x86_64 | 4.0.3 | 3.12.13 | ✅ | 718 / 718 | 3 | [↓](#0350--windows-11--2026-06-23) |
+| 2026-06-23 | 0.35.0 | Windows 11 · x86_64 | 3.44.11 | 3.12.13 | ✅ | 718 / 718 | 3 | [↓](#0350--windows-11--2026-06-23) |
 | 2026-06-22 | 0.35.0 | macOS 26.5 · x86_64 | 4.0.3 | 3.12.11 | ✅ | 715 / 715 | 3 | [↓](#0350--macos-265--2026-06-22) |
 | 2026-06-22 | 0.35.0 | Linux 7.0 · x86_64 | 4.0.3 | 3.14.4 | ✅ | 718 / 718 | 10 | [↓](#0350--linux--2026-06-22) |
 | 2026-06-22 | 0.34.1 | macOS 26.5 · x86_64 | 4.0.3 | 3.12.11 | ✅ | 668 / 668 | 3 | [↓](#0341--macos-265--2026-06-22) |
 
 ### Coverage matrix (release × platform)
 
-| Release | Linux · QGIS 4.0.3 | macOS 26.5 · QGIS 4.0.3 | Windows |
+| Release | Linux · QGIS 4.0.3 | macOS 26.5 · QGIS 4.0.3 | Windows 11 · QGIS 4.0.3 / 3.44.11 |
 |---|---|---|---|
-| 0.35.0 | ✅ 718/718 | ✅ 715/715 | — |
+| 0.35.0 | ✅ 718/718 | ✅ 715/715 | ✅ 718/718 (both QGIS) |
 | 0.34.1 | — | ✅ 668/668 | — |
 
 ---
 
 ## 3. Run details
+
+### 0.35.0 · Windows 11 · 2026-06-23
+
+**Result: ✅ all tests passed (718/718, 3 skipped)** — and **identical on both QGIS 4.0.3-Norrköping
+and QGIS 3.44.11-Solothurn (LTR)**. First Windows entry in this log; first run to exercise the
+**QGIS 3.x** line.
+
+| Key | Value |
+|---|---|
+| Date (UTC) | 2026-06-23 |
+| niva | 0.35.0 |
+| QGIS | 4.0.3-Norrköping (40003) **and** 3.44.11-Solothurn (LTR) — both via OSGeo4W |
+| Python | 3.12.13 (OSGeo4W) |
+| OS / kernel | Windows 11 Pro · 10.0.26200 |
+| Architecture | x86\_64 (AMD64) |
+| Host | T14Gen3 |
+| RAM / CPU | 24 GB / 12 cores (Intel, Alder Lake) |
+| Geo stack | OSGeo4W: GDAL 3.13.1 · PROJ 9.8.1 · GEOS 3.14.1 · SpatiaLite 5.1.0 |
+| PostGIS | local PostgreSQL 18.4 / PostGIS 3.6.2, `localhost:5432/niva_test`, trust auth (test-only) |
+
+Per-suite results — **the same table holds for QGIS 4.0.3 and 3.44.11**:
+
+| Suite | Passed | Total | Result | Note |
+|---|---:|---:|---|---|
+| unit (full discover, under QGIS) | 457 | 457 | ✅ | 3 skipped (remote-gated); includes the 7 live PostGIS unit tests via `NIVA_TEST_PG` |
+| validation_suite | 41 | 41 | ✅ | |
+| validation_suite_2 | 41 | 41 | ✅ | |
+| validation_suite_3 | 41 | 41 | ✅ | |
+| portable_suite | 25 | 25 | ✅ | committed + generated data |
+| format_matrix_suite | 16 | 16 | ✅ | incl. PostGIS targets via `@localpg` |
+| numerical_suite | 21 | 21 | ✅ | |
+| round_trip_suite | 17 | 17 | ✅ | |
+| security_suite | 14 | 14 | ✅ | |
+| error_path_suite | 20 | 20 | ✅ | |
+| benchmark_suite | 25 | 25 | ✅ | metrics only; Windows RSS via `GetProcessMemoryInfo`, CPU via `os.times()` |
+| **TOTAL** | **718** | **718** | **✅ 100 %** | 3 skipped |
+
+#### Notes
+
+- Runs on **QGIS's own Python** via OSGeo4W `python-qgis.bat` (4.0.3) and `python-qgis-ltr.bat`
+  (3.44.11). Both interpreters are Python 3.12.13 and share one OSGeo4W geo stack; the only
+  difference is the QGIS version. niva reads each QGIS's **own** profile, so `@localpg` was
+  registered in both the `QGIS4` and `QGIS3` profiles (by running `make_data.py` under each).
+- **Cross-platform harness fixes (POSIX behaviour unchanged — every change guarded on `os.name`):**
+  - The suite runners hardcoded `/tmp/...` scratch dirs; the benchmark imported the Unix-only
+    `resource` module and used `os.sysconf` / `/proc`. They now fall back to the OS temp dir and to
+    ctypes (`GetProcessMemoryInfo`) + `os.times()` on Windows. On Linux/macOS the literal `/tmp`
+    paths and `getrusage`/`/proc` probes are preserved exactly.
+  - Windows-only **test-assertion** portability: QGIS `.source()` returns `/`-separated paths on
+    every OS (`test_pyqgis`); a Windows scratch path broke a `re.sub` replacement (`test_cascade`);
+    `~`-expansion leaves a mixed `\`/`/` separator that is functionally fine (`test_registry`).
+  - The validation runner reused one `_assess.gpkg`; on Windows the previous assessment's open
+    `QgsVectorLayer` locks the file, so `os.remove` raised `WinError 32` — now a unique scratch
+    file per `@`-assessment.
+- **niva code fix (helps every platform, surfaced on QGIS 3.x):** `PyqgisBackend.list_tables` now
+  filters SpatiaLite's internal metadata/virtual tables (KNN/KNN2, `ElementaryGeometries`,
+  `SpatialIndex`, `data_licenses`, the `*_geometry_columns` registries). QGIS 4 hides these, but
+  QGIS 3.44 listed `KNN2` and `data_licenses` as ordinary spatial layers, so `show @conn`
+  advertised them as loadable — the two `test_cascade` failures seen on 3.44. Now `show` lists only
+  real layers consistently across QGIS versions.
+- Data: `make_testdata.py` (portable fixtures incl. `.gdb`/`.kml`/`.jp2`/`_points.csv`),
+  `make_data.py` (file fixtures + the 7 hostile-name PostGIS fixtures), `make_bigdata.py`
+  (`bench.gpkg` + `bench_dem.tif`, scale=1.0). PostGIS pushed into a local PostgreSQL 18 designated
+  via `NIVA_PG_*`.
+- Per-suite timestamped reports written to `~/niva-test-results/`.
 
 ### 0.35.0 · macOS 26.5 · 2026-06-22
 

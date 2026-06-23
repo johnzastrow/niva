@@ -188,11 +188,14 @@ and a how-to-update template for adding new platforms).
 
 | Platform | OS | QGIS | Python | niva | Result | Date |
 |---|---|---|---|---|---|---|
+| Windows 11 · x86\_64 | 10.0.26200 | 4.0.3-Norrköping | 3.12.13 | 0.35.0 | ✅ 718/718 + 3 skip | 2026-06-23 |
+| Windows 11 · x86\_64 | 10.0.26200 | 3.44.11-Solothurn | 3.12.13 | 0.35.0 | ✅ 718/718 + 3 skip | 2026-06-23 |
 | macOS 26.5.1 · x86\_64 | Darwin 25.5.0 | 4.0.3-Norrköping | 3.12.11 | 0.35.0 | ✅ 715/715 + 3 skip | 2026-06-22 |
 | Linux 7.0 · x86\_64 | Linux 7.0.0 | 4.0.3-Norrköping | 3.14.4 | 0.35.0 | ✅ 718/718 + 10 skip | 2026-06-22 |
 | macOS 26.5.1 · x86\_64 | Darwin 25.5.0 | 4.0.3-Norrköping | 3.12.11 | 0.34.1 | ✅ 668/668 + 3 skip | 2026-06-22 |
 
-> Linux and Windows entries will appear here once runs are completed on those hosts.
+> Linux, macOS, and Windows all pass 0.35.0; Windows covers both the QGIS **4.0.3** and **3.44 LTR**
+> lines. See [`tests/TESTING_LOG.md`](tests/TESTING_LOG.md) for per-run detail.
 
 ## License
 

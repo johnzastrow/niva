@@ -214,7 +214,9 @@ class TestDiscoveryCascade(unittest.TestCase):
         import niva
 
         # Redirect ~/file saves into scratch — keeps test output out of the user's home dir.
-        flow = re.sub(r"\bsave ~/", f"save {self.scratch}/", flow)
+        # Use a function replacement so backslashes in a Windows scratch path (e.g. C:\Users\…)
+        # aren't misread as regex escapes (\U, \g, …) in the replacement string.
+        flow = re.sub(r"\bsave ~/", lambda _m: f"save {self.scratch}/", flow)
         m = re.search(r"\bsave\s+(\S+)", flow)
         target = m.group(1) if m else None
         cwd = os.getcwd()

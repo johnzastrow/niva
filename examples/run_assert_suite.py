@@ -35,6 +35,7 @@ import io
 import os
 import re
 import sys
+import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # find the sibling report module
 import _suite_report  # noqa: E402
@@ -42,7 +43,10 @@ import _suite_report  # noqa: E402
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _ARGS = [a for a in sys.argv[1:] if not a.startswith("--")]
 SUITE = os.path.abspath(_ARGS[0]) if _ARGS else ""
-TMP = "/tmp/niva_assert"
+# Scratch root: keep the exact POSIX path (`/tmp/niva_assert`) on Linux/macOS; on Windows
+# (no /tmp) fall back to the OS temp dir so the `{tmp}` token resolves to a real location.
+_SCRATCH_ROOT = "/tmp" if os.name != "nt" else tempfile.gettempdir()
+TMP = os.path.join(_SCRATCH_ROOT, "niva_assert")
 JDIR = os.path.join(TMP, "journal")
 # {data}/{testdata}/{examples} path tokens (see _suite_report.data_tokens) + {tmp} scratch, so
 # suites run unchanged on any clone. The portable suite uses {testdata}; others use {data}.
