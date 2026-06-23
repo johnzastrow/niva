@@ -52,6 +52,7 @@ One row per run, newest first. `Pass/Total` sums unit tests + all suite blocks f
 
 | Date (UTC) | niva | OS | QGIS | Python | Result | Pass / Total | Skip | Details |
 |---|---|---|---|---|---|---|---|---|
+| 2026-06-22 | 0.35.0 | macOS 26.5 · x86_64 | 4.0.3 | 3.12.11 | ✅ | 690 / 690 | 3 | [↓](#0350--macos-265--2026-06-22) |
 | 2026-06-22 | 0.35.0 | Linux 7.0 · x86_64 | 4.0.3 | 3.14.4 | ✅ | 718 / 718 | 10 | [↓](#0350--linux--2026-06-22) |
 | 2026-06-22 | 0.34.1 | macOS 26.5 · x86_64 | 4.0.3 | 3.12.11 | ✅ | 668 / 668 | 3 | [↓](#0341--macos-265--2026-06-22) |
 
@@ -59,12 +60,58 @@ One row per run, newest first. `Pass/Total` sums unit tests + all suite blocks f
 
 | Release | Linux · QGIS 4.0.3 | macOS 26.5 · QGIS 4.0.3 | Windows |
 |---|---|---|---|
-| 0.35.0 | ✅ 718/718 | — | — |
+| 0.35.0 | ✅ 718/718 | ✅ 690/690 | — |
 | 0.34.1 | — | ✅ 668/668 | — |
 
 ---
 
 ## 3. Run details
+
+### 0.35.0 · macOS 26.5 · 2026-06-22
+
+**Result: ✅ all tests passed (690/690, 3 skipped)**
+
+| Key | Value |
+|---|---|
+| Date (UTC) | 2026-06-22 |
+| niva | 0.35.0 |
+| QGIS | 4.0.3-Norrköping (40003) |
+| Python | 3.12.11 |
+| OS / kernel | Darwin / macOS 26.5.1 · 25.5.0 |
+| Architecture | x86\_64 |
+| Host | MacBookPro.localdomain |
+| RAM / CPU | 16 GB / 8 cores |
+| PostGIS | local `niva_test`, TCP `localhost:5432`, peer auth (`NIVA_TEST_PG`) |
+
+| Suite | Passed | Total | Result | Note |
+|---|---:|---:|---|---|
+| pytest (unit + integration) | 454 | 454 | ✅ | 3 skipped (remote-gated, expected) |
+| portable\_suite | 25 | 25 | ✅ | includes 4 new real GeoJSON/KMZ tests |
+| format\_matrix\_suite | 16 | 16 | ✅ | FileGDB/KML/CSV/JP2 → all stores; incl. PostGIS via `@localpg` |
+| numerical\_suite | 21 | 21 | ✅ | |
+| round\_trip\_suite | 17 | 17 | ✅ | |
+| security\_suite | 14 | 14 | ✅ | |
+| error\_path\_suite | 20 | 20 | ✅ | |
+| validation\_suite | 41 | 41 | ✅ | |
+| validation\_suite\_2 | 41 | 41 | ✅ | |
+| validation\_suite\_3 | 41 | 41 | ✅ | |
+| benchmark\_suite | n/a | — | — | not run — `make_bigdata.py` data not generated on this host |
+| **TOTAL** | **690** | **690** | **✅ 100 %** | 3 skipped |
+
+#### Notes
+
+- `examples/testdata/` regenerated with `make_testdata.py` to pick up the 0.35.0 additions
+  (`niva_testdata.gdb`, `.kml`, `.jp2`, `_points.csv`). Requires `PROJ_LIB` on macOS:
+  `PROJ_LIB=/Applications/QGIS-final-4_0_3.app/Contents/Resources/qgis/proj`.
+- `data/` regenerated with `make_data.py` (new 0.35.0 env-var interface for PostGIS creds:
+  `NIVA_PG_HOST`, `NIVA_PG_PORT`, `NIVA_PG_DB`, `NIVA_PG_USER`, `NIVA_PG_PASSWORD`).
+- `portable_suite` now uses `{testdata}` token (no longer needs to be run separately without
+  `NIVA_TESTDATA`); all suites can be run together.
+- `validation_suite` TEST 08 still uses `dem_clip.tif` passthrough (JP2 format tested via
+  `format_matrix_suite` TEST 04 instead, using the generated `niva_testdata.jp2`).
+- benchmark_suite skipped — `bench.gpkg` / `bench_dem.tif` were not generated (`make_bigdata.py`
+  not run); not a code failure.
+- Per-suite timestamped reports written to `~/niva-test-results/`.
 
 ### 0.35.0 · Linux · 2026-06-22
 
