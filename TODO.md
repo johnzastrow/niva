@@ -35,6 +35,30 @@ frame + world-file map).
   (`{name, kind, type, format, ref}`), `format_show`, and the DOCTYPE-refusing safe-XML path.
   See [`docs/planning/17-show-verb-design.md`](docs/planning/17-show-verb-design.md) §"Out of scope".
 
+## niva command history — `bash_history`-style record of executed flows (new scope)
+
+A rolling record of the niva **commands/flows the user runs**, analogous to `~/.bash_history` —
+distinct from, and *in addition to*, the per-run [journal](niva/journal.py) (`<base>.jsonl` /
+`<base>.log`, which records each *operation* of a single run at a caller-supplied path). The history
+is one persistent, append-only file across sessions, keyed to the user (not to a run), recording the
+flow text that was invoked so it can be recalled, re-run, or audited later.
+
+- [ ] **History file** — append the executed flow (and a UTC timestamp) to a single rolling file,
+  default `~/.niva/history` (overridable via env, e.g. `NIVA_HISTFILE`; honour a `NIVA_HISTSIZE`
+  cap / trim like the shell). Append on every CLI invocation and every `niva.flow(...)` /
+  `run_file(...)` call. Record the **flow text only** — never resolved parameter dicts, paths from
+  the journal, or credentials (same redaction discipline as the journal, `journal.py` line ~16).
+- [ ] **Opt-out** — a `--no-history` flag and an env toggle (e.g. `NIVA_HISTFILE=` empty or
+  `NIVA_NO_HISTORY=1`) to disable recording; document the privacy implication (flows may name file
+  paths / `@conn` names).
+- [ ] **Recall surface (later)** — a way to list / search recent flows (a `history` verb or a CLI
+  flag), and ideally re-run by index. Keep minimal first; the file itself is the MVP.
+- Two-tier tests: MockBackend asserts the history line is appended with the right flow text and no
+  secrets; a CLI test asserts the file is created/appended and that `--no-history` suppresses it.
+- Open questions: per-session vs. global file; how a multi-stage piped flow is recorded (one line
+  for the whole flow vs. per stage — likely one line for the whole flow, matching shell history);
+  interaction with the plugin (does a dock run also append?).
+
 ## Project & layer-file operations (new scope)
 
 All use a standalone `QgsProject()` / `QgsMapLayer` off the main thread (per
