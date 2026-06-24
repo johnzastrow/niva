@@ -59,39 +59,7 @@ Niva turns QGIS automation from PyQGIS code into a readable single lines of text
 
 ## Screenshots
 
-### Setup
-<img src="docs/screenshots/setup.png" width="250" alt="Plugin setup">
-*Install the plugin from ZIP and enable the niva toolbar button in QGIS.*
-
-### Run niva
-<img src="docs/screenshots/run_niva.png" width="250" alt="Run niva flow">
-*Enter a flow and execute it directly from the plugin UI.*
-
-### Export to PyQGIS
-<img src="docs/screenshots/export_to_pyqis.png" width="250" alt="Export to PyQGIS">
-*Export a flow to a standalone PyQGIS script for automation or sharing.*
-
-### niva panel
-<img src="docs/screenshots/dot_niva.png" width="250" alt="niva plugin panel">
-*The niva plugin integrates commands and workflow controls into QGIS.*
-
-### ntify notifications
-<img src="docs/screenshots/ntfy.jpg" width="250" alt="niva plugin panel">
-*The niva plugin integrates commands and workflow controls into QGIS.*
-
-### CLI — `info`
-<img src="docs/screenshots/cli1.png" width="250" alt="niva info on the command line">
-*`niva info` reports the environment: the built-in and aliased verbs, the reachable algorithms, and the registered `@conn` connections per QGIS profile.*
-
-### CLI — `show`
-<img src="docs/screenshots/cli2.png" width="250" alt="niva show on the command line">
-*`niva show @basemap.gpkg` lists the loadable layers at a location — with ready-to-`load` sources and copy-paste example flows.*
-
-### CLI — `describe` and a flow run
-<img src="docs/screenshots/cli3.png" width="500" alt="niva describe and a flow run on the command line">
-*Left: `niva describe buffer` shows the verb → algorithm mapping (args, options, flags). Right: a full flow (`load | reproject | buffer | save`) running with per-stage progress.*
-
-
+niva in the QGIS plugin dock and on the command line — see **[docs/screenshots.md](docs/screenshots.md)**.
 
 ## Quick start
 
@@ -196,22 +164,11 @@ niva.flow('load "data.gpkg|layername=roads" | buffer 100m dissolve | save out.gp
 attached to the [latest release](https://github.com/johnzastrow/niva/releases/latest); rebuild
 with `python3 scripts/build_guide_pdf.py`, which needs `pandoc` + a LaTeX engine).
 
-## Tested platforms
+## Testing
 
-The table below records platforms where the full test suite has been run against a release.
-See [`tests/TESTING_LOG.md`](tests/TESTING_LOG.md) for per-run details (suite counts, notes,
-and a how-to-update template for adding new platforms).
-
-| Platform | OS | QGIS | Python | niva | Result | Date |
-|---|---|---|---|---|---|---|
-| Windows 11 · x86\_64 | 10.0.26200 | 4.0.3-Norrköping | 3.12.13 | 0.35.0 | ✅ 718/718 + 3 skip | 2026-06-23 |
-| Windows 11 · x86\_64 | 10.0.26200 | 3.44.11-Solothurn | 3.12.13 | 0.35.0 | ✅ 718/718 + 3 skip | 2026-06-23 |
-| macOS 26.5.1 · x86\_64 | Darwin 25.5.0 | 4.0.3-Norrköping | 3.12.11 | 0.35.0 | ✅ 715/715 + 3 skip | 2026-06-22 |
-| Linux 7.0 · x86\_64 | Linux 7.0.0 | 4.0.3-Norrköping | 3.14.4 | 0.35.0 | ✅ 718/718 + 10 skip | 2026-06-22 |
-| macOS 26.5.1 · x86\_64 | Darwin 25.5.0 | 4.0.3-Norrköping | 3.12.11 | 0.34.1 | ✅ 668/668 + 3 skip | 2026-06-22 |
-
-> Linux, macOS, and Windows all pass 0.35.0; Windows covers both the QGIS **4.0.3** and **3.44 LTR**
-> lines. See [`tests/TESTING_LOG.md`](tests/TESTING_LOG.md) for per-run detail.
+Tested on Linux, macOS, and Windows (QGIS 4.0.3 and 3.44 LTR) — full platform table, how to run
+the suite, and the test `.niva`-companion rule are in **[docs/testing.md](docs/testing.md)**.
+Per-run detail lives in [`tests/TESTING_LOG.md`](tests/TESTING_LOG.md).
 
 ## License
 
