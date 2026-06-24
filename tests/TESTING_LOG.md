@@ -52,6 +52,7 @@ One row per run, newest first. `Pass/Total` sums unit tests + all suite blocks f
 
 | Date (UTC) | niva | OS | QGIS | Python | Result | Pass / Total | Skip | Details |
 |---|---|---|---|---|---|---|---|---|
+| 2026-06-24 | 0.35.1 | macOS 26.5 · arm64 | 4.0.3 | 3.12.11 | ✅ | 718 / 718 | 3 | [↓](#0351--macos-265--2026-06-24) |
 | 2026-06-23 | 0.35.1 | Linux 7.0 · x86_64 | 4.0.3 | 3.14.4 | ✅ | 718 / 718 | 10 | [↓](#0351--linux--2026-06-23) |
 | 2026-06-23 | 0.35.0 | Windows 11 · x86_64 | 4.0.3 | 3.12.13 | ✅ | 718 / 718 | 3 | [↓](#0350--windows-11--2026-06-23) |
 | 2026-06-23 | 0.35.0 | Windows 11 · x86_64 | 3.44.11 | 3.12.13 | ✅ | 718 / 718 | 3 | [↓](#0350--windows-11--2026-06-23) |
@@ -63,13 +64,69 @@ One row per run, newest first. `Pass/Total` sums unit tests + all suite blocks f
 
 | Release | Linux · QGIS 4.0.3 | macOS 26.5 · QGIS 4.0.3 | Windows 11 · QGIS 4.0.3 / 3.44.11 |
 |---|---|---|---|
-| 0.35.1 | ✅ 718/718 | — | — |
+| 0.35.1 | ✅ 718/718 | ✅ 718/718 (arm64) | — |
 | 0.35.0 | ✅ 718/718 | ✅ 715/715 | ✅ 718/718 (both QGIS) |
 | 0.34.1 | — | ✅ 668/668 | — |
 
 ---
 
 ## 3. Run details
+
+### 0.35.1 · macOS 26.5 · 2026-06-24
+
+**Result: ✅ all tests passed (718/718, 3 skipped)** — the **first Apple-Silicon (arm64) macOS run**
+in this log (prior macOS entries were x86_64) and the first macOS run of 0.35.1. Matches the
+Windows/Linux 0.35.1 totals byte-for-byte; the live PostGIS tier ran (3 skipped, not 10), so the
+arm64 macOS build of QGIS 4 reaches a local PostgreSQL 18 / PostGIS 3.6 cleanly.
+
+| Key | Value |
+|---|---|
+| Date (UTC) | 2026-06-24 |
+| niva | 0.35.1 |
+| QGIS | 4.0.3-Norrköping (40003) |
+| Python | 3.12.11 |
+| OS / kernel | Darwin / macOS 26.5.1 · 25.5.0 |
+| Architecture | arm64 (Apple Silicon) |
+| Host | Marisas-iMac.local |
+| RAM / CPU | 24 GB / 10 cores (Apple M4) |
+| Geo stack | QGIS bundle: GDAL 3.12.0 · PROJ 9.7.1 · GEOS 3.14.1 |
+| PostGIS | local PostgreSQL 18.4 / PostGIS 3.6.4, `niva_test`, unix-socket peer auth (`NIVA_TEST_PG` / `@localpg`) |
+
+| Suite | Passed | Total | Result | Note |
+|---|---:|---:|---|---|
+| unit (full discover, under QGIS) | 457 | 457 | ✅ | 3 skipped (remote-gated); includes the 7 live PostGIS unit tests via `NIVA_TEST_PG` |
+| validation_suite | 41 | 41 | ✅ | |
+| validation_suite_2 | 41 | 41 | ✅ | |
+| validation_suite_3 | 41 | 41 | ✅ | |
+| portable_suite | 25 | 25 | ✅ | committed + generated data |
+| format_matrix_suite | 16 | 16 | ✅ | incl. PostGIS targets via `@localpg` |
+| numerical_suite | 21 | 21 | ✅ | |
+| round_trip_suite | 17 | 17 | ✅ | |
+| security_suite | 14 | 14 | ✅ | |
+| error_path_suite | 20 | 20 | ✅ | |
+| benchmark_suite | 25 | 25 | ✅ | metrics only; all blocks ran clean on generated `bench.*` |
+| **TOTAL** | **718** | **718** | **✅ 100 %** | 3 skipped |
+
+#### Notes
+
+- Ran on **QGIS's own Python** via the `.app` wrapper
+  (`/Applications/QGIS-final-4_0_3.app/Contents/MacOS/python`), which sets `PYTHONHOME` to the
+  bundled Frameworks. macOS needs `PROJ_DATA`/`PROJ_LIB` and `GDAL_DATA` pointed at
+  `…/Contents/Resources/qgis/{proj,gdal}` to silence the PROJ/GDAL data-dir warnings; with them set,
+  `make_testdata.py`/`make_bigdata.py`/`make_data.py` and all suites run clean.
+- **PostGIS provisioning from scratch on this host:** installed `postgis` + `postgresql@18` via
+  Homebrew (PostgreSQL 18.4 / PostGIS 3.6.4), `createdb niva_test`,
+  `CREATE EXTENSION postgis`. Local **peer/socket** auth: `NIVA_PG_HOST=""` (empty) so QGIS connects
+  via the unix socket as the OS user — no password in `pg_hba`. `make_data.py` pushed all 7
+  hostile-name fixtures (`My Roads`, `café points`, `Mixed.Case.Dots`, `select`, `123_leading`,
+  `name-with-dash#hash`, `two_geoms`) into `@localpg`.
+- `make_data.py` prints a `mutex lock failed` line from `libc++abi` **at interpreter teardown** —
+  after every fixture is written and committed (verified via `psql \dt` + the populated `data/`).
+  It's a known QGIS-on-exit teardown crash, not a data error; the same data drives the green suites.
+- Data: `examples/testdata/` (`make_testdata.py`: gpkg/dem/sqlite/kml/.gdb/.jp2/`_points.csv`),
+  `data/` (`make_data.py`), benchmark `bench.gpkg` + `bench_dem.tif` (`make_bigdata.py`, scale=1.0).
+  All suites run together with `NIVA_TESTDATA` set.
+- Per-suite timestamped reports written to `~/niva-test-results/`.
 
 ### 0.35.1 · Linux · 2026-06-23
 
