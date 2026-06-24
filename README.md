@@ -75,6 +75,18 @@ Niva turns QGIS automation from PyQGIS code into a readable single lines of text
 <img src="docs/screenshots/ntfy.jpg" width="250" alt="niva plugin panel">
 *The niva plugin integrates commands and workflow controls into QGIS.*
 
+### CLI — `info`
+<img src="docs/screenshots/cli1.png" width="250" alt="niva info on the command line">
+*`niva info` reports the environment: the built-in and aliased verbs, the reachable algorithms, and the registered `@conn` connections per QGIS profile.*
+
+### CLI — `show`
+<img src="docs/screenshots/cli2.png" width="250" alt="niva show on the command line">
+*`niva show @basemap.gpkg` lists the loadable layers at a location — with ready-to-`load` sources and copy-paste example flows.*
+
+### CLI — `describe` and a flow run
+<img src="docs/screenshots/cli3.png" width="500" alt="niva describe and a flow run on the command line">
+*Left: `niva describe buffer` shows the verb → algorithm mapping (args, options, flags). Right: a full flow (`load | reproject | buffer | save`) running with per-stage progress.*
+
 
 
 ## Quick start
