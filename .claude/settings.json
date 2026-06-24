@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if grep -qE 'tests/test_[A-Za-z0-9_]+\\.py'; then cd \"$CLAUDE_PROJECT_DIR\" 2>/dev/null && python3 scripts/gen_test_niva.py >/dev/null 2>&1; fi; exit 0"
+          }
+        ]
+      }
+    ]
+  }
+}
