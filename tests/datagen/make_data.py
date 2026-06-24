@@ -28,7 +28,7 @@ from pathlib import Path
 
 REPO     = Path(__file__).parent.parent.parent
 TESTDATA = REPO / "tests" / "datagen" / "testdata"
-EX_GPKG  = REPO / "examples" / "example.gpkg"  # the seed dataset stays with the examples
+EX_GPKG  = REPO / "examples" / "data" / "example.gpkg"  # the seed dataset stays with the examples
 DATA     = REPO / "data"
 
 # The PostGIS instance is DESIGNATED BY THE USER via environment variables, so the fixtures can

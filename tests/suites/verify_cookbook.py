@@ -21,7 +21,7 @@ from niva.engine.pyqgis import ensure_qgis
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 DEMO = f"{ROOT}/examples/demo"
 V = f"{DEMO}/demo.gpkg"  # all demo vectors live in one GeoPackage (layername=…)
-EX = f"{ROOT}/examples/example.gpkg"
+EX = f"{ROOT}/examples/data/example.gpkg"
 OUT = tempfile.mkdtemp(prefix="niva_verify_")
 
 # (id, section, flow) — {OUT} is filled per recipe; paths point at the demo data.

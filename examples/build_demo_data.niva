@@ -11,7 +11,7 @@
 # the cookbook reads). Rasters, CSVs, the SpatiaLite DB, the project and the style
 # are separate files. So: a handful of files, not dozens.
 #
-# Sources (author-local): examples/example.gpkg (25-layer Youngstown GeoPackage)
+# Sources (author-local): examples/data/example.gpkg (25-layer Youngstown GeoPackage)
 # and ~/Downloads/ytown_dem.tif (a 1 m DEM). Study area: the AOISM polygon
 # (EPSG:6346). LiDAR and PostGIS are built by build_demo_lidar.niva /
 # build_demo_postgis.niva.
@@ -26,7 +26,7 @@
 # --- Task 1: every source layer into ONE GeoPackage (reprojected to EPSG:6346) -
 # `each` over the source container writes one layer per source layer into demo.gpkg;
 # a layer that can't be reprojected/written (no geometry, odd type) is skipped.
-each "~/Github/niva/examples/example.gpkg" | reproject EPSG:6346 | save "~/Github/niva/examples/demo/demo.gpkg"
+each "~/Github/niva/examples/data/example.gpkg" | reproject EPSG:6346 | save "~/Github/niva/examples/demo/demo.gpkg"
 
 # --- Task 2: enhanced + friendly-named layers, into the SAME GeoPackage ---------
 # Add synthetic columns and a couple of derived/aliased layers. `parcels` is

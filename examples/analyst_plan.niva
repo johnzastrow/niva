@@ -57,7 +57,7 @@ notify "niva: Task 2 done — data sources catalogued ({elapsed} elapsed)"
 # `fixgeom` needed here. (Any raster encountered by `reproject` is skipped — see below.)
 each "~/Downloads/NiagaraBasemap"  | reproject EPSG:6346 | save "~/Github/niva/data/basemap.gpkg"
 each "~/Downloads/NiagaraOverture" | reproject EPSG:6346 | save "~/Github/niva/data/overture.gpkg"
-each "~/Github/niva/examples/example.gpkg" | reproject EPSG:6346 | save "~/Github/niva/data/collected.gpkg"
+each "~/Github/niva/examples/data/example.gpkg" | reproject EPSG:6346 | save "~/Github/niva/data/collected.gpkg"
 
 # Single rasters -> reprojected copies (GeoTIFF output is lossless-compressed).
 load "~/Downloads/ytown_dem_deflate.tif" | warp EPSG:6346 | save "~/Github/niva/data/dem.tif"
@@ -75,7 +75,7 @@ notify "niva: Task 3 done — reprojected/warped to EPSG:6346 ({elapsed} elapsed
 # --- Task 4: clip everything in /data to the study-area bbox (AOISM) ---------
 
 # Build the study-area bounding box once (dissolve AOISM to one feature -> its bbox):
-load "~/Github/niva/examples/example.gpkg|layername=AOISM" | dissolve | boundingbox | save "~/Github/niva/data/study_area_bbox.gpkg"
+load "~/Github/niva/examples/data/example.gpkg|layername=AOISM" | dissolve | boundingbox | save "~/Github/niva/data/study_area_bbox.gpkg"
 
 # Clip every layer of each reprojected GeoPackage to that bbox (batch + per-layer).
 # `fixgeom` again guards the typed clip output against any stray collection geometry.

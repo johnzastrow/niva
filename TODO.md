@@ -36,7 +36,7 @@ graphical outputs (the `figure` verb below) render **inline in a cell** — not 
 A final-step verb that renders a **map figure** (PNG / PDF / SVG) from a flow's outputs using a
 QGIS **print-layout template** (`.qpt`), so a `.niva` run can produce report-ready deliverables
 directly. Fixture / default template committed at
-[`examples/layout_template.qpt`](examples/layout_template.qpt) (`StandardLayout`, 300 dpi, a map
+[`examples/data/layout_template.qpt`](examples/data/layout_template.qpt) (`StandardLayout`, 300 dpi, a map
 frame + world-file map).
 
 - [ ] **`figure` verb (working name)** — terminal / pass-through. Sketch:
@@ -45,7 +45,7 @@ frame + world-file map).
   §3 and `16`), bind the flow's current layer(s) — and earlier `save` outputs — into the layout's
   map item(s), set the map extent to the data (or a bookmark), stamp an optional title, and export
   via `QgsLayoutExporter` (`exportToImage` / `exportToPdf` / `exportToSvg`). Default template =
-  `examples/layout_template.qpt`, else resolve by name like project templates
+  `examples/data/layout_template.qpt`, else resolve by name like project templates
   (`$NIVA_TEMPLATES` / `~/.niva/templates`).
 - [ ] **Inline in marimo** — `figure` must also expose its rendered image as a value a marimo cell
   can display (not only write to disk). See the "marimo integration" section above — this is the
