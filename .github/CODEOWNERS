@@ -1,0 +1,4 @@
+# Every change requires review by the maintainer. Combined with branch protection's
+# "require review from Code Owners", this makes an unreviewed merge into `main`
+# impossible — the core defence against injected code.
+*       @johnzastrow

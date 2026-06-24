@@ -1,0 +1,23 @@
+# Keep the supply chain current so a pinned-but-stale action or dev dependency
+# doesn't quietly become a known-vulnerable foothold. niva has ZERO runtime
+# dependencies, so the surface here is just GitHub Actions + the `[dev]` extra.
+version: 2
+updates:
+  # GitHub Actions — bumps the SHA-pinned `uses:` refs (and keeps the # vX comment
+  # accurate) when a new release ships, so pinning never means rotting.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: ci
+
+  # Python dev tooling (pytest, ruff) declared in pyproject's [dev] extra.
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: deps
