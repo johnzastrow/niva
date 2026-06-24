@@ -54,3 +54,23 @@ This is enforced two ways, so the companions never drift:
 
 The companions are *illustrative, not runnable* — flows lifted from f-strings keep their
 `{python}` placeholders, which is honest about what the test actually runs.
+
+### Two kinds of test file — don't confuse them
+
+niva has tests in two places, and only one kind gets a generated companion:
+
+| Where | What it is | Companion |
+|---|---|---|
+| **`tests/test_*.py`** | Python `unittest` modules (grammar, engine, binder, search, the live-QGIS tier) | **generated** → `tests/niva/<module>.niva` by `gen_test_niva.py` |
+| **`examples/*_suite*.niva`** | Suites written *directly in niva*, run by `run_*_suite.py` (validation, portable, numerical, round-trip, security, error-path, format-matrix, benchmark) | already niva — they *are* the readable artifact |
+
+So the answer to "where is the `.niva` for `validation_suite_3`?" is: it **is**
+[`examples/validation_suite_3.niva`](../examples/validation_suite_3.niva) — there's nothing to
+generate, the suite is niva to begin with.
+
+The **validation** suites additionally ship a pure, `niva run`-able companion
+(`<suite>.run.niva`) with the test directives (`#@out`, `#@cleanup`) stripped, emitted by
+`run_validation_suite.py --emit`. Those are **generated**, so they're under the same drift rule —
+regenerate with `python scripts/gen_run_niva.py` (also run by the CI job and the Claude Code hook).
+The assert and benchmark suites use ordinary niva comments, so they're directly runnable and have
+no generated companion.

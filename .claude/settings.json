@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "if grep -qE 'tests/test_[A-Za-z0-9_]+\\.py'; then cd \"$CLAUDE_PROJECT_DIR\" 2>/dev/null && python3 scripts/gen_test_niva.py >/dev/null 2>&1; fi; exit 0"
+            "command": "p=$(cat); cd \"$CLAUDE_PROJECT_DIR\" 2>/dev/null || exit 0; printf '%s' \"$p\" | grep -qE 'tests/test_[A-Za-z0-9_]+\\.py' && python3 scripts/gen_test_niva.py >/dev/null 2>&1; printf '%s' \"$p\" | grep -qE 'examples/[A-Za-z0-9_]+_suite[A-Za-z0-9_]*\\.niva' && python3 scripts/gen_run_niva.py >/dev/null 2>&1; exit 0"
           }
         ]
       }
