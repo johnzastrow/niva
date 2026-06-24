@@ -51,7 +51,7 @@ Verbs fall into three behavioural classes:
 |---|---|---|
 | **Producing** | returns a new layer to pipe onward | `load`, `run`, `split`, `sql` (SELECT), and every alias verb |
 | **Pass-through** | returns the upstream layer unchanged, so it chains | `save`, `assess`, `metadata`, `style`, `notify`, `email` |
-| **Terminal** | returns nothing; a following stage is an error | `catalog`, `show`, `info`, `describe`, `project`, `sql` (write) |
+| **Terminal** | returns nothing; a following stage is an error | `catalog`, `show`, `info`, `describe`, `search`, `docs`, `project`, `sql` (write) |
 
 A flow normally begins with `load` (or `run`/`sql`, which produce a layer), or with `each`
 to run the rest of the flow once per dataset in a directory/glob/container.
@@ -65,8 +65,8 @@ running (the QGIS plugin dock, the CLI, or the Python API):
    it with `save`; in the plugin the flow's final layer is also added to the map and summarised
    ("done — <path>, N feature(s)").
 
-2. **A report** (the verbs that exist to *tell you something*: `show`, `info`, `describe`). The
-   **same report text** is routed to one of three sinks:
+2. **A report** (the verbs that exist to *tell you something*: `show`, `info`, `describe`,
+   `search`, `docs`). The **same report text** is routed to one of three sinks:
    - **`to=<file>`** — written to that text file, plus a one-line `… → <file>` status. This is how
      you capture a reply in a file from the CLI: `niva describe buffer to=buffer.md`,
      `niva "show @gisdb3.public to=tables.md"`, `niva info to=env.md`.
@@ -424,22 +424,62 @@ describe <verb|algorithm-id> [to=<report.md>]
 ```
 
 Shows how a niva verb maps to its QGIS algorithm — positional args, options (with defaults and
-enum values), and flags — so the mapping is discoverable. Given an **algorithm id** (anything
-containing `:`, e.g. `native:buffer`, `gdal:warpreproject`) it introspects the *live* algorithm's
-parameters and outputs, which makes the `run <id> KEY=value` escape hatch (see §6) discoverable:
-describe an algorithm, then `run` it. Describing a verb is pure (no QGIS needed); describing an
-algorithm id needs QGIS's Python. With `to=` the report is written to a file; otherwise it streams
-to the plugin dock or prints to stdout (see "Where verb output goes" in §1).
+enum values), flags, and a **runnable example** (a curated one for common verbs, otherwise one
+synthesised from the signature). Given an **algorithm id** (anything containing `:`, e.g.
+`native:buffer`, `gdal:warpreproject`) it introspects the *live* algorithm's parameters and
+outputs, and ends with a synthesised `run <id> …` example — making the `run <id> KEY=value` escape
+hatch (see §6) discoverable: describe an algorithm, then `run` it. Describing a verb is pure (no
+QGIS needed); describing an algorithm id needs QGIS's Python. With `to=` the report is written to a
+file; otherwise it streams to the plugin dock or prints to stdout (see "Where verb output goes" in
+§1).
 
 ```
-describe buffer                      # the buffer verb → native:buffer, its options & flags
-describe gdal:warpreproject          # a live algorithm's parameters
+describe buffer                      # the buffer verb → native:buffer, options, flags, example
+describe gdal:warpreproject          # a live algorithm's parameters + a run example
 describe buffer to=buffer.md         # capture the report to a file
 ```
 
 `describe` runs both as a flow stage (so it works inside the QGIS plugin dock and mid-script) and
 as the `niva describe <verb-or-algorithm-id> [to=<file>]` CLI subcommand (which works without QGIS
 for a verb).
+
+### `search` — find verbs and algorithms by keyword *(terminal)*
+
+```
+search <keyword> [to=<report.md>]
+```
+
+Fuzzy-searches everything niva knows about every function — niva verb names, summaries, options
+and flags; the built-in verbs; and the **live QGIS algorithm catalog** (id, display name, group,
+description, 1000+ algorithms) — and lists the ranked matches (name · kind · score · summary). The
+match is tolerant: substrings, token prefixes, and `difflib` similarity all count, so a typo or a
+partial word still finds things. A multi-word keyword is OR-matched (`search "raster reproject"`
+finds anything about rasters *or* reprojection). Needs QGIS (it reads the live catalog).
+
+```
+search reproject                     # verbs + algorithms related to reprojection
+search "raster slope" to=hits.md     # save the ranked list
+```
+
+Then run `describe <name>` for any single result, or `docs <keyword>` to get the full reference of
+every match at once.
+
+### `docs` — build a mini-guide for a keyword *(terminal)*
+
+```
+docs <keyword> [to=<report.md>]
+```
+
+Fuzzy-searches like `search`, then emits the **full `describe`** (args, options, flags, example)
+for *every* match, concatenated — a made-to-order reference for whatever you're doing in the
+moment. With `to=<file>` you get your own task-specific guide as a Markdown file. (This is the
+combined "search → describe → file" workflow as one verb, since niva's pipe carries a layer, not a
+list of names.) Needs QGIS.
+
+```
+docs buffer                          # full reference for every buffer-related function
+docs "raster terrain" to=terrain_guide.md   # a saved guide for terrain work
+```
 
 ### `project` — manipulate QGIS project files *(terminal)*
 

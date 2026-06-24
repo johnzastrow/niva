@@ -54,6 +54,8 @@ class Alias:
     verb: str
     algorithm: str
     summary: str = ""
+    example: str = ""  # a realistic, complex one-liner shown by `describe`/`docs`; if
+    # empty, describe synthesises one from the signature (see niva.describe._example_for).
     primary_input: str = "INPUT"
     primary_output: str = "OUTPUT"
     args: list = field(default_factory=list)

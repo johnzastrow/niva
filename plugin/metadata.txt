@@ -4,7 +4,7 @@ qgisMinimumVersion=3.22
 qgisMaximumVersion=4.99
 supportsQt6=True
 description=Run niva flows — a concise text pipeline for QGIS geoprocessing — from a dock.
-version=0.36.0
+version=0.37.0
 author=John Zastrow
 email=br8kwall@gmail.com
 about=niva is a concise, readable text-pipeline grammar for QGIS geoprocessing
@@ -25,7 +25,10 @@ deprecated=False
 # one-line summary for the new version here, mirroring the top entry of ../CHANGELOG.md (the
 # repo file stays the full history; this field is just the highlights). Drop the oldest line
 # so it never grows past ~2 entries. Continuation lines MUST stay indented (like `about=`).
-changelog=0.36.0 — Added: `describe` now runs as a flow verb (works in the dock and mid-script),
+changelog=0.37.0 — Added: `search <keyword>` (fuzzy-find verbs + the live QGIS algorithm catalog)
+    and `docs <keyword>` (full describe of every match → your own mini-guide). `describe` now ends
+    with a runnable example (curated or synthesised) and covers built-in verbs too.
+    0.36.0 — Added: `describe` now runs as a flow verb (works in the dock and mid-script),
     and any report can be captured with `to=<file>`. Changed: show/info/describe emit text the
     same way (file / dock / stdout); assess/style/metadata now confirm their action.
     0.35.1 — Fixed: `show` no longer lists SpatiaLite's internal tables (KNN/KNN2,

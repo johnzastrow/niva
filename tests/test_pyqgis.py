@@ -171,6 +171,40 @@ class TestPyqgisBackend(unittest.TestCase):
         self.assertIn("parameters:", out)
         self.assertIn("outputs:", out)
 
+    def test_describe_algorithm_example_is_runnable(self):
+        # The synthesised `run <id> …` example for a live algorithm must parse + execute.
+        import niva
+        from niva.engine import Engine, MockBackend
+        from niva.grammar import parse
+
+        out = niva.describe("native:buffer")
+        self.assertIn("example:", out)
+        example = [ln.strip() for ln in out.splitlines()
+                   if ln.strip().startswith("load ")][-1]
+        self.assertIn("run native:buffer", example)
+        Engine(MockBackend()).execute(parse(example))  # runnable over the mock
+
+    def test_search_finds_live_algorithms(self):
+        # `search` over the LIVE catalog surfaces algorithm ids, not just niva verbs.
+        from niva.engine.pyqgis import PyqgisBackend
+        from niva.search import search
+
+        hits = search("reproject", algorithms=PyqgisBackend().algorithm_catalog())
+        names = [h.name for h in hits]
+        self.assertIn("reproject", names)               # the niva verb
+        self.assertTrue(any(":" in n for n in names))   # at least one live algorithm id
+
+    def test_docs_verb_writes_a_guide(self):
+        import niva
+
+        out = os.path.join(self.tmp, "guide.md")
+        niva.flow(f"docs buffer to={out}")
+        self.assertTrue(os.path.exists(out))
+        text = open(out, encoding="utf-8").read()
+        self.assertIn("Reference for `buffer`", text)
+        self.assertIn("## `buffer`", text)            # the verb, fully described
+        self.assertIn("native:buffer", text)          # a live algorithm match, too
+
     def test_assess_deep_real_layer(self):
         import niva
 

@@ -33,10 +33,15 @@ def _run(text, *, progress=None):
 
 
 # (verb label, flow text, a substring that must appear in the report, the to= status label)
+# `search`/`docs` use the keyword "dissolve": it matches the dissolve VERB but none of the
+# algorithm ids in MockBackend.algorithm_catalog(), so docs introspects only the pure verb
+# (no QGIS bootstrap) — keeping these routing tests fast and QGIS-free.
 REPORT_VERBS = [
-    ("show",     "show @pg",        "Data at",           "listed"),
-    ("info",     "info",            "niva — environment", "environment report"),
-    ("describe", "describe buffer", "buffer",            "description"),
+    ("show",     "show @pg",          "Data at",            "listed"),
+    ("info",     "info",              "niva — environment",  "environment report"),
+    ("describe", "describe buffer",   "buffer",             "description"),
+    ("search",   "search dissolve",   "dissolve",           "match(es)"),
+    ("docs",     "docs dissolve",     "dissolve",           "docs for"),
 ]
 
 

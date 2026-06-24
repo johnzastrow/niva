@@ -11,6 +11,31 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.37.0] - 2026-06-24
+
+### Added
+- **`search <keyword>` verb** — fuzzy-find functions by keyword across *everything niva knows*:
+  niva verb names/summaries/options/flags, the built-in verbs, and the **live QGIS algorithm
+  catalog** (id, display name, group, description). Tolerant matching (substring, token-prefix,
+  `difflib` similarity); multi-word keywords are OR-matched. Lists ranked matches (name · kind ·
+  score · summary). Terminal report verb with `to=<file>`.
+- **`docs <keyword>` verb** — fuzzy-search, then emit the **full `describe`** (args, options,
+  flags, example) for *every* match, concatenated — a made-to-order mini-guide for the task at
+  hand. `to=<file>` saves it. This is the "search → describe → file" workflow as one verb (niva's
+  pipe carries a layer, not a list of names). Terminal report verb.
+- **`describe` now ends with a runnable example.** Verbs carry a curated, complex example
+  (`buffer`, `clip`, `reproject`, `filter`, `join`, `spatialjoin`, `zonalstats`, `warp`, …); the
+  rest get one synthesised from the signature. Algorithm descriptions get a synthesised
+  `run <id> …` example. Every shipped example is **executed in CI** (`tests/test_describe.py`) so a
+  broken example fails the build.
+- **`describe` now covers built-in verbs too** (`load`, `save`, `sql`, `show`, `info`, `notify`,
+  `each`, …) — each with a one-line summary and example — so `describe`/`search`/`docs` span the
+  whole verb surface, not just the alias registry.
+
+### Changed
+- The example, search, and docs reports all flow through the same `_emit_report` routing added in
+  0.36.0, so they emit text the same way (file / dock / stdout) as `show`/`info`/`describe`.
+
 ## [0.36.0] - 2026-06-24
 
 ### Added
@@ -1645,6 +1670,7 @@ CLI and a `niva.flow()` Python API; near-zero runtime dependencies.
 - This changelog.
 
 [Unreleased]: https://github.com/johnzastrow/niva/commits/main
+[0.37.0]: https://github.com/johnzastrow/niva/releases/tag/v0.37.0
 [0.36.0]: https://github.com/johnzastrow/niva/releases/tag/v0.36.0
 [0.35.1]: https://github.com/johnzastrow/niva/releases/tag/v0.35.1
 [0.35.0]: https://github.com/johnzastrow/niva/releases/tag/v0.35.0

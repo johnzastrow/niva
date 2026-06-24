@@ -355,9 +355,10 @@ class Engine:
     # here plus its `_<verb>` method — see docs/planning/16-anatomy-of-a-verb.md.
     #
     # OUTPUT ROUTING — every verb's text reaches the dock and the CLI the SAME way:
-    #   - Report verbs (show, info, describe) call `self._emit_report(report, to=…, label=…)`
-    #     — the single helper that writes to a `to=<file>`, else streams to the dock
-    #     (progress set), else prints to stdout. They all behave identically by construction.
+    #   - Report verbs (show, info, describe, search, docs) call
+    #     `self._emit_report(report, to=…, label=…)` — the single helper that writes to a
+    #     `to=<file>`, else streams to the dock (progress set), else prints to stdout. They
+    #     all behave identically by construction.
     #   - Verbs that always write to a file (catalog, assess, project info) and action verbs
     #     (style, metadata, notify, email, remove) call `self._emit(line)` for their
     #     "<did this> → <path>" status, so it shows in the dock and the CLI alike.
@@ -375,6 +376,8 @@ class Engine:
         "show":     lambda self, stage, current, lineage: self._show(stage),
         "info":     lambda self, stage, current, lineage: self._info(stage),
         "describe": lambda self, stage, current, lineage: self._describe(stage),
+        "search":   lambda self, stage, current, lineage: self._search(stage),
+        "docs":     lambda self, stage, current, lineage: self._docs(stage),
         "project":  lambda self, stage, current, lineage: self._project(stage),
         "style":    lambda self, stage, current, lineage: self._style(stage, current),
         "split":    lambda self, stage, current, lineage: self._split(stage, current),
@@ -1148,6 +1151,43 @@ class Engine:
 
         report = describe_report(stage.args[0])
         self._emit_report(report, to=stage.options.get("to"), label="description")
+        return None  # terminal
+
+    def _discovery_keyword(self, stage, verb: str) -> str:
+        """Validate `search`/`docs`: exactly one keyword arg, only `to=` allowed."""
+        unknown = set(stage.options) - {"to"}
+        if len(stage.args) != 1 or unknown:
+            raise FlowError(
+                f"`{verb}` takes one keyword (plus optional `to=<file>`): "
+                f'`{verb} buffer` or `{verb} "raster reproject" to=out.md`',
+                line=stage.line, stage=stage.raw,
+            )
+        return stage.args[0]
+
+    def _search(self, stage) -> Layer | None:
+        """`search <keyword> [to=<file>]` — fuzzy-find niva verbs and QGIS algorithms by
+        keyword (matched against name, summary, options, and the algorithm id/group/
+        description). Lists the ranked matches; run `describe`/`docs` for the detail.
+        Terminal report verb (routes via _emit_report)."""
+        keyword = self._discovery_keyword(stage, "search")
+        from ..search import format_results, search
+
+        hits = search(keyword, algorithms=self.backend.algorithm_catalog())
+        self._emit_report(format_results(keyword, hits), to=stage.options.get("to"),
+                          label=f"{len(hits)} match(es)")
+        return None  # terminal
+
+    def _docs(self, stage) -> Layer | None:
+        """`docs <keyword> [to=<file>]` — fuzzy-search, then emit the FULL `describe`
+        (args, options, flags, example) for every match: a made-to-order mini-guide for
+        whatever you're doing in the moment. `to=<file>` saves it. Terminal report verb."""
+        keyword = self._discovery_keyword(stage, "docs")
+        from ..describe import describe as describe_report
+        from ..search import format_docs, search
+
+        hits = search(keyword, algorithms=self.backend.algorithm_catalog())
+        self._emit_report(format_docs(keyword, hits, describe_report),
+                          to=stage.options.get("to"), label=f"docs for {len(hits)} match(es)")
         return None  # terminal
 
     def _project(self, stage) -> Layer | None:

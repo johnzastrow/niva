@@ -380,6 +380,29 @@ def algorithm_info(algorithm_id: str):
     }
 
 
+def algorithm_catalog():
+    """Every installed QGIS Processing algorithm, for `search`/`docs`: one dict per
+    algorithm — ``{id, display_name, group, description}``. Assumes QGIS is initialised.
+    Hidden/deprecated algorithms are skipped (they aren't `run`-able discovery targets)."""
+    from qgis.core import QgsApplication, QgsProcessingAlgorithm
+
+    try:
+        hidden = QgsProcessingAlgorithm.Flag.FlagHideFromToolbox
+    except AttributeError:  # pragma: no cover — older Qt enum access
+        hidden = QgsProcessingAlgorithm.FlagHideFromToolbox
+    out = []
+    for alg in QgsApplication.processingRegistry().algorithms():
+        if int(alg.flags()) & int(hidden):
+            continue
+        out.append({
+            "id": alg.id(),
+            "display_name": alg.displayName(),
+            "group": alg.group() or "",
+            "description": alg.shortDescription() or "",
+        })
+    return out
+
+
 def _init_processing():
     from qgis.core import QgsApplication
 
@@ -1639,6 +1662,10 @@ class PyqgisBackend(Backend):
         from ..environment import report_markdown
 
         return report_markdown()
+
+    def algorithm_catalog(self) -> list:
+        ensure_qgis()
+        return algorithm_catalog()
 
     # --- `show`: list datasets at a location ---------------------------------
 

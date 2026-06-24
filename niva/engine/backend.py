@@ -173,6 +173,12 @@ class Backend(abc.ABC):
         """Reclaim free pages in a GeoPackage/SpatiaLite container (SQLite ``VACUUM``)
         after multi-layer writes. No-op by default; the real backend implements it."""
 
+    def algorithm_catalog(self) -> list:
+        """Every QGIS Processing algorithm available, for `search`/`docs`: one dict per
+        algorithm — ``{id, display_name, group, description}``. ``[]`` by default (no
+        QGIS); the real backend enumerates the live processing registry."""
+        return []
+
     # --- journal echo (concrete; shared by every backend) --------------------
 
     def render_call(self, algorithm: str, params: dict, *, input_param: str | None = None,
@@ -333,6 +339,21 @@ class MockBackend(Backend):
     def environment_report(self) -> str:
         self.calls.append(("environment_report",))
         return "# niva — environment\n\n- Backend: mock (no QGIS)\n"
+
+    def algorithm_catalog(self) -> list:
+        # A small fixed catalog so `search`/`docs` are testable with no QGIS. The real
+        # PyqgisBackend enumerates the live processing registry (1000+ algorithms).
+        self.calls.append(("algorithm_catalog",))
+        return [
+            {"id": "native:buffer", "display_name": "Buffer", "group": "Vector geometry",
+             "description": "Computes a buffer area for all the features in an input layer."},
+            {"id": "native:centroids", "display_name": "Centroids", "group": "Vector geometry",
+             "description": "Creates a point layer of the centroids of input geometries."},
+            {"id": "gdal:warpreproject", "display_name": "Warp (reproject)", "group": "Raster projections",
+             "description": "Reprojects a raster into another coordinate reference system."},
+            {"id": "qgis:randomselection", "display_name": "Random selection", "group": "Vector selection",
+             "description": "Selects a random subset of features in a layer."},
+        ]
 
     def profile(self, layer: Layer, deep: bool = False) -> dict:
         self.calls.append(("assess", layer.name, deep))
