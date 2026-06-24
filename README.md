@@ -33,6 +33,10 @@ Niva turns QGIS automation from PyQGIS code into a readable single lines of text
   `aspect`, `polygonize`, …). `run <id>` reaches any of the ~769 with no alias;
   `describe` shows their parameters. Every alias is validated against the installed
   QGIS by `scripts/lint_registry.py`.
+* **Discoverable** — `describe <verb>` ends with a runnable **example** (curated, or
+  synthesised from the signature); `search <keyword>` fuzzy-finds functions across the
+  verbs *and* the live QGIS algorithm catalog; and `docs <keyword>` emits the full
+  reference for every match — a made-to-order mini-guide you can save with `to=<file>`.
 * **Raster and vector output** — `save` writes either (rasters via `gdal:translate`,
   vectors via `QgsVectorFileWriter`, driver chosen by extension).
 * **Databases** via named QGIS connections — read (`load @conn.table`,

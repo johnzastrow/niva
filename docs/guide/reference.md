@@ -451,7 +451,7 @@ search <keyword> [to=<report.md>]
 
 Fuzzy-searches everything niva knows about every function — niva verb names, summaries, options
 and flags; the built-in verbs; and the **live QGIS algorithm catalog** (id, display name, group,
-description, 1000+ algorithms) — and lists the ranked matches (name · kind · score · summary). The
+description; 769 in QGIS 4.0.3) — and lists the ranked matches (name · kind · score · summary). The
 match is tolerant: substrings, token prefixes, and `difflib` similarity all count, so a typo or a
 partial word still finds things. A multi-word keyword is OR-matched (`search "raster reproject"`
 finds anything about rasters *or* reprojection). Needs QGIS (it reads the live catalog).
@@ -693,7 +693,7 @@ the [algorithm appendix](../algorithms/README.md).
 ## 6. The `run` escape hatch & `describe`
 
 `run <id> KEY=value …` calls any installed QGIS Processing algorithm with its native
-parameter names — the full catalogue (1000+ `native:`, `gdal:`, `qgis:`, `grass:`, `pdal:`,
+parameter names — the full catalogue (769 in QGIS 4.0.3: `native:`, `gdal:`, `qgis:`, `grass:`, `pdal:`,
 `saga:` algorithms), not just the aliased verbs. Use it for anything without an alias, or
 when you need a parameter an alias doesn't expose.
 
@@ -784,7 +784,7 @@ The package installs a `niva` console script (`niva.cli.main`).
 ```
 niva run <file.niva> [--dry-run | --explain] [--log <base>]
 niva "<flow>"        [--dry-run | --explain] [--log <base>]
-niva describe <verb-or-algorithm-id>
+niva describe <verb-or-algorithm-id> [to=<file>]
 niva export <file.niva> [-o <file.py>]
 niva import <file.py>   [-o <file.niva>]
 ```
@@ -796,7 +796,8 @@ niva import <file.py>   [-o <file.niva>]
 | `--dry-run` | print the plan and validate it over the mock backend (no QGIS, no data touched) |
 | `--explain` | parse + bind only; print the resolved algorithm + parameters per stage |
 | `--log <base>` | also write the journal `<base>.jsonl` + `<base>.log` |
-| `niva describe <name>` | introspect a verb or algorithm id |
+| `niva describe <name> [to=<file>]` | introspect a verb or algorithm id (with a runnable example) |
+| `niva "search <kw>"` / `niva "docs <kw>"` | fuzzy-find functions / build a mini-guide (flow verbs; need QGIS) |
 | `niva export flow.niva [-o out.py]` | transpile a flow to a standalone PyQGIS script |
 | `niva import script.py [-o out.niva]` | recover a flow from a niva-shaped PyQGIS script |
 

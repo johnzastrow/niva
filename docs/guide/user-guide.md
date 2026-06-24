@@ -135,7 +135,7 @@ QGIS bindings may still need to be on `PYTHONPATH`, so Option A's alias is often
 ```
 niva run <file.niva> [--dry-run | --explain] [--log <base>]
 niva "<flow>"        [--dry-run | --explain] [--log <base>]
-niva describe <verb-or-algorithm-id>
+niva describe <verb-or-algorithm-id> [to=<file>]
 niva export <file.niva> [-o <file.py>]
 niva import <file.py>   [-o <file.niva>]
 ```
@@ -144,7 +144,11 @@ niva import <file.py>   [-o <file.niva>]
 - `--dry-run` — print the plan and validate it with no QGIS, no data touched.
 - `--explain` — print the resolved algorithm and parameters for each stage.
 - `--log <base>` — also write the journal (`<base>.jsonl` + `<base>.log`).
-- `niva describe buffer` / `niva describe gdal:warpreproject` — introspect a verb or algorithm.
+- `niva describe buffer` / `niva describe gdal:warpreproject [to=out.md]` — introspect a verb or
+  algorithm (with a runnable example).
+- `niva "search <keyword>"` / `niva "docs <keyword> to=guide.md"` — fuzzy-find functions across the
+  verbs and the live QGIS catalog, or build a saved mini-guide. (Flow verbs, so they also run in
+  the plugin dock; both need QGIS.)
 
 **Exit codes:** `0` ok · `1` runtime error · `2` usage/parse error · `3` QGIS not importable.
 
