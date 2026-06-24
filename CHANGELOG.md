@@ -11,6 +11,32 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.36.0] - 2026-06-24
+
+### Added
+- **`describe` is now a flow verb**, not just the `niva describe` CLI subcommand — so verb /
+  algorithm introspection works **inside the QGIS plugin dock** and mid-script:
+  `describe buffer`, `describe native:buffer`. Terminal, takes an optional `to=<file>`. This fixes
+  `describe` producing no output in the plugin (it wasn't reachable as a flow at all).
+- **Capture any report to a text file from the CLI.** `describe` gained `to=<file>` (matching
+  `show`/`info`), and the `niva describe <name> to=<file>` CLI subcommand writes the report to a
+  file too. Bare `niva describe …` still prints to stdout (so `> file` redirection works as before).
+
+### Changed
+- **One way to emit text.** `show`, `info`, and `describe` now route their reports through a single
+  `Engine._emit_report` helper, so all report verbs behave identically: `to=<file>` writes the
+  report (plus a one-line status); inside the plugin it streams into the dock's output panel;
+  from the CLI/API with no `to=` it prints to stdout. The report text is identical across all three.
+- **Action verbs confirm what they did.** `assess`, `style`, and `metadata` now emit a status line
+  (`assessment → report.md`, `style saved → out.qml`, `metadata set: title (persisted on next
+  save)`) so the action shows in the dock and the CLI — previously `assess` wrote its report
+  silently and `style`/`metadata` gave no feedback.
+
+### Docs
+- New **"Where verb output goes"** section in the user guide (`docs/guide/reference.md`, rebuilt
+  into `niva-guide.pdf`) documenting all three output sinks (file / dock / stdout) and the
+  per-action status lines, plus a dedicated `describe` verb entry.
+
 ## [0.35.1] - 2026-06-23
 
 ### Fixed
@@ -1619,6 +1645,7 @@ CLI and a `niva.flow()` Python API; near-zero runtime dependencies.
 - This changelog.
 
 [Unreleased]: https://github.com/johnzastrow/niva/commits/main
+[0.36.0]: https://github.com/johnzastrow/niva/releases/tag/v0.36.0
 [0.35.1]: https://github.com/johnzastrow/niva/releases/tag/v0.35.1
 [0.35.0]: https://github.com/johnzastrow/niva/releases/tag/v0.35.0
 [0.34.1]: https://github.com/johnzastrow/niva/releases/tag/v0.34.1

@@ -138,14 +138,34 @@ def _convert(kind: str, args) -> int:
 
 
 def _describe(args) -> int:
-    if len(args) != 1:
-        print("usage: niva describe <verb-or-algorithm-id>", file=sys.stderr)
+    # Optional `to=<file>` writes the report to a text file (parity with the `describe`
+    # flow verb and `show`/`info`'s `to=`); without it the report prints to stdout, which
+    # the shell can still redirect (`niva describe buffer > buffer.md`).
+    out = None
+    positional = []
+    for a in args:
+        if a.startswith("to="):
+            out = a[len("to="):]
+        else:
+            positional.append(a)
+    if len(positional) != 1:
+        print("usage: niva describe <verb-or-algorithm-id> [to=<file>]", file=sys.stderr)
         return 2
     from .. import describe as _describe_fn
 
     code = 0
     try:
-        print(_describe_fn(args[0]))
+        report = _describe_fn(positional[0])
+        if out:
+            out = os.path.expanduser(out)
+            parent = os.path.dirname(out)
+            if parent:
+                os.makedirs(parent, exist_ok=True)
+            with open(out, "w", encoding="utf-8") as fh:
+                fh.write(report if report.endswith("\n") else report + "\n")
+            print(f"niva: wrote {out}", file=sys.stderr)
+        else:
+            print(report)
     except FlowError as exc:
         print(f"niva: {exc}", file=sys.stderr)
         code = 2

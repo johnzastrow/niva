@@ -229,6 +229,76 @@ class TestAssess(unittest.TestCase):
         with self.assertRaises(FlowError):
             run("assess to r.md")
 
+    def test_assess_emits_report_path_to_the_dock(self):
+        # The report write must be visible in the plugin/CLI, not silent (it used to be).
+        import os
+        import tempfile
+
+        path = os.path.join(tempfile.mkdtemp(prefix="niva_assess_"), "r.md")
+        msgs = []
+        Engine(MockBackend(), progress=msgs.append).execute(
+            parse(f"load a.gpkg | assess to {path}"))
+        self.assertTrue(any(m.strip() == f"assessment → {path}" for m in msgs), msgs)
+
+
+class TestDescribeVerb(unittest.TestCase):
+    """`describe` is a terminal flow verb (so it works in the plugin dock), in addition
+    to the `niva describe` CLI subcommand."""
+
+    def _run(self, text):
+        msgs = []
+        result = Engine(MockBackend(), progress=msgs.append).execute(parse(text))
+        return result, msgs
+
+    def test_describe_a_verb_streams_the_report_and_is_terminal(self):
+        result, msgs = self._run("describe buffer")
+        self.assertIsNone(result)  # terminal — no pipeable layer
+        body = "\n".join(msgs)
+        self.assertIn("buffer", body)
+        self.assertIn("→", body)  # the alias→algorithm mapping line
+
+    def test_describe_to_file_writes_and_emits_path(self):
+        import os
+        import tempfile
+
+        path = os.path.join(tempfile.mkdtemp(prefix="niva_describe_"), "buffer.md")
+        _result, msgs = self._run(f"describe buffer to={path}")
+        with open(path, encoding="utf-8") as fh:
+            report = fh.read()
+        self.assertIn("buffer", report)
+        self.assertTrue(any(m.strip() == f"description → {path}" for m in msgs), msgs)
+
+    def test_describe_requires_exactly_one_target(self):
+        with self.assertRaises(FlowError):
+            run("describe")
+        with self.assertRaises(FlowError):
+            run("describe buffer clip")
+
+    def test_describe_rejects_unknown_options(self):
+        with self.assertRaises(FlowError):
+            run("describe buffer bogus=1")
+
+    def test_describe_unknown_name_is_a_flow_error(self):
+        with self.assertRaises(FlowError):
+            run("describe frobnicate")
+
+
+class TestStyleAndMetadataEmit(unittest.TestCase):
+    """Pass-through verbs still confirm their action in the dock/CLI."""
+
+    def _msgs(self, text):
+        msgs = []
+        Engine(MockBackend(), progress=msgs.append).execute(parse(text))
+        return msgs
+
+    def test_style_save_confirms(self):
+        msgs = self._msgs("load a.gpkg | style save out.qml")
+        self.assertTrue(any("style saved → out.qml" in m for m in msgs), msgs)
+
+    def test_metadata_set_confirms(self):
+        msgs = self._msgs('load a.gpkg | metadata set title="Roads"')
+        self.assertTrue(any(m.strip().startswith("metadata set:") for m in msgs), msgs)
+
 
 class TestLineage(unittest.TestCase):
     @staticmethod

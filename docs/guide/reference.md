@@ -51,10 +51,39 @@ Verbs fall into three behavioural classes:
 |---|---|---|
 | **Producing** | returns a new layer to pipe onward | `load`, `run`, `split`, `sql` (SELECT), and every alias verb |
 | **Pass-through** | returns the upstream layer unchanged, so it chains | `save`, `assess`, `metadata`, `style`, `notify`, `email` |
-| **Terminal** | returns nothing; a following stage is an error | `catalog`, `show`, `info`, `project`, `sql` (write) |
+| **Terminal** | returns nothing; a following stage is an error | `catalog`, `show`, `info`, `describe`, `project`, `sql` (write) |
 
 A flow normally begins with `load` (or `run`/`sql`, which produce a layer), or with `each`
 to run the rest of the flow once per dataset in a directory/glob/container.
+
+### Where verb output goes
+
+Verbs produce three kinds of output, and each reaches you the same way no matter how niva is
+running (the QGIS plugin dock, the CLI, or the Python API):
+
+1. **The layer** — *producing* and *pass-through* verbs hand a layer down the pipe. You persist
+   it with `save`; in the plugin the flow's final layer is also added to the map and summarised
+   ("done — <path>, N feature(s)").
+
+2. **A report** (the verbs that exist to *tell you something*: `show`, `info`, `describe`). The
+   **same report text** is routed to one of three sinks:
+   - **`to=<file>`** — written to that text file, plus a one-line `… → <file>` status. This is how
+     you capture a reply in a file from the CLI: `niva describe buffer to=buffer.md`,
+     `niva "show @gisdb3.public to=tables.md"`, `niva info to=env.md`.
+   - **the plugin dock** — when run inside QGIS, the report streams into the dock's output panel
+     line-by-line, so you read it without leaving the dock.
+   - **stdout** — from the CLI or the Python API with no `to=`, the report prints to stdout, so it
+     stays pipeable and shell-redirectable: `niva describe buffer > buffer.md`.
+
+3. **A status line** — verbs that *act* rather than report (`save`, `assess`, `catalog`, `style`,
+   `metadata`, `notify`, `email`, `remove`, `project`) emit one short confirmation — e.g.
+   `assessment → report.md`, `style saved → out.qml`, `notified → https://ntfy.sh/…`,
+   `metadata set: title (persisted on next save)` — which shows in the dock and the CLI alike, so
+   an action is never silent.
+
+In every case progress is also reported per stage (a `▶` start line and a `✓` elapsed line) and
+recorded in the run journal (see the User Guide, "The run journal"). `describe` is available both
+as a flow stage (so it works in the dock and mid-script) and as the `niva describe` CLI subcommand.
 
 ---
 
@@ -388,6 +417,30 @@ info to=env-report.md      # save it
 (Not to be confused with `project info <src.qgs>`, which inventories a *project file*; bare
 `info` inventories the *QGIS environment*.)
 
+### `describe` — introspect a verb or algorithm *(terminal)*
+
+```
+describe <verb|algorithm-id> [to=<report.md>]
+```
+
+Shows how a niva verb maps to its QGIS algorithm — positional args, options (with defaults and
+enum values), and flags — so the mapping is discoverable. Given an **algorithm id** (anything
+containing `:`, e.g. `native:buffer`, `gdal:warpreproject`) it introspects the *live* algorithm's
+parameters and outputs, which makes the `run <id> KEY=value` escape hatch (see §6) discoverable:
+describe an algorithm, then `run` it. Describing a verb is pure (no QGIS needed); describing an
+algorithm id needs QGIS's Python. With `to=` the report is written to a file; otherwise it streams
+to the plugin dock or prints to stdout (see "Where verb output goes" in §1).
+
+```
+describe buffer                      # the buffer verb → native:buffer, its options & flags
+describe gdal:warpreproject          # a live algorithm's parameters
+describe buffer to=buffer.md         # capture the report to a file
+```
+
+`describe` runs both as a flow stage (so it works inside the QGIS plugin dock and mid-script) and
+as the `niva describe <verb-or-algorithm-id> [to=<file>]` CLI subcommand (which works without QGIS
+for a verb).
+
 ### `project` — manipulate QGIS project files *(terminal)*
 
 Five forms; all use a standalone `QgsProject` (safe off the GUI thread) and all are terminal.
@@ -615,13 +668,15 @@ load dem.tif | run native:slope Z_FACTOR=2 NODATA=-9999 | save slope.tif
 run gdal:translate INPUT=in.vrt OUTPUT=out.jp2 CREATION_OPTIONS="QUALITY=25"
 ```
 
-`niva describe <name>` introspects either a niva verb (its alias mapping, args, options,
+`describe <name>` introspects either a niva verb (its alias mapping, args, options,
 flags — no QGIS needed) or a QGIS algorithm id (its live parameters and outputs — QGIS
-needed):
+needed). It runs both as a **flow stage** (so it works in the plugin dock and mid-script,
+with `to=<file>`) and as the **`niva describe`** CLI subcommand — see the `describe` verb in §4:
 
 ```
-niva describe buffer
+niva describe buffer                 # CLI subcommand (no QGIS needed for a verb)
 niva describe gdal:warpreproject
+niva "describe buffer to=buffer.md"  # the same thing as a flow, captured to a file
 ```
 
 The **[algorithm appendix](../algorithms/README.md)** lists all 769 algorithms by provider —

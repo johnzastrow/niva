@@ -45,6 +45,35 @@ class Engine:
         if self.progress is not None:
             self.progress(message)
 
+    def _emit_report(self, report: str, *, to: str | None, label: str) -> None:
+        """The ONE way every report verb (`show`/`info`/`describe`, and any future one)
+        emits its human-readable text, so they all behave identically:
+
+        - ``to=<file>`` → write the report there (creating parent dirs) and emit a single
+          ``  {label} → {path}`` status line (which itself routes to the dock/CLI like any
+          other status). Use this to capture a reply in a text file from the CLI.
+        - no ``to`` **and** a progress callback set (the plugin, or a `niva` flow run) →
+          stream the report into the dock's output panel line-by-line via :meth:`_emit`.
+        - no ``to`` **and** no progress callback (a bare ``niva.flow(...)``) → print to
+          stdout, so the report stays pipeable / shell-redirectable.
+
+        ``self.progress is not None`` is the reliable "inside a plugin/flow run" signal —
+        the plugin always passes ``progress=self.message.emit`` and the CLI a stderr sink.
+        """
+        if to:
+            to = os.path.expanduser(to)
+            parent = os.path.dirname(to)
+            if parent:
+                os.makedirs(parent, exist_ok=True)
+            with open(to, "w", encoding="utf-8") as fh:
+                fh.write(report if report.endswith("\n") else report + "\n")
+            self._emit(f"  {label} → {to}")
+        elif self.progress is not None:
+            for line in report.splitlines():
+                self._emit(line)
+        else:
+            print(report)
+
     def execute(self, program: list, *, base_dir: str | None = None,
                 _stack: tuple = ()) -> Layer | None:
         """Run every statement; return the final layer of the last flow.
@@ -325,14 +354,14 @@ class Engine:
     # layer, and the `lineage` accumulated so far). Adding a built-in verb is one line
     # here plus its `_<verb>` method — see docs/planning/16-anatomy-of-a-verb.md.
     #
-    # OUTPUT ROUTING for terminal verbs that produce a human-readable report:
-    #   - When `self.progress is not None` the Engine is running inside the QGIS plugin
-    #     (the plugin always passes progress=self.message.emit). Use `self._emit(line)`
-    #     so the report streams into the dock's output panel line-by-line.
-    #   - When `self.progress is None` the Engine is running from the CLI. Use
-    #     `print(report)` so the report goes to stdout (pipeable / redirectable).
-    #   - Verbs that always write to a file (catalog, assess, project info) need neither
-    #     branch: they use `_emit()` only for the "wrote → path" status line.
+    # OUTPUT ROUTING — every verb's text reaches the dock and the CLI the SAME way:
+    #   - Report verbs (show, info, describe) call `self._emit_report(report, to=…, label=…)`
+    #     — the single helper that writes to a `to=<file>`, else streams to the dock
+    #     (progress set), else prints to stdout. They all behave identically by construction.
+    #   - Verbs that always write to a file (catalog, assess, project info) and action verbs
+    #     (style, metadata, notify, email, remove) call `self._emit(line)` for their
+    #     "<did this> → <path>" status, so it shows in the dock and the CLI alike.
+    #   - Transform verbs return a Layer; the plugin shows it via the final-run summary.
     _BUILTIN_VERBS = {
         "load":     lambda self, stage, current, lineage: self._load(stage),
         "save":     lambda self, stage, current, lineage: self._save(stage, current, lineage),
@@ -345,6 +374,7 @@ class Engine:
         "catalog":  lambda self, stage, current, lineage: self._catalog(stage),
         "show":     lambda self, stage, current, lineage: self._show(stage),
         "info":     lambda self, stage, current, lineage: self._info(stage),
+        "describe": lambda self, stage, current, lineage: self._describe(stage),
         "project":  lambda self, stage, current, lineage: self._project(stage),
         "style":    lambda self, stage, current, lineage: self._style(stage, current),
         "split":    lambda self, stage, current, lineage: self._split(stage, current),
@@ -620,7 +650,10 @@ class Engine:
                 + ", ".join(sorted(_METADATA_FIELDS)),
                 line=stage.line, stage=stage.raw,
             )
-        return self.backend.set_metadata(current, dict(stage.options))
+        layer = self.backend.set_metadata(current, dict(stage.options))
+        self._emit(f"  metadata set: {', '.join(sorted(stage.options))} "
+                   "(persisted on next save)")  # confirm the action in the dock/CLI
+        return layer
 
     def _assess(self, stage, current: Layer | None) -> Layer | None:
         # `assess [deep] to <report.md>` — profile the current layer and write a
@@ -655,6 +688,7 @@ class Engine:
             os.makedirs(parent, exist_ok=True)
         with open(dest, "w", encoding="utf-8") as fh:
             fh.write(report)
+        self._emit(f"  assessment → {dest}")  # so the dock/CLI shows where the report went
         return current
 
     def _remove(self, stage, batch_path: str | None = None) -> None:
@@ -1017,26 +1051,8 @@ class Engine:
                                 line=stage.line, stage=stage.raw)
 
         report = format_show(label, entries, is_db=is_db, is_service=is_service)
-        out = stage.options.get("to")
-        if out:
-            out = os.path.expanduser(out)
-            parent = os.path.dirname(out)
-            if parent:
-                os.makedirs(parent, exist_ok=True)
-            with open(out, "w", encoding="utf-8") as fh:
-                fh.write(report if report.endswith("\n") else report + "\n")
-            self._emit(f"  listed {len(entries)} item(s) → {out}")
-        else:
-            # Plugin context: route the report to the output panel line-by-line via
-            # _emit() so the user can read it without leaving the dock. CLI context:
-            # print to stdout so it's pipeable / redirectable. `self.progress is not
-            # None` is the reliable signal for "we are inside a plugin run" because
-            # the plugin always passes progress=self.message.emit to the Engine.
-            if self.progress is not None:
-                for line in report.splitlines():
-                    self._emit(line)
-            else:
-                print(report)
+        self._emit_report(report, to=stage.options.get("to"),
+                          label=f"listed {len(entries)} item(s)")
         return None  # terminal
 
     def _resolve_show_connection(self, target, stage):
@@ -1108,26 +1124,30 @@ class Engine:
                             "only `to=<report.md>` is accepted",
                             line=stage.line, stage=stage.raw)
         report = self.backend.environment_report()
-        out = stage.options.get("to")
-        if out:
-            out = os.path.expanduser(out)
-            parent = os.path.dirname(out)
-            if parent:
-                os.makedirs(parent, exist_ok=True)
-            with open(out, "w", encoding="utf-8") as fh:
-                fh.write(report if report.endswith("\n") else report + "\n")
-            self._emit(f"  environment report → {out}")
-        else:
-            # Plugin context: route the report to the output panel line-by-line via
-            # _emit() so the user can read it without leaving the dock. CLI context:
-            # print to stdout so it's pipeable / redirectable. `self.progress is not
-            # None` is the reliable signal for "we are inside a plugin run" because
-            # the plugin always passes progress=self.message.emit to the Engine.
-            if self.progress is not None:
-                for line in report.splitlines():
-                    self._emit(line)
-            else:
-                print(report)
+        self._emit_report(report, to=stage.options.get("to"), label="environment report")
+        return None  # terminal
+
+    def _describe(self, stage) -> Layer | None:
+        """`describe <verb|algorithm-id> [to=<report.md>]` — show how a niva verb maps to
+        its QGIS algorithm (positional args, options, flags), or introspect a live
+        algorithm by id (anything containing `:`). Terminal: returns no pipeable layer.
+
+        The in-flow / plugin counterpart of the `niva describe` CLI subcommand, so the
+        same introspection is reachable inside a flow and streams into the dock's output
+        panel (the issue that `describe` produced nothing in the plugin). Routing mirrors
+        `show`/`info`: with `to=<file>` write the report there; otherwise stream it to the
+        dock (progress set) or print to stdout for the CLI (pipeable / redirectable)."""
+        unknown = set(stage.options) - {"to"}
+        if len(stage.args) != 1 or unknown:
+            raise FlowError(
+                "`describe` takes one verb or algorithm id (plus optional `to=<file>`): "
+                "`describe buffer` or `describe native:buffer to=buffer.md`",
+                line=stage.line, stage=stage.raw,
+            )
+        from ..describe import describe as describe_report
+
+        report = describe_report(stage.args[0])
+        self._emit_report(report, to=stage.options.get("to"), label="description")
         return None  # terminal
 
     def _project(self, stage) -> Layer | None:
@@ -1223,6 +1243,8 @@ class Engine:
             raise FlowError(f"`style apply`: not a file: {path}",
                             line=stage.line, stage=stage.raw)
         self.backend.style_layer(current, action, path)
+        verb = "applied" if action == "apply" else "saved"
+        self._emit(f"  style {verb} → {path}")  # confirm the action in the dock/CLI
         return current  # pass-through
 
     # A QGIS bookmark stores an extent, not a centre+scale. So `scale=N` is converted to a
