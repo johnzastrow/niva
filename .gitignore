@@ -250,7 +250,7 @@ examples/demo/
 /extract.gpkg
 
 # Transportable test data — regenerate with examples/make_testdata.py (deterministic)
-examples/testdata/
+tests/datagen/testdata/
 
 # macOS metadata files
 .DS_Store

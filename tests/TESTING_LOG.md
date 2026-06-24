@@ -36,13 +36,18 @@ version the suite first appeared in.
 | error_path_suite | `run_assert_suite.py` | 20 | committed | 0.34 | bad flows **fail closed** with useful messages, no partial output |
 | benchmark_suite | `run_benchmark_suite.py` | 25 | generated (`make_bigdata.py`) | 0.34 | CPU/memory/disk/network **metrics** (records timings; not pass/fail) |
 
-**Data provisioning** (see [`examples/REPRODUCE_TESTS.md`](../examples/REPRODUCE_TESTS.md)):
+**Data provisioning** (see [`tests/datagen/REPRODUCE_TESTS.md`](datagen/REPRODUCE_TESTS.md)):
 *committed* = in the repo · *generated* = `make_testdata.py` / `make_bigdata.py` / `make_data.py`
-· *`@localpg`* = PostGIS fixtures pushed into a **user-designated** DB by `make_data.py` ·
-*downloaded* (optional, harder runs) = `fetch_testdata.sh`.
+(all under `tests/datagen/`) · *`@localpg`* = PostGIS fixtures pushed into a **user-designated** DB
+by `make_data.py` · *downloaded* (optional, harder runs) = `fetch_testdata.sh`.
 
-**Path tokens** the suites use: `{data}` → `$NIVA_TESTDATA` else `data/` else `examples/testdata` ·
-`{testdata}` → `examples/testdata` · `{examples}` → committed real-world data · `{tmp}` → scratch.
+**Path tokens** the suites use: `{data}` → `$NIVA_TESTDATA` else `data/` else
+`tests/datagen/testdata` · `{testdata}` → `tests/datagen/testdata` · `{realworld}` →
+`tests/datagen/realworld` (committed real-world .geojson/.kmz) · `{tmp}` → scratch.
+
+> Suites and runners live in [`tests/suites/`](suites/); fixture generators and data in
+> [`tests/datagen/`](datagen/). (Both moved out of `examples/` — which is now user-facing
+> examples only.)
 
 ---
 
@@ -385,7 +390,7 @@ Get the numbers with:
 # unit (authoritative total, under QGIS python)
 python -m unittest discover -s tests -t .
 # each .niva suite (the runner prints "<n>/<N> blocks passed")
-python examples/run_validation_suite.py examples/<suite>.niva
-python examples/run_assert_suite.py     examples/<suite>.niva
-python examples/run_benchmark_suite.py  examples/benchmark_suite.niva
+python tests/suites/run_validation_suite.py tests/suites/<suite>.niva
+python tests/suites/run_assert_suite.py     tests/suites/<suite>.niva
+python tests/suites/run_benchmark_suite.py  tests/suites/benchmark_suite.niva
 ```

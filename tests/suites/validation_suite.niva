@@ -15,7 +15,7 @@
 # table loaded as an empty aspatial layer), then CLEANS UP:
 #
 #   PYTHONPATH=<repo>:/usr/share/qgis/python:/usr/lib/python3/dist-packages \
-#     QT_QPA_PLATFORM=offscreen python3 examples/run_validation_suite.py
+#     QT_QPA_PLATFORM=offscreen python3 tests/suites/run_validation_suite.py
 #
 # Outputs land in /tmp/niva_validation/out ; PostGIS tables are nv_* on @localpg
 # and dropped by each test's cleanup. The runner directives are:

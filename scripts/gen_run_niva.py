@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Regenerate the pure-runnable `.run.niva` companions for the examples/ validation suites.
+"""Regenerate the pure-runnable `.run.niva` companions for the tests/suites/ validation suites.
 
-The `examples/` validation suites (`validation_suite*.niva`) carry test directives
+The validation suites (tests/suites/) (`validation_suite*.niva`) carry test directives
 (`#@out`, `#@cleanup`) and ship a **pure, `niva run`-able companion** — `<suite>.run.niva`
 with the directives stripped — emitted by `run_validation_suite.py --emit`. This keeps every
-such companion in sync with its source: the `examples/` analogue of `scripts/gen_test_niva.py`
+such companion in sync with its source: the tests/suites/ analogue of `scripts/gen_test_niva.py`
 for `tests/`. CI fails on drift; a Claude Code hook regenerates on edit.
 
 (The assert suites — portable/numerical/round_trip/security/error_path/format_matrix — and the
@@ -23,14 +23,14 @@ import subprocess
 import sys
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-EXAMPLES = os.path.join(REPO, "examples")
-RUNNER = os.path.join(EXAMPLES, "run_validation_suite.py")
+SUITES = os.path.join(REPO, "tests", "suites")
+RUNNER = os.path.join(SUITES, "run_validation_suite.py")
 
 
 def main() -> int:
-    companions = sorted(glob.glob(os.path.join(EXAMPLES, "*.run.niva")))
+    companions = sorted(glob.glob(os.path.join(SUITES, "*.run.niva")))
     if not companions:
-        print("no .run.niva companions found under examples/")
+        print("no .run.niva companions found under tests/suites/")
         return 0
     env = dict(os.environ)
     env["PYTHONPATH"] = REPO + os.pathsep + env.get("PYTHONPATH", "")
@@ -44,7 +44,7 @@ def main() -> int:
         subprocess.run([sys.executable, RUNNER, "--emit", source],
                        check=True, env=env, stdout=subprocess.DEVNULL)
         n += 1
-    print(f"regenerated {n} .run.niva companion(s) under examples/")
+    print(f"regenerated {n} .run.niva companion(s) under tests/suites/")
     return 0
 
 

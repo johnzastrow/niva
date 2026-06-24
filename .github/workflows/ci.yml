@@ -38,13 +38,13 @@ jobs:
           python-version: "3.12"
       # Project rule: every test add/change regenerates its companion. Two generators:
       #   tests/niva/*.niva       — what each unittest exercises (gen_test_niva.py)
-      #   examples/*.run.niva     — pure-runnable validation suites (gen_run_niva.py)
+      #   tests/suites/*.run.niva     — pure-runnable validation suites (gen_run_niva.py)
       # Regenerate both and fail if anything drifted — so a PR can't merge stale companions.
       - name: Regenerate companions and check for drift
         run: |
           python scripts/gen_test_niva.py
           python scripts/gen_run_niva.py
-          git diff --exit-code -- tests/niva examples/*.run.niva \
+          git diff --exit-code -- tests/niva tests/suites/*.run.niva \
             || { echo "::error::companions are stale — run: python scripts/gen_test_niva.py && python scripts/gen_run_niva.py"; exit 1; }
 
   qgis:

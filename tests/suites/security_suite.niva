@@ -8,7 +8,7 @@
 #
 # Run with:
 #   PYTHONPATH=<repo>:/usr/share/qgis/python:/usr/lib/python3/dist-packages \
-#     QT_QPA_PLATFORM=offscreen python3 examples/run_assert_suite.py examples/security_suite.niva
+#     QT_QPA_PLATFORM=offscreen python3 tests/suites/run_assert_suite.py tests/suites/security_suite.niva
 #
 # Helpers: journal() (this block's run-journal text), leaks(text) (true if a DB URI/credential
 # marker is present), filetext(p) (a file's bytes as text), count(p) nonempty(p) exists(p).

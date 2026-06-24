@@ -25,7 +25,7 @@ plus safe builtins (abs min max round len all any sum sorted set str int float b
 
 Run under QGIS's Python:
     PYTHONPATH=<repo>:/usr/share/qgis/python:/usr/lib/python3/dist-packages \
-      QT_QPA_PLATFORM=offscreen python3 examples/run_assert_suite.py examples/<suite>.niva
+      QT_QPA_PLATFORM=offscreen python3 tests/suites/run_assert_suite.py examples/<suite>.niva
 """
 from __future__ import annotations
 
@@ -40,7 +40,7 @@ import tempfile
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # find the sibling report module
 import _suite_report  # noqa: E402
 
-REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 _ARGS = [a for a in sys.argv[1:] if not a.startswith("--")]
 SUITE = os.path.abspath(_ARGS[0]) if _ARGS else ""
 # Scratch root: keep the exact POSIX path (`/tmp/niva_assert`) on Linux/macOS; on Windows

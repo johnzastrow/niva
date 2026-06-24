@@ -6,9 +6,9 @@ The data is synthetic and fully reproducible (no dependence on any one computer'
 `@conn`), so the portable test suite produces comparable results everywhere. It uses only GDAL/OGR
 — it does NOT require QGIS — so you can regenerate it on any machine with GDAL installed:
 
-    python3 examples/make_testdata.py [--out <dir>]
+    python3 tests/datagen/make_testdata.py [--out <dir>]
 
-Default output dir is examples/testdata/ (the portable suite finds it there, or via $NIVA_TESTDATA).
+Default output dir is tests/datagen/testdata/ (the portable suite finds it there, or via $NIVA_TESTDATA).
 Layers (EPSG:6346 unless noted): points, lines, polygons, multipolys, aoi, points_wgs84 (EPSG:4326),
 plus two awkward names — "weird name" (space) and "select" (reserved word). Files written:
     niva_testdata.gpkg   niva_testdata_dem.tif   niva_testdata.sqlite
@@ -25,8 +25,8 @@ from osgeo import gdal, ogr, osr
 gdal.UseExceptions()
 ogr.UseExceptions()
 
-REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-OUT = os.path.join(REPO, "examples", "testdata")
+REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+OUT = os.path.join(REPO, "tests", "datagen", "testdata")
 if "--out" in sys.argv:
     OUT = os.path.abspath(sys.argv[sys.argv.index("--out") + 1])
 

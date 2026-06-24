@@ -20,7 +20,7 @@
 # Same harness, same rhythm:  ASSESS the output  →  the chain already ran  →  CLEAN UP (via `remove`).
 # Run with:
 #   PYTHONPATH=<repo>:/usr/share/qgis/python:/usr/lib/python3/dist-packages \
-#     QT_QPA_PLATFORM=offscreen python3 examples/run_validation_suite.py examples/validation_suite_3.niva
+#     QT_QPA_PLATFORM=offscreen python3 tests/suites/run_validation_suite.py tests/suites/validation_suite_3.niva
 #
 # Directive syntax (ordinary niva comments — this file is also runnable with `niva run`):
 #   # ===== TEST NN | category | description =====   block header

@@ -28,9 +28,9 @@ cleanly when QGIS is unimportable, so the pure-Python layers also run on a plain
 python -m unittest discover -s tests -t .
 ```
 
-The example/validation suites under `examples/` (validation, portable, numerical, round-trip,
+The example/validation suites under `tests/suites/` (validation, portable, numerical, round-trip,
 security, error-path, format-matrix, benchmark) are run via their `run_*_suite.py` harnesses; see
-[`examples/REPRODUCE_TESTS.md`](../examples/REPRODUCE_TESTS.md).
+[`tests/datagen/REPRODUCE_TESTS.md`](../tests/datagen/REPRODUCE_TESTS.md).
 
 ## Test `.niva` companions (project rule)
 
@@ -62,10 +62,10 @@ niva has tests in two places, and only one kind gets a generated companion:
 | Where | What it is | Companion |
 |---|---|---|
 | **`tests/test_*.py`** | Python `unittest` modules (grammar, engine, binder, search, the live-QGIS tier) | **generated** → `tests/niva/<module>.niva` by `gen_test_niva.py` |
-| **`examples/*_suite*.niva`** | Suites written *directly in niva*, run by `run_*_suite.py` (validation, portable, numerical, round-trip, security, error-path, format-matrix, benchmark) | already niva — they *are* the readable artifact |
+| **`tests/suites/*_suite*.niva`** | Suites written *directly in niva*, run by `run_*_suite.py` under `tests/suites/` (validation, portable, numerical, round-trip, security, error-path, format-matrix, benchmark) | already niva — they *are* the readable artifact |
 
 So the answer to "where is the `.niva` for `validation_suite_3`?" is: it **is**
-[`examples/validation_suite_3.niva`](../examples/validation_suite_3.niva) — there's nothing to
+[`tests/suites/validation_suite_3.niva`](../tests/suites/validation_suite_3.niva) — there's nothing to
 generate, the suite is niva to begin with.
 
 The **validation** suites additionally ship a pure, `niva run`-able companion

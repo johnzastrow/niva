@@ -6,18 +6,18 @@
 #   2. write the result into each STORE — GeoPackage, SpatiaLite, Shapefile, and PostGIS,
 #   3. load it back FROM that store and geoprocess again (proving the round-trip carries geometry).
 #
-# Inputs are the GENERATED fixtures (examples/make_testdata.py) + COMMITTED real-world data
+# Inputs are the GENERATED fixtures (tests/datagen/make_testdata.py) + COMMITTED real-world data
 # (examples/*.geojson, *.kmz), so the suite runs on a bare clone with no downloads. For the same
 # tests on REAL downloaded data (USFS .gdb, USGS earthquakes .csv, Google .kml, a real .jp2), run
-# `sh examples/fetch_testdata.sh` and point the loads at data/downloaded/ (see bigdata_urls.md).
+# `sh tests/datagen/fetch_testdata.sh` and point the loads at data/downloaded/ (see bigdata_urls.md).
 #
 # Run with:
 #   PYTHONPATH=<repo>:/usr/share/qgis/python:/usr/lib/python3/dist-packages \
-#     QT_QPA_PLATFORM=offscreen python3 examples/run_assert_suite.py examples/format_matrix_suite.niva
+#     QT_QPA_PLATFORM=offscreen python3 tests/suites/run_assert_suite.py tests/suites/format_matrix_suite.niva
 #
 # PostGIS tests use @localpg (registered by make_data.py against the user-designated database);
 # they no-op gracefully-ish only if the connection is missing — run make_data.py first for full
-# coverage. {testdata} = examples/testdata, {examples} = committed data, {tmp} = scratch.
+# coverage. {testdata} = tests/datagen/testdata, {realworld} = committed data, {tmp} = scratch.
 # =============================================================================
 
 
@@ -51,7 +51,7 @@ load "{testdata}/niva_testdata.jp2" | warp EPSG:3857 | save {tmp}/fm04.tif
 #@cleanup remove {tmp}/fm04.tif
 
 # ===== TEST 05 | raw geojson | load committed real-world GeoJSON, fixgeom + dissolve =====
-load "{examples}/Estimated Waste Area.geojson" | fixgeom | dissolve | save {tmp}/fm05.gpkg
+load "{realworld}/Estimated Waste Area.geojson" | fixgeom | dissolve | save {tmp}/fm05.gpkg
 #@check count("{tmp}/fm05.gpkg") == 1
 #@cleanup remove {tmp}/fm05.gpkg
 

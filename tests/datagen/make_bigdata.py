@@ -7,7 +7,7 @@ data with GDAL/OGR only (no QGIS, no network), so any clone of the repo can run 
 full weight. It is deterministic — same `--scale` ⇒ identical bytes — so results compare across
 machines.
 
-    python3 examples/make_bigdata.py [--out <dir>] [--scale <float>]
+    python3 tests/datagen/make_bigdata.py [--out <dir>] [--scale <float>]
 
 Default out dir is data/ (gitignored); default scale 1.0. Writes a single `bench.gpkg` with
 size-tiered layers and a `bench_dem.tif` raster:
@@ -16,7 +16,7 @@ size-tiered layers and a `bench_dem.tif` raster:
                 points_big (~60k·scale) · lines_med (~5k)         (all EPSG:6346, metres)
     bench_dem.tif   (2000·√scale)² Float32 DEM
 
-For an even harder run on REAL data, see examples/bigdata_urls.md — public datasets you can
+For an even harder run on REAL data, see tests/datagen/bigdata_urls.md — public datasets you can
 wget/curl into data/ and point the benchmark at.
 """
 from __future__ import annotations
@@ -31,7 +31,7 @@ from osgeo import gdal, ogr, osr
 gdal.UseExceptions()
 ogr.UseExceptions()
 
-REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 OUT = os.path.join(REPO, "data")
 SCALE = 1.0
 if "--out" in sys.argv:

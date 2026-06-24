@@ -9,7 +9,7 @@ Run headless from the repo root:
 
     NIVA_TMPDIR=$HOME/niva_scratch \
     PYTHONPATH=$PWD:/usr/lib/python3/dist-packages:/usr/share/qgis/python \
-    QT_QPA_PLATFORM=offscreen python3.14 examples/verify_cookbook.py
+    QT_QPA_PLATFORM=offscreen python3.14 tests/suites/verify_cookbook.py
 """
 
 import os
@@ -18,7 +18,7 @@ import tempfile
 import niva
 from niva.engine.pyqgis import ensure_qgis
 
-ROOT = os.path.expanduser("~/Github/niva")
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 DEMO = f"{ROOT}/examples/demo"
 V = f"{DEMO}/demo.gpkg"  # all demo vectors live in one GeoPackage (layername=…)
 EX = f"{ROOT}/examples/example.gpkg"

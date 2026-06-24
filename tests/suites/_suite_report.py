@@ -83,21 +83,23 @@ def data_tokens(repo: str) -> dict:
     """Resolve the path tokens the suites use, so they run unchanged on any clone:
 
       {data}      the full machine-local test dir — where make_data.py / make_bigdata.py write.
-                  `$NIVA_TESTDATA` if set, else `<repo>/data` if it exists, else examples/testdata.
-      {testdata}  always `<repo>/examples/testdata` — the portable fixtures (make_testdata.py).
-      {examples}  always `<repo>/examples` — committed real-world data (the .geojson / .kmz files).
+                  `$NIVA_TESTDATA` if set, else `<repo>/data` if it exists, else tests/datagen/testdata.
+      {testdata}  always `<repo>/tests/datagen/testdata` — the portable fixtures (make_testdata.py).
+      {realworld} always `<repo>/tests/datagen/realworld` — committed real-world data (.geojson/.kmz).
 
-    `{data}` prefers `data/` over `examples/testdata` so the validation/benchmark suites and the
+    `{data}` prefers `data/` over `tests/datagen/testdata` so the validation/benchmark suites and the
     portable suite can both run on the same machine without juggling environment variables.
     """
-    testdata = os.path.join(repo, "examples", "testdata")
+    datagen = os.path.join(repo, "tests", "datagen")
+    testdata = os.path.join(datagen, "testdata")
     data = os.path.join(repo, "data")
     full = os.environ.get("NIVA_TESTDATA") or (data if os.path.isdir(data) else testdata)
-    return {"data": full, "testdata": testdata, "examples": os.path.join(repo, "examples")}
+    return {"data": full, "testdata": testdata,
+            "realworld": os.path.join(datagen, "realworld")}
 
 
 def subst(text: str, tokens: dict) -> str:
-    """Replace `{data}`/`{testdata}`/`{examples}` tokens. Uses str.replace (not str.format) so
+    """Replace `{data}`/`{testdata}`/`{realworld}` tokens. Uses str.replace (not str.format) so
     niva's own `{name}` batch templates in `each … save {name}` flows pass through untouched."""
     for key, val in tokens.items():
         text = text.replace("{" + key + "}", val)

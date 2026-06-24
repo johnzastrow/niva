@@ -22,7 +22,7 @@
 # Same harness, same per-test rhythm:  ASSESS the output  →  the op already ran  →  CLEAN UP.
 # Run with:
 #   PYTHONPATH=<repo>:/usr/share/qgis/python:/usr/lib/python3/dist-packages \
-#     QT_QPA_PLATFORM=offscreen python3 examples/run_validation_suite.py examples/validation_suite_2.niva
+#     QT_QPA_PLATFORM=offscreen python3 tests/suites/run_validation_suite.py tests/suites/validation_suite_2.niva
 #
 # Directive syntax (parsed by run_validation_suite.py — they are ordinary niva comments,
 # so this file is ALSO directly runnable with `niva run`):

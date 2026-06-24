@@ -18,8 +18,8 @@ PY=python3                             # or the .app python on macOS
 ## 1. Generate the file test data (no network, deterministic)
 
 ```bash
-$PY examples/make_testdata.py     # → examples/testdata/  (portable fixtures: gpkg, dem, sqlite)
-$PY examples/make_bigdata.py      # → data/bench.gpkg + data/bench_dem.tif  (benchmark heavy data)
+$PY tests/datagen/make_testdata.py     # → tests/datagen/testdata/  (portable fixtures: gpkg, dem, sqlite)
+$PY tests/datagen/make_bigdata.py      # → data/bench.gpkg + data/bench_dem.tif  (benchmark heavy data)
 ```
 
 `make_testdata.py` and `make_bigdata.py` use only GDAL/OGR — **no QGIS, no network** — and are
@@ -30,13 +30,13 @@ deterministic (same input ⇒ identical bytes), so results compare across machin
 
 The validation, property, and round-trip suites use a richer `data/` directory plus database
 fixtures. `make_data.py` builds them from the committed `examples/example.gpkg` + the generated
-`examples/testdata/`, and pushes the PostGIS fixtures into **a database you designate**:
+`tests/datagen/testdata/`, and pushes the PostGIS fixtures into **a database you designate**:
 
 ```bash
 export NIVA_PG_HOST=localhost NIVA_PG_PORT=5432 NIVA_PG_DB=niva_test \
        NIVA_PG_USER=$USER     NIVA_PG_PASSWORD=                # your PostGIS, your creds
 createdb "$NIVA_PG_DB" && psql -d "$NIVA_PG_DB" -c 'CREATE EXTENSION IF NOT EXISTS postgis;'
-$PY examples/make_data.py          # → data/{basemap,collected,…}.gpkg + @localpg fixture tables
+$PY tests/datagen/make_data.py          # → data/{basemap,collected,…}.gpkg + @localpg fixture tables
 ```
 
 > **Local peer/socket auth (no password):** set `NIVA_PG_HOST=""` (empty) so QGIS uses the unix
@@ -52,17 +52,17 @@ round-trip suites exercise (`My Roads`, `café points`, `Mixed.Case.Dots`, `sele
 ```bash
 # Correctness — assert real, non-empty geometry on every output
 for s in validation_suite validation_suite_2 validation_suite_3; do
-  $PY examples/run_validation_suite.py examples/$s.niva
+  $PY tests/suites/run_validation_suite.py examples/$s.niva
 done
 
 # Properties — error-path/fail-closed, numerical, round-trip, security, portable, format-matrix
 # (format_matrix exercises FileGeodatabase / KML / CSV-points / JPEG2000 → every store → geoprocess)
 for s in error_path_suite numerical_suite round_trip_suite security_suite portable_suite format_matrix_suite; do
-  $PY examples/run_assert_suite.py examples/$s.niva
+  $PY tests/suites/run_assert_suite.py examples/$s.niva
 done
 
 # Performance — CPU/memory/disk/network, on the generated heavy data
-$PY examples/run_benchmark_suite.py examples/benchmark_suite.niva
+$PY tests/suites/run_benchmark_suite.py tests/suites/benchmark_suite.niva
 ```
 
 Every runner writes a host-tagged Markdown (and the benchmark a JSON) summary to
@@ -75,8 +75,8 @@ The suite files use tokens the runners resolve at run time:
 
 | token | resolves to | written by |
 |---|---|---|
-| `{data}` | `$NIVA_TESTDATA`, else `data/`, else `examples/testdata/` | `make_data.py`, `make_bigdata.py` |
-| `{testdata}` | `examples/testdata/` | `make_testdata.py` |
+| `{data}` | `$NIVA_TESTDATA`, else `data/`, else `tests/datagen/testdata/` | `make_data.py`, `make_bigdata.py` |
+| `{testdata}` | `tests/datagen/testdata/` | `make_testdata.py` |
 | `{examples}` | `examples/` (committed real-world GeoJSON/KMZ) | in the repo |
 | `{tmp}` | the per-suite scratch dir | the runner |
 
@@ -89,8 +89,8 @@ The benchmark runs at full weight on generated data. For real-world stress (irre
 true raster size, a wide format mix), fetch public datasets:
 
 ```bash
-sh examples/fetch_testdata.sh          # ~35 MB: Shapefile + GeoJSON + TIGER (a good mix, fast)
-sh examples/fetch_testdata.sh big      # + ~800 MB: GADM gpkg, OSM PBF, USGS DEM
+sh tests/datagen/fetch_testdata.sh          # ~35 MB: Shapefile + GeoJSON + TIGER (a good mix, fast)
+sh tests/datagen/fetch_testdata.sh big      # + ~800 MB: GADM gpkg, OSM PBF, USGS DEM
 ```
 
 [`fetch_testdata.sh`](fetch_testdata.sh) pulls a curated, no-auth set into `data/downloaded/`
@@ -107,5 +107,5 @@ rebuilds it (a convenience; the generators above are the portable path).
 
 - **Committed in GitHub**: `examples/example.gpkg`, the `*.geojson` / `*.kmz` real-world data, all
   `*.niva` suites and `run_*.py` runners.
-- **Generated** (gitignored): `examples/testdata/`, `data/`.
+- **Generated** (gitignored): `tests/datagen/testdata/`, `data/`.
 - **In your PostGIS**: the `@localpg` fixture tables (from `make_data.py`).

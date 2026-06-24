@@ -8,7 +8,7 @@
 #
 # Run with:
 #   PYTHONPATH=<repo>:/usr/share/qgis/python:/usr/lib/python3/dist-packages \
-#     QT_QPA_PLATFORM=offscreen python3 examples/run_assert_suite.py examples/round_trip_suite.niva
+#     QT_QPA_PLATFORM=offscreen python3 tests/suites/run_assert_suite.py tests/suites/round_trip_suite.niva
 #
 # Helpers: count(p) crs(p) gtype(p) fields(p) values(p,field) area(p) bbox(p) approx(a,b,tol).
 # SRC is basemap boundary-polygon (16 Polygons, EPSG:6346, fields NAME/NAME_EN/ADMIN_LVL/…).

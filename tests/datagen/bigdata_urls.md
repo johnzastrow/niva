@@ -14,8 +14,8 @@ so its lon/lat columns load as points (`load …/usgs_earthquakes.vrt`). All URL
 downloads drawn from [`free_geospatial_data_report.md`](free_geospatial_data_report.md).
 
 ```bash
-sh examples/fetch_testdata.sh          # SMALL (~35 MB): Natural Earth + geo-countries + TIGER Maine
-sh examples/fetch_testdata.sh big      # + BIG  (~+800 MB): TIGER roads, GADM gpkg, OSM PBF, USGS DEM
+sh tests/datagen/fetch_testdata.sh          # SMALL (~35 MB): Natural Earth + geo-countries + TIGER Maine
+sh tests/datagen/fetch_testdata.sh big      # + BIG  (~+800 MB): TIGER roads, GADM gpkg, OSM PBF, USGS DEM
 ```
 
 Then, e.g.:

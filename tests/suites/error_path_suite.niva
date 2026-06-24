@@ -7,7 +7,7 @@
 #
 # Run with the assertion harness:
 #   PYTHONPATH=<repo>:/usr/share/qgis/python:/usr/lib/python3/dist-packages \
-#     QT_QPA_PLATFORM=offscreen python3 examples/run_assert_suite.py examples/error_path_suite.niva
+#     QT_QPA_PLATFORM=offscreen python3 tests/suites/run_assert_suite.py tests/suites/error_path_suite.niva
 #
 # Directives:
 #   #@fails <substring>     the flow MUST raise; the message contains <substring> (case-insensitive)

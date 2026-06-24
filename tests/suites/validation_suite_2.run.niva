@@ -1,5 +1,5 @@
 # Pure runnable niva — generated from validation_suite.niva by
-#   python examples/run_validation_suite.py --emit
+#   python tests/suites/run_validation_suite.py --emit
 # Run it and watch every pipeline:  niva run <this file>
 # Fully self-cleaning: file outputs are deleted with `remove` and DB tables with
 # inline `sql … DROP`. Outputs land in /tmp/niva_validation/out during the run.

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Execute examples/validation_suite.niva test-by-test, ASSESS each output, then CLEAN UP.
+"""Execute tests/suites/validation_suite.niva test-by-test, ASSESS each output, then CLEAN UP.
 
 This is the runner for the niva validation suite — it dogfoods niva across data sources,
 targets, processing options, and data types, and (crucially) checks that each output has
@@ -9,7 +9,7 @@ targets, processing options, and data types, and (crucially) checks that each ou
 Run under QGIS's Python (it reads the user's real QGIS profile, so `@conn` names resolve):
 
     PYTHONPATH=<repo>:/usr/share/qgis/python:/usr/lib/python3/dist-packages \
-      QT_QPA_PLATFORM=offscreen python3 examples/run_validation_suite.py
+      QT_QPA_PLATFORM=offscreen python3 tests/suites/run_validation_suite.py
 
 Block format in the .niva file (see validation_suite.niva):
 
@@ -35,7 +35,7 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # find the sibling report module
 import _suite_report  # noqa: E402
 
-REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # Optional positional arg picks the suite (default = suite 1); --emit writes the pure .niva.
 _ARGS = [a for a in sys.argv[1:] if not a.startswith("--")]
 SUITE = os.path.abspath(_ARGS[0]) if _ARGS else os.path.join(REPO, "examples", "validation_suite.niva")
@@ -164,7 +164,7 @@ def emit_pure(blocks, path):
     File outputs aren't deleted (niva has no file-delete verb) — they're noted as comments."""
     out = [
         "# Pure runnable niva — generated from validation_suite.niva by",
-        "#   python examples/run_validation_suite.py --emit",
+        "#   python tests/suites/run_validation_suite.py --emit",
         "# Run it and watch every pipeline:  niva run <this file>",
         "# Fully self-cleaning: file outputs are deleted with `remove` and DB tables with",
         "# inline `sql … DROP`. Outputs land in /tmp/niva_validation/out during the run.",

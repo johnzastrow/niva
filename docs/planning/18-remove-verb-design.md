@@ -8,7 +8,7 @@
 
 niva can *create and overwrite* outputs (`save`, `save … mode=replace`, and for DB tables
 `sql @conn "DROP TABLE …"`), but it has **no way to delete a file from disk**. That gap shows up
-the moment you want a flow — or a generated script like `examples/validation_suite_2.run.niva` —
+the moment you want a flow — or a generated script like `tests/suites/validation_suite_2.run.niva` —
 to clean up after itself: the harness has to shell out to `os.remove`, and the pure `.niva`
 can only drop database tables, leaving GeoPackages/GeoTIFFs/shapefiles behind.
 

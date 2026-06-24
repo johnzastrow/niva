@@ -8,7 +8,7 @@
 #
 # Run with:
 #   PYTHONPATH=<repo>:/usr/share/qgis/python:/usr/lib/python3/dist-packages \
-#     QT_QPA_PLATFORM=offscreen python3 examples/run_assert_suite.py examples/numerical_suite.niva
+#     QT_QPA_PLATFORM=offscreen python3 tests/suites/run_assert_suite.py tests/suites/numerical_suite.niva
 #
 # `#@check <expr>` helpers: area(p) length(p) count(p) bbox(p) crs(p) gtype(p) within_all(pts,polys)
 #   approx(a,b,tol) exists(p) nonempty(p).  {tmp} = /tmp/niva_assert.  All layers EPSG:6346 (metres).

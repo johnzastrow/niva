@@ -18,8 +18,8 @@ plus an environment fingerprint (host, CPU count, RAM, niva/QGIS/Python versions
 
 Run under QGIS's Python:
     PYTHONPATH=<repo>:/usr/share/qgis/python:/usr/lib/python3/dist-packages \
-      QT_QPA_PLATFORM=offscreen python3 examples/run_benchmark_suite.py \
-        examples/benchmark_suite.niva [--out <dir>]
+      QT_QPA_PLATFORM=offscreen python3 tests/suites/run_benchmark_suite.py \
+        tests/suites/benchmark_suite.niva [--out <dir>]
 
 Writes <out>/benchmark_<host>_<UTCstamp>.json and .md (and refreshes benchmark_latest.json/.md).
 Default <out> is ~/niva-test-results (cross-machine). JSON is the canonical comparison record.
@@ -46,7 +46,7 @@ except ImportError:  # Windows
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # find the sibling report module
 import _suite_report  # noqa: E402
 
-REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 _ARGS = [a for a in sys.argv[1:] if not a.startswith("--")]
 SUITE = os.path.abspath(_ARGS[0]) if _ARGS else os.path.join(REPO, "examples", "benchmark_suite.niva")
 # Reports land in the user's home (~/niva-test-results) by default so they compare across

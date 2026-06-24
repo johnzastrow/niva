@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Generate niva's test data directory (data/) for this machine.
 
-Creates data/ from the portable testdata (examples/testdata/) and example.gpkg,
+Creates data/ from the portable testdata (tests/datagen/testdata/) and example.gpkg,
 registers the needed QGIS connections (@localpg, @actual_spatialite.sqlite), and
 populates PostGIS with the fixture tables used by the security and round-trip suites.
 
@@ -17,7 +17,7 @@ Run under QGIS's Python:
 
     PYTHONHOME=/Applications/QGIS-final-4_0_3.app/Contents/Frameworks \\
     PYTHONPATH=/path/to/niva:/Applications/.../Resources/qgis/python:... \\
-    /Applications/QGIS-final-4_0_3.app/Contents/MacOS/python3.12 examples/make_data.py
+    /Applications/QGIS-final-4_0_3.app/Contents/MacOS/python3.12 tests/datagen/make_data.py
 """
 from __future__ import annotations
 
@@ -26,9 +26,9 @@ import os
 import shutil
 from pathlib import Path
 
-REPO     = Path(__file__).parent.parent
-TESTDATA = REPO / "examples" / "testdata"
-EX_GPKG  = REPO / "examples" / "example.gpkg"
+REPO     = Path(__file__).parent.parent.parent
+TESTDATA = REPO / "tests" / "datagen" / "testdata"
+EX_GPKG  = REPO / "examples" / "example.gpkg"  # the seed dataset stays with the examples
 DATA     = REPO / "data"
 
 # The PostGIS instance is DESIGNATED BY THE USER via environment variables, so the fixtures can

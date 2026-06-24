@@ -2,17 +2,17 @@
 # niva PORTABLE SUITE — runs on transportable data, comparable across machines
 # =============================================================================
 # Unlike the other suites (which use this machine's data/ dir and @localpg), this one runs
-# entirely on the SELF-CONTAINED test data produced by examples/make_testdata.py — a single
+# entirely on the SELF-CONTAINED test data produced by tests/datagen/make_testdata.py — a single
 # GeoPackage + a DEM + a SpatiaLite file that you can copy to any computer / QGIS instance. It
 # exercises the core verbs and asserts correctness, and the runner records timing + an
 # environment fingerprint to ~/niva-test-results so runs from different machines can be compared.
 #
-# Setup (once per machine):  python3 examples/make_testdata.py
+# Setup (once per machine):  python3 tests/datagen/make_testdata.py
 # Run:
 #   PYTHONPATH=<repo>:/usr/share/qgis/python:/usr/lib/python3/dist-packages \
-#     QT_QPA_PLATFORM=offscreen python3 examples/run_assert_suite.py examples/portable_suite.niva
+#     QT_QPA_PLATFORM=offscreen python3 tests/suites/run_assert_suite.py tests/suites/portable_suite.niva
 #
-# `{testdata}` = examples/testdata (the generated fixtures); `{examples}` = examples/ (committed
+# `{testdata}` = tests/datagen/testdata (the generated fixtures); `{realworld}` = examples/ (committed
 # real-world GeoJSON/KMZ, always present in a clone); `{tmp}` = scratch. Most layers are EPSG:6346
 # (metres) except points_wgs84 and the committed real-world data (EPSG:4326).
 # =============================================================================
@@ -143,24 +143,24 @@ load "{testdata}/niva_testdata.gpkg|layername=points" | buffer 200m | dissolve |
 
 # --------------------------------- committed real-world data (always present in a GitHub clone)
 # ===== TEST 21 | real geojson | EGAD Sites (26 340 points, EPSG:4326) loads & reprojects =====
-load "{examples}/EGAD Sites.geojson" | reproject EPSG:6346 | save {tmp}/p21.gpkg
+load "{realworld}/EGAD Sites.geojson" | reproject EPSG:6346 | save {tmp}/p21.gpkg
 #@check count("{tmp}/p21.gpkg") >= 26000
 #@check crs("{tmp}/p21.gpkg") == "EPSG:6346"
 #@cleanup remove {tmp}/p21.gpkg
 
 # ===== TEST 22 | real geojson | Estimated Waste Area (587 polygons) → centroid within =====
-load "{examples}/Estimated Waste Area.geojson" | reproject EPSG:6346 | save {tmp}/p22.gpkg
+load "{realworld}/Estimated Waste Area.geojson" | reproject EPSG:6346 | save {tmp}/p22.gpkg
 #@check count("{tmp}/p22.gpkg") >= 500
 #@check nonempty("{tmp}/p22.gpkg")
 #@cleanup remove {tmp}/p22.gpkg
 
 # ===== TEST 23 | real kmz | a named layer in a multi-layer KMZ (182 3D points) loads =====
-load "{examples}/ME_and_NH_GRS.kmz|layername=GRS Labels" | save {tmp}/p23.gpkg
+load "{realworld}/ME_and_NH_GRS.kmz|layername=GRS Labels" | save {tmp}/p23.gpkg
 #@check count("{tmp}/p23.gpkg") >= 180
 #@cleanup remove {tmp}/p23.gpkg
 
 # ===== TEST 24 | real clean+reduce | repair real waste-area polygons, then dissolve =====
-load "{examples}/Estimated Waste Area.geojson" | fixgeom | dissolve | save {tmp}/p24.gpkg
+load "{realworld}/Estimated Waste Area.geojson" | fixgeom | dissolve | save {tmp}/p24.gpkg
 #@check nonempty("{tmp}/p24.gpkg")
 #@check count("{tmp}/p24.gpkg") == 1
 #@cleanup remove {tmp}/p24.gpkg
