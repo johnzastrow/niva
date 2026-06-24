@@ -34,7 +34,7 @@ version the suite first appeared in.
 | round_trip_suite | `run_assert_suite.py` | 17 | `data/` + `@localpg` | 0.34 | load→save→reload fidelity (count/CRS/fields/values) across formats |
 | security_suite | `run_assert_suite.py` | 14 | `@localpg` | 0.34 | creds never leak, identifier quoting, `remove` allowlist |
 | error_path_suite | `run_assert_suite.py` | 20 | committed | 0.34 | bad flows **fail closed** with useful messages, no partial output |
-| benchmark_suite | `run_benchmark_suite.py` | 24 | generated (`make_bigdata.py`) | 0.34 | CPU/memory/disk/network **metrics** (records timings; not pass/fail) |
+| benchmark_suite | `run_benchmark_suite.py` | 25 | generated (`make_bigdata.py`) | 0.34 | CPU/memory/disk/network **metrics** (records timings; not pass/fail) |
 
 **Data provisioning** (see [`examples/REPRODUCE_TESTS.md`](../examples/REPRODUCE_TESTS.md)):
 *committed* = in the repo · *generated* = `make_testdata.py` / `make_bigdata.py` / `make_data.py`
