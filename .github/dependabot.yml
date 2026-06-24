@@ -4,7 +4,9 @@
 version: 2
 updates:
   # GitHub Actions — bumps the SHA-pinned `uses:` refs (and keeps the # vX comment
-  # accurate) when a new release ships, so pinning never means rotting.
+  # accurate) when a new release ships, so pinning never means rotting. All action
+  # bumps are collapsed into ONE PR (they all touch ci.yml, so separate PRs just
+  # conflict with each other).
   - package-ecosystem: github-actions
     directory: /
     schedule:
@@ -12,8 +14,12 @@ updates:
     open-pull-requests-limit: 5
     commit-message:
       prefix: ci
+    groups:
+      github-actions:
+        patterns:
+          - "*"
 
-  # Python dev tooling (pytest, ruff) declared in pyproject's [dev] extra.
+  # Python dev tooling (pytest, ruff) declared in pyproject's [dev] extra — one PR.
   - package-ecosystem: pip
     directory: /
     schedule:
@@ -21,3 +27,7 @@ updates:
     open-pull-requests-limit: 5
     commit-message:
       prefix: deps
+    groups:
+      dev-dependencies:
+        patterns:
+          - "*"
