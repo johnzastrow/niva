@@ -18,6 +18,13 @@ algorithms underneath:
 load roads.gpkg | buffer 100m dissolve | clip city.gpkg | save roads_local.gpkg
 ```
 
+or even
+
+```
+# ── TEST 24 | add then remove vertices | densify → smooth → simplify
+load "{data}/collected.gpkg|layername=park_lines" | densify 5m | smooth iterations=2 | simplify 10 | save /tmp/niva_validation/out/s3_24.gpkg
+```
+
 ## What it does
 
 Niva turns QGIS automation from PyQGIS code into a readable single lines of text. 
