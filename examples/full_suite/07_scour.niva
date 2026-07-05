@@ -1,0 +1,55 @@
+# =============================================================================
+# full_suite · 07 — STREAM SCOUR-POTENTIAL (increase) evaluation      [Stage 7]
+# =============================================================================
+# Find stream reaches where the potential for INCREASED scour is rising: reaches
+# that are already energetic (steep/confined, high stream power) AND whose upstream
+# catchment is urbanizing (impervious ↑ → higher peak flows / shear). use_case.md § 5.
+#
+# METRIC (use_case.md § 5): specific stream power ω = ρgQS/w is the metric of record;
+#   where per-reach discharge Q and width w aren't resolvable, the DEM-only proxy
+#   SPI = A·tan β is computed here (A = flow-accumulation area, β = slope). The
+#   "increase" comes from multiplying by the upstream Δ-impervious (from 06).
+#
+# PREREQUISITES:
+#   derived/dtm_2024.tif                       bare-earth DTM (from 02_prepare)
+#   derived/hydro_6346.gpkg                    NHD stream reaches (from 01_acquire)
+#   outputs/data/imperv_change_huc12.gpkg      Δ impervious % per HUC12 (from 06_change)
+#   derived/huc12_6346.gpkg , dtm_hillshade_2024.tif , village_6346.gpkg , aoi_6346.gpkg
+#
+# PROVIDERS: native + gdal, and GRASS for flow accumulation ONLY (no native/gdal
+#   equivalent; SAGA excluded per the study). Figure at each step; maps at the end.
+# RUN: needs QGIS + GRASS provider. export QT_QPA_PLATFORM=offscreen ; NIVA_TMPDIR=...
+# =============================================================================
+
+# --- 1 · Flow accumulation from the DTM (GRASS — no native/gdal equivalent) --
+# r.watershed conditions the DEM and returns accumulation + drainage (terminal, named outputs).
+load derived/dtm_2024.tif | run grass:r.watershed elevation=derived/dtm_2024.tif accumulation=derived/flow_accum.tif drainage=derived/flow_dir.tif
+load derived/flow_accum.tif | figure outputs/figures/07_flow_accum.png
+
+# --- 2 · Slope, then Stream Power Index SPI = A · tan(β) --------------------
+load derived/dtm_2024.tif | slope | save derived/slope_2024.tif | figure outputs/figures/07_slope.png
+# SPI raster calc: A = flow-accumulation cells, β = slope (deg → rad). +1e-6 guards log/zero.
+run gdal:rastercalculator FORMULA="A*tan(B*0.0174533)" INPUT_A=derived/flow_accum.tif BAND_A=1 INPUT_B=derived/slope_2024.tif BAND_B=1 OUTPUT=derived/spi_2024.tif
+load derived/spi_2024.tif | figure outputs/figures/07_spi.png
+
+# --- 3 · SPI per stream reach (buffer the reach, zonal mean/max SPI) --------
+load derived/hydro_6346.gpkg | fixgeom | buffer 15m | zonalstats raster=derived/spi_2024.tif stats=mean,max prefix=spi_ | save derived/reach_spi.gpkg | figure outputs/figures/07_reach_spi.png
+
+# --- 4 · Attach the upstream catchment's Δ impervious (the "increase" driver) -
+# Simplification (documented): use the HUC12 the reach lies in as its catchment;
+# spatial-join its Δ impervious %. (True upstream tracing is a future refinement.)
+load derived/reach_spi.gpkg | spatialjoin with=outputs/data/imperv_change_huc12.gpkg predicate=intersect | save derived/reach_spi_dimp.gpkg | figure outputs/figures/07_reach_dimp.png
+
+# --- 5 · Increased-scour index = norm(SPI) × norm(Δimpervious) --------------
+# Each factor min–max normalized to 0–1 (norm_* — from the field's min/max via
+# `run native:basicstatisticsforfields`; a documented step). High where the channel
+# is already energetic AND its catchment is urbanizing. Classify High/Med/Low.
+load derived/reach_spi_dimp.gpkg | run native:fieldcalculator FIELD_NAME=scour_idx FORMULA="norm_spi * norm_dimp" | run native:fieldcalculator FIELD_NAME=scour_class FIELD_TYPE=2 FORMULA="CASE WHEN scour_idx>=0.66 THEN 'High' WHEN scour_idx>=0.33 THEN 'Medium' ELSE 'Low' END" | save outputs/data/scour_potential.gpkg | figure outputs/figures/07_scour_index.png
+# Rank the reaches most at risk of increased scour:
+load outputs/data/scour_potential.gpkg | filter "scour_class = 'High'" | save outputs/data/scour_high_reaches.gpkg | figure outputs/figures/07_scour_high.png
+
+# --- 6 · Deliverable map ----------------------------------------------------
+load derived/dtm_hillshade_2024.tif | map outputs/figures/07_map_scour.png title="Increased stream-scour potential — SPI × Δimpervious" layers="outputs/data/scour_potential.gpkg;derived/village_6346.gpkg;derived/aoi_6346.gpkg" dpi=200
+
+# Outputs: outputs/data/scour_potential.gpkg (+ high-risk reaches), SPI/flow-accum
+# rasters, and a figure trail. Next: 08_report assembles the md+PDF scientific report.

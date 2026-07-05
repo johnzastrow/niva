@@ -51,8 +51,8 @@ QGIS and need nothing extra; `run <id>` reaches all of them.
 |---|---|---|
 | **`figure` / `map`** (rendering) | Nothing extra — QGIS renders both. `basemap=osm` needs network access | built in |
 | **`run grass:*`** (terrain/hydrology/classification) | GRASS | Bundled with most QGIS installs; nothing to do |
-| **`run pdal:*`** (QGIS point-cloud provider) | QGIS built with PDAL; raw `.las`/`.laz` may need a COPC index | Usually built in on Windows/macOS; on Linux see the [PDAL/LAStools guide](pdal-lastools-qgis4.md) |
-| **`run pdalcli:*`** (PDAL on raw LAS/LAZ/COPC — DTM/DSM/classify/merge/clip) | `pdal_wrench` + `QGIS_WRENCH_EXECUTABLE` | `micromamba/conda install -c conda-forge pdal_wrench`, then set the env var to its path |
+| **`run pdal:*`** (QGIS point-cloud provider) | `pdal_wrench` + `QGIS_WRENCH_EXECUTABLE`; raw `.las`/`.laz` may need a COPC index | Usually built into QGIS on Windows/macOS; on Linux install it yourself — full per-platform steps in the **[point-cloud setup guide](pdal-setup.md)** |
+| **`run pdalcli:*`** (PDAL on raw LAS/LAZ/COPC — DTM/DSM/classify/merge/clip) | `pdal_wrench` + `QGIS_WRENCH_EXECUTABLE` | `conda install -c conda-forge pdal pdal_wrench`, then set the env var — see the **[point-cloud setup guide](pdal-setup.md)** (Windows/macOS/Linux) |
 | **`run saga:*`** (SAGA CLI harness) | `saga_cmd` | Linux `apt install saga` · macOS `brew install saga-gis` · conda `saga` · set `NIVA_SAGA_CMD` if not on `PATH` |
 | **`run otb:*`** (Orfeo ToolBox) | OTB binaries + the OTB provider plugin | [orfeo-toolbox.org/download](https://www.orfeo-toolbox.org/download/) + set OTB folders (see [guide](pdal-lastools-qgis4.md)) |
 | **`run lastools:*`** (LAStools) | LAStools binaries (+ `libjpeg62` on Linux; a licence for production) | [rapidlasso](https://rapidlasso.de/) — optional; PDAL covers most of it |
@@ -62,8 +62,10 @@ QGIS and need nothing extra; `run <id>` reaches all of them.
 | **Editor highlighting/snippets** | Your editor | One command: `bash .vscode/niva/install.sh` — see the [editor guide](editor-integration.md) |
 
 Nothing here is needed to write, dry-run, `describe`, or `search` flows — those work with niva
-alone. See the **[PDAL/LAStools/OTB/SAGA guide](pdal-lastools-qgis4.md)** for the full point-cloud
-and raster-analysis setup, and **[editor integration](editor-integration.md)** for IDE support.
+alone. For LiDAR/point-cloud work start with the **[point-cloud (PDAL) setup guide](pdal-setup.md)**
+(plain per-platform install for Windows/macOS/Linux); the deeper
+**[PDAL/LAStools/OTB/SAGA guide](pdal-lastools-qgis4.md)** covers every algorithm and the other
+raster providers, and **[editor integration](editor-integration.md)** covers IDE support.
 
 ---
 

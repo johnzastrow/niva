@@ -373,6 +373,8 @@ hr { border: none; border-top: 1px solid var(--border); margin: 1.2rem 0; }
   <div style="font-size:0.65rem;color:var(--text-muted);margin-top:0.2rem">
     Enum params use integer index (0,1,2). GRASS/PDAL use named output params (terminal).
     Raw LiDAR (LAS/LAZ): <code>run pdalcli:to_raster|height_above_ground|classify_ground|boundary</code> — COPC-free.
+    <strong>PDAL needs <code>pdal_wrench</code></strong> (+ <code>QGIS_WRENCH_EXECUTABLE</code>) — bundled in QGIS on Win/macOS, <code>conda install -c conda-forge pdal pdal_wrench</code> on Linux (<a href="guide/pdal-setup.md">setup</a>).
+    <code>pdal:</code> needs COPC input; <code>pdal:exportraster FILTER_EXPRESSION</code> drops <code>==</code> (use <code>"Classification &gt; 1.5 and Classification &lt; 2.5"</code>).
     <strong>Learn a verb offline with <code>describe &lt;verb&gt;</code></strong> (mapping, options+defaults, QGIS params, example);
     for a <code>run &lt;id&gt;</code> algorithm look up <code>docs/algorithms/&lt;provider&gt;.md</code> (<code>describe &lt;id&gt;</code> needs QGIS).
     Providers: native → gdal → GRASS (last); no SAGA/OTB by default.

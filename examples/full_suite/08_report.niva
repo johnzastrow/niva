@@ -1,0 +1,29 @@
+# =============================================================================
+# full_suite · 08 — REPORT ASSEMBLY (final stage)                     [Stage 8]
+# =============================================================================
+# Assemble the deliverable. niva produces the report's data appendix + summary
+# maps here; the report PROSE is report_template.md (all paper sections + figure/
+# table refs), rendered to PDF-with-figures by build_report.sh (pandoc — niva has
+# no `report` verb; it is a candidate in ../../TODO.md / issue tracker).
+#
+# Every `save` in stages 01–07 already recorded lineage, and outputs/notes/ holds
+# the assess/catalog/provenance — so this stage only needs the final inventory +
+# the report figures. Verbs used: load, catalog, map (all real built-ins).
+#
+# PREREQUISITES: stages 01–07 populated outputs/data, outputs/figures, outputs/tables.
+# RUN (headless): export QT_QPA_PLATFORM=offscreen ; cd examples/full_suite ; niva run 08_report.niva
+# =============================================================================
+
+# --- 1 · Final inventory of the deliverable data (report data appendix) -----
+catalog "outputs/data" to="outputs/report/final_data_catalog.md"
+
+# --- 2 · Cover / summary map — the headline results over the AOI ------------
+load derived/dtm_hillshade_2024.tif | map outputs/figures/08_cover_map.png title="Youngstown hydrologic assessment 2001 to 2024 — summary" layers="outputs/data/shorelines.gpkg;outputs/data/scour_potential.gpkg;outputs/data/imperv_change_huc12.gpkg;derived/village_6346.gpkg;derived/aoi_6346.gpkg" dpi=220
+
+# --- 3 · Per-theme result maps for the report Figures -----------------------
+load outputs/data/imperv_change_huc12.gpkg | map outputs/figures/08_map_imperv_change.png title="Impervious change 2001 to 2024 (delta percent) by HUC12" labels=d_imp_pct dpi=200
+load outputs/data/erosion_risk.gpkg | map outputs/figures/08_map_erosion_risk.png title="Shoreline erosion risk — Niagara River and Lake Ontario" dpi=200
+load outputs/data/scour_potential.gpkg | map outputs/figures/08_map_scour.png title="Increased stream-scour potential — SPI x delta-impervious" dpi=200
+
+# Then: fill in report_template.md (results/tables) referencing outputs/figures +
+# outputs/tables, and run:  bash build_report.sh   → outputs/report/*.pdf

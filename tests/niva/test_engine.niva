@@ -84,6 +84,9 @@ run x:y INPUT="/no/such/dir/*.jp2"
 # test_run_does_not_glob_an_expression
 load a | run native:fieldcalculator FORMULA="area * 2"
 
+# test_run_does_not_glob_a_compact_expression
+run gdal:rastercalculator FORMULA="{formula}" INPUT_A=dem.tif OUTPUT=o.tif
+
 # test_load_expands_home
 load ~/foo.gpkg | save out.gpkg
 

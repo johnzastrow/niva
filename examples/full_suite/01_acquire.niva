@@ -1,0 +1,86 @@
+# =============================================================================
+# full_suite · 01 — ACQUIRE & DOCUMENT           (Stage 1 of the hydrology study)
+# =============================================================================
+# Study : past & present hydrologic assessment of the Youngstown AOI.
+#         Full brief, methods, and references → use_case.md (read that first).
+#
+# THIS STAGE
+#   1. Build a light, SHIPPED study-area visualization from examples/demo/ so the
+#      example opens with a map of Youngstown — no download required to *see* it.
+#   2. DOCUMENT every raw input (catalog + assess) into outputs/notes/ — the
+#      quality + provenance record a scientific Methods section needs.
+#
+# SHIPPED vs FETCHED  (see use_case.md § "Shipped vs fetched")
+#   * SHIPPED (in the repo, from ../demo/): AOI, village, hydrography, hillshade.
+#   * FETCHED from primary sources into read-only inputs/ by the companion script
+#     (OUTSIDE niva, since niva has no `fetch` verb yet — candidate in ../../TODO.md):
+#         bash fetch_inputs.sh        # LiDAR 3DEP · NLCD 2001/2021 · WBD HUC12 · hist ortho
+#     Raw is never modified: this flow only READS inputs/ and only WRITES to
+#     derived/ and outputs/.
+#
+# PROVIDERS : native → gdal → GRASS (only where needed) → PDAL (pdalcli:). No SAGA/OTB.
+# RUN (headless): export QT_QPA_PLATFORM=offscreen ; export NIVA_TMPDIR=/var/tmp/niva
+#      journal the exact processing chain:  export NIVA_LOG=outputs/notes/journal/01_acquire
+#      then:  cd examples/full_suite && niva run 01_acquire.niva
+# =============================================================================
+
+# PROGRESS NOTIFICATIONS (optional) — the `notify` steps in this flow are COMMENTED
+# OUT so the example runs with zero setup. Uncomment them to push progress pings via
+# ntfy; `notify` needs a topic (set NIVA_NTFY_TOPIC, or the plugin Setup tab, or add
+# `to=<topic>` to the call). Message variables you can interpolate: {now} clock time ·
+# {elapsed} total job time · {last} previous step's time · {ops} ops run · {errors}
+# error count. `priority=high` flags the important pings. (v0.40's render heartbeat +
+# the NIVA_LOG journal also show progress without ntfy.)
+# notify "niva full_suite · 01 acquire — start {now}" priority=high   # start ping
+
+# --- 0 · package skeleton --------------------------------------------------
+# No mkdir verb needed: inputs/ derived/ outputs/{data,notes,figures,tables,report}
+# are auto-created by the first save/catalog/assess that targets them.
+
+# --- 1 · SHIPPED study-area visualization (from ../demo/, light) -----------
+# Reproject the shipped context layers to the study SRS (EPSG:6346) into derived/,
+# then compose a locator map. These are the only "processing" writes this stage
+# makes; everything heavy is fetched + documented, not transformed, here.
+#
+# CONVENTION (whole study): every processing step also saves a `figure` — a quick,
+# pass-through PNG of its output into outputs/figures/ — as a visual audit trail.
+# `figure` is pass-through, so it chains right after `save`. Composed `map` layouts
+# (below) are produced as needed for the report.
+load "../demo/demo.gpkg|layername=aoi"            | reproject EPSG:6346 | save derived/aoi_6346.gpkg | figure outputs/figures/01_aoi.png
+load "../demo/demo.gpkg|layername=ny_youngstown"  | reproject EPSG:6346 | save derived/village_6346.gpkg | figure outputs/figures/01_village.png
+load "../demo/demo.gpkg|layername=ytown_nhdflowline" | reproject EPSG:6346 | fixgeom | save derived/hydro_6346.gpkg | figure outputs/figures/01_hydro.png
+load "../demo/hillshade.tif"                      | warp EPSG:6346       | save derived/hillshade_6346.tif | figure outputs/figures/01_hillshade.png
+
+# Composed cartographic locator (legend + scale bar + north arrow are on by default).
+# One stage = one line (niva has no line-continuation). Self-contained (hillshade
+# base); add `basemap=osm` for a web base map (needs network).
+load derived/hillshade_6346.tif | map outputs/figures/00_study_area.png title="Youngstown AOI — Niagara River & Lake Ontario waterfronts" layers="derived/hydro_6346.gpkg;derived/village_6346.gpkg;derived/aoi_6346.gpkg" dpi=200
+# notify "01 · shipped study-area map ready ({elapsed})"   # progress ping after the locator map
+
+# --- 2 · DOCUMENT the SHIPPED layers (always available — no fetch needed) ---
+# The parcels + hydrography that drive §2–§5 come from the shipped demo gpkg;
+# document them (deep assess on parcels — 2,790 features, rich schema):
+load "../demo/demo.gpkg|layername=parcels"       | assess --deep to outputs/notes/quality_parcels.md
+load "../demo/demo.gpkg|layername=ny_streams"    | assess to outputs/notes/quality_streams.md
+
+# --- 3 · DOCUMENT the FETCHED inputs — REQUIRES `bash fetch_inputs.sh` first -
+# fetch_inputs.sh populates read-only inputs/ and records source/URL/date/sha256
+# to outputs/notes/provenance_inputs.md. Everything below reads that raw tree; a
+# no-fetch run stops here (by design) having still produced the study-area map and
+# the shipped-layer docs above.
+catalog "inputs" to="outputs/notes/catalog_inputs.md"
+# per-dataset quality profile (CRS set? extent, schema, validity, dupes, nulls,
+# lineage) — writes a report, alters nothing:
+load "inputs/ortho_2024/porter_ortho.jp2"        | assess to outputs/notes/quality_ortho_2024.md
+load "inputs/nlcd/nlcd_impervious_2021.tif"      | assess to outputs/notes/quality_nlcd_2021.md
+load "inputs/nlcd/nlcd_impervious_2001.tif"      | assess to outputs/notes/quality_nlcd_2001.md
+load "inputs/huc12/huc12.gpkg"                   | assess to outputs/notes/quality_huc12.md
+load "inputs/ortho_hist/porter_hist.tif"         | assess to outputs/notes/quality_ortho_hist.md
+# LiDAR point clouds: catalog the folder (per-tile CRS/extent/point counts):
+catalog "inputs/lidar" to="outputs/notes/catalog_lidar.md"
+
+# --- done ------------------------------------------------------------------
+# notify "niva full_suite · 01 acquire complete ✓ ({elapsed}) — inputs documented, map rendered" priority=high
+# Provenance (fetch_inputs.sh) + catalogs + assessments now sit in outputs/notes/,
+# and a study-area figure in outputs/figures/. Next: 02_prepare.niva (reproject/
+# clip everything to the AOI in EPSG:6346 → derived/, still leaving inputs/ raw).

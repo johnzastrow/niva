@@ -9,6 +9,7 @@ collection see the [Cookbook](../docs/guide/cookbook.md); for the **test** suite
 
 | File | What it shows |
 |---|---|
+| [`platform_selftest.niva`](platform_selftest.niva) | **Validate a niva install on any platform.** Exercises every provider — vector (native), raster (gdal), terrain (GRASS), and LiDAR point clouds via **both** `pdalcli:` and `pdal:` — using only shipped `demo/` data (nothing to download). Run the whole check, base CLI utilities included, with [`platform_selftest.sh`](platform_selftest.sh) (`niva pdal check` → `pdal test` → `validate` → `--explain` → `run`). |
 | [`analyst_plan.niva`](analyst_plan.niva) | An end-to-end analyst workflow — load → reproject → clip/overlay → assess → save deliverables. Narrated in [`analyst_plan.md`](analyst_plan.md). |
 | [`youngstown_cat_canvassing.niva`](youngstown_cat_canvassing.niva) | A worked municipal use case (canvassing) chaining many verbs over real local data. |
 | [`build_demo_data.niva`](build_demo_data.niva) | Author-local build script: assembles the consolidated demo GeoPackage under `demo/` from `data/example.gpkg`. |

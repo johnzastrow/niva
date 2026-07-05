@@ -1,0 +1,69 @@
+# =============================================================================
+# full_suite · 04 — SHORELINE EROSION RISK (both waterfronts)         [Stage 4]
+# =============================================================================
+# Rate erosion risk along each shoreline by combining MEASURED historical change
+# (DSAS-style transects + End-Point Rate) with PHYSICAL VULNERABILITY (bluff
+# height, wave/fetch exposure, bank cover). use_case.md § 2. Documented default
+# weights: EPR 0.45 · bluff 0.25 · exposure 0.20 · cover 0.10.
+#
+# PREREQUISITES:
+#   outputs/data/shorelines.gpkg   two epochs, `epoch` attribute (from 03_shoreline)
+#   derived/dtm_2024.tif           bluff height (from 02_prepare)
+#   derived/ortho_2024_6346.tif    NDVI bank cover (band 2=Green? no — 4=NIR,1=Red)
+#   derived/aoi_6346.gpkg , derived/dtm_hillshade_2024.tif
+#
+# PROVIDERS: native + gdal. No SAGA, no OTB. Figure at each step; map at the end.
+# EPOCHS: past 2001, present 2024 → Δt = 23 yr (EPR is per-year).
+# =============================================================================
+
+# --- 0 · NDVI (bank vegetation vs. bare/erodible bank) ----------------------
+# (Same product 05 uses; idempotent — one file, one formula.)
+run gdal:rastercalculator FORMULA="(A-B)/(A+B)" INPUT_A=derived/ortho_2024_6346.tif BAND_A=4 INPUT_B=derived/ortho_2024_6346.tif BAND_B=1 OUTPUT=derived/ndvi_2024.tif
+
+# --- 1 · Split the two shorelines by epoch ---------------------------------
+load outputs/data/shorelines.gpkg | filter "epoch = 2024" | save derived/shoreline_2024.gpkg
+load outputs/data/shorelines.gpkg | filter "epoch = 2001" | save derived/shoreline_2001.gpkg
+
+# --- 2 · DSAS transects: perpendicular, every 25 m, 150 m long --------------
+# Cast along the present (2024) shoreline as the reference (Himmelstoss et al. 2021).
+load derived/shoreline_2024.gpkg | run native:transectfixeddistance INTERVAL=25 LENGTH=150 ANGLE=90 SIDE=2 | save derived/transects.gpkg | figure outputs/figures/04_transects.png
+
+# --- 3 · End-Point Rate (measured change) ----------------------------------
+# DSAS core: each transect crosses BOTH shorelines; the along-transect distance
+# between the 2001 and 2024 crossings is the net shoreline movement, and
+# EPR = movement ÷ Δt(23 yr) (sign = retreat/advance). Extract the crossing points:
+load derived/transects.gpkg | intersect derived/shoreline_2024.gpkg | save derived/cross_2024.gpkg
+load derived/transects.gpkg | intersect derived/shoreline_2001.gpkg | save derived/cross_2001.gpkg
+# !! FLAG — pairing the two crossing points per transect and measuring the signed
+# along-transect distance is the DSAS measurement proper. It is expressible with a
+# join-by-transect-id + a `distance()` compute, but is exactly what a curated
+# `transects`/DSAS verb should encapsulate (see ../../TODO.md). The paired-distance
+# compute below needs a live-QGIS check of the expression (niva issue #26):
+#   load derived/cross_2024.gpkg | join with=derived/cross_2001.gpkg field=TR_FID field2=TR_FID fields=$geom
+#     | run native:fieldcalculator FIELD_NAME=epr FORMULA="distance($geom, geom_2001) / 23.0" | save derived/epr.gpkg | figure outputs/figures/04_epr.png
+
+# --- 4 · Physical vulnerability factors on the backshore -------------------
+# Backshore buffer (40 m landward band along the present shoreline), then zonal:
+#   bluff height = max DTM in the band − water datum (74.2 m);  bank cover = mean NDVI.
+load derived/shoreline_2024.gpkg | buffer 40m | zonalstats raster=derived/dtm_2024.tif stats=max prefix=bluff_ | zonalstats raster=derived/ndvi_2024.tif stats=mean prefix=veg_ | run native:fieldcalculator FIELD_NAME=bluff_ht FORMULA="bluff_max-74.2" | save derived/shore_factors.gpkg | figure outputs/figures/04_backshore_factors.png
+
+# --- 5 · Wave/fetch exposure by front --------------------------------------
+# Open-lake Ontario front >> sheltered Niagara-River front. Exposure is set per
+# `front` (assigned in 03 by the two-reach reference): Ontario=1.0, Niagara=0.5.
+# (Documented step — supply the front reference, then compute exposure per front.)
+
+# --- 6 · Combine → erosion-risk index, classify ----------------------------
+# Each factor min–max normalized to 0–1 (norm_* — computed from the layer's stats;
+# min–max from the layer's field stats) then the documented weighting. Here on the backshore segments,
+# with EPR joined from §3 (`join` on transect/segment id):
+load derived/shore_factors.gpkg | run native:fieldcalculator FIELD_NAME=risk FORMULA="0.45*norm_epr + 0.25*norm_bluff + 0.20*exposure + 0.10*(1.0-norm_veg)" | run native:fieldcalculator FIELD_NAME=risk_class FIELD_TYPE=2 FORMULA="CASE WHEN risk>=0.66 THEN 'High' WHEN risk>=0.33 THEN 'Medium' ELSE 'Low' END" | save outputs/data/erosion_risk.gpkg | figure outputs/figures/04_erosion_risk.png
+# !! FLAG — `norm_epr/norm_bluff/norm_veg` and `exposure` must be populated first
+# (min–max normalization + the §3 EPR join + the §5 exposure assignment). Those
+# joins/normalizations are documented steps; the compute above shows the weighting.
+
+# --- 7 · Deliverable map ----------------------------------------------------
+load derived/dtm_hillshade_2024.tif | map outputs/figures/04_map_erosion_risk.png title="Shoreline erosion risk — Niagara River & Lake Ontario" layers="outputs/data/erosion_risk.gpkg;derived/village_6346.gpkg;derived/aoi_6346.gpkg" dpi=200
+
+# Outputs: outputs/data/erosion_risk.gpkg (+ transects, EPR, backshore factors) and
+# a figure trail. Next: 06_change consolidates shoreline + impervious change with the
+# statistical assessment; 07_scour uses the terrain + Δimpervious.

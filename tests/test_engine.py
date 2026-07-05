@@ -151,6 +151,17 @@ class TestRunEscapeHatch(unittest.TestCase):
         params = next(c for c in backend.calls if c[0] == "run")[2]
         self.assertEqual(params["FORMULA"], "area * 2")  # `*` in an expression is left alone
 
+    def test_run_does_not_glob_a_compact_expression(self):
+        # No spaces AND no path separator (e.g. FORMULA="A*1.0", "(A<0.2)*1") — used to be
+        # mistaken for a bare glob and error with "no files match"; must pass through as a
+        # literal since nothing matches and there's no path separator.
+        for formula in ("A*1.0", "(A<0.20)&(B<0.0)*1", "A*tan(B*0.0174533)"):
+            backend, _ = run(
+                f'run gdal:rastercalculator FORMULA="{formula}" INPUT_A=dem.tif OUTPUT=o.tif'
+            )
+            params = next(c for c in backend.calls if c[0] == "run")[2]
+            self.assertEqual(params["FORMULA"], formula)
+
     def test_load_expands_home(self):
         import os
 

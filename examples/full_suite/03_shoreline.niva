@@ -1,0 +1,60 @@
+# =============================================================================
+# full_suite · 03 — SHORELINE DELINEATION (Niagara River + Lake Ontario)  [Stage 3]
+# =============================================================================
+# Delineate the land–water line for both waterfronts, for the PAST (2001) and
+# PRESENT (2024) epochs — the geometry that Stage 04 turns into erosion rates.
+# Two independent methods, reconciled (use_case.md § 1):
+#   A. LiDAR DTM water-surface CONTOUR at the local datum (Lake Ontario low-water
+#      ≈ 74.2 m IGLD 1985; the Niagara River pool near the mouth).
+#   B. Imagery NDWI water mask → polygon → boundary line (the as-imaged waterline).
+# NHD water-area boundary is the optional third reconciliation line (commented).
+#
+# PREREQUISITES (from 02_prepare.niva, EPSG:6346, AOI-clipped):
+#   derived/dtm_2024.tif           present bare-earth DTM (for the datum contour)
+#   derived/ortho_2024_6346.tif    2024 4-band ortho (band 2=Green, 4=NIR → NDWI)
+#   derived/ortho_hist_6346.tif    historical ortho (past epoch)
+#   derived/aoi_6346.gpkg          clip mask
+#
+# PROVIDERS: gdal + native. No SAGA, no OTB. Figure at each step; map at the end.
+# NOTE: `front` (Niagara vs. Ontario) is assigned by intersecting segments with a
+#   two-reach reference; shown as a documented step, not auto-split, below.
+# RUN (headless): export QT_QPA_PLATFORM=offscreen ; NIVA_TMPDIR=... ; NIVA_LOG=outputs/notes/journal/03_shoreline
+# =============================================================================
+
+# ============================ PRESENT (2024) =================================
+
+# --- A · LiDAR waterline: DTM contour at the water datum (74.2 m) ------------
+# INTERVAL huge + OFFSET at the datum → a single contour line at 74.2 m = the waterline.
+load derived/dtm_2024.tif | run gdal:contour BAND=1 INTERVAL=1000 OFFSET=74.2 FIELD_NAME=elev OUTPUT=derived/shoreline_dtm_2024.gpkg
+load derived/shoreline_dtm_2024.gpkg | clip derived/aoi_6346.gpkg | save derived/shoreline_dtm_2024_c.gpkg | figure outputs/figures/03_shoreline_dtm_2024.png
+
+# --- B · Imagery waterline: NDWI (Green,NIR) → water mask → boundary line ----
+run gdal:rastercalculator FORMULA="(A-B)/(A+B)" INPUT_A=derived/ortho_2024_6346.tif BAND_A=2 INPUT_B=derived/ortho_2024_6346.tif BAND_B=4 OUTPUT=derived/ndwi_2024.tif
+load derived/ndwi_2024.tif | figure outputs/figures/03_ndwi_2024.png
+run gdal:rastercalculator FORMULA="(A>0.0)*1" INPUT_A=derived/ndwi_2024.tif BAND_A=1 OUTPUT=derived/water_ndwi_2024.tif
+load derived/water_ndwi_2024.tif | polygonize | filter "DN = 1" | fixgeom | dissolve | save derived/water_ndwi_2024.gpkg | figure outputs/figures/03_water_ndwi_2024.png
+load derived/water_ndwi_2024.gpkg | run native:polygonstolines | clip derived/aoi_6346.gpkg | run native:fieldcalculator FIELD_NAME=epoch FORMULA="2024" | run native:fieldcalculator FIELD_NAME=source FORMULA="'ndwi'" | save derived/shoreline_2024_attr.gpkg | figure outputs/figures/03_shoreline_ndwi_2024.png
+
+# ============================ PAST (2001) ====================================
+# NDWI on the historical ortho. CAVEAT: if the ~2001 ortho is RGB-only (no NIR),
+# NDWI is not computable — fall back to a visible-band water index or digitize, and
+# flag the limitation in the report (use_case.md § Data).
+run gdal:rastercalculator FORMULA="(A-B)/(A+B)" INPUT_A=derived/ortho_hist_6346.tif BAND_A=2 INPUT_B=derived/ortho_hist_6346.tif BAND_B=4 OUTPUT=derived/ndwi_2001.tif
+run gdal:rastercalculator FORMULA="(A>0.0)*1" INPUT_A=derived/ndwi_2001.tif BAND_A=1 OUTPUT=derived/water_ndwi_2001.tif
+load derived/water_ndwi_2001.tif | polygonize | filter "DN = 1" | fixgeom | dissolve | save derived/water_ndwi_2001.gpkg
+load derived/water_ndwi_2001.gpkg | run native:polygonstolines | clip derived/aoi_6346.gpkg | run native:fieldcalculator FIELD_NAME=epoch FORMULA="2001" | run native:fieldcalculator FIELD_NAME=source FORMULA="'ndwi'" | save derived/shoreline_2001_attr.gpkg | figure outputs/figures/03_shoreline_ndwi_2001.png
+
+# ======================== RECONCILE + ATTRIBUTE ==============================
+# Merge the two epochs into one attributed deliverable (front, epoch, source).
+# `front` assignment (documented step): intersect with a two-reach reference that
+# splits Niagara (west) from Ontario (north) — supply derived/fronts_ref.gpkg, then:
+#   load outputs/data/shorelines.gpkg | selectloc <niagara_reach> predicate=intersect | run native:fieldcalculator FIELD_NAME=front FORMULA="'niagara'" | save ...
+run native:mergevectorlayers LAYERS="derived/shoreline_2024_attr.gpkg;derived/shoreline_2001_attr.gpkg" OUTPUT=outputs/data/shorelines.gpkg
+load outputs/data/shorelines.gpkg | figure outputs/figures/03_shorelines_merged.png
+
+# --- Deliverable map: both shorelines over the 2024 imagery/hillshade --------
+load derived/dtm_hillshade_2024.tif | map outputs/figures/03_map_shorelines.png title="Shoreline change 2001 vs 2024 — Niagara River & Lake Ontario" layers="outputs/data/shorelines.gpkg;derived/village_6346.gpkg;derived/aoi_6346.gpkg" dpi=200
+
+# Outputs: outputs/data/shorelines.gpkg (2 epochs, attributed), the LiDAR contour
+# cross-check, NDWI rasters, and a figure trail. Next: 04_erosion (transects + EPR
+# rates between the two shorelines) then feeds the change stats in 06.
