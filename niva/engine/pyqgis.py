@@ -939,7 +939,7 @@ class PyqgisBackend(Backend):
         from qgis.core import QgsCoordinateTransformContext, QgsVectorFileWriter
 
         if layer.facet == "raster":
-            return self._save_raster(layer, str(dest))
+            return self._save_raster(layer, str(dest), lineage)
         dest = str(dest)
         ext = os.path.splitext(dest)[1]
         name = layer_name or os.path.splitext(os.path.basename(dest))[0]
@@ -1178,7 +1178,9 @@ class PyqgisBackend(Backend):
         finally:
             con.close()
 
-    def _save_raster(self, layer: Layer, dest: str) -> Layer:
+    def _save_raster(
+        self, layer: Layer, dest: str, lineage: list | None = None
+    ) -> Layer:
         """Write a raster result to ``dest`` via ``gdal:translate`` — it picks the
         driver from the extension and converts as needed. Runs on the same (worker)
         thread as the rest of the flow, like every other processing.run call here.
@@ -1215,6 +1217,11 @@ class PyqgisBackend(Backend):
             )
         self._raise_on_command_failure("save", {"dest": dest}, feedback)
         out = result.get("OUTPUT") or dest
+        # Record provenance/lineage onto the raster too (embedded where the format allows,
+        # else a .qmd sidecar) — rasters used to skip this entirely.
+        self._persist_metadata(
+            layer, out, os.path.splitext(os.path.basename(out))[0], False, lineage
+        )
         return Layer(SOURCE, out, facet="raster", name=os.path.basename(dest))
 
     @staticmethod
@@ -1248,19 +1255,60 @@ class PyqgisBackend(Backend):
         has_descriptive = bool(md and (md.title() or md.abstract() or md.keywords()))
         if not has_descriptive and not lineage:
             return
-        from qgis.core import QgsVectorLayer
+        from qgis.core import QgsRasterLayer, QgsVectorLayer
 
         uri = f"{dest}|layername={name}" if multilayer else dest
-        out = QgsVectorLayer(uri, name, "ogr")
+        # Re-open the WRITTEN output as the right layer type. Rasters (DEMs, hillshades,
+        # pdalcli exports) must open as a raster — opening them as a vector is invalid, which
+        # used to silently drop their lineage entirely.
+        if getattr(layer, "facet", "vector") == "raster":
+            out = QgsRasterLayer(dest, name)
+        else:
+            out = QgsVectorLayer(uri, name, "ogr")
+            if not out.isValid():  # e.g. a raster reached here with a stale facet
+                out = QgsRasterLayer(dest, name)
         if not out.isValid():
             return
         target = md if md is not None else out.metadata()
         for entry in lineage or []:
             target.addHistoryItem(f"niva: {entry}")
         out.setMetadata(target)
+        # Try to embed (GeoPackage stores it internally). Formats that can't embed QGIS
+        # metadata (GeoTIFF, Shapefile, …) get a `.qmd` sidecar written alongside so the
+        # provenance is never lost.
         ok, _msg = out.saveDefaultMetadata()
-        if not ok:  # fall back to a .qmd sidecar
+        if (
+            not ok
+        ):  # can't embed → write a .qmd sidecar (best-effort; never fail a save)
             out.saveNamedMetadata(os.path.splitext(dest)[0] + ".qmd")
+
+    def write_metadata_sidecar(self, dest: str, lineage: list | None) -> None:
+        """Write a standalone `.qmd` provenance sidecar next to ``dest`` for outputs that
+        don't pass through :meth:`save`'s metadata path — chiefly point clouds the pdalcli
+        harness writes with an explicit ``output=``. Builds the QGIS metadata document
+        directly (no layer needed), so it works even for a raw ``.las``/``.laz`` this build
+        can't open as a layer. Best-effort — never raises."""
+        if not lineage:
+            return
+        try:
+            from qgis.core import QgsLayerMetadata
+            from qgis.PyQt.QtXml import QDomDocument
+
+            from .. import __version__
+
+            md = QgsLayerMetadata()
+            for entry in lineage:
+                md.addHistoryItem(f"niva: {entry}")
+            doc = QDomDocument("qgis")
+            root = doc.createElement("qgis")
+            root.setAttribute("version", f"niva {__version__}")
+            md.writeMetadataXml(root, doc)
+            doc.appendChild(root)
+            sidecar = os.path.splitext(dest)[0] + ".qmd"
+            with open(sidecar, "w", encoding="utf-8") as fh:
+                fh.write(doc.toString(2))
+        except Exception:  # noqa: BLE001 — provenance is best-effort, never break the run
+            pass
 
     # --- database connections (credentials stay in QGIS's store) -------------
 
@@ -2437,7 +2485,9 @@ class PyqgisBackend(Backend):
         # which in the plugin is the user's live project) also keeps the render self-contained.
         render_stack = [ml.clone() for ml in stack]
         proj = QgsProject()
-        proj.addMapLayers(render_stack, True)  # addToLegend=True → legend auto-populates
+        proj.addMapLayers(
+            render_stack, True
+        )  # addToLegend=True → legend auto-populates
         proj.setCrs(dest_crs)
         lay = QgsLayout(proj)
         lay.initializeDefaults()

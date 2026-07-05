@@ -4,7 +4,7 @@ qgisMinimumVersion=3.22
 qgisMaximumVersion=4.99
 supportsQt6=True
 description=Run niva flows — a concise text pipeline for QGIS geoprocessing — from a dock.
-version=0.40.0
+version=0.40.1
 author=John Zastrow
 email=br8kwall@gmail.com
 about=niva is a concise, readable text-pipeline grammar for QGIS geoprocessing
@@ -25,7 +25,10 @@ deprecated=False
 # one-line summary for the new version here, mirroring the top entry of ../CHANGELOG.md (the
 # repo file stays the full history; this field is just the highlights). Drop the oldest line
 # so it never grows past ~2 entries. Continuation lines MUST stay indented (like `about=`).
-changelog=0.40.0 — Added: `map` verb — a composed cartographic layout (PDF/PNG/SVG) with legend,
+changelog=0.40.1 — Fixed: provenance/lineage metadata now covers RASTER and POINT-CLOUD outputs
+    (was vector-only). Rasters and .las/.laz/.copc.laz get a .qmd sidecar carrying the niva lineage
+    when the format can't embed it (gpkg/PostGIS embed; shp/geojson/tif/asc/laz → .qmd sidecar).
+    0.40.0 — Added: `map` verb — a composed cartographic layout (PDF/PNG/SVG) with legend,
     scale bar, north arrow ON by default; a bare `map out.pdf` yields a complete map, no template
     needed. Overlays, basemap, labels, page/orientation/dpi; or `from=project.qgz` to export an
     existing QGIS layout/atlas. figure/map now stream render progress. Long-run resilience test suite.

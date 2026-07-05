@@ -11,6 +11,24 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.40.1] - 2026-07-05
+
+### Fixed
+- **Provenance metadata now covers rasters and point clouds.** `save` recorded the niva
+  lineage into the output's QGIS metadata history only for **vector** outputs — **raster**
+  outputs (`_save_raster`) skipped it entirely, so DEMs/hillshades/pdalcli rasters carried no
+  provenance. Rasters now get the same treatment: lineage embedded where the format allows,
+  else a **`.qmd` sidecar** (verified for `.tif`/`.asc`; `.aux.xml` still carries GDAL stats).
+- **Point-cloud outputs get provenance too.** `pdalcli:*` outputs written with `output=` bypass
+  `save`, so they had no lineage. The engine now writes a **`.qmd` provenance sidecar** next to
+  any file-backed point-cloud output (`.las`/`.laz`/`.copc.laz`), carrying the full lineage up to
+  and including the creating op — built directly from `QgsLayerMetadata` so it works even for raw
+  LAS this build can't open as a layer. New `Backend.write_metadata_sidecar` (no-op default;
+  implemented in `PyqgisBackend`).
+
+Coverage now: GeoPackage/PostGIS embed provenance; Shapefile/GeoJSON/KML/CSV, GeoTIFF/ASC/JP2/PNG,
+and LAS/LAZ/COPC get a `.qmd` sidecar. Tests: `tests/test_provenance.py`.
+
 ## [0.40.0] - 2026-07-05
 
 ### Added
