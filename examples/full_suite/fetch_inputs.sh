@@ -74,8 +74,8 @@ echo "== 3/5  NLCD % Developed Imperviousness — 2001 & 2021 (MRLC WCS) =="
 NLCD_WCS="https://www.mrlc.gov/geoserver/mrlc_download/wcs"
 # Coverage is EPSG:5070 with axis labels X/Y → subset in 5070 metres (not lon/lat).
 # coverageId form: mrlc_download__NLCD_<YR>_Impervious_L48. VERIFIED (valid GeoTIFF).
-read -r NX0 NY0 < <(printf '%s\n' "-79.067 43.233" | gdaltransform -s_srs EPSG:4326 -t_srs EPSG:5070 2>/dev/null)
-read -r NX1 NY1 < <(printf '%s\n' "-79.005 43.275" | gdaltransform -s_srs EPSG:4326 -t_srs EPSG:5070 2>/dev/null)
+read -r NX0 NY0 _z0 < <(printf '%s\n' "-79.067 43.233" | gdaltransform -s_srs EPSG:4326 -t_srs EPSG:5070 2>/dev/null)
+read -r NX1 NY1 _z1 < <(printf '%s\n' "-79.005 43.275" | gdaltransform -s_srs EPSG:4326 -t_srs EPSG:5070 2>/dev/null)
 for YR in 2001 2021; do
   COV="mrlc_download__NLCD_${YR}_Impervious_L48"
   URL="${NLCD_WCS}?service=WCS&version=2.0.1&request=GetCoverage&coverageId=${COV}&subset=X(${NX0},${NX1})&subset=Y(${NY0},${NY1})&format=image/geotiff"
