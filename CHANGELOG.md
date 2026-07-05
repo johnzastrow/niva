@@ -11,6 +11,25 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Added
+- **`niva pdal [check|test|setup]` — set up & test the point-cloud (PDAL) backend.** Finds
+  `pdal_wrench` (env vars → `PATH` → conda envs → QGIS bundles), reports its version and the QGIS
+  PDAL provider/data-provider state, and prints an **OS-tailored fix** when anything is missing.
+  `check` works even when QGIS's Python isn't wired (the usual broken state); `test` grids a cloud
+  to a raster end-to-end (synthetic via `readers.faux`, or a `.las` you pass); `setup` prints the
+  per-platform install commands. New module `niva/pdal_doctor.py`.
+- **Point-cloud backend setup guide** ([`docs/guide/pdal-setup.md`](docs/guide/pdal-setup.md)) —
+  plain, self-contained per-platform (Windows/macOS/Linux) manual for the `pdal_wrench` dependency,
+  aimed at users without an agent. Documents that raw `.las` needs COPC for `pdal:` (or use
+  `pdalcli:`), and that QGIS's `pdal:exportraster` silently drops `==` in `FILTER_EXPRESSION`.
+
+### Fixed
+- **`pdalcli:`/`saga:` runs no longer crash when `NIVA_TMPDIR` doesn't exist.** The native-CLI
+  harness wrote temp outputs via `mkstemp(dir=NIVA_TMPDIR)` but never created that dir (unlike the
+  QGIS path), so a bespoke scratch dir made every run die with a raw `FileNotFoundError`;
+  `_temp_path` now creates it. Also: the setup docs no longer advise `LD_LIBRARY_PATH` (the conda
+  `pdal_wrench` self-locates its libs via RPATH; setting it globally shadowed QGIS's own gdal libs).
+
 ## [0.42.5] - 2026-07-05
 
 ### Security
