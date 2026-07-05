@@ -11,6 +11,28 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.41.0] - 2026-07-05
+
+### Added
+- **Offline algorithm catalog** — `scripts/gen_algorithms.py` now also emits a packaged
+  `niva/registry/algorithms.json` (878 algorithms: every parameter's name/type/**default**/enum,
+  outputs, group, aliasing verb). Ships in the wheel, so the following work with **no QGIS**:
+  - **`describe <id>` offline (issue #25)** — reads the catalog first, showing every parameter and
+    its default; only falls back to live QGIS for ids the catalog lacks (e.g. a plugin's algorithm).
+  - **`--explain` validates `run <id> KEY=value` offline (issue #26)** — flags an unknown algorithm
+    id and any `KEY=` that isn't a real parameter (with a did-you-mean), skipping the `pdalcli:`/
+    `saga:` harness ids. Warnings only — never blocks a run.
+- **Reproducible provenance** — the metadata history now records the **niva version** alongside the
+  flow text, so `flow text + version + that version's catalog/describe` pins the exact resolved
+  parameters (including defaults you never typed). Answers "are the parameters recorded?": the flow
+  text + version + catalog do; the run journal still keeps the full `processing.run(...)`.
+- **SpatiaLite lineage** — `save @spatialite_conn.table` now records lineage in an **aspatial,
+  idempotent `niva_lineage` table** (SpatiaLite has no `COMMENT ON TABLE`). Best-effort (a failed
+  provenance write never fails the save), never touches spatial metadata, hidden from `show` (still
+  queryable via `sql @conn`). PostGIS is unchanged (table `COMMENT`).
+
+Tests: `tests/test_catalog.py` (10). 478 tests pass, ruff clean.
+
 ## [0.40.1] - 2026-07-05
 
 ### Fixed
