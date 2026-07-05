@@ -875,7 +875,12 @@ class PyqgisBackend(Backend):
                 else:
                     if not geom.isGeosValid():
                         invalid += 1
-                    digest = hashlib.sha1(bytes(geom.asWkb())).digest()
+                    # usedforsecurity=False: this digest only dedups geometries (bounds
+                    # memory), it is never a security/integrity check — so a fast non-crypto
+                    # use of SHA-1 is fine and correct here.
+                    digest = hashlib.sha1(
+                        bytes(geom.asWkb()), usedforsecurity=False
+                    ).digest()
                     if digest in seen:
                         duplicates += 1
                     else:
@@ -1695,26 +1700,36 @@ class PyqgisBackend(Backend):
         idempotent (`CREATE TABLE IF NOT EXISTS`), and **best-effort**: any error is swallowed
         so a failed provenance write never fails the save. It's hidden from `show` (see
         `_SPATIALITE_SYSTEM_TABLES`) but stays queryable with `sql @conn "SELECT … "`. One row
-        per lineage step, with the niva version stamped as its own first row."""
+        per lineage step, with the niva version stamped as its own first row.
+
+        Written through Python's ``sqlite3`` with **bound parameters** (``?``) rather than the
+        QGIS connection's string-only ``executeSql`` — no query is built from data, so there is
+        no SQL-injection surface (a table name with a quote can't break out)."""
         from .. import __version__
 
-        def _q(v):
-            return str(v).replace(
-                "'", "''"
-            )  # SQLite single-quote escaping (as PostGIS path)
-
         try:
-            connection.executeSql(
-                "CREATE TABLE IF NOT EXISTS niva_lineage "
-                "(table_name TEXT, recorded_at TEXT, step TEXT)"
-            )
-            tbl = _q(table)
+            from qgis.core import QgsDataSourceUri
+
+            path = QgsDataSourceUri(connection.uri()).database()
+            if not path:  # can't locate the SpatiaLite file — skip (best-effort)
+                return
+            import sqlite3
+
             rows = [f"niva {__version__}"] + [str(e) for e in lineage]
-            for step in rows:
-                connection.executeSql(
-                    "INSERT INTO niva_lineage (table_name, recorded_at, step) "
-                    f"VALUES ('{tbl}', datetime('now'), '{_q(step)}')"
+            db = sqlite3.connect(path)
+            try:
+                db.execute(
+                    "CREATE TABLE IF NOT EXISTS niva_lineage "
+                    "(table_name TEXT, recorded_at TEXT, step TEXT)"
                 )
+                db.executemany(
+                    "INSERT INTO niva_lineage (table_name, recorded_at, step) "
+                    "VALUES (?, datetime('now'), ?)",
+                    [(table, step) for step in rows],
+                )
+                db.commit()
+            finally:
+                db.close()
         except Exception:  # noqa: BLE001 — provenance is best-effort; a save must never fail on it
             pass
 

@@ -105,8 +105,23 @@ def _http_get(url: str) -> bytes:
         ua = f"niva/{__version__} (+https://github.com/johnzastrow/niva)"
     except Exception:  # noqa: BLE001
         ua = "niva"
+    # Hard scheme allowlist: only http/https ever reach the network — never file:, ftp:,
+    # data:, or a custom scheme (defence against SSRF / local-file reads).
+    scheme = urllib.parse.urlsplit(url).scheme.lower()
+    if scheme not in ("http", "https"):
+        raise ValueError(f"refusing non-http(s) URL scheme: {scheme!r}")
     req = urllib.request.Request(url, headers={"User-Agent": ua})
-    with urllib.request.urlopen(req, timeout=_TIMEOUT) as resp:  # noqa: S310 — scheme checked
+    # Build an opener with ONLY http/https handlers (no FileHandler/FTPHandler). This blocks
+    # the initial request AND any redirect from reaching file:/ftp: — a redirect to
+    # file:///etc/passwd finds no handler and errors instead of reading a local file. Using
+    # OpenerDirector.open (not urllib.request.urlopen) also keeps the default file/ftp
+    # handlers out of the picture entirely.
+    opener = urllib.request.OpenerDirector()
+    opener.add_handler(urllib.request.HTTPHandler())
+    opener.add_handler(urllib.request.HTTPSHandler())
+    opener.add_handler(urllib.request.HTTPRedirectHandler())
+    opener.add_handler(urllib.request.HTTPErrorProcessor())
+    with opener.open(req, timeout=_TIMEOUT) as resp:
         data = resp.read(_MAX_BYTES + 1)
     if len(data) > _MAX_BYTES:
         raise ValueError(f"capabilities response exceeded {_MAX_BYTES} bytes")
@@ -114,12 +129,17 @@ def _http_get(url: str) -> bytes:
 
 
 def _safe_xml(data: bytes):
-    """Parse capabilities XML, refusing any DOCTYPE (so no entity expansion is possible)."""
-    import xml.etree.ElementTree as ET
+    """Parse capabilities XML **safely**: reject any DOCTYPE up front, so there are no entities
+    to expand — this neutralises XXE and billion-laughs before the parser ever runs. stdlib
+    ``xml.etree`` is otherwise fine for entity-free XML; the ``# nosec`` markers acknowledge
+    Bandit's blanket B405/B314 (it can't see the DOCTYPE guard). We avoid a ``defusedxml``
+    dependency to keep the vendored package zero-dependency (see the security-scanning notes in
+    docs/guide/qgis-plugin-publishing.md)."""
+    import xml.etree.ElementTree as ET  # nosec B405 — DOCTYPE refused below; no entity expansion
 
     if b"<!DOCTYPE" in data[:16384] or b"<!doctype" in data[:16384]:
         raise ValueError("refusing to parse XML with a DOCTYPE declaration (possible XXE)")
-    return ET.fromstring(data)
+    return ET.fromstring(data)  # nosec B314 — input validated DOCTYPE-free above
 
 
 def _local(tag: str) -> str:

@@ -11,6 +11,32 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.42.5] - 2026-07-05
+
+### Security
+- **Cleared all 5 blocking findings from the QGIS Plugin Repository security scan (Bandit).** The
+  plugin was BLOCKED on v0.42.4; these are real hardening fixes, not just suppressions:
+  - **B324 (weak SHA-1)** — the geometry-dedup digest in `pyqgis.py` now passes
+    `usedforsecurity=False` (it was never a security hash — just bounds memory on big layers).
+  - **B608 (SQL injection)** — the SpatiaLite `niva_lineage` writer no longer builds an `INSERT`
+    from an f-string; it writes through Python `sqlite3` with **bound `?` parameters**, so a table
+    name can't break out of the query.
+  - **B310 (urlopen scheme) ×2** — `remote.py` (WFS/WCS capabilities) and `utilities.py` (ntfy)
+    now enforce an **http/https-only scheme allowlist** and fetch through an `OpenerDirector`
+    carrying only http/https handlers (no `FileHandler`/`FTPHandler`), so neither the request nor a
+    redirect can read `file://` or reach another scheme.
+  - **B314/B405 (XML)** — the capabilities parser already refuses any `DOCTYPE` (neutralising XXE /
+    billion-laughs before parsing); annotated with `# nosec` since a stdlib parser is genuinely safe
+    on DOCTYPE-free input and we keep the package `defusedxml`-free (zero-dependency).
+  - Verified locally with `bandit -r` (0 Medium/High) and `detect-secrets` (0). Remaining Bandit
+    findings are all LOW/non-blocking (best-effort `try/except`, the intentional PDAL/SAGA
+    `subprocess` harness with `shell=False`).
+
+### Added
+- **Security-scanning section in `docs/guide/qgis-plugin-publishing.md`** — the three scanner tools,
+  how to run them locally before uploading, and how each finding class was resolved, so other
+  plugins can follow the same playbook.
+
 ## [0.42.4] - 2026-07-05
 
 ### Changed

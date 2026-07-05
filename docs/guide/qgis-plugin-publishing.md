@@ -131,7 +131,65 @@ what you upload to plugins.qgis.org.
 
 ---
 
-## 6. Pre-publish checklist
+## 6. Security scanning — clear it BEFORE you upload
+
+Every upload to plugins.qgis.org is **automatically scanned**. Two scanners are **BLOCKING** — a
+finding delists the version until you upload a fixed one — and two are informational:
+
+| Tool | Status | Catches |
+|---|---|---|
+| **Bandit** | 🔴 blocking | Python security issues — shell/`eval`/`pickle`, SQL injection, weak crypto, unsafe URL/XML, … |
+| **detect-secrets** | 🔴 blocking | Hardcoded secrets: cloud creds, API keys/tokens, SSH keys, DB strings, high-entropy strings |
+| **Flake8** | 🟡 info | PEP 8 style, syntax, unused names |
+| **File analysis** | 🟡 info | Executable/hidden files, suspicious types, odd permissions |
+
+**Only Bandit findings at MEDIUM or HIGH severity block** — LOW findings (e.g. `try/except/pass`
+`B110`, `subprocess` `B404`/`B603`) are reported but do not block. Fix the blockers; document the
+rest.
+
+### Run the exact tools locally first
+
+```bash
+pip install bandit detect-secrets flake8            # or: uv tool install bandit detect-secrets
+bandit -r path/to/plugin/            # scan the plugin tree; add --severity-level medium for blockers
+detect-secrets scan path/to/plugin/
+flake8 path/to/plugin/               # informational
+```
+
+Scan the **built** plugin tree (what the repo actually sees), not just your source — for niva that
+means unzipping `niva_qgis.zip` and running `bandit -r niva_qgis/`, because the scanner reads the
+vendored `libs/` too.
+
+### How niva cleared its 5 blockers (v0.42.5) — prefer real fixes over `# nosec`
+
+The docs don't promise `# nosec` is honoured, so **change the code** wherever a genuine fix exists:
+
+| Bandit | Where | Real fix |
+|---|---|---|
+| **B324** weak SHA-1 | a geometry-dedup digest | add `usedforsecurity=False` — tells Bandit (and Python) it isn't a security hash. Needs Python ≥ 3.9. |
+| **B608** SQL injection | string-built `INSERT` | write through `sqlite3` with **bound `?` parameters** (`executemany`), not an f-string. If your DB API has no bind params, validate identifiers against a strict allowlist. |
+| **B310** urlopen scheme ×2 | `urllib` fetches | enforce an **http/https scheme allowlist**, and fetch via an `OpenerDirector` that carries **only** `HTTPHandler`/`HTTPSHandler` (+redirect/error) — no `FileHandler`/`FTPHandler`, so no request or redirect can read `file://`. Using `OpenerDirector.open` instead of `urllib.request.urlopen` also sidesteps Bandit's B310 blacklist at the AST level. |
+| **B314/B405** XML parse | `xml.etree` on remote XML | reject any `DOCTYPE` before parsing (kills XXE / billion-laughs), then `# nosec B314`/`B405`. **No stdlib XML parser passes Bandit** — the only Bandit-clean option is `defusedxml`; niva stays zero-dependency and relies on the DOCTYPE guard + a justified `# nosec`. |
+
+Rules of thumb learned here:
+- **`usedforsecurity=False`** clears B324 for any non-security hash (cache keys, dedup, ETags).
+- **Bound parameters** are the only real fix for B608 — never hand-escape SQL.
+- For **B310**, the `OpenerDirector`-with-only-http/https-handlers pattern is both a real SSRF/`file://`
+  mitigation *and* AST-clean, so you don't depend on `# nosec`.
+- For **XML**, if you can take the dependency, `defusedxml` is the Bandit-blessed fix; otherwise refuse
+  `DOCTYPE` and justify a `# nosec`.
+- `# nosec B<id>` (space, then the ID) suppresses one check on that line; standard Bandit honours it,
+  but treat it as a last resort and always pair it with a real mitigation + a comment saying why.
+
+### detect-secrets
+
+Keep **all** credentials in the environment or a secret manager — never in code, config, or the
+example flows. niva reads tokens (e.g. `NIVA_NTFY_TOKEN`) only from the environment and never logs or
+echoes them, so the scan is clean.
+
+---
+
+## 7. Pre-publish checklist
 
 - [ ] `qgisMaximumVersion=4.99`, **no `supportsQt6`** field
 - [ ] Qt imports via `qgis.PyQt`; `QAction`-style relocations handled; tested on a QGIS 4 build
@@ -139,6 +197,7 @@ what you upload to plugins.qgis.org.
 - [ ] License consistent everywhere and **bundled in the zip**
 - [ ] `tags`, `description`, `about`, `repository`, `tracker`, `homepage` set
 - [ ] Icon present (PNG referenced by `icon=`)
+- [ ] **`bandit -r` on the built tree = 0 MEDIUM/HIGH**, and `detect-secrets scan` = 0 (see §6)
 - [ ] Zip has exactly one identifier-named top folder, no `.pyc`, self-contained
 - [ ] Installed from ZIP in a clean QGIS (3.x **and** 4.x) and it loads + runs
 - [ ] Release cut (tag + GitHub Release with the zip attached)
