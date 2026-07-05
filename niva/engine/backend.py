@@ -182,6 +182,42 @@ class Backend(abc.ABC):
         with no pipeable result — the engine treats `figure` as pass-through."""
 
     @abc.abstractmethod
+    def render_map(
+        self,
+        layer: Layer,
+        dest: str,
+        *,
+        title: str | None = None,
+        legend: bool = False,
+        scalebar: bool = False,
+        northarrow: bool = False,
+        page: str = "A4",
+        orientation: str = "landscape",
+        dpi: int = 300,
+        extent=None,
+        layers: list | None = None,
+        basemap: str | None = None,
+        labels: str | None = None,
+        from_project: str | None = None,
+        layout: str | None = None,
+        progress=None,
+    ) -> None:
+        """Render a **composed cartographic layout** of ``layer`` (the `map` verb) to
+        ``dest`` (`.pdf`/`.png`/`.jpg`/`.svg`). Two modes:
+
+        * **ad-hoc** (default) — compose a page (``page`` A4/A3/Letter/… or ``WxH`` mm,
+          ``orientation`` landscape/portrait) with the map filling it and optional
+          ``title``/``legend``/``scalebar``/``northarrow`` decorations. Reuses the same
+          layer stack as `figure` (piped layer + ``layers`` overlays + ``basemap``,
+          ``labels`` by field, ``extent`` framing). **Needs no template** — a bare
+          ``map out.pdf`` still yields a basic map on a page.
+        * **from a project** — ``from_project`` (a `.qgs`/`.qgz`) exports an existing
+          print ``layout`` (named, else the first) at full fidelity — atlases included.
+
+        ``dpi`` sets export resolution (300 for print by default). Pass-through — the
+        engine returns the upstream layer so `map` chains."""
+
+    @abc.abstractmethod
     def create_project(
         self,
         layers: list,
@@ -450,6 +486,49 @@ class MockBackend(Backend):
                     "basemap": basemap,
                     "bg": bg,
                     "labels": labels,
+                },
+            )
+        )
+
+    def render_map(
+        self,
+        layer: Layer,
+        dest: str,
+        *,
+        title=None,
+        legend=False,
+        scalebar=False,
+        northarrow=False,
+        page="A4",
+        orientation="landscape",
+        dpi: int = 300,
+        extent=None,
+        layers: list | None = None,
+        basemap: str | None = None,
+        labels: str | None = None,
+        from_project: str | None = None,
+        layout: str | None = None,
+        progress=None,
+    ) -> None:
+        self.calls.append(
+            (
+                "map",
+                layer.name if layer else None,
+                dest,
+                {
+                    "title": title,
+                    "legend": legend,
+                    "scalebar": scalebar,
+                    "northarrow": northarrow,
+                    "page": page,
+                    "orientation": orientation,
+                    "dpi": dpi,
+                    "extent": extent,
+                    "layers": list(layers or []),
+                    "basemap": basemap,
+                    "labels": labels,
+                    "from_project": from_project,
+                    "layout": layout,
                 },
             )
         )

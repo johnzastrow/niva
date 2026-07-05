@@ -11,6 +11,27 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.40.0] - 2026-07-05
+
+### Added
+- **`map` verb** — a composed cartographic **layout** (→ PDF/PNG/JPG/SVG) with a **legend,
+  scale bar, and north arrow on by default**, so a bare `load x | map out.pdf` yields a complete
+  map with **no template required**. Shares `figure`'s layer model (piped layer + `layers=`
+  overlays + `basemap`, `labels`, `extent`), handles vector *and* raster, and adds `title=`,
+  `page=`/`portrait`/`landscape`, `dpi=`, `bare`, and `no<element>` opt-outs. A `from=<project.qgz>
+  [layout=<name>]` form exports an **existing QGIS print layout** at full fidelity (atlases too).
+  New `Backend.render_map` (impl `PyqgisBackend` via `QgsLayout`/`QgsLayoutExporter`). Verified end
+  to end (bare, titled, portrait/Letter, overlays, many-layer, project export). Built-in count 22 → 23.
+- **Render progress** — `figure`/`map` stream per-layer load status and a render **heartbeat**, so
+  long renders never look frozen. Long renders are supported (they can take minutes on large data)
+  without crashing.
+- **Resilience/soak test suite** (`tests/test_stress.py`) — long-running tests, one per component
+  (figure, map, deep pipelines, point-cloud), on generated large data. **Skipped by default**
+  (`NIVA_STRESS=1` to run; `NIVA_STRESS_SCALE` to scale) so ordinary dev stays fast. Verified: all
+  pass under the real backend in ~51 s.
+- Cookbook recipes 85–90 (`map` tiny → extreme, incl. many-layer multi-type plates); reference §4
+  `map` entry; VS Code `map`/`map-full`/`map-from` snippets; `map` added to all five editor grammars.
+
 ## [0.39.0] - 2026-07-05
 
 ### Added

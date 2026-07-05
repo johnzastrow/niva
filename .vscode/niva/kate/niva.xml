@@ -15,7 +15,7 @@
       <item>describe</item><item>search</item><item>docs</item><item>show</item>
       <item>info</item><item>catalog</item><item>assess</item><item>metadata</item>
       <item>style</item><item>project</item><item>notify</item><item>email</item>
-      <item>remove</item><item>figure</item>
+      <item>remove</item><item>figure</item><item>map</item>
     </list>
     <list name="aliases">
       <item>buffer</item><item>clip</item><item>intersect</item><item>difference</item>

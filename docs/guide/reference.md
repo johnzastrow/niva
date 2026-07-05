@@ -568,8 +568,35 @@ load parcels.gpkg | figure map.png layers="roads.gpkg" basemap=osm labels=owner 
 load flood.gpkg | save flood.gpkg | figure flood.png                 # chains after save
 ```
 
-For a composed cartographic layout (title, legend, scale bar, north arrow → PDF/SVG), the
-richer `map` verb is next on the roadmap.
+For a composed cartographic layout (title, legend, scale bar, north arrow → PDF/SVG), use the
+richer `map` verb below.
+
+### `map` — composed cartographic layout *(pass-through)*
+
+```
+map <out.pdf|.png|.jpg|.svg> [title="…"] [legend|nolegend] [scalebar|noscalebar]
+    [northarrow|nonortharrow] [bare] [page=A4|A3|Letter|WxH] [portrait|landscape] [dpi=N]
+    [layers="a;b"] [basemap=osm|<xyz-url>] [labels=<field>] [extent=…]
+map <out.pdf> from=<project.qgz> [layout=<name>]
+```
+
+Builds a page **layout** with the map plus a **legend, scale bar, and north arrow — on by
+default**, so a bare `load x | map out.pdf` yields a complete map with no template. Shares
+`figure`'s layer model (piped layer + `layers=` overlays + `basemap`, `labels`, `extent`) and
+handles vector *and* raster. `bare` strips the decorations; `no<element>` drops one; `page`/
+`orientation`/`dpi` control the sheet (A4 landscape, 300 dpi by default). Writes PDF/PNG/JPG/SVG.
+
+The `from=` form exports an **existing QGIS print layout** (named, else the first) at full
+fidelity — the way to ship hand-designed plates and atlases. Pass-through, so it chains.
+
+```
+load dem.tif | map dem.pdf                                    # complete map, one line
+load flood.gpkg | style apply=flood.qml | map flood.pdf title="Flood Risk" layers="roads.gpkg" basemap=osm labels=risk
+load aoi.gpkg | map atlas.pdf from=study.qgz layout="Overview"
+```
+
+Rendering large datasets can take a while; niva streams progress (per-layer load + a render
+heartbeat) so a long render never looks frozen.
 
 ### `notify` — push a message via ntfy *(pass-through)*
 

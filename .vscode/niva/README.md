@@ -14,7 +14,7 @@ Or open `.vscode/niva/` in VSCode and press **F5**.
 ## Features
 
 - **Syntax highlighting** — comments, strings, pipes, built-in & alias verbs, `key=value` options, `@conn` refs, `EPSG:NNNN`, distances, flags
-- **Tab-completion snippets** — type a prefix and Tab to expand with placeholders for each parameter. Covers all 22 built-ins, all 45 aliases, common pipeline patterns (`buf`, `pipeline`, `each-reproject`, `sql-pipe`, …), and the **PDAL/SAGA LiDAR harness** (`pdalcli`, `pdalcli-dtm`, `pdalcli-dsm`, `pdalcli-class`, `chm`, `saga`)
+- **Tab-completion snippets** — type a prefix and Tab to expand with placeholders for each parameter. Covers all 23 built-ins, all 45 aliases, common pipeline patterns (`buf`, `pipeline`, `each-reproject`, `sql-pipe`, …), and the **PDAL/SAGA LiDAR harness** (`pdalcli`, `pdalcli-dtm`, `pdalcli-dsm`, `pdalcli-class`, `chm`, `saga`)
 - **Comment toggle** — `Ctrl+/` / `Cmd+/`
 - **Auto-closing quotes**
 

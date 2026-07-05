@@ -571,6 +571,58 @@ Draw order is top-down: `flood_zones` (styled) over the overlays over the basema
 another layer's bounds; `labels=` labels by an attribute; `dpi=200` sizes symbols/text for print.
 Being pass-through, `figure` can also snapshot a mid-pipe step: `… | figure step.png | save out.gpkg`.
 
+### `map` — composed cartographic layouts (tiny → extreme)
+
+Where `figure` is a bare image, **`map`** builds a page **layout** (→ PDF/PNG/SVG) with a legend,
+scale bar, and north arrow **on by default** — a proper map with no template required. These six
+climb from one line to a full multi-layer plate.
+
+**85. Tiny** — one layer, one line; a complete A4 map (legend + scale bar + north arrow)
+```
+load dem.tif | map dem.pdf
+```
+
+**86. Add a title**
+```
+load parcels.gpkg | map parcels.pdf title="Parcels — 2026"
+```
+
+**87. Label it, pick a page and format** — PNG on US Letter, features labelled by a field
+```
+load zones.gpkg | map zones.png title="Zoning" labels=zone_type page=Letter dpi=200
+```
+
+**88. Themed, with an overlay and a basemap** — styled primary layer over roads over OSM tiles
+```
+load flood.gpkg | style apply=flood.qml | map flood.pdf title="Flood Risk" \
+  layers="roads.gpkg" basemap=osm labels=risk portrait
+```
+
+**89. Many layers, many types** — line, two rasters, polygon, and point layers on one A3 plate
+```
+load contours.gpkg | map terrain.pdf title="Terrain — Multi-Layer" \
+  layers="dtm.tif;dsm.tif;building_footprints.gpkg;control_points.gpkg" \
+  labels=elev extent=dsm.tif page=A3 landscape dpi=300
+```
+
+**90. Extreme** — build every derivative from raw LiDAR, then compose one rich A3 plate that stacks
+a hillshade, contours, footprints and markers over a basemap, framed to a study area at print DPI
+```
+load tile.las | run pdalcli:to_raster attribute=Z filter="Classification==2" resolution=1 | save dtm.tif
+load tile.las | run pdalcli:to_raster attribute=Z resolution=1 | save dsm.tif
+load dtm.tif  | hillshade z_factor=2 | save hillshade.tif
+load dtm.tif  | run gdal:contour BAND=1 INTERVAL=5 FIELD_NAME=elev OUTPUT=contours.gpkg
+load tile.las | run pdalcli:translate filter="Classification==6" output=buildings.laz
+load buildings.laz | run pdalcli:boundary | fixgeom | simplify 0.5m | save footprints.gpkg
+load contours.gpkg | style apply=contours.qml \
+  | map plate.pdf title="Bare-Earth Terrain & Structures" \
+      layers="hillshade.tif;dsm.tif;footprints.gpkg;control_points.gpkg" \
+      basemap=osm labels=elev extent=study_area.gpkg page=A3 landscape dpi=300 \
+      legend scalebar northarrow
+```
+For a fully hand-designed plate (custom frames, insets, an atlas of per-feature pages), design it
+once in QGIS and export it verbatim: `load aoi.gpkg | map out.pdf from=study.qgz layout="Overview"`.
+
 ---
 
 ## Capstone — full pipelines

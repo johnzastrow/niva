@@ -327,5 +327,20 @@
     "prefix": "figure-full",
     "body": ["load ${1:parcels.gpkg} | figure ${2:map.png} layers=\"${3:roads.gpkg}\" basemap=${4|osm|} labels=${5:name} size=${6:1600x1000}$0"],
     "description": "Figure with an overlay layer, basemap, and field labels"
+  },
+  "Map — composed layout (PDF)": {
+    "prefix": "map",
+    "body": ["load ${1:data.gpkg} | map ${2:map.pdf} title=\"${3:Title}\"$0"],
+    "description": "Composed cartographic layout with legend/scale bar/north arrow (defaults on)"
+  },
+  "Map — full plate": {
+    "prefix": "map-full",
+    "body": ["load ${1:primary.gpkg} | style apply=${2:style.qml} | map ${3:plate.pdf} title=\"${4:Title}\" layers=\"${5:dtm.tif;overlay.gpkg}\" basemap=${6|osm|} labels=${7:name} page=${8|A3,A4,Letter|} ${9|landscape,portrait|} dpi=${10:300}$0"],
+    "description": "Multi-layer map plate: overlays, basemap, labels, page/orientation/dpi"
+  },
+  "Map — export an existing QGIS layout": {
+    "prefix": "map-from",
+    "body": ["load ${1:aoi.gpkg} | map ${2:out.pdf} from=${3:project.qgz} layout=\"${4:Overview}\"$0"],
+    "description": "Export a designed print layout/atlas from a QGIS project"
   }
 }

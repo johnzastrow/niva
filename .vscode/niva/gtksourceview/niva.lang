@@ -47,7 +47,7 @@
           <keyword>info</keyword><keyword>catalog</keyword><keyword>assess</keyword>
           <keyword>metadata</keyword><keyword>style</keyword><keyword>project</keyword>
           <keyword>notify</keyword><keyword>email</keyword><keyword>remove</keyword>
-          <keyword>figure</keyword>
+          <keyword>figure</keyword><keyword>map</keyword>
         </context>
 
         <context id="alias" style-ref="alias">

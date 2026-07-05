@@ -24,7 +24,7 @@ syn match nivaFlag "\<\(deep\|percent\|dissolve\|separate\|discard\|force\|relat
 " Built-in verbs
 syn keyword nivaBuiltin load save run filter sql split each call
 syn keyword nivaBuiltin describe search docs show info catalog assess
-syn keyword nivaBuiltin metadata style project notify email remove
+syn keyword nivaBuiltin metadata style project notify email remove figure map
 
 " Alias verbs
 syn keyword nivaAlias buffer clip intersect difference symdifference union

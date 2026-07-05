@@ -2256,33 +2256,16 @@ class PyqgisBackend(Backend):
         progress=None,
     ) -> None:
         from qgis.core import (
-            QgsCoordinateReferenceSystem,
             QgsMapRendererParallelJob,
             QgsMapSettings,
             QgsProject,
             QgsRasterLayer,
-            QgsVectorLayer,
         )
         from qgis.PyQt.QtCore import QEventLoop, QSize
         from qgis.PyQt.QtGui import QColor
 
-        primary = self._as_map_layer(layer.ref, layer.name)
-        stack = [primary]
-        for src in layers or []:
-            stack.append(self._as_map_layer(os.path.expanduser(str(src)), None))
-        if basemap:
-            bm = self._basemap_layer(basemap)
-            if bm is not None:
-                stack.append(bm)  # bottom of the draw order
-
-        # Optional convenience labeling of the primary vector layer by a field.
-        if labels and isinstance(primary, QgsVectorLayer):
-            self._enable_simple_labels(primary, labels)
-
-        dest_crs = (
-            primary.crs()
-            if primary.crs().isValid()
-            else QgsCoordinateReferenceSystem("EPSG:3857")
+        stack, primary, dest_crs = self._build_stack(
+            layer, layers, basemap, labels, progress
         )
         rect = self._resolve_extent(extent, stack, dest_crs)
 
@@ -2316,12 +2299,17 @@ class PyqgisBackend(Backend):
         ms.setTransformContext(QgsProject.instance().transformContext())
 
         if progress:
-            progress(f"   rendering {w}×{h} figure ({len(stack)} layer(s))")
+            progress(
+                f"   rendering {w}×{h} figure, {len(stack)} layer(s) "
+                "(large point/vector layers can take a while)…"
+            )
         job = QgsMapRendererParallelJob(ms)
         loop = QEventLoop()
         job.finished.connect(loop.quit)
+        stop_beat = self._heartbeat(progress, "rendering")
         job.start()
         loop.exec()
+        stop_beat()
         img = job.renderedImage()
         os.makedirs(os.path.dirname(os.path.abspath(dest)) or ".", exist_ok=True)
         if not img.save(dest):
@@ -2331,6 +2319,315 @@ class PyqgisBackend(Backend):
                 params={"dest": dest},
                 backend="pyqgis",
             )
+
+    def _build_stack(self, layer, layers, basemap, labels, progress=None):
+        """Resolve the draw stack shared by `figure` and `map`: [primary, *overlays,
+        basemap], plus the destination CRS. ``layers`` draw beneath the piped layer;
+        ``basemap`` at the bottom; ``labels`` enables single-field labeling on the primary."""
+        from qgis.core import QgsCoordinateReferenceSystem, QgsVectorLayer
+
+        primary = self._as_map_layer(layer.ref, layer.name)
+        stack = [primary]
+        for src in layers or []:
+            if progress:
+                progress(f"   loading overlay {os.path.basename(str(src))}…")
+            stack.append(self._as_map_layer(os.path.expanduser(str(src)), None))
+        if basemap:
+            bm = self._basemap_layer(basemap)
+            if bm is not None:
+                stack.append(bm)
+        if labels and isinstance(primary, QgsVectorLayer):
+            self._enable_simple_labels(primary, labels)
+        dest_crs = (
+            primary.crs()
+            if primary.crs().isValid()
+            else QgsCoordinateReferenceSystem("EPSG:3857")
+        )
+        return stack, primary, dest_crs
+
+    @staticmethod
+    def _heartbeat(progress, label):
+        """Start a periodic '… still <label> (Ns)' tick during a long async render;
+        returns a ``stop()`` callable. No-op without a progress sink. The tick fires from
+        the QEventLoop that drives the parallel render job, so a multi-minute render never
+        looks frozen."""
+        if not progress:
+            return lambda: None
+        from qgis.PyQt.QtCore import QTimer
+
+        state = {"s": 0}
+        timer = QTimer()
+
+        def beat():
+            state["s"] += 3
+            progress(f"   … still {label} ({state['s']}s)")
+
+        timer.timeout.connect(beat)
+        timer.start(3000)
+        return timer.stop  # keeps the timer alive until called
+
+    # --- map: a composed cartographic layout (title/legend/scalebar/north) ----
+
+    def render_map(
+        self,
+        layer: Layer,
+        dest: str,
+        *,
+        title: str | None = None,
+        legend: bool = False,
+        scalebar: bool = False,
+        northarrow: bool = False,
+        page: str = "A4",
+        orientation: str = "landscape",
+        dpi: int = 300,
+        extent=None,
+        layers: list | None = None,
+        basemap: str | None = None,
+        labels: str | None = None,
+        from_project: str | None = None,
+        layout: str | None = None,
+        progress=None,
+    ) -> None:
+        # Mode 1: export an existing QGIS project layout (full fidelity, atlases included).
+        if from_project:
+            return self._export_project_layout(
+                from_project, layout, dest, dpi=dpi, progress=progress
+            )
+        # Mode 2: compose an ad-hoc layout from the piped layer(s).
+        from qgis.core import (
+            QgsLayout,
+            QgsLayoutItemLabel,
+            QgsLayoutItemLegend,
+            QgsLayoutItemMap,
+            QgsLayoutItemScaleBar,
+            QgsLayoutPoint,
+            QgsLayoutSize,
+            QgsProject,
+            QgsRasterLayer,
+            QgsUnitTypes,
+        )
+        from qgis.PyQt.QtGui import QFont
+
+        stack, primary, dest_crs = self._build_stack(
+            layer, layers, basemap, labels, progress
+        )
+        rect = self._resolve_extent(extent, stack, dest_crs)
+        for ml in stack:
+            if isinstance(ml, QgsRasterLayer):
+                self._default_raster_stretch(ml, rect)
+        if progress:
+            progress(
+                f"   composing {page} {orientation} map, {len(stack)} layer(s) "
+                "(large datasets can take a while)…"
+            )
+
+        # Page geometry in mm. Landscape swaps width/height.
+        pw, ph = self._page_mm(page)
+        if orientation.lower().startswith("land"):
+            pw, ph = max(pw, ph), min(pw, ph)
+        else:
+            pw, ph = min(pw, ph), max(pw, ph)
+
+        proj = QgsProject.instance()
+        lay = QgsLayout(proj)
+        lay.initializeDefaults()
+        lay.pageCollection().pages()[0].setPageSize(
+            QgsLayoutSize(pw, ph, QgsUnitTypes.LayoutMillimeters)
+        )
+
+        margin = 8.0
+        top = margin + (10.0 if title else 0.0)
+        legend_w = 55.0 if legend else 0.0
+        map_x, map_y = margin, top
+        map_w = pw - 2 * margin - (legend_w + 4 if legend else 0)
+        map_h = ph - top - margin
+
+        mi = QgsLayoutItemMap(lay)
+        mi.attemptMove(QgsLayoutPoint(map_x, map_y, QgsUnitTypes.LayoutMillimeters))
+        mi.attemptResize(QgsLayoutSize(map_w, map_h, QgsUnitTypes.LayoutMillimeters))
+        mi.setLayers(stack)
+        mi.setCrs(dest_crs)
+        mi.zoomToExtent(rect)
+        mi.setBackgroundColor(self._q_white())
+        lay.addLayoutItem(mi)
+
+        if title:
+            lbl = QgsLayoutItemLabel(lay)
+            lbl.setText(title)
+            f = QFont()
+            f.setPointSize(18)
+            f.setBold(True)
+            lbl.setFont(f)
+            lbl.attemptMove(QgsLayoutPoint(margin, 3, QgsUnitTypes.LayoutMillimeters))
+            lbl.attemptResize(
+                QgsLayoutSize(pw - 2 * margin, 10, QgsUnitTypes.LayoutMillimeters)
+            )
+            lay.addLayoutItem(lbl)
+
+        if legend:
+            lg = QgsLayoutItemLegend(lay)
+            lg.setLinkedMap(mi)
+            lg.setTitle("Legend")
+            lg.attemptMove(
+                QgsLayoutPoint(
+                    pw - margin - legend_w, top, QgsUnitTypes.LayoutMillimeters
+                )
+            )
+            lay.addLayoutItem(lg)
+
+        if scalebar:
+            sb = QgsLayoutItemScaleBar(lay)
+            sb.setLinkedMap(mi)
+            sb.applyDefaultSettings()
+            sb.setStyle("Single Box")
+            try:
+                sb.setUnits(QgsUnitTypes.DistanceMeters)
+            except Exception:  # noqa: BLE001 — QGIS picks a sensible default otherwise
+                pass
+            sb.attemptMove(
+                QgsLayoutPoint(
+                    map_x + 2, ph - margin - 12, QgsUnitTypes.LayoutMillimeters
+                )
+            )
+            lay.addLayoutItem(sb)
+
+        if northarrow:
+            self._add_north_arrow(lay, mi, map_x + map_w - 18, map_y + 4)
+
+        self._export_layout(lay, dest, dpi=dpi, progress=progress)
+
+    def _export_project_layout(self, project_path, layout_name, dest, *, dpi, progress):
+        from qgis.core import QgsProject
+
+        path = os.path.expanduser(project_path)
+        if not os.path.isfile(path):
+            raise OpError(
+                f"`map from=`: no project at `{path}`",
+                algorithm="map",
+                params={"from": project_path},
+                backend="pyqgis",
+            )
+        proj = QgsProject()
+        if not proj.read(path):
+            raise OpError(
+                f"could not open project `{path}`",
+                algorithm="map",
+                params={"from": project_path},
+                backend="pyqgis",
+            )
+        manager = proj.layoutManager()
+        layouts = manager.printLayouts()
+        if not layouts:
+            raise OpError(
+                f"project `{os.path.basename(path)}` has no print layouts to export",
+                algorithm="map",
+                params={"from": project_path},
+                backend="pyqgis",
+            )
+        if layout_name:
+            lay = manager.layoutByName(layout_name)
+            if lay is None:
+                names = ", ".join(x.name() for x in layouts)
+                raise OpError(
+                    f"no layout named `{layout_name}` — available: {names}",
+                    algorithm="map",
+                    params={"layout": layout_name},
+                    backend="pyqgis",
+                )
+        else:
+            lay = layouts[0]
+        if progress:
+            progress(
+                f"   exporting layout '{lay.name()}' from {os.path.basename(path)}"
+            )
+        self._export_layout(lay, dest, dpi=dpi, progress=None)
+
+    def _export_layout(self, lay, dest, *, dpi, progress):
+        from qgis.core import QgsLayoutExporter
+
+        os.makedirs(os.path.dirname(os.path.abspath(dest)) or ".", exist_ok=True)
+        exporter = QgsLayoutExporter(lay)
+        ext = os.path.splitext(dest)[1].lower()
+        if progress:
+            progress(f"   rendering map → {os.path.basename(dest)}")
+        if ext == ".pdf":
+            settings = QgsLayoutExporter.PdfExportSettings()
+            settings.dpi = dpi
+            res = exporter.exportToPdf(dest, settings)
+        elif ext == ".svg":
+            settings = QgsLayoutExporter.SvgExportSettings()
+            settings.dpi = dpi
+            res = exporter.exportToSvg(dest, settings)
+        elif ext in (".png", ".jpg", ".jpeg"):
+            settings = QgsLayoutExporter.ImageExportSettings()
+            settings.dpi = dpi
+            res = exporter.exportToImage(dest, settings)
+        else:
+            raise OpError(
+                f"`map` writes .pdf/.png/.jpg/.svg — `{dest}` is not one",
+                algorithm="map",
+                params={"dest": dest},
+                backend="pyqgis",
+            )
+        if res != QgsLayoutExporter.Success:
+            raise OpError(
+                f"could not export map to `{dest}` (result {res})",
+                algorithm="map",
+                params={"dest": dest},
+                backend="pyqgis",
+            )
+
+    @staticmethod
+    def _page_mm(page: str):
+        sizes = {
+            "A5": (148, 210),
+            "A4": (210, 297),
+            "A3": (297, 420),
+            "LETTER": (216, 279),
+            "LEGAL": (216, 356),
+            "TABLOID": (279, 432),
+        }
+        key = str(page).strip().upper()
+        if key in sizes:
+            return sizes[key]
+        m = re.fullmatch(r"\s*(\d+(?:\.\d+)?)\s*[x×]\s*(\d+(?:\.\d+)?)\s*", str(page))
+        if m:
+            return (float(m.group(1)), float(m.group(2)))
+        return sizes["A4"]
+
+    @staticmethod
+    def _q_white():
+        from qgis.PyQt.QtGui import QColor
+
+        return QColor(255, 255, 255)
+
+    def _add_north_arrow(self, lay, linked_map, x, y):
+        """Best-effort north arrow via a bundled QGIS SVG; skipped if none is found."""
+        from qgis.core import (
+            QgsApplication,
+            QgsLayoutItemPicture,
+            QgsLayoutPoint,
+            QgsLayoutSize,
+            QgsUnitTypes,
+        )
+
+        svg = None
+        for base in QgsApplication.svgPaths():
+            cand = os.path.join(base, "arrows", "NorthArrow_02.svg")
+            if os.path.isfile(cand):
+                svg = cand
+                break
+        if svg is None:
+            return  # no north arrow available — skip rather than fail the map
+        pic = QgsLayoutItemPicture(lay)
+        pic.setPicturePath(svg)
+        try:
+            pic.setLinkedMap(linked_map)  # rotates with the map's rotation
+        except Exception:  # noqa: BLE001
+            pass
+        pic.attemptMove(QgsLayoutPoint(x, y, QgsUnitTypes.LayoutMillimeters))
+        pic.attemptResize(QgsLayoutSize(14, 14, QgsUnitTypes.LayoutMillimeters))
+        lay.addLayoutItem(pic)
 
     def _as_map_layer(self, ref, name):
         """Resolve a layer handle or source path to a live vector/raster QgsMapLayer."""

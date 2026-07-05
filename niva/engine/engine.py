@@ -433,6 +433,7 @@ class Engine:
         "project": lambda self, stage, current, lineage: self._project(stage),
         "style": lambda self, stage, current, lineage: self._style(stage, current),
         "figure": lambda self, stage, current, lineage: self._figure(stage, current),
+        "map": lambda self, stage, current, lineage: self._map(stage, current),
         "split": lambda self, stage, current, lineage: self._split(stage, current),
         "remove": lambda self, stage, current, lineage: self._remove(stage),
     }
@@ -1723,6 +1724,112 @@ class Engine:
             except ValueError:
                 pass  # not numeric — fall through to treat as a layer path
         return os.path.expanduser(str(value))  # a layer path to borrow the extent from
+
+    _MAP_EXTS = (".pdf", ".png", ".jpg", ".jpeg", ".svg")
+    # Composition elements are ON by default — a map is a cartographic product, so a bare
+    # `map out.pdf` yields a useful layout (map + legend + scale bar + north arrow). `bare`
+    # strips them; `no<x>` drops one; the bare flag name forces it on.
+    _MAP_FLAGS = {
+        "legend",
+        "scalebar",
+        "northarrow",
+        "bare",
+        "nolegend",
+        "noscalebar",
+        "nonortharrow",
+        "portrait",
+        "landscape",
+    }
+
+    def _map(self, stage, current: Layer | None) -> Layer | None:
+        """`map <out.pdf|.png|.svg> [title="…"] [legend|nolegend] [scalebar|noscalebar]
+        [northarrow|nonortharrow] [bare] [page=A4|Letter|WxH] [portrait|landscape] [dpi=N]
+        [layers="a;b"] [basemap=] [labels=<field>] [extent=…]` — compose a cartographic
+        **layout** (→ PDF/PNG/SVG). Or `map <out.pdf> from=<project.qgz> [layout=<name>]`
+        to export an existing QGIS print layout. Pass-through."""
+        if current is None:
+            raise FlowError(
+                "`map` renders the loaded layer — load one first",
+                line=stage.line,
+                stage=stage.raw,
+            )
+        if not stage.args:
+            raise FlowError(
+                '`map` needs an output: `map out.pdf [title="…"]`',
+                line=stage.line,
+                stage=stage.raw,
+            )
+        dest = os.path.expanduser(stage.args[0])
+        ext = os.path.splitext(dest)[1].lower()
+        if ext not in self._MAP_EXTS:
+            raise FlowError(
+                f"`map` writes {', '.join(self._MAP_EXTS)} — `{dest}` is not one",
+                line=stage.line,
+                stage=stage.raw,
+            )
+        flags = {a.lstrip("-") for a in stage.args[1:]}
+        unknown = flags - self._MAP_FLAGS
+        if unknown:
+            raise FlowError(
+                f"`map`: unknown flag(s) {', '.join(sorted(unknown))} — valid: "
+                "legend, scalebar, northarrow, bare, portrait, landscape",
+                line=stage.line,
+                stage=stage.raw,
+            )
+
+        def on(name):  # default-on element, with `bare`/`no<name>` opt-out
+            if "bare" in flags or f"no{name}" in flags:
+                return False
+            return True
+
+        legend, scalebar, northarrow = on("legend"), on("scalebar"), on("northarrow")
+        orientation = "portrait" if "portrait" in flags else "landscape"
+
+        opts = dict(stage.options)
+        from_project = opts.pop("from", None)
+        layout = opts.pop("layout", None)
+        title = opts.pop("title", None)
+        page = opts.pop("page", "A4")
+        orientation = opts.pop("orientation", orientation)
+        dpi = self._parse_int(opts.pop("dpi", None), "dpi", stage, default=300)
+        extent = self._parse_extent(opts.pop("extent", None))
+        raw_layers = opts.pop("layers", None)
+        overlay = (
+            [os.path.expanduser(s.strip()) for s in raw_layers.split(";") if s.strip()]
+            if raw_layers
+            else []
+        )
+        basemap = opts.pop("basemap", None)
+        labels = opts.pop("labels", None)
+        if opts:
+            raise FlowError(
+                f"`map`: unknown option(s) {', '.join(sorted(opts))} — valid: "
+                "title, page, orientation, dpi, extent, layers, basemap, labels, "
+                "from, layout",
+                line=stage.line,
+                stage=stage.raw,
+            )
+
+        self.backend.render_map(
+            current,
+            dest,
+            title=title,
+            legend=legend,
+            scalebar=scalebar,
+            northarrow=northarrow,
+            page=page,
+            orientation=orientation,
+            dpi=dpi,
+            extent=extent,
+            layers=overlay,
+            basemap=basemap,
+            labels=labels,
+            from_project=os.path.expanduser(from_project) if from_project else None,
+            layout=layout,
+            progress=self.progress,
+        )
+        self._emit(f"  map → {dest}")
+        return current  # pass-through
 
     # A QGIS bookmark stores an extent, not a centre+scale. So `scale=N` is converted to a
     # ground width via a reference on-screen map width (~0.5 m, a typical full-HD canvas) —

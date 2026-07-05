@@ -13,7 +13,7 @@ comment "#"
 color green "\<(buffer|clip|intersect|difference|symdifference|union|dissolve|reproject|fixgeom|centroid|explode|join|zonalstats|simplify|smooth|convexhull|boundingbox|minrect|pointonsurface|vertices|densify|subdivide|offset|swapxy|forcerhr|promote|collect|renamefield|dropfields|keepfields|countpoints|spatialjoin|selectloc|snap|sample|voronoi|delaunay|pointsalong|warp|clipraster|hillshade|slope|aspect|polygonize)\>"
 
 # built-in verbs (handled by the engine)
-color brightblue "\<(load|save|run|filter|sql|split|each|call|describe|search|docs|show|info|catalog|assess|metadata|style|project|notify|email|remove|figure)\>"
+color brightblue "\<(load|save|run|filter|sql|split|each|call|describe|search|docs|show|info|catalog|assess|metadata|style|project|notify|email|remove|figure|map)\>"
 
 # key=value option keys
 color brightmagenta "\<[A-Za-z_][A-Za-z0-9_-]*="

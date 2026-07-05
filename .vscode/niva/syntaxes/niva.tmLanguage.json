@@ -79,7 +79,7 @@
     },
     "verbs-builtins": {
       "name": "keyword.control.builtin.niva",
-      "match": "(?<=\\A|\\||\\n|\\t|\\s|>>)(load|save|run|filter|sql|split|each|call|describe|search|docs|show|info|catalog|assess|metadata|style|project|notify|email|remove|figure)(?=\\s|\\b)",
+      "match": "(?<=\\A|\\||\\n|\\t|\\s|>>)(load|save|run|filter|sql|split|each|call|describe|search|docs|show|info|catalog|assess|metadata|style|project|notify|email|remove|figure|map)(?=\\s|\\b)",
       "comment": "Built-in verbs handled directly by the engine"
     },
     "verbs-alias": {
