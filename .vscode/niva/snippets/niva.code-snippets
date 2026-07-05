@@ -1,0 +1,346 @@
+{
+  "Load a dataset": {
+    "prefix": "load",
+    "body": ["load ${1:source.gpkg}$0"],
+    "description": "Read a file, URI, or @conn to start a flow"
+  },
+  "Save layer": {
+    "prefix": "save",
+    "body": ["save ${1:output.gpkg}${2: as ${3:layername}}${4: mode=${5:create|replace|append}}$0"],
+    "description": "Write the current layer to a file or database table"
+  },
+  "Filter by expression": {
+    "prefix": "filter",
+    "body": ["filter \"${1:expression}\"$0"],
+    "description": "Keep only features matching a QGIS expression"
+  },
+  "Run any QGIS algorithm": {
+    "prefix": "run",
+    "body": ["run ${1:provider:algorithmid} ${2:KEY=value}$0"],
+    "description": "Call any QGIS algorithm directly by id"
+  },
+  "SQL query on connection": {
+    "prefix": "sql",
+    "body": ["sql @${1:conn} \"${2:SELECT * FROM table}\"$0"],
+    "description": "Run SQL on a database connection"
+  },
+  "Split geometry type": {
+    "prefix": "split",
+    "body": ["split ${1|point,line,polygon|}$0"],
+    "description": "Keep only features of one geometry type"
+  },
+  "Batch each file": {
+    "prefix": "each",
+    "body": ["each \"${1:dir/*.shp}\" | ${2:process} | save ${3:out.gpkg}$0"],
+    "description": "Run the rest of the flow once per input"
+  },
+  "Call another niva file": {
+    "prefix": "call",
+    "body": ["call ${1:file.niva}$0"],
+    "description": "Include another .niva file inline"
+  },
+  "Describe verb": {
+    "prefix": "describe",
+    "body": ["describe ${1:verb}$0"],
+    "description": "Show a verb's mapping or a live algorithm"
+  },
+  "Search verbs": {
+    "prefix": "search",
+    "body": ["search \"${1:keyword}\"$0"],
+    "description": "Fuzzy-search verbs and the QGIS algorithm catalog"
+  },
+  "Full reference": {
+    "prefix": "docs",
+    "body": ["docs ${1:keyword}${2: to=${3:ref.md}}$0"],
+    "description": "Full describe for every match"
+  },
+  "List loadable layers": {
+    "prefix": "show",
+    "body": ["show ${1:source}${2: to=${3:output.md}}$0"],
+    "description": "List the loadable layers/tables at a location"
+  },
+  "Environment info": {
+    "prefix": "info",
+    "body": ["info${1: to=${2:env.md}}$0"],
+    "description": "Inspect the local QGIS environment"
+  },
+  "Catalog directory": {
+    "prefix": "catalog",
+    "body": ["catalog \"${1:dir/}\"${2: to=${3:inventory.md}}$0"],
+    "description": "Inventory a directory of datasets to a Markdown report"
+  },
+  "Assess data quality": {
+    "prefix": "assess",
+    "body": ["assess${1: deep}${2: to=${3:report.md}}$0"],
+    "description": "Profile the current layer to a data-quality report"
+  },
+  "Stamp metadata": {
+    "prefix": "metadata",
+    "body": ["metadata set ${1:title}=\"${2:value}\"$0"],
+    "description": "Stamp descriptive metadata onto the layer"
+  },
+  "Notify via ntfy": {
+    "prefix": "notify",
+    "body": ["notify \"${1:message}\"${2: priority=${3:high}}$0"],
+    "description": "Push a notification message"
+  },
+  "Send email": {
+    "prefix": "email",
+    "body": ["email to=${1:user@example.com} subject=\"${2:subject}\"$0"],
+    "description": "Send an email via SMTP"
+  },
+  "Project operations": {
+    "prefix": "project",
+    "body": ["project ${1:source.qgs} to=${2:dest.qgs}${3: repoint=${4:target}}${5: missing=${6:keep}}$0"],
+    "description": "Create/convert/repoint QGIS project files"
+  },
+  "Style sidecar": {
+    "prefix": "style",
+    "body": ["style ${1|apply,save|} ${2:file.qml}$0"],
+    "description": "Apply or export a layer style/metadata sidecar"
+  },
+  "Remove output": {
+    "prefix": "remove",
+    "body": ["remove ${1:output.gpkg}$0"],
+    "description": "Delete a file output and its sidecar family"
+  },
+
+  "-- ALIAS VERBS --": {},
+  "Buffer": {
+    "prefix": "buffer",
+    "body": ["buffer ${1:100m}${2: dissolve}${3: cap=${4|round,flat,square|}}${5: segments=${6:5}}$0"],
+    "description": "Expand (or shrink) geometries by a distance"
+  },
+  "Clip": {
+    "prefix": "clip",
+    "body": ["clip ${1:overlay.gpkg}$0"],
+    "description": "Clip a layer to an overlay"
+  },
+  "Intersect": {
+    "prefix": "intersect",
+    "body": ["intersect ${1:overlay.gpkg}$0"],
+    "description": "Keep overlapping parts of two layers"
+  },
+  "Difference": {
+    "prefix": "difference",
+    "body": ["difference ${1:overlay.gpkg}$0"],
+    "description": "Keep parts of input outside an overlay"
+  },
+  "Dissolve": {
+    "prefix": "dissolve",
+    "body": ["dissolve${1: ${2:field}}${3: separate}$0"],
+    "description": "Merge features into one, optionally grouped by a field"
+  },
+  "Reproject": {
+    "prefix": "reproject",
+    "body": ["reproject ${1:EPSG:6346}${2: operation=${3:...}}$0"],
+    "description": "Reproject a layer to a target CRS"
+  },
+  "Fix geometries": {
+    "prefix": "fixgeom",
+    "body": ["fixgeom$0"],
+    "description": "Repair invalid geometries"
+  },
+  "Centroids": {
+    "prefix": "centroid",
+    "body": ["centroid$0"],
+    "description": "Replace each feature with its centroid point"
+  },
+  "Simplify": {
+    "prefix": "simplify",
+    "body": ["simplify ${1:10m}${2: method=${3|area,distance|}}$0"],
+    "description": "Reduce vertex count"
+  },
+  "Smooth": {
+    "prefix": "smooth",
+    "body": ["smooth${1: ${2:iterations}}${3: offset=${4:...}}$0"],
+    "description": "Smooth line/polygon edges"
+  },
+  "Select by location": {
+    "prefix": "selectloc",
+    "body": ["selectloc ${1:overlay.gpkg}${2: predicate=${3|intersect,within,contain,overlap,touch|}}$0"],
+    "description": "Keep features by spatial relationship to another layer"
+  },
+  "Spatial join": {
+    "prefix": "spatialjoin",
+    "body": ["spatialjoin with=${1:layer.gpkg} predicate=${2|intersect,within,contain|} method=${3|first,sum,count|}${4: fields=${5:col1,col2}}$0"],
+    "description": "Attribute join by spatial relationship"
+  },
+  "Attribute join": {
+    "prefix": "join",
+    "body": ["join with=${1:table.csv} field=${2:our_field} field2=${3:their_field}${4: fields=${5:col1,col2}}${6: prefix=${7:pre_}}$0"],
+    "description": "Table attribute join by key field"
+  },
+  "Explode": {
+    "prefix": "explode",
+    "body": ["explode$0"],
+    "description": "Split multi-part features into single parts"
+  },
+  "Warp raster": {
+    "prefix": "warp",
+    "body": ["warp ${1:EPSG:6346}${2: resolution=${3:10}}${4: resampling=${5|near,bilinear,average,cubic|}}$0"],
+    "description": "Reproject a raster (GDAL warp)"
+  },
+  "Clip raster": {
+    "prefix": "clipraster",
+    "body": ["clipraster ${1:mask.gpkg}$0"],
+    "description": "Clip a raster to a mask layer"
+  },
+  "Hillshade": {
+    "prefix": "hillshade",
+    "body": ["hillshade${1: z_factor=${2:1}}${3: azimuth=${4:315}}${5: altitude=${6:45}}$0"],
+    "description": "Hillshade from a DEM"
+  },
+  "Slope": {
+    "prefix": "slope",
+    "body": ["slope${1: percent}$0"],
+    "description": "Slope from a DEM"
+  },
+  "Polygonize raster": {
+    "prefix": "polygonize",
+    "body": ["polygonize${1: field=${2:class}}$0"],
+    "description": "Vectorize a classified raster"
+  },
+  "Rename field": {
+    "prefix": "renamefield",
+    "body": ["renamefield ${1:old_name} ${2:new_name}$0"],
+    "description": "Rename a field"
+  },
+  "Drop fields": {
+    "prefix": "dropfields",
+    "body": ["dropfields ${1:field1,field2}$0"],
+    "description": "Drop fields by name"
+  },
+  "Keep fields": {
+    "prefix": "keepfields",
+    "body": ["keepfields ${1:field1,field2}$0"],
+    "description": "Keep only these fields"
+  },
+  "Zonal statistics": {
+    "prefix": "zonalstats",
+    "body": ["zonalstats raster=${1:dem.tif} stats=${2:mean,min,max}${3: prefix=${4:elev_}}$0"],
+    "description": "Zonal statistics (raster within polygons)"
+  },
+  "Delaunay triangulation": {
+    "prefix": "delaunay",
+    "body": ["delaunay$0"],
+    "description": "Delaunay triangulation of points"
+  },
+  "Voronoi polygons": {
+    "prefix": "voronoi",
+    "body": ["voronoi$0"],
+    "description": "Voronoi polygons from points"
+  },
+  "Convex hull": {
+    "prefix": "convexhull",
+    "body": ["convexhull$0"],
+    "description": "Minimum convex hull"
+  },
+  "Subdivide": {
+    "prefix": "subdivide",
+    "body": ["subdivide ${1:max_vertices}$0"],
+    "description": "Split large geometries into N-vertex tiles"
+  },
+  "Densify": {
+    "prefix": "densify",
+    "body": ["densify ${1:distance}${2: interval=${3|by_distance,by_parameter|}}$0"],
+    "description": "Add vertices along edges"
+  },
+
+  "-- PIPELINE PATTERNS --": {},
+  "Buffer then save": {
+    "prefix": "buf",
+    "body": ["buffer ${1:100m}${2: dissolve} | save ${3:out.gpkg}$0"],
+    "description": "Buffer and save"
+  },
+  "Clip to AOI": {
+    "prefix": "c",
+    "body": ["clip ${1:aoi.gpkg} | save ${2:clipped.gpkg}$0"],
+    "description": "Clip to AOI and save"
+  },
+  "Load, filter, reproject, save": {
+    "prefix": "l-f-r-s",
+    "body": ["load ${1:input.gpkg} | filter \"${2:expr}\" | reproject ${3:EPSG:6346} | save ${4:output.gpkg}$0"],
+    "description": "Standard load→filter→reproject→save pipeline"
+  },
+  "Batch reproject to GeoPackage": {
+    "prefix": "each-reproject",
+    "body": ["each \"${1:dir/*.shp}\" | reproject ${2:EPSG:6346} | save ${3:collected.gpkg}$0"],
+    "description": "Batch reproject all files into one GeoPackage"
+  },
+  "Batch warp rasters": {
+    "prefix": "each-warp",
+    "body": ["each \"${1:dir/*.tif}\" | warp ${2:EPSG:6346} | save \"${3:out/{name}.tif}\"$0"],
+    "description": "Batch warp all rasters to per-file output"
+  },
+  "Standard pipeline template": {
+    "prefix": "pipeline",
+    "body": ["load ${1:input.gpkg} | ${2:fixgeom} | reproject ${3:EPSG:6346} | clip ${4:aoi.gpkg} | save ${5:output.gpkg}$0"],
+    "description": "Standard geo-pipeline: load → fix → reproject → clip → save"
+  },
+  "SQL read and process": {
+    "prefix": "sql-pipe",
+    "body": ["sql @${1:conn} \"SELECT * FROM ${2:table} WHERE ${3:condition}\" | ${4:process} | save ${5:out.gpkg}$0"],
+    "description": "SQL read from database, process, and save"
+  },
+  "Assess and save": {
+    "prefix": "assess-save",
+    "body": ["assess${1: deep} to=${2:quality.md} | save ${3:out.gpkg}$0"],
+    "description": "Profile and save in one pass (assess is pass-through)"
+  },
+  "PDAL harness: DTM from ground (raw LAS)": {
+    "prefix": "pdalcli-dtm",
+    "body": ["load ${1:tile.las} | run pdalcli:to_raster attribute=Z filter=\"Classification==2\" resolution=${2:1} | save ${3:dtm.tif}$0"],
+    "description": "DTM (bare earth) from ground-classified returns via pdal_wrench"
+  },
+  "PDAL harness: DSM from all returns": {
+    "prefix": "pdalcli-dsm",
+    "body": ["load ${1:tile.las} | run pdalcli:to_raster attribute=Z resolution=${2:1} | save ${3:dsm.tif}$0"],
+    "description": "DSM (top surface) from all returns via pdal_wrench"
+  },
+  "PDAL harness: extract a class to LAS": {
+    "prefix": "pdalcli-class",
+    "body": ["load ${1:tile.las} | run pdalcli:translate filter=\"Classification==${2:6}\" output=${3:extracted.laz}$0"],
+    "description": "Extract one ASPRS class (2=ground, 6=building, 9=water) to its own cloud"
+  },
+  "PDAL harness: any command": {
+    "prefix": "pdalcli",
+    "body": ["load ${1:tile.las} | run pdalcli:${2|to_raster,to_raster_tin,density,to_vector,boundary,translate,clip,thin,classify_ground,filter_noise,height_above_ground,merge|} ${3:KEY=value}$0"],
+    "description": "Run any pdal_wrench command on raw LAS/LAZ/COPC"
+  },
+  "CHM from DSM and DTM (GRASS)": {
+    "prefix": "chm",
+    "body": ["run grass:r.mapcalc.simple expression=\"A-B\" a=${1:dsm.tif} b=${2:dtm.tif} output=${3:chm.tif}$0"],
+    "description": "Canopy height model = DSM − DTM (GRASS aligns the grids)"
+  },
+  "SAGA harness: run a tool": {
+    "prefix": "saga",
+    "body": ["load ${1:dtm.tif} | run saga:${2:library}:${3:tool} _in=${4:ELEVATION} _out=${5:SLOPE} | save ${6:out.tif}$0"],
+    "description": "Run a saga_cmd tool (prefer tool names over indices)"
+  },
+  "Figure — quick map image": {
+    "prefix": "figure",
+    "body": ["load ${1:data.gpkg} | figure ${2:map.png}${3: size=1200x900}$0"],
+    "description": "Render a quick map image (vector or raster) with sensible defaults"
+  },
+  "Figure — labelled with overlay + basemap": {
+    "prefix": "figure-full",
+    "body": ["load ${1:parcels.gpkg} | figure ${2:map.png} layers=\"${3:roads.gpkg}\" basemap=${4|osm|} labels=${5:name} size=${6:1600x1000}$0"],
+    "description": "Figure with an overlay layer, basemap, and field labels"
+  },
+  "Map — composed layout (PDF)": {
+    "prefix": "map",
+    "body": ["load ${1:data.gpkg} | map ${2:map.pdf} title=\"${3:Title}\"$0"],
+    "description": "Composed cartographic layout with legend/scale bar/north arrow (defaults on)"
+  },
+  "Map — full plate": {
+    "prefix": "map-full",
+    "body": ["load ${1:primary.gpkg} | style apply=${2:style.qml} | map ${3:plate.pdf} title=\"${4:Title}\" layers=\"${5:dtm.tif;overlay.gpkg}\" basemap=${6|osm|} labels=${7:name} page=${8|A3,A4,Letter|} ${9|landscape,portrait|} dpi=${10:300}$0"],
+    "description": "Multi-layer map plate: overlays, basemap, labels, page/orientation/dpi"
+  },
+  "Map — export an existing QGIS layout": {
+    "prefix": "map-from",
+    "body": ["load ${1:aoi.gpkg} | map ${2:out.pdf} from=${3:project.qgz} layout=\"${4:Overview}\"$0"],
+    "description": "Export a designed print layout/atlas from a QGIS project"
+  }
+}

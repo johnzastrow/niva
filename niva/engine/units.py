@@ -39,7 +39,8 @@ def resolve_distance(dist: Distance, crs, *, stage=None) -> float:
             raise FlowError(
                 f"a distance in degrees (`{dist.value}deg`) needs a geographic CRS, "
                 f"but the layer is in {crs.authid} ({crs.map_units})",
-                line=line, stage=raw,
+                line=line,
+                stage=raw,
             )
         return dist.value
 
@@ -49,7 +50,8 @@ def resolve_distance(dist: Distance, crs, *, stage=None) -> float:
             f"`{dist.value}{dist.unit}` is a linear distance, but the layer is in "
             f"{crs.authid} (degrees). Reproject to a projected CRS first, or give the "
             f"distance in `deg` — niva will not silently buffer in degrees.",
-            line=line, stage=raw,
+            line=line,
+            stage=raw,
         )
 
     metres = dist.value * UNIT_TO_M[dist.unit]

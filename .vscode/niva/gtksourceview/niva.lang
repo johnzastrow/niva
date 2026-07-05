@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  niva syntax for GtkSourceView (Mousepad, gedit, GNOME Builder, Pluma, xed, …).
+  Install (per-user): copy to ~/.local/share/gtksourceview-4/language-specs/niva.lang
+  (use gtksourceview-3.0 for older apps). Restart the editor.
+  Source: https://github.com/johnzastrow/niva
+-->
+<language id="niva" name="niva" version="2.0" _section="Script">
+  <metadata>
+    <property name="globs">*.niva</property>
+    <property name="line-comment-start">#</property>
+  </metadata>
+
+  <styles>
+    <style id="comment"  name="Comment"     map-to="def:comment"/>
+    <style id="string"   name="String"      map-to="def:string"/>
+    <style id="builtin"  name="Built-in verb" map-to="def:keyword"/>
+    <style id="alias"    name="Alias verb"  map-to="def:function"/>
+    <style id="option"   name="Option key"  map-to="def:type"/>
+    <style id="conn"     name="Connection"  map-to="def:identifier"/>
+    <style id="number"   name="Number"      map-to="def:decimal"/>
+    <style id="operator" name="Pipe"        map-to="def:operator"/>
+    <style id="template" name="Template"    map-to="def:preprocessor"/>
+  </styles>
+
+  <definitions>
+    <context id="niva">
+      <include>
+        <context id="comment" style-ref="comment" end-at-line-end="true">
+          <start>#</start>
+        </context>
+
+        <context id="string-double" style-ref="string" end-at-line-end="true">
+          <start>"</start>
+          <end>"</end>
+        </context>
+        <context id="string-single" style-ref="string" end-at-line-end="true">
+          <start>'</start>
+          <end>'</end>
+        </context>
+
+        <context id="builtin" style-ref="builtin">
+          <keyword>load</keyword><keyword>save</keyword><keyword>run</keyword>
+          <keyword>filter</keyword><keyword>sql</keyword><keyword>split</keyword>
+          <keyword>each</keyword><keyword>call</keyword><keyword>describe</keyword>
+          <keyword>search</keyword><keyword>docs</keyword><keyword>show</keyword>
+          <keyword>info</keyword><keyword>catalog</keyword><keyword>assess</keyword>
+          <keyword>metadata</keyword><keyword>style</keyword><keyword>project</keyword>
+          <keyword>notify</keyword><keyword>email</keyword><keyword>remove</keyword>
+          <keyword>figure</keyword><keyword>map</keyword>
+        </context>
+
+        <context id="alias" style-ref="alias">
+          <keyword>buffer</keyword><keyword>clip</keyword><keyword>intersect</keyword>
+          <keyword>difference</keyword><keyword>symdifference</keyword><keyword>union</keyword>
+          <keyword>dissolve</keyword><keyword>reproject</keyword><keyword>fixgeom</keyword>
+          <keyword>centroid</keyword><keyword>explode</keyword><keyword>join</keyword>
+          <keyword>zonalstats</keyword><keyword>simplify</keyword><keyword>smooth</keyword>
+          <keyword>convexhull</keyword><keyword>boundingbox</keyword><keyword>minrect</keyword>
+          <keyword>pointonsurface</keyword><keyword>vertices</keyword><keyword>densify</keyword>
+          <keyword>subdivide</keyword><keyword>offset</keyword><keyword>swapxy</keyword>
+          <keyword>forcerhr</keyword><keyword>promote</keyword><keyword>collect</keyword>
+          <keyword>renamefield</keyword><keyword>dropfields</keyword><keyword>keepfields</keyword>
+          <keyword>countpoints</keyword><keyword>spatialjoin</keyword><keyword>selectloc</keyword>
+          <keyword>snap</keyword><keyword>sample</keyword><keyword>voronoi</keyword>
+          <keyword>delaunay</keyword><keyword>pointsalong</keyword><keyword>warp</keyword>
+          <keyword>clipraster</keyword><keyword>hillshade</keyword><keyword>slope</keyword>
+          <keyword>aspect</keyword><keyword>polygonize</keyword>
+        </context>
+
+        <context id="option" style-ref="option">
+          <match>\b[A-Za-z_][A-Za-z0-9_-]*=</match>
+        </context>
+
+        <context id="connection" style-ref="conn">
+          <match>@[A-Za-z_][A-Za-z0-9_.-]*</match>
+        </context>
+
+        <context id="crs" style-ref="number">
+          <match>\bEPSG:[0-9]+\b</match>
+        </context>
+
+        <context id="number" style-ref="number">
+          <match>\b[0-9]+(\.[0-9]+)?(m|km|cm|mm|ft|yd|mi|nmi|deg)?\b</match>
+        </context>
+
+        <context id="template" style-ref="template">
+          <match>\{[A-Za-z_][A-Za-z0-9_]*\}</match>
+        </context>
+
+        <context id="pipe" style-ref="operator">
+          <match>\|</match>
+        </context>
+      </include>
+    </context>
+  </definitions>
+</language>

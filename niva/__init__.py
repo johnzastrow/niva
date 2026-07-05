@@ -16,7 +16,7 @@ Pass ``backend=MockBackend()`` to exercise a flow with no QGIS at all.
 
 from __future__ import annotations
 
-__version__ = "0.37.0"
+__version__ = "0.40.0"
 
 from .describe import describe
 from .errors import FlowError, NivaError, OpError
@@ -79,6 +79,9 @@ def _default_backend():
     # Imported lazily: QGIS is only needed when actually executing with the real
     # backend, so `import niva` stays safe on any interpreter.
     from .engine.pyqgis import PyqgisBackend, ensure_qgis
+    from .engine.native import wrap_native
 
     ensure_qgis()
-    return PyqgisBackend()
+    # Wrap in the native-CLI harness so `saga:*` ids shell out to saga_cmd; every other
+    # id passes straight through to QGIS. Transparent for non-SAGA flows.
+    return wrap_native(PyqgisBackend())

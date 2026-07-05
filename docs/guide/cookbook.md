@@ -332,9 +332,14 @@ same-named data, symbology and layout riding along. Register your own designed p
 
 ## K. Reaching every provider with `run`
 
-niva gives 45 algorithms friendly verbs; the other ~720 — across **every** Processing
-provider — are reachable with `run <id> KEY=value …`. Four per provider below. Find any
-algorithm's parameters with `niva describe <id>` or the [algorithm appendix](../algorithms/README.md).
+niva gives 45 algorithms friendly verbs; the other ~830 — across **every** Processing
+provider (native, gdal, grass, qgis, pdal, otb, 3d — **878** total) — are reachable with
+`run <id> KEY=value …`. A few per provider below. Find any algorithm's parameters with
+`niva describe <id>` or the [algorithm appendix](../algorithms/README.md).
+
+Beyond the QGIS providers, niva's **native-CLI harness** adds two id families that shell
+out to a tool directly (see §L): `pdalcli:<command>` (PDAL on **raw LAS/LAZ/COPC**, no COPC
+step) and `saga:<library>:<tool>` (`saga_cmd`).
 
 Two things to know when using `run` directly:
 - **Enum options take their integer index**, not the alias word — `format=0`, not
@@ -412,6 +417,10 @@ load stacked.gpkg | run qgis:pointsdisplacement PROXIMITY=5 DISTANCE=10 HORIZONT
 
 ### PDAL (`pdal:`) — point clouds (use `run`; load/save are vector/raster)
 
+> The QGIS `pdal:` provider loads point clouds as **COPC/EPT** layers (raw `.las` may need a
+> COPC index first). For **raw LAS/LAZ with no COPC step** — and classification-aware LiDAR
+> workflows — use niva's `pdalcli:` harness in **§L** below.
+
 **63. Export a DEM from a LiDAR cloud, then hillshade it**
 ```
 run pdal:exportraster INPUT=lidar.copc.laz ATTRIBUTE=Z RESOLUTION=1 | hillshade z_factor=2 | save lidar_hillshade.tif
@@ -463,6 +472,156 @@ load buildings.gpkg | run 3d:tessellate | save buildings_3d.gpkg
 ```
 The `3d:` provider ships a single algorithm in QGIS 4.0.3 — `tessellate` — so this is the
 whole provider.
+
+---
+
+## L. LiDAR from raw LAS — the `pdalcli:` harness
+
+`run pdalcli:<command>` shells out to `pdal_wrench` and reads **raw `.las`/`.laz`/`.copc.laz`
+directly** (no COPC step) — the natural home for classification-aware LiDAR. The upstream
+`load`ed cloud auto-wires to the tool's input; raster/vector outputs pipe on, point-cloud
+outputs are kept with an explicit `output=`. Needs `pdal_wrench` (see the
+[PDAL/LAStools guide](pdal-lastools-qgis4.md)). Filter by ASPRS class with a PDAL expression.
+
+**72. DTM — bare earth from GROUND returns (class 2)**
+```
+load tile.las | run pdalcli:to_raster attribute=Z filter="Classification==2" resolution=1 | save dtm.tif
+```
+
+**73. DSM — top surface from all returns**
+```
+load tile.las | run pdalcli:to_raster attribute=Z resolution=1 | save dsm.tif
+```
+
+**74. CHM — canopy height = DSM − DTM (GRASS aligns the two grids)**
+```
+run grass:r.mapcalc.simple expression="A-B" a=dsm.tif b=dtm.tif output=chm.tif
+```
+
+**75. Extract one class to its own cloud** (buildings = class 6; ground = 2, water = 9)
+```
+load tile.las | run pdalcli:translate filter="Classification==6" output=buildings.laz
+```
+
+**76. Merge tiles, then clip to an area of interest**
+```
+run pdalcli:merge files="a.las;b.las;c.las" output=merged.laz
+load merged.laz | run pdalcli:clip polygon=aoi.gpkg output=study.laz
+```
+
+**77. Classify ground on unclassified points; density raster for coverage QA**
+```
+load tile.las | run pdalcli:classify_ground output=classified.laz
+load tile.las | run pdalcli:density resolution=1 | save point_density.tif
+```
+
+---
+
+## M. Complex, value-added pipelines
+
+Multi-provider chains that turn raw data into finished products. Each is verified end to end.
+
+**78. LiDAR → a full bare-earth terrain set** (DTM once, then three derivatives)
+```
+load tile.las | run pdalcli:to_raster attribute=Z filter="Classification==2" resolution=1 | save dtm.tif
+load dtm.tif | hillshade z_factor=2 | save dtm_hillshade.tif
+load dtm.tif | slope | save dtm_slope.tif
+load dtm.tif | run gdal:contour BAND=1 INTERVAL=5 FIELD_NAME=elev OUTPUT=contours_5m.gpkg
+```
+
+**79. Canopy height model → mean tree height per parcel** (PDAL → GRASS → zonal stats)
+```
+load tile.las | run pdalcli:to_raster attribute=Z filter="Classification==2" resolution=1 | save dtm.tif
+load tile.las | run pdalcli:to_raster attribute=Z resolution=1 | save dsm.tif
+run grass:r.mapcalc.simple expression="A-B" a=dsm.tif b=dtm.tif output=chm.tif
+load parcels.gpkg | zonalstats raster=chm.tif prefix="canopy_" stats=mean | save parcels_canopy.gpkg
+```
+
+**80. Hydrology from LiDAR** — bare-earth DTM → GRASS flow accumulation + drainage direction
+```
+load tile.las | run pdalcli:to_raster attribute=Z filter="Classification==2" resolution=1 | save dtm.tif
+load dtm.tif | run grass:r.watershed elevation=dtm.tif accumulation=flow_accum.tif drainage=flow_dir.tif
+```
+
+**81. Landform classification** — geomorphons (valleys, ridges, slopes, pits, peaks) from the DTM
+```
+load dtm.tif | run grass:r.geomorphon elevation=dtm.tif forms=landforms.tif search=15
+```
+
+**82. Building footprint candidates** — extract the building class, then its coverage polygons
+```
+load tile.las | run pdalcli:translate filter="Classification==6" output=buildings.laz
+load buildings.laz | run pdalcli:boundary | fixgeom | simplify 0.5m | save building_footprints.gpkg
+```
+
+**83. The simplest possible map** — one layer, one line, no options; `figure` picks a sensible
+extent, size, and stretch so it just works for vector *or* raster
+```
+load dem.tif | figure dem.png
+```
+
+**84. Push it — a full thematic map using every knob** — themed primary layer, a raster hillshade
+plus two vector overlays, an OSM basemap, field labels, a borrowed extent, and print-scale output
+```
+load flood_zones.gpkg | style apply=flood.qml \
+  | figure flood_map.png layers="hillshade.tif;roads.gpkg;places.gpkg" \
+      basemap=osm labels=zone_name extent=study_area.gpkg size=2400x1600 dpi=200 bg="#eef3f7"
+```
+Draw order is top-down: `flood_zones` (styled) over the overlays over the basemap. `extent=` borrows
+another layer's bounds; `labels=` labels by an attribute; `dpi=200` sizes symbols/text for print.
+Being pass-through, `figure` can also snapshot a mid-pipe step: `… | figure step.png | save out.gpkg`.
+
+### `map` — composed cartographic layouts (tiny → extreme)
+
+Where `figure` is a bare image, **`map`** builds a page **layout** (→ PDF/PNG/SVG) with a legend,
+scale bar, and north arrow **on by default** — a proper map with no template required. These six
+climb from one line to a full multi-layer plate.
+
+**85. Tiny** — one layer, one line; a complete A4 map (legend + scale bar + north arrow)
+```
+load dem.tif | map dem.pdf
+```
+
+**86. Add a title**
+```
+load parcels.gpkg | map parcels.pdf title="Parcels — 2026"
+```
+
+**87. Label it, pick a page and format** — PNG on US Letter, features labelled by a field
+```
+load zones.gpkg | map zones.png title="Zoning" labels=zone_type page=Letter dpi=200
+```
+
+**88. Themed, with an overlay and a basemap** — styled primary layer over roads over OSM tiles
+```
+load flood.gpkg | style apply=flood.qml | map flood.pdf title="Flood Risk" \
+  layers="roads.gpkg" basemap=osm labels=risk portrait
+```
+
+**89. Many layers, many types** — line, two rasters, polygon, and point layers on one A3 plate
+```
+load contours.gpkg | map terrain.pdf title="Terrain — Multi-Layer" \
+  layers="dtm.tif;dsm.tif;building_footprints.gpkg;control_points.gpkg" \
+  labels=elev extent=dsm.tif page=A3 landscape dpi=300
+```
+
+**90. Extreme** — build every derivative from raw LiDAR, then compose one rich A3 plate that stacks
+a hillshade, contours, footprints and markers over a basemap, framed to a study area at print DPI
+```
+load tile.las | run pdalcli:to_raster attribute=Z filter="Classification==2" resolution=1 | save dtm.tif
+load tile.las | run pdalcli:to_raster attribute=Z resolution=1 | save dsm.tif
+load dtm.tif  | hillshade z_factor=2 | save hillshade.tif
+load dtm.tif  | run gdal:contour BAND=1 INTERVAL=5 FIELD_NAME=elev OUTPUT=contours.gpkg
+load tile.las | run pdalcli:translate filter="Classification==6" output=buildings.laz
+load buildings.laz | run pdalcli:boundary | fixgeom | simplify 0.5m | save footprints.gpkg
+load contours.gpkg | style apply=contours.qml \
+  | map plate.pdf title="Bare-Earth Terrain & Structures" \
+      layers="hillshade.tif;dsm.tif;footprints.gpkg;control_points.gpkg" \
+      basemap=osm labels=elev extent=study_area.gpkg page=A3 landscape dpi=300 \
+      legend scalebar northarrow
+```
+For a fully hand-designed plate (custom frames, insets, an atlas of per-feature pages), design it
+once in QGIS and export it verbatim: `load aoi.gpkg | map out.pdf from=study.qgz layout="Overview"`.
 
 ---
 

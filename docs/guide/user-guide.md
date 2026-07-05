@@ -34,6 +34,39 @@ zero runtime dependencies beyond QGIS itself.
 
 ---
 
+## Dependencies — required & optional
+
+**Required — that's the whole list:**
+
+| Requirement | Notes |
+|---|---|
+| **QGIS 3.22+ (Qt5) or 4.x (Qt6)** | niva runs *inside* QGIS's own Python and Processing engine. Install QGIS from [qgis.org/download](https://qgis.org/download/) (Windows standalone/OSGeo4W, macOS, or Linux packages). |
+| **Python** | Provided by QGIS — you do **not** install a separate Python. niva itself is pure Python, vendored in the plugin zip (no `pip` step for the plugin). |
+
+Everything below is **optional** — install a piece only when you use the feature that needs it.
+The bundled providers (`native:`, `gdal:`, `qgis:`, and usually `grass:` and `pdal:`) come with
+QGIS and need nothing extra; `run <id>` reaches all of them.
+
+| Feature | Needs | How to get it |
+|---|---|---|
+| **`figure` / `map`** (rendering) | Nothing extra — QGIS renders both. `basemap=osm` needs network access | built in |
+| **`run grass:*`** (terrain/hydrology/classification) | GRASS | Bundled with most QGIS installs; nothing to do |
+| **`run pdal:*`** (QGIS point-cloud provider) | QGIS built with PDAL; raw `.las`/`.laz` may need a COPC index | Usually built in on Windows/macOS; on Linux see the [PDAL/LAStools guide](pdal-lastools-qgis4.md) |
+| **`run pdalcli:*`** (PDAL on raw LAS/LAZ/COPC — DTM/DSM/classify/merge/clip) | `pdal_wrench` + `QGIS_WRENCH_EXECUTABLE` | `micromamba/conda install -c conda-forge pdal_wrench`, then set the env var to its path |
+| **`run saga:*`** (SAGA CLI harness) | `saga_cmd` | Linux `apt install saga` · macOS `brew install saga-gis` · conda `saga` · set `NIVA_SAGA_CMD` if not on `PATH` |
+| **`run otb:*`** (Orfeo ToolBox) | OTB binaries + the OTB provider plugin | [orfeo-toolbox.org/download](https://www.orfeo-toolbox.org/download/) + set OTB folders (see [guide](pdal-lastools-qgis4.md)) |
+| **`run lastools:*`** (LAStools) | LAStools binaries (+ `libjpeg62` on Linux; a licence for production) | [rapidlasso](https://rapidlasso.de/) — optional; PDAL covers most of it |
+| **`notify`** (ntfy push) | Network + an ntfy topic | Set `NIVA_NTFY_TOPIC` (and optionally `NIVA_NTFY_SERVER` / `NIVA_NTFY_TOKEN`) |
+| **`email`** (SMTP) | An SMTP account | Set the `NIVA_SMTP_*` env vars (see §5) |
+| **PostGIS `@conn`** | A saved QGIS PostgreSQL connection | Configure it in QGIS's Data Source Manager — niva only ever sees the connection *name* |
+| **Editor highlighting/snippets** | Your editor | One command: `bash .vscode/niva/install.sh` — see the [editor guide](editor-integration.md) |
+
+Nothing here is needed to write, dry-run, `describe`, or `search` flows — those work with niva
+alone. See the **[PDAL/LAStools/OTB/SAGA guide](pdal-lastools-qgis4.md)** for the full point-cloud
+and raster-analysis setup, and **[editor integration](editor-integration.md)** for IDE support.
+
+---
+
 ## 2. Inside QGIS — the plugin
 
 ### Install

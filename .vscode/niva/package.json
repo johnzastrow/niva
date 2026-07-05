@@ -1,0 +1,27 @@
+{
+  "name": "niva",
+  "displayName": "niva",
+  "description": "Syntax highlighting for niva geoprocessing flows",
+  "version": "0.1.0",
+  "publisher": "niva",
+  "license": "GPL-3.0-or-later",
+  "engines": { "vscode": "^1.80.0" },
+  "categories": ["Programming Languages"],
+  "contributes": {
+    "languages": [{
+      "id": "niva",
+      "aliases": ["niva", "Niva"],
+      "extensions": [".niva"],
+      "configuration": "./language-configuration.json"
+    }],
+    "grammars": [{
+      "language": "niva",
+      "scopeName": "source.niva",
+      "path": "./syntaxes/niva.tmLanguage.json"
+    }],
+    "snippets": [{
+      "language": "niva",
+      "path": "./snippets/niva.code-snippets"
+    }]
+  }
+}

@@ -11,6 +11,102 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.40.0] - 2026-07-05
+
+### Added
+- **`map` verb** — a composed cartographic **layout** (→ PDF/PNG/JPG/SVG) with a **legend,
+  scale bar, and north arrow on by default**, so a bare `load x | map out.pdf` yields a complete
+  map with **no template required**. Shares `figure`'s layer model (piped layer + `layers=`
+  overlays + `basemap`, `labels`, `extent`), handles vector *and* raster, and adds `title=`,
+  `page=`/`portrait`/`landscape`, `dpi=`, `bare`, and `no<element>` opt-outs. A `from=<project.qgz>
+  [layout=<name>]` form exports an **existing QGIS print layout** at full fidelity (atlases too).
+  New `Backend.render_map` (impl `PyqgisBackend` via `QgsLayout`/`QgsLayoutExporter`). Verified end
+  to end (bare, titled, portrait/Letter, overlays, many-layer, project export). Built-in count 22 → 23.
+- **Render progress** — `figure`/`map` stream per-layer load status and a render **heartbeat**, so
+  long renders never look frozen. Long renders are supported (they can take minutes on large data)
+  without crashing.
+- **Resilience/soak test suite** (`tests/test_stress.py`) — long-running tests, one per component
+  (figure, map, deep pipelines, point-cloud), on generated large data. **Skipped by default**
+  (`NIVA_STRESS=1` to run; `NIVA_STRESS_SCALE` to scale) so ordinary dev stays fast. Verified: all
+  pass under the real backend in ~51 s.
+- Cookbook recipes 85–90 (`map` tiny → extreme, incl. many-layer multi-type plates); reference §4
+  `map` entry; VS Code `map`/`map-full`/`map-from` snippets; `map` added to all five editor grammars.
+
+### Docs
+- **Dependencies section** in the User Guide (and a README pointer) — the single required
+  dependency (QGIS) plus a per-feature table of optional ones (`pdal_wrench` for `pdalcli:`,
+  `saga_cmd`, OTB, LAStools, ntfy/SMTP env for `notify`/`email`, editor tooling), each with how
+  to install it.
+
+## [0.39.0] - 2026-07-05
+
+### Added
+- **`figure` verb** — render a quick map **image** (`.png`/`.jpg`) of the current layer,
+  **vector or raster**, honouring labels. Built for sensible defaults: `load x | figure out.png`
+  alone frames the full data extent (with margin), a 1200 px-wide canvas at the data's aspect,
+  antialiasing, a white background, a min/max stretch for single-band rasters, and each layer's
+  own style. Options layer more on top: `size=WxH`, `dpi=`, `extent=layer|x1,y1,x2,y2|<layer>`,
+  `layers="a;b"` (overlays drawn beneath), `basemap=osm|<xyz-url>`, `bg=`, `labels=<field>`.
+  Pass-through, so it snapshots a mid-pipe step and chains after `save`. New `Backend.render_figure`
+  (implemented in `PyqgisBackend` via `QgsMapSettings`/`QgsMapRendererParallelJob`; recorded by
+  `MockBackend`). Verified end to end on raster, vector+labels, overlays, and the every-option form.
+  A composed cartographic `map` verb (title/legend/scale bar → PDF/SVG) is the planned follow-up.
+- Cookbook recipes 83–84 (simplest form + every-knob thematic map); reference §4 `figure` entry;
+  VS Code `figure`/`figure-full` snippets. Built-in verb count 21 → 22.
+
+## [0.38.0] - 2026-07-05
+
+### Added
+- **Native-CLI harness (`NativeToolBackend`)** — a delegating backend adapter
+  (`niva/engine/native.py`) that lets niva shell out to LiDAR/terrain CLIs directly,
+  bypassing QGIS Processing where that is friction. Wraps the real backend and intercepts
+  two id families; every other id (`native:*`, `gdal:*`, `grass:*`, `otb:*`, QGIS `pdal:*`)
+  passes straight through, so unrelated flows are unaffected.
+  - **`pdalcli:<command>`** → `pdal_wrench` on **raw LAS/LAZ/COPC** (no COPC conversion
+    step). 12 commands: `to_raster`/`to_raster_tin`/`density` (rasters, incl. DTM/DSM),
+    `to_vector`/`boundary` (vectors), `translate`/`clip`/`thin`/`classify_ground`/
+    `filter_noise`/`height_above_ground`/`merge` (point clouds). Classification-aware via
+    `filter="Classification==2"`. Upstream layer auto-wires to `--input`; `output=` persists
+    a product. `load` now accepts raw `.las`/`.laz`/`.copc.laz` as a path handle. Verified
+    end-to-end on real tiles: DTM, DSM, CHM, class-extract, classify_ground, merge, clip, COPC.
+  - **`saga:<library>:<tool>`** → `saga_cmd` (SAGA's QGIS provider is withdrawn on QGIS 4).
+    Reserved `_in`/`_out`/`_outext` keys wire the pipe onto each tool's own parameters.
+  - **Graceful degradation:** missing tools fail closed with an actionable message (and only
+    that call); `available("saga"|"pdal")` capability check; a failed `saga:*` appends the
+    detected SAGA version (its tool ids drift between releases); a `run otb:*` "not found" is
+    rewritten with OTB-setup guidance.
+  - Security: fixed executable (never from flow input), `shell=False` + explicit argv,
+    allowlist-validated names, scratch-dir outputs. Cross-platform (Windows/macOS/Linux).
+- **`examples/lidar_pdal_grass.niva`** — verified DTM/DSM/CHM/class-extract/merge/clip
+  workflows over raw LAS using `pdalcli:` + `grass:` (all open-source; no LAStools, no COPC).
+
+### Changed
+- **`scripts/gen_algorithms.py`** now catalogs the **OTB** provider when configured and
+  skips user/project-specific providers (`script`/`model`/`project`). Regenerated
+  `docs/algorithms/` → **878 algorithms** across 7 providers (adds `otb.md`, 109 algorithms).
+
+### Docs
+- **`docs/guide/pdal-lastools-qgis4.md`** — rewritten and verified against a live QGIS 4.0.3
+  install: corrected the fabricated PDAL algorithm table (24 real ids), the uppercase-parameter
+  convention, and the install model (PDAL provider is built in; needs `pdal_wrench`, and raw
+  LAS needs a COPC step for the QGIS provider — not `apt install pdal`). Added verified OTB
+  setup (109 algorithms in QGIS 4), the honest SAGA status (CLI works; provider withdrawn),
+  a full `pdalcli:`/`saga:` harness reference, graceful-degradation and cross-platform notes.
+- **Cookbook** (`docs/guide/cookbook.md`) — new **§L** (LiDAR from raw LAS via `pdalcli:`) and
+  **§M** (complex value-added pipelines: bare-earth terrain set, canopy-height→zonal-stats,
+  hydrology, geomorphons, building footprints) — recipes 72–82, each verified end to end.
+- Updated stale algorithm counts (769 → **878**) across `reference.md`, `faq.md`, `README.md`,
+  and the algorithm appendix; added the `otb:` provider row and the harness id families.
+- VS Code extension (now tracked under `.vscode/niva/`): added `pdalcli`/`pdalcli-dtm`/
+  `pdalcli-dsm`/`pdalcli-class`/`chm`/`saga` snippets; documented the completion scope
+  (snippet- and word-based; no context-aware IntelliSense yet).
+- **Editor integration expanded to five formats** — added syntax definitions for **nano**
+  (`.nanorc`), **Mousepad/gedit/GtkSourceView** (`.lang`), and **Kate/KSyntaxHighlighting**
+  (`.xml`), alongside the existing VS Code/TextMate, Vim, and Notepad++ files. New
+  `.vscode/niva/install.sh` auto-installs into every editor present, and
+  `docs/guide/editor-integration.md` documents every editor (incl. cross-platform paths and
+  how to cover any other editor).
+
 ## [0.37.0] - 2026-06-24
 
 ### Added

@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import glob
 import os
+import re
 import time
 from datetime import datetime, timezone
 
@@ -18,28 +19,38 @@ from ..grammar import Call, Flow, parse
 from ..registry import bind, core_registry
 from ..values import Distance
 from .backend import Backend
-from .connections import is_connection_ref, parse_connection_ref, resolve_connection_name
+from .connections import (
+    is_connection_ref,
+    parse_connection_ref,
+    resolve_connection_name,
+)
 from .layer import Layer
 from .units import resolve_distance
 
 
 class Engine:
-    def __init__(self, backend: Backend, registry=None, journal=None, progress=None, cancel=None):
+    def __init__(
+        self, backend: Backend, registry=None, journal=None, progress=None, cancel=None
+    ):
         self.backend = backend
         self.registry = registry or core_registry()
-        self.journal = journal  # optional run journal (jsonl + human log); see niva.journal
+        self.journal = (
+            journal  # optional run journal (jsonl + human log); see niva.journal
+        )
         self.progress = progress  # optional callable(str): live status during a run
         self.cancel = cancel  # optional callable() -> bool: abort the running algorithm
         self._pending_call = None  # processing.run(...) echo for the stage being run
         self._batch_item = None  # current item name while running an `each` batch
-        self._batch_gpkgs = None  # GeoPackage targets written during a batch, to compact
+        self._batch_gpkgs = (
+            None  # GeoPackage targets written during a batch, to compact
+        )
         # Run state, for `notify` message variables and auto-alerts:
-        self._run_t0 = None       # monotonic clock at run start (total elapsed)
-        self._run_started = ""    # ISO datetime of run start
+        self._run_t0 = None  # monotonic clock at run start (total elapsed)
+        self._run_started = ""  # ISO datetime of run start
         self._last_elapsed = 0.0  # seconds the previous stage took ({last})
-        self._op_count = 0        # operations recorded so far ({ops})
-        self._err_count = 0       # failures so far ({errors})
-        self._alerted = set()     # warning messages already alerted (dedup per run)
+        self._op_count = 0  # operations recorded so far ({ops})
+        self._err_count = 0  # failures so far ({errors})
+        self._alerted = set()  # warning messages already alerted (dedup per run)
 
     def _emit(self, message: str) -> None:
         if self.progress is not None:
@@ -74,8 +85,9 @@ class Engine:
         else:
             print(report)
 
-    def execute(self, program: list, *, base_dir: str | None = None,
-                _stack: tuple = ()) -> Layer | None:
+    def execute(
+        self, program: list, *, base_dir: str | None = None, _stack: tuple = ()
+    ) -> Layer | None:
         """Run every statement; return the final layer of the last flow.
 
         ``base_dir`` is the directory ``call`` targets are resolved against (the
@@ -128,19 +140,26 @@ class Engine:
         path = os.path.abspath(path)
         if path in stack:
             chain = " → ".join(os.path.basename(p) for p in (*stack, path))
-            raise FlowError(f"`call` cycle detected: {chain}", line=call.line, stage=call.raw)
+            raise FlowError(
+                f"`call` cycle detected: {chain}", line=call.line, stage=call.raw
+            )
         if self.journal is not None:
-            self.journal.record(text=(call.raw or f"call {target}").strip(), kind="call")
+            self.journal.record(
+                text=(call.raw or f"call {target}").strip(), kind="call"
+            )
         try:
             with open(path, encoding="utf-8") as fh:
                 text = fh.read()
         except OSError as exc:
             raise FlowError(
                 f"`call` cannot read `{target}`: {exc.strerror or exc}",
-                line=call.line, stage=call.raw,
+                line=call.line,
+                stage=call.raw,
             )
         sub_program = parse(text, file=path)
-        return self.execute(sub_program, base_dir=os.path.dirname(path), _stack=(*stack, path))
+        return self.execute(
+            sub_program, base_dir=os.path.dirname(path), _stack=(*stack, path)
+        )
 
     def run_flow(self, flow: Flow) -> Layer | None:
         # A flow that begins with `each` is a batch: the remaining stages run once
@@ -153,7 +172,9 @@ class Engine:
             current = self._execute_stage(stage, current, lineage)
         return current
 
-    def _execute_stage(self, stage, current: Layer | None, lineage: list) -> Layer | None:
+    def _execute_stage(
+        self, stage, current: Layer | None, lineage: list
+    ) -> Layer | None:
         """Run one stage: announce it, time it, dispatch, journal it, extend lineage."""
         text = (stage.raw or stage.verb).strip()
         self._emit(f"▶ {text}")
@@ -178,9 +199,10 @@ class Engine:
         each_stage, rest = stages[0], stages[1:]
         if not rest:
             raise FlowError(
-                '`each` needs stages after it, e.g. '
+                "`each` needs stages after it, e.g. "
                 '`each "dir/*.shp" | reproject EPSG:6346 | save out.gpkg`',
-                line=each_stage.line, stage=each_stage.raw,
+                line=each_stage.line,
+                stage=each_stage.raw,
             )
         items = self._resolve_each(each_stage)
         # `each "<glob>" | remove` is the one batch that deletes rather than transforms — it
@@ -191,8 +213,9 @@ class Engine:
         self._batch_gpkgs = set()  # collect .gpkg/.sqlite targets to compact at the end
         self._emit(f"▶ {each_stage.raw}  → {len(items)} item(s)")
         if self.journal is not None:
-            self.journal.record(text=each_stage.raw, kind="each",
-                                summary=f"{len(items)} item(s)")
+            self.journal.record(
+                text=each_stage.raw, kind="each", summary=f"{len(items)} item(s)"
+            )
         done = 0
         for i, (name, uri) in enumerate(items, 1):
             if self.cancel and self.cancel():
@@ -211,8 +234,9 @@ class Engine:
                 self._err_count += 1
                 self._alert_warning(f"batch skipped {name}: {exc}")
                 if self.journal is not None:
-                    self.journal.record(text=f"each item {name}", kind="each",
-                                        ok=False, error=str(exc))
+                    self.journal.record(
+                        text=f"each item {name}", kind="each", ok=False, error=str(exc)
+                    )
             # A FlowError (usage/config — e.g. a bad save target) would fail every
             # item identically, so it is NOT caught here: it propagates and aborts the
             # batch rather than silently doing nothing.
@@ -236,8 +260,9 @@ class Engine:
         type that needs `force`) propagates — it would apply to every item the same way."""
         self._emit(f"▶ {each_stage.raw}  → {len(items)} item(s)")
         if self.journal is not None:
-            self.journal.record(text=each_stage.raw, kind="each",
-                                summary=f"remove {len(items)} item(s)")
+            self.journal.record(
+                text=each_stage.raw, kind="each", summary=f"remove {len(items)} item(s)"
+            )
         seen, done = set(), 0
         for name, uri in items:
             path = uri.split("|layername=")[0]  # the container/file, not the layer
@@ -254,13 +279,21 @@ class Engine:
         files, a directory (recursed), or a single file. Multi-layer containers
         (GeoPackages) expand to one item per layer."""
         if not stage.args:
-            raise FlowError('`each` needs a source: `each "<dir>"`, `each "<glob>"`, '
-                            "or `each <file.gpkg>`", line=stage.line, stage=stage.raw)
-        items = self._resolve_sources(stage.args[0], verb="each",
-                                      line=stage.line, raw=stage.raw)
+            raise FlowError(
+                '`each` needs a source: `each "<dir>"`, `each "<glob>"`, '
+                "or `each <file.gpkg>`",
+                line=stage.line,
+                stage=stage.raw,
+            )
+        items = self._resolve_sources(
+            stage.args[0], verb="each", line=stage.line, raw=stage.raw
+        )
         if not items:
-            raise FlowError(f"`each`: no geospatial datasets found in `{stage.args[0]}`",
-                            line=stage.line, stage=stage.raw)
+            raise FlowError(
+                f"`each`: no geospatial datasets found in `{stage.args[0]}`",
+                line=stage.line,
+                stage=stage.raw,
+            )
         return items
 
     def _resolve_sources(self, source: str, *, verb: str, line: int, raw: str) -> list:
@@ -286,7 +319,9 @@ class Engine:
         if any(c in src for c in "*?["):  # glob pattern
             matches = sorted(glob.glob(src))
             if not matches:
-                raise FlowError(f"`{verb}`: no files match `{source}`", line=line, stage=raw)
+                raise FlowError(
+                    f"`{verb}`: no files match `{source}`", line=line, stage=raw
+                )
             for m in matches:
                 if os.path.isfile(m):
                     add(m)
@@ -297,7 +332,9 @@ class Engine:
         elif os.path.isfile(src):  # a single file (maybe multi-layer)
             add(src)
         else:
-            raise FlowError(f"`{verb}`: no such file or directory: {src}", line=line, stage=raw)
+            raise FlowError(
+                f"`{verb}`: no such file or directory: {src}", line=line, stage=raw
+            )
         return items
 
     def _record(self, stage, text, *, ok, t0, error=None) -> None:
@@ -309,10 +346,15 @@ class Engine:
             self._alert_warning(note)
         if self.journal is not None:
             self.journal.record(
-                text=text, kind=stage.verb, algorithm=self._algorithm_of(stage),
-                summary=self._paths_of(stage), ok=ok, error=error,
+                text=text,
+                kind=stage.verb,
+                algorithm=self._algorithm_of(stage),
+                summary=self._paths_of(stage),
+                ok=ok,
+                error=error,
                 duration_ms=round((time.monotonic() - t0) * 1000),
-                pyqgis=self._pending_call, note=note,
+                pyqgis=self._pending_call,
+                note=note,
             )
 
     def _algorithm_of(self, stage):
@@ -329,7 +371,11 @@ class Engine:
         the process cwd, which is where niva wrote it). Connection refs (@conn) are
         not file paths and are left out."""
         verb, paths = stage.verb, []
-        if verb in ("load", "save") and stage.args and not stage.args[0].startswith("@"):
+        if (
+            verb in ("load", "save")
+            and stage.args
+            and not stage.args[0].startswith("@")
+        ):
             paths.append(stage.args[0].split("|", 1)[0])
         elif verb == "assess":
             rest = [a for a in stage.args if a.lstrip("-") != "deep"]
@@ -343,7 +389,9 @@ class Engine:
         elif verb == "catalog":
             out = stage.options.get("to")
             root = stage.args[0] if stage.args else None
-            paths.append(out if out else (os.path.join(root, "catalog.md") if root else ""))
+            paths.append(
+                out if out else (os.path.join(root, "catalog.md") if root else "")
+            )
             paths = [p for p in paths if p]
         return ", ".join(os.path.abspath(os.path.expanduser(p)) for p in paths)
 
@@ -364,24 +412,30 @@ class Engine:
     #     "<did this> → <path>" status, so it shows in the dock and the CLI alike.
     #   - Transform verbs return a Layer; the plugin shows it via the final-run summary.
     _BUILTIN_VERBS = {
-        "load":     lambda self, stage, current, lineage: self._load(stage),
-        "save":     lambda self, stage, current, lineage: self._save(stage, current, lineage),
-        "sql":      lambda self, stage, current, lineage: self._sql(stage),
-        "metadata": lambda self, stage, current, lineage: self._metadata(stage, current),
-        "assess":   lambda self, stage, current, lineage: self._assess(stage, current),
-        "run":      lambda self, stage, current, lineage: self._run_raw(stage, current),
-        "notify":   lambda self, stage, current, lineage: self._notify(stage, current),
-        "email":    lambda self, stage, current, lineage: self._email(stage, current),
-        "catalog":  lambda self, stage, current, lineage: self._catalog(stage),
-        "show":     lambda self, stage, current, lineage: self._show(stage),
-        "info":     lambda self, stage, current, lineage: self._info(stage),
+        "load": lambda self, stage, current, lineage: self._load(stage),
+        "save": lambda self, stage, current, lineage: self._save(
+            stage, current, lineage
+        ),
+        "sql": lambda self, stage, current, lineage: self._sql(stage),
+        "metadata": lambda self, stage, current, lineage: self._metadata(
+            stage, current
+        ),
+        "assess": lambda self, stage, current, lineage: self._assess(stage, current),
+        "run": lambda self, stage, current, lineage: self._run_raw(stage, current),
+        "notify": lambda self, stage, current, lineage: self._notify(stage, current),
+        "email": lambda self, stage, current, lineage: self._email(stage, current),
+        "catalog": lambda self, stage, current, lineage: self._catalog(stage),
+        "show": lambda self, stage, current, lineage: self._show(stage),
+        "info": lambda self, stage, current, lineage: self._info(stage),
         "describe": lambda self, stage, current, lineage: self._describe(stage),
-        "search":   lambda self, stage, current, lineage: self._search(stage),
-        "docs":     lambda self, stage, current, lineage: self._docs(stage),
-        "project":  lambda self, stage, current, lineage: self._project(stage),
-        "style":    lambda self, stage, current, lineage: self._style(stage, current),
-        "split":    lambda self, stage, current, lineage: self._split(stage, current),
-        "remove":   lambda self, stage, current, lineage: self._remove(stage),
+        "search": lambda self, stage, current, lineage: self._search(stage),
+        "docs": lambda self, stage, current, lineage: self._docs(stage),
+        "project": lambda self, stage, current, lineage: self._project(stage),
+        "style": lambda self, stage, current, lineage: self._style(stage, current),
+        "figure": lambda self, stage, current, lineage: self._figure(stage, current),
+        "map": lambda self, stage, current, lineage: self._map(stage, current),
+        "split": lambda self, stage, current, lineage: self._split(stage, current),
+        "remove": lambda self, stage, current, lineage: self._remove(stage),
     }
 
     def _run_stage(self, stage, current: Layer | None, lineage: list) -> Layer | None:
@@ -394,8 +448,9 @@ class Engine:
             return handler(self, stage, current, lineage)
         if verb == "each":
             raise FlowError(
-                "`each` must be the first stage of a flow — `each \"<dir>\" | … | save out.gpkg`",
-                line=stage.line, stage=stage.raw,
+                '`each` must be the first stage of a flow — `each "<dir>" | … | save out.gpkg`',
+                line=stage.line,
+                stage=stage.raw,
             )
 
         alias = self.registry.get(verb)
@@ -404,21 +459,33 @@ class Engine:
         if current is None:
             raise FlowError(
                 f"`{verb}` needs an input layer — start the flow with `load`",
-                line=stage.line, stage=stage.raw,
+                line=stage.line,
+                stage=stage.raw,
             )
 
         op = bind(stage, alias)
-        self._resolve_layer_refs(op, stage)  # turn @conn.table secondary layers into layers
-        self._validate_crs_params(op, stage)  # fail closed on an unknown CRS, never silently
+        self._resolve_layer_refs(
+            op, stage
+        )  # turn @conn.table secondary layers into layers
+        self._validate_crs_params(
+            op, stage
+        )  # fail closed on an unknown CRS, never silently
         params = self._resolve_distances(op.params, current, stage)
         self._pending_call = self.backend.render_call(
-            op.algorithm, params,
-            input_param=op.input_param, input_layer=current, output_param=op.output_param,
+            op.algorithm,
+            params,
+            input_param=op.input_param,
+            input_layer=current,
+            output_param=op.output_param,
         )
         return self.backend.run(
-            op.algorithm, params,
-            input_param=op.input_param, input_layer=current, output_param=op.output_param,
-            progress=self.progress, cancel=self.cancel,
+            op.algorithm,
+            params,
+            input_param=op.input_param,
+            input_layer=current,
+            output_param=op.output_param,
+            progress=self.progress,
+            cancel=self.cancel,
         )
 
     # --- built-in verbs ------------------------------------------------------
@@ -427,7 +494,8 @@ class Engine:
         if len(stage.args) != 1 or stage.options:
             raise FlowError(
                 "`load` takes one source: `load <path-or-uri>` or `load @conn.table`",
-                line=stage.line, stage=stage.raw,
+                line=stage.line,
+                stage=stage.raw,
             )
         source = stage.args[0]
         if is_connection_ref(source):
@@ -439,18 +507,21 @@ class Engine:
                     f"`{source}` looks like a file, but `@` is for saved QGIS database "
                     f"connections. Load a file by path instead (GeoPackages hold many "
                     f'layers, so name one): `load "{path}|layername=<layer>"`.',
-                    line=stage.line, stage=stage.raw,
+                    line=stage.line,
+                    stage=stage.raw,
                 )
             try:
                 conn, schema, table = parse_connection_ref(
-                    source, self.backend.connection_names())
+                    source, self.backend.connection_names()
+                )
             except ValueError as exc:
                 raise FlowError(f"`load`: {exc}", line=stage.line, stage=stage.raw)
             if table is None:
                 raise FlowError(
                     f"`load @conn.table` needs a table — `{source}` is a bare "
-                    "connection (use `sql @conn \"…\"` to query it)",
-                    line=stage.line, stage=stage.raw,
+                    'connection (use `sql @conn "…"` to query it)',
+                    line=stage.line,
+                    stage=stage.raw,
                 )
             return self.backend.load_table(conn, schema, table)
         return self.backend.load(os.path.expanduser(source))
@@ -459,19 +530,22 @@ class Engine:
         if len(stage.args) != 2 or stage.options:
             raise FlowError(
                 '`sql` takes a connection and a query: `sql @conn "SELECT …"`',
-                line=stage.line, stage=stage.raw,
+                line=stage.line,
+                stage=stage.raw,
             )
         ref, query = stage.args
         if not is_connection_ref(ref):
             raise FlowError(
                 f'`sql` needs a connection first: `sql @conn "…"` (got `{ref}`)',
-                line=stage.line, stage=stage.raw,
+                line=stage.line,
+                stage=stage.raw,
             )
         conn, schema, table = parse_connection_ref(ref, self.backend.connection_names())
         if schema or table:
             raise FlowError(
                 f"`sql` takes a bare connection `@{conn}`, not a table reference (`{ref}`)",
-                line=stage.line, stage=stage.raw,
+                line=stage.line,
+                stage=stage.raw,
             )
         # SELECT-style queries return a layer to pipe; everything else (DDL/DML) runs
         # server-side as a terminal step. `CREATE TABLE … AS SELECT …` reads as a write
@@ -485,7 +559,8 @@ class Engine:
         if current is None:
             raise FlowError(
                 "`save` has nothing to save — the flow has not loaded a layer yet",
-                line=stage.line, stage=stage.raw,
+                line=stage.line,
+                stage=stage.raw,
             )
         if stage.args and is_connection_ref(stage.args[0]):
             return self._save_to_db(stage, current, lineage)
@@ -496,13 +571,15 @@ class Engine:
                     "`save @conn.table mode=append`. To add a layer to a GeoPackage/SpatiaLite "
                     "container, use `save <file> as <layer>` (writing a named layer into an "
                     "existing container appends it).",
-                    line=stage.line, stage=stage.raw,
+                    line=stage.line,
+                    stage=stage.raw,
                 )
             raise FlowError(
                 "`save` takes no key=value options for a file — `save <path>`, "
                 "`save <path> as <layer>`, or a database target "
                 "`save @conn.table [mode=create|replace|append]`",
-                line=stage.line, stage=stage.raw,
+                line=stage.line,
+                stage=stage.raw,
             )
         args = stage.args
         explicit_name = None
@@ -513,7 +590,8 @@ class Engine:
         else:
             raise FlowError(
                 "`save` takes `save <path>` or `save <path> as <layer>`",
-                line=stage.line, stage=stage.raw,
+                line=stage.line,
+                stage=stage.raw,
             )
 
         batch = self._batch_item
@@ -522,7 +600,8 @@ class Engine:
         if templated and not batch:
             raise FlowError(
                 "`{name}` in a save path only works inside an `each` batch",
-                line=stage.line, stage=stage.raw,
+                line=stage.line,
+                stage=stage.raw,
             )
         if templated:
             dest = dest.replace("{name}", _safe_name(batch))
@@ -530,8 +609,11 @@ class Engine:
         # {name}` does the obvious thing inside a batch.
         if explicit_name and "{name}" in explicit_name:
             if not batch:
-                raise FlowError("`{name}` only works inside an `each` batch",
-                                line=stage.line, stage=stage.raw)
+                raise FlowError(
+                    "`{name}` only works inside an `each` batch",
+                    line=stage.line,
+                    stage=stage.raw,
+                )
             explicit_name = explicit_name.replace("{name}", batch)
 
         # The layer name to write: explicit `as`, else the batch item's name.
@@ -543,22 +625,29 @@ class Engine:
             raise FlowError(
                 "`save … as <layer>` writes a named layer into a multi-layer "
                 "container — use a .gpkg/.sqlite path",
-                line=stage.line, stage=stage.raw,
+                line=stage.line,
+                stage=stage.raw,
             )
         if batch and not templated and not is_container:
             raise FlowError(
                 "a batch (`each`) save needs a multi-layer .gpkg target (one layer per "
-                "item) or a `{name}` placeholder in the path, e.g. `save \"out/{name}.tif\"`",
-                line=stage.line, stage=stage.raw,
+                'item) or a `{name}` placeholder in the path, e.g. `save "out/{name}.tif"`',
+                line=stage.line,
+                stage=stage.raw,
             )
         append = is_container and layer_name is not None
         if self._batch_gpkgs is not None and is_container:
             self._batch_gpkgs.add(dest)  # compact this container when the batch ends
-        parent = os.path.dirname(dest)  # create the target folder if it doesn't exist yet
-        if parent and not os.path.isdir(parent):  # also covers the first item of a batch
-            os.makedirs(parent, exist_ok=True)     # save into one container (append=True)
-        return self.backend.save(current, dest, lineage=lineage,
-                                 layer_name=layer_name, append=append)
+        parent = os.path.dirname(
+            dest
+        )  # create the target folder if it doesn't exist yet
+        if parent and not os.path.isdir(
+            parent
+        ):  # also covers the first item of a batch
+            os.makedirs(parent, exist_ok=True)  # save into one container (append=True)
+        return self.backend.save(
+            current, dest, lineage=lineage, layer_name=layer_name, append=append
+        )
 
     def _save_to_db(self, stage, current: Layer, lineage: list) -> Layer:
         # `save @conn[.schema].table [mode=create|replace|append]` — write the current
@@ -570,17 +659,20 @@ class Engine:
             raise FlowError(
                 "a database save takes just `save @conn.table` (with an optional "
                 "`mode=`) — `as <layer>` is for file containers only",
-                line=stage.line, stage=stage.raw,
+                line=stage.line,
+                stage=stage.raw,
             )
         if "{name}" in ref:
             raise FlowError(
                 "`{name}` templating works on file paths, not `@conn` targets — in a "
                 "batch, `save @conn` names the table after each item",
-                line=stage.line, stage=stage.raw,
+                line=stage.line,
+                stage=stage.raw,
             )
         try:
             conn, schema, table = parse_connection_ref(
-                ref, self.backend.connection_names())
+                ref, self.backend.connection_names()
+            )
         except ValueError as exc:
             raise FlowError(f"`save`: {exc}", line=stage.line, stage=stage.raw)
 
@@ -596,14 +688,16 @@ class Engine:
                 raise FlowError(
                     "a batch (`each`) save writes one table per item — drop the table "
                     f"name and use `save @conn` or `save @conn.<schema>` (got `{ref}`)",
-                    line=stage.line, stage=stage.raw,
+                    line=stage.line,
+                    stage=stage.raw,
                 )
             schema = table  # the 2-part trailing component, or None for bare `@conn`
             table = _safe_name(batch)
         elif table is None:  # bare `@conn` outside a batch
             raise FlowError(
                 f"`save @conn.table` needs a table name — `{ref}` is a bare connection",
-                line=stage.line, stage=stage.raw,
+                line=stage.line,
+                stage=stage.raw,
             )
 
         mode = "create"
@@ -611,22 +705,26 @@ class Engine:
             if key != "mode":
                 raise FlowError(
                     f"a database save takes only `mode=` — got `{key}=`",
-                    line=stage.line, stage=stage.raw,
+                    line=stage.line,
+                    stage=stage.raw,
                 )
             mode = value
         if mode not in ("create", "replace", "append"):
             raise FlowError(
                 f"`mode={mode}` is not valid — use create, replace, or append",
-                line=stage.line, stage=stage.raw,
+                line=stage.line,
+                stage=stage.raw,
             )
 
         if current.facet == "raster":
             raise FlowError(
                 "saving rasters to a database is not supported — use a file target",
-                line=stage.line, stage=stage.raw,
+                line=stage.line,
+                stage=stage.raw,
             )
-        return self.backend.save_table(current, conn, schema, table,
-                                       mode=mode, lineage=lineage)
+        return self.backend.save_table(
+            current, conn, schema, table, mode=mode, lineage=lineage
+        )
 
     def _metadata(self, stage, current: Layer | None) -> Layer:
         # `metadata set key=value …` — attach descriptive metadata to the current
@@ -634,28 +732,34 @@ class Engine:
         if current is None:
             raise FlowError(
                 "`metadata` sets metadata on the current layer — load one first",
-                line=stage.line, stage=stage.raw,
+                line=stage.line,
+                stage=stage.raw,
             )
         if stage.args != ["set"]:
             raise FlowError(
-                '`metadata` supports one form: `metadata set key=value …`',
-                line=stage.line, stage=stage.raw,
+                "`metadata` supports one form: `metadata set key=value …`",
+                line=stage.line,
+                stage=stage.raw,
             )
         if not stage.options:
             raise FlowError(
                 '`metadata set` needs at least one field, e.g. `title="…"`',
-                line=stage.line, stage=stage.raw,
+                line=stage.line,
+                stage=stage.raw,
             )
         unknown = [k for k in stage.options if k not in _METADATA_FIELDS]
         if unknown:
             raise FlowError(
                 f"`metadata set`: unknown field(s) {', '.join(unknown)} — supported: "
                 + ", ".join(sorted(_METADATA_FIELDS)),
-                line=stage.line, stage=stage.raw,
+                line=stage.line,
+                stage=stage.raw,
             )
         layer = self.backend.set_metadata(current, dict(stage.options))
-        self._emit(f"  metadata set: {', '.join(sorted(stage.options))} "
-                   "(persisted on next save)")  # confirm the action in the dock/CLI
+        self._emit(
+            f"  metadata set: {', '.join(sorted(stage.options))} "
+            "(persisted on next save)"
+        )  # confirm the action in the dock/CLI
         return layer
 
     def _assess(self, stage, current: Layer | None) -> Layer | None:
@@ -664,12 +768,14 @@ class Engine:
         if current is None:
             raise FlowError(
                 "`assess` profiles the current layer — load one first",
-                line=stage.line, stage=stage.raw,
+                line=stage.line,
+                stage=stage.raw,
             )
         if stage.options:
             raise FlowError(
                 "`assess` takes no key=value options — `assess [deep] to <report.md>`",
-                line=stage.line, stage=stage.raw,
+                line=stage.line,
+                stage=stage.raw,
             )
         deep = False
         rest = []
@@ -681,7 +787,8 @@ class Engine:
         if len(rest) != 2 or rest[0] != "to":
             raise FlowError(
                 "`assess` needs an output: `assess [deep] to <report.md>`",
-                line=stage.line, stage=stage.raw,
+                line=stage.line,
+                stage=stage.raw,
             )
         dest = os.path.expanduser(rest[1])
         profile = self.backend.profile(current, deep)
@@ -691,7 +798,9 @@ class Engine:
             os.makedirs(parent, exist_ok=True)
         with open(dest, "w", encoding="utf-8") as fh:
             fh.write(report)
-        self._emit(f"  assessment → {dest}")  # so the dock/CLI shows where the report went
+        self._emit(
+            f"  assessment → {dest}"
+        )  # so the dock/CLI shows where the report went
         return current
 
     def _remove(self, stage, batch_path: str | None = None) -> None:
@@ -715,22 +824,25 @@ class Engine:
         if stage.options:
             raise FlowError(
                 "`remove` takes no key=value options — `remove <path> [force] [-dryrun]`",
-                line=stage.line, stage=stage.raw,
+                line=stage.line,
+                stage=stage.raw,
             )
 
         if batch_path is not None:
             if paths:
                 raise FlowError(
                     "`remove` after `each` deletes each batched item — don't also name a path "
-                    f"(`{paths[0]}`); write `each \"<glob>\" | remove`",
-                    line=stage.line, stage=stage.raw,
+                    f'(`{paths[0]}`); write `each "<glob>" | remove`',
+                    line=stage.line,
+                    stage=stage.raw,
                 )
             target = batch_path
         elif len(paths) != 1:
             raise FlowError(
                 "`remove` needs exactly one path — `remove <file>` "
                 '(to delete many, batch with `each "<glob>" | remove`)',
-                line=stage.line, stage=stage.raw,
+                line=stage.line,
+                stage=stage.raw,
             )
         else:
             target = paths[0]
@@ -740,20 +852,23 @@ class Engine:
             raise FlowError(
                 f"`remove` deletes files only — `{target}` is a database reference. "
                 'To drop a table use `sql @conn "DROP TABLE <name>"`.',
-                line=stage.line, stage=stage.raw,
+                line=stage.line,
+                stage=stage.raw,
             )
         if rp.is_glob(target):
             raise FlowError(
                 f"`remove` won't expand a glob (`{target}`). Batch it so each file is checked "
                 'individually: `each "<glob>" | remove`.',
-                line=stage.line, stage=stage.raw,
+                line=stage.line,
+                stage=stage.raw,
             )
         path = os.path.abspath(os.path.expanduser(target))
         if os.path.isdir(path):
             raise FlowError(
                 f"`remove` deletes files, not directories (`{target}` is a folder). "
                 'Name a file, or batch its contents with `each "<dir>" | remove`.',
-                line=stage.line, stage=stage.raw,
+                line=stage.line,
+                stage=stage.raw,
             )
         forced_ext = False
         if not rp.on_allowlist(path):
@@ -762,15 +877,20 @@ class Engine:
                     f"`remove` won't delete `{os.path.basename(path)}` — `{rp.ext_of(path) or '(no extension)'}` "
                     f"isn't a recognised geodata/niva output type. Allowed → {rp.ALLOWLIST_STR}. "
                     "Add `force` to delete this one file anyway.",
-                    line=stage.line, stage=stage.raw,
+                    line=stage.line,
+                    stage=stage.raw,
                 )
             forced_ext = True
 
         # --- resolve the concrete files ----------------------------------------------------
-        if not os.path.exists(path):  # idempotent: a cleanup verb must be safe to re-run
+        if not os.path.exists(
+            path
+        ):  # idempotent: a cleanup verb must be safe to re-run
             self._emit(f"  remove: {target} already absent")
             if self.journal is not None:
-                self.journal.record(text=stage.raw, kind="remove", summary="already absent")
+                self.journal.record(
+                    text=stage.raw, kind="remove", summary="already absent"
+                )
             return None
         candidates = [path] if forced_ext else [path, *rp.family(path)]
         existing = [p for p in candidates if os.path.isfile(p)]
@@ -778,10 +898,15 @@ class Engine:
 
         if dryrun:
             shown = ", ".join(os.path.basename(p) for p in existing)
-            self._emit(f"  remove -dryrun: would delete {len(existing)} file(s) — {shown}")
+            self._emit(
+                f"  remove -dryrun: would delete {len(existing)} file(s) — {shown}"
+            )
             if self.journal is not None:
-                self.journal.record(text=stage.raw, kind="remove",
-                                    summary=f"dryrun: {len(existing)} file(s)")
+                self.journal.record(
+                    text=stage.raw,
+                    kind="remove",
+                    summary=f"dryrun: {len(existing)} file(s)",
+                )
             return None
 
         freed = 0
@@ -794,13 +919,22 @@ class Engine:
             except OSError as exc:  # permission / I/O — fail closed, name the file
                 raise OpError(
                     f"`remove` could not delete `{p}`: {exc}",
-                    algorithm="remove", params={"path": p}, backend="filesystem",
+                    algorithm="remove",
+                    params={"path": p},
+                    backend="filesystem",
                 ) from exc
-        extra = f" (+{sidecars} sidecar{'s' if sidecars != 1 else ''})" if sidecars > 0 else ""
+        extra = (
+            f" (+{sidecars} sidecar{'s' if sidecars != 1 else ''})"
+            if sidecars > 0
+            else ""
+        )
         self._emit(f"  removed {target}{extra} — {freed} bytes freed")
         if self.journal is not None:
-            self.journal.record(text=stage.raw, kind="remove",
-                                summary=f"{len(existing)} file(s), {freed} bytes")
+            self.journal.record(
+                text=stage.raw,
+                kind="remove",
+                summary=f"{len(existing)} file(s), {freed} bytes",
+            )
         return None
 
     def _run_raw(self, stage, current: Layer | None) -> Layer | None:
@@ -812,19 +946,31 @@ class Engine:
         if not stage.args:
             raise FlowError(
                 "`run` needs an algorithm id: `run native:slope KEY=value`",
-                line=stage.line, stage=stage.raw,
+                line=stage.line,
+                stage=stage.raw,
             )
         if len(stage.args) > 1:
             extra = ", ".join(repr(a) for a in stage.args[1:])
             raise FlowError(
                 f"`run` takes one algorithm id, then KEY=value options; got extra: {extra}",
-                line=stage.line, stage=stage.raw,
+                line=stage.line,
+                stage=stage.raw,
             )
         algorithm = stage.args[0]
-        params = {key: self._expand_value(value, stage) for key, value in stage.options.items()}
-        self._pending_call = self.backend.render_call(algorithm, params, input_layer=current)
-        return self.backend.run_raw(algorithm, params, input_layer=current,
-                                    progress=self.progress, cancel=self.cancel)
+        params = {
+            key: self._expand_value(value, stage)
+            for key, value in stage.options.items()
+        }
+        self._pending_call = self.backend.render_call(
+            algorithm, params, input_layer=current
+        )
+        return self.backend.run_raw(
+            algorithm,
+            params,
+            input_layer=current,
+            progress=self.progress,
+            cancel=self.cancel,
+        )
 
     # --- utility verbs (side effects; not QGIS algorithms, see niva.utilities) ---
 
@@ -836,12 +982,19 @@ class Engine:
 
         message = stage.args[0] if stage.args else stage.options.get("message", "")
         if not message:
-            raise FlowError('notify needs a message: `notify "your message" to=<topic>`',
-                            line=stage.line, stage=stage.raw)
+            raise FlowError(
+                'notify needs a message: `notify "your message" to=<topic>`',
+                line=stage.line,
+                stage=stage.raw,
+            )
         opts = stage.options
         target = send_ntfy(
-            self._interpolate(message), topic=opts.get("to"), server=opts.get("server"),
-            title=opts.get("title"), priority=opts.get("priority"), tags=opts.get("tags"),
+            self._interpolate(message),
+            topic=opts.get("to"),
+            server=opts.get("server"),
+            title=opts.get("title"),
+            priority=opts.get("priority"),
+            tags=opts.get("tags"),
         )
         self._emit(f"  notified → {target}")
         return current
@@ -872,7 +1025,12 @@ class Engine:
         "warning"; warnings are de-duplicated per run so a batch can't spam. Never
         raises — an alert must not break (or abort) the run."""
         flag = "NIVA_NTFY_ON_ERROR" if kind == "error" else "NIVA_NTFY_ON_WARNING"
-        if str(os.environ.get(flag, "")).strip().lower() not in ("1", "true", "yes", "on"):
+        if str(os.environ.get(flag, "")).strip().lower() not in (
+            "1",
+            "true",
+            "yes",
+            "on",
+        ):
             return
         if kind == "warning":
             if message in self._alerted:
@@ -900,15 +1058,23 @@ class Engine:
         opts = stage.options
         to = opts.get("to") or (stage.args[0] if stage.args else None)
         recipient = send_email(
-            to=to, subject=opts.get("subject", ""), body=opts.get("body", ""),
+            to=to,
+            subject=opts.get("subject", ""),
+            body=opts.get("body", ""),
             attach=os.path.expanduser(opts["attach"]) if opts.get("attach") else None,
         )
         self._emit(f"  emailed → {recipient}")
         return current
 
     # The geometry kinds `split` understands → the native:filterbygeometry output sink.
-    _SPLIT_SINKS = {"point": "POINTS", "points": "POINTS", "line": "LINES",
-                    "lines": "LINES", "polygon": "POLYGONS", "polygons": "POLYGONS"}
+    _SPLIT_SINKS = {
+        "point": "POINTS",
+        "points": "POINTS",
+        "line": "LINES",
+        "lines": "LINES",
+        "polygon": "POLYGONS",
+        "polygons": "POLYGONS",
+    }
 
     def _split(self, stage, current: Layer | None) -> Layer | None:
         """`split <point|line|polygon>` — keep only the features of one geometry type
@@ -918,24 +1084,41 @@ class Engine:
         features are preserved; `GeometryCollection` features are not decomposed by
         this filter (they route to none of the single-type sinks)."""
         if current is None:
-            raise FlowError("`split` needs an input layer — load one first",
-                            line=stage.line, stage=stage.raw)
+            raise FlowError(
+                "`split` needs an input layer — load one first",
+                line=stage.line,
+                stage=stage.raw,
+            )
         if len(stage.args) != 1 or stage.options:
-            raise FlowError("`split` takes one geometry type: `split <point|line|polygon>`",
-                            line=stage.line, stage=stage.raw)
+            raise FlowError(
+                "`split` takes one geometry type: `split <point|line|polygon>`",
+                line=stage.line,
+                stage=stage.raw,
+            )
         kind = stage.args[0].lower()
         sink = self._SPLIT_SINKS.get(kind)
         if sink is None:
             raise FlowError(
                 f"`split` geometry type must be point, line or polygon (got `{stage.args[0]}`)",
-                line=stage.line, stage=stage.raw)
+                line=stage.line,
+                stage=stage.raw,
+            )
         self._pending_call = self.backend.render_call(
-            "native:filterbygeometry", {}, input_param="INPUT",
-            input_layer=current, output_param=sink)
+            "native:filterbygeometry",
+            {},
+            input_param="INPUT",
+            input_layer=current,
+            output_param=sink,
+        )
         return self.backend.run(
-            "native:filterbygeometry", {}, input_param="INPUT",
-            input_layer=current, output_param=sink,
-            progress=self.progress, cancel=self.cancel)
+            "native:filterbygeometry",
+            {},
+            input_param="INPUT",
+            input_layer=current,
+            output_param=sink,
+            progress=self.progress,
+            cancel=self.cancel,
+        )
 
     def _catalog(self, stage) -> Layer | None:
         """`catalog <dir> [to=<out.md>]` — recurse a directory, inventory every
@@ -944,12 +1127,16 @@ class Engine:
         from ..utilities import CATALOG_MULTILAYER_EXTS, facet_for_ext, format_catalog
 
         if not stage.args:
-            raise FlowError("catalog needs a directory: `catalog <dir> [to=out.md]`",
-                            line=stage.line, stage=stage.raw)
+            raise FlowError(
+                "catalog needs a directory: `catalog <dir> [to=out.md]`",
+                line=stage.line,
+                stage=stage.raw,
+            )
         root = os.path.expanduser(stage.args[0])
         if not os.path.isdir(root):
-            raise FlowError(f"catalog: not a directory: {root}",
-                            line=stage.line, stage=stage.raw)
+            raise FlowError(
+                f"catalog: not a directory: {root}", line=stage.line, stage=stage.raw
+            )
         out = stage.options.get("to")
         out = os.path.expanduser(out) if out else os.path.join(root, "catalog.md")
 
@@ -967,12 +1154,18 @@ class Engine:
                 if facet == "vector" and ext.lower() in CATALOG_MULTILAYER_EXTS:
                     names = self.backend.sublayers(path)
                     if names:
-                        targets = [(f"{rel} :: {n}", f"{path}|layername={n}") for n in names]
+                        targets = [
+                            (f"{rel} :: {n}", f"{path}|layername={n}") for n in names
+                        ]
                 for display, source in targets:
                     try:
                         layer = self.backend.load(source, facet=facet)
-                        entries.append((display, facet, self.backend.profile(layer), None))
-                    except Exception as exc:  # unreadable / locked / unsupported — note it
+                        entries.append(
+                            (display, facet, self.backend.profile(layer), None)
+                        )
+                    except (
+                        Exception
+                    ) as exc:  # unreadable / locked / unsupported — note it
                         entries.append((display, facet, None, str(exc)))
                     self._emit(f"  catalog: {display}")
 
@@ -989,13 +1182,58 @@ class Engine:
     # `.dbf`/`.shx`/…, style/aux files) and obviously-non-geospatial files (code, docs,
     # images, archives). Everything else is probed via the backend, which returns no layers
     # for a file QGIS can't read — so any *readable* dataset is listed regardless of format.
-    _SHOW_SKIP_EXTS = frozenset({
-        ".shx", ".dbf", ".prj", ".cpg", ".qpj", ".sbn", ".sbx", ".sbx", ".idx", ".ovr",
-        ".qml", ".qmd", ".qlr", ".lyr", ".vat", ".cpg", ".aux",
-        ".py", ".pyc", ".md", ".rst", ".txt", ".log", ".html", ".htm", ".pdf", ".png",
-        ".jpg", ".jpeg", ".gif", ".svg", ".zip", ".gz", ".tar", ".7z", ".rar", ".bz2",
-        ".yml", ".yaml", ".toml", ".ini", ".cfg", ".sh", ".bat", ".c", ".h", ".cpp", ".o",
-    })
+    _SHOW_SKIP_EXTS = frozenset(
+        {
+            ".shx",
+            ".dbf",
+            ".prj",
+            ".cpg",
+            ".qpj",
+            ".sbn",
+            ".sbx",
+            ".sbx",
+            ".idx",
+            ".ovr",
+            ".qml",
+            ".qmd",
+            ".qlr",
+            ".lyr",
+            ".vat",
+            ".cpg",
+            ".aux",
+            ".py",
+            ".pyc",
+            ".md",
+            ".rst",
+            ".txt",
+            ".log",
+            ".html",
+            ".htm",
+            ".pdf",
+            ".png",
+            ".jpg",
+            ".jpeg",
+            ".gif",
+            ".svg",
+            ".zip",
+            ".gz",
+            ".tar",
+            ".7z",
+            ".rar",
+            ".bz2",
+            ".yml",
+            ".yaml",
+            ".toml",
+            ".ini",
+            ".cfg",
+            ".sh",
+            ".bat",
+            ".c",
+            ".h",
+            ".cpp",
+            ".o",
+        }
+    )
     # Formats whose "file" is actually a directory — treated as a container, not descended.
     _SHOW_DIR_DATASETS = frozenset({".gdb", ".gpkg.zip"})
 
@@ -1014,13 +1252,17 @@ class Engine:
         if len(locations) != 1:
             raise FlowError(
                 "show needs one location: `show <path|@conn[.schema]> [deep]` [to=<out.md>]",
-                line=stage.line, stage=stage.raw,
+                line=stage.line,
+                stage=stage.raw,
             )
         unknown = set(stage.options) - {"to"}
         if unknown:
-            raise FlowError(f"`show`: unknown option(s) {', '.join(sorted(unknown))} — "
-                            "only `to=<out.md>` is accepted",
-                            line=stage.line, stage=stage.raw)
+            raise FlowError(
+                f"`show`: unknown option(s) {', '.join(sorted(unknown))} — "
+                "only `to=<out.md>` is accepted",
+                line=stage.line,
+                stage=stage.raw,
+            )
         target = locations[0]
         deep = bool(flags)
         is_db = False
@@ -1038,24 +1280,37 @@ class Engine:
             label = target
             try:
                 entries = self.backend.list_service(target)
-            except Exception as exc:  # network / parse / unsupported — a clear flow error
-                raise FlowError(f"show: could not list service `{target}`: {exc}",
-                                line=stage.line, stage=stage.raw)
+            except (
+                Exception
+            ) as exc:  # network / parse / unsupported — a clear flow error
+                raise FlowError(
+                    f"show: could not list service `{target}`: {exc}",
+                    line=stage.line,
+                    stage=stage.raw,
+                )
         else:
             path = os.path.expanduser(target)
             label = path
-            if os.path.isdir(path) and os.path.splitext(path)[1].lower() \
-                    not in self._SHOW_DIR_DATASETS:
+            if (
+                os.path.isdir(path)
+                and os.path.splitext(path)[1].lower() not in self._SHOW_DIR_DATASETS
+            ):
                 entries = self._show_walk(path, deep)
             elif os.path.exists(path):
-                entries = self._show_probe(path)  # a file, or a directory-dataset (.gdb)
+                entries = self._show_probe(
+                    path
+                )  # a file, or a directory-dataset (.gdb)
             else:
-                raise FlowError(f"show: no such file, directory, or connection: {target}",
-                                line=stage.line, stage=stage.raw)
+                raise FlowError(
+                    f"show: no such file, directory, or connection: {target}",
+                    line=stage.line,
+                    stage=stage.raw,
+                )
 
         report = format_show(label, entries, is_db=is_db, is_service=is_service)
-        self._emit_report(report, to=stage.options.get("to"),
-                          label=f"listed {len(entries)} item(s)")
+        self._emit_report(
+            report, to=stage.options.get("to"), label=f"listed {len(entries)} item(s)"
+        )
         return None  # terminal
 
     def _resolve_show_connection(self, target, stage):
@@ -1066,7 +1321,8 @@ class Engine:
         two are schema + table. Bare `@conn` lists every table."""
         try:
             conn, rest = resolve_connection_name(
-                target, self.backend.connection_names())
+                target, self.backend.connection_names()
+            )
         except ValueError as exc:
             raise FlowError(f"show: {exc}", line=stage.line, stage=stage.raw)
         schema = rest[0] if len(rest) >= 1 else None
@@ -1119,15 +1375,21 @@ class Engine:
             raise FlowError(
                 "`info` inspects the QGIS environment and takes no input — "
                 "just `info [to=<report.md>]` (for a project file, use `project info <src>`)",
-                line=stage.line, stage=stage.raw,
+                line=stage.line,
+                stage=stage.raw,
             )
         unknown = set(stage.options) - {"to"}
         if unknown:
-            raise FlowError(f"`info`: unknown option(s) {', '.join(sorted(unknown))} — "
-                            "only `to=<report.md>` is accepted",
-                            line=stage.line, stage=stage.raw)
+            raise FlowError(
+                f"`info`: unknown option(s) {', '.join(sorted(unknown))} — "
+                "only `to=<report.md>` is accepted",
+                line=stage.line,
+                stage=stage.raw,
+            )
         report = self.backend.environment_report()
-        self._emit_report(report, to=stage.options.get("to"), label="environment report")
+        self._emit_report(
+            report, to=stage.options.get("to"), label="environment report"
+        )
         return None  # terminal
 
     def _describe(self, stage) -> Layer | None:
@@ -1145,7 +1407,8 @@ class Engine:
             raise FlowError(
                 "`describe` takes one verb or algorithm id (plus optional `to=<file>`): "
                 "`describe buffer` or `describe native:buffer to=buffer.md`",
-                line=stage.line, stage=stage.raw,
+                line=stage.line,
+                stage=stage.raw,
             )
         from ..describe import describe as describe_report
 
@@ -1160,7 +1423,8 @@ class Engine:
             raise FlowError(
                 f"`{verb}` takes one keyword (plus optional `to=<file>`): "
                 f'`{verb} buffer` or `{verb} "raster reproject" to=out.md`',
-                line=stage.line, stage=stage.raw,
+                line=stage.line,
+                stage=stage.raw,
             )
         return stage.args[0]
 
@@ -1173,8 +1437,11 @@ class Engine:
         from ..search import format_results, search
 
         hits = search(keyword, algorithms=self.backend.algorithm_catalog())
-        self._emit_report(format_results(keyword, hits), to=stage.options.get("to"),
-                          label=f"{len(hits)} match(es)")
+        self._emit_report(
+            format_results(keyword, hits),
+            to=stage.options.get("to"),
+            label=f"{len(hits)} match(es)",
+        )
         return None  # terminal
 
     def _docs(self, stage) -> Layer | None:
@@ -1186,8 +1453,11 @@ class Engine:
         from ..search import format_docs, search
 
         hits = search(keyword, algorithms=self.backend.algorithm_catalog())
-        self._emit_report(format_docs(keyword, hits, describe_report),
-                          to=stage.options.get("to"), label=f"docs for {len(hits)} match(es)")
+        self._emit_report(
+            format_docs(keyword, hits, describe_report),
+            to=stage.options.get("to"),
+            label=f"docs for {len(hits)} match(es)",
+        )
         return None  # terminal
 
     def _project(self, stage) -> Layer | None:
@@ -1208,52 +1478,94 @@ class Engine:
             raise FlowError(
                 "`project` takes one source project — "
                 "`project <src.qgs> to=<out.qgs> repoint=<target>`",
-                line=stage.line, stage=stage.raw)
+                line=stage.line,
+                stage=stage.raw,
+            )
         src = os.path.expanduser(stage.args[0])
         if not os.path.isfile(src):
-            raise FlowError(f"`project`: not a file: {src}", line=stage.line, stage=stage.raw)
+            raise FlowError(
+                f"`project`: not a file: {src}", line=stage.line, stage=stage.raw
+            )
         if os.path.splitext(src)[1].lower() not in (".qgs", ".qgz"):
-            raise FlowError(f"`project` reads a QGIS project (.qgs/.qgz) — `{src}` is not one",
-                            line=stage.line, stage=stage.raw)
+            raise FlowError(
+                f"`project` reads a QGIS project (.qgs/.qgz) — `{src}` is not one",
+                line=stage.line,
+                stage=stage.raw,
+            )
 
-        known = ("to", "repoint", "missing", "rasters", "paths",
-                 "bookmark", "at", "scale", "width")
+        known = (
+            "to",
+            "repoint",
+            "missing",
+            "rasters",
+            "paths",
+            "bookmark",
+            "at",
+            "scale",
+            "width",
+        )
         extra = [k for k in stage.options if k not in known]
         if extra:
             raise FlowError(
                 "`project` takes `to=`, `repoint=`, `missing=`, `rasters=`, `paths=`, "
                 f"`bookmark=` (+ `at=`/`scale=`/`width=`) — got `{extra[0]}=`",
-                line=stage.line, stage=stage.raw)
+                line=stage.line,
+                stage=stage.raw,
+            )
         out = stage.options.get("to")
-        target = stage.options.get("repoint")  # optional: omit to copy/convert without repointing
+        target = stage.options.get(
+            "repoint"
+        )  # optional: omit to copy/convert without repointing
         missing = stage.options.get("missing", "fail")
         rasters = stage.options.get("rasters")
         paths = stage.options.get("paths")
         bookmark = self._parse_bookmark(stage)
         if not out:
-            raise FlowError("`project` needs an output: `to=<out.qgs>`",
-                            line=stage.line, stage=stage.raw)
+            raise FlowError(
+                "`project` needs an output: `to=<out.qgs>`",
+                line=stage.line,
+                stage=stage.raw,
+            )
         if missing not in ("fail", "keep", "drop"):
-            raise FlowError(f"`missing={missing}` is not valid — use fail, keep, or drop",
-                            line=stage.line, stage=stage.raw)
+            raise FlowError(
+                f"`missing={missing}` is not valid — use fail, keep, or drop",
+                line=stage.line,
+                stage=stage.raw,
+            )
         if paths is not None and paths not in ("relative", "absolute"):
-            raise FlowError(f"`paths={paths}` is not valid — use relative or absolute",
-                            line=stage.line, stage=stage.raw)
+            raise FlowError(
+                f"`paths={paths}` is not valid — use relative or absolute",
+                line=stage.line,
+                stage=stage.raw,
+            )
         out = os.path.expanduser(out)
         if os.path.splitext(out)[1].lower() not in (".qgs", ".qgz"):
-            raise FlowError(f"`project` writes a .qgs or .qgz — `{out}` is neither",
-                            line=stage.line, stage=stage.raw)
+            raise FlowError(
+                f"`project` writes a .qgs or .qgz — `{out}` is neither",
+                line=stage.line,
+                stage=stage.raw,
+            )
         if rasters:
             rasters = os.path.expanduser(rasters)
             if not os.path.isdir(rasters):
-                raise FlowError(f"`project` rasters= must be a directory — `{rasters}` is not one",
-                                line=stage.line, stage=stage.raw)
+                raise FlowError(
+                    f"`project` rasters= must be a directory — `{rasters}` is not one",
+                    line=stage.line,
+                    stage=stage.raw,
+                )
         # A connection target (@conn[.schema]) is passed through; a file target is expanded.
         if target and not is_connection_ref(target):
             target = os.path.expanduser(target)
-        self.backend.repoint_project(src, out, target=target, missing=missing,
-                                     rasters=rasters, paths=paths, bookmark=bookmark,
-                                     progress=self._emit)
+        self.backend.repoint_project(
+            src,
+            out,
+            target=target,
+            missing=missing,
+            rasters=rasters,
+            paths=paths,
+            bookmark=bookmark,
+            progress=self._emit,
+        )
         return None  # terminal
 
     def _style(self, stage, current: Layer | None) -> Layer | None:
@@ -1262,29 +1574,261 @@ class Engine:
         or save the current layer's style/metadata to a sidecar file. Pass-through, so it
         chains after `save`: `… | save out.gpkg | style apply house.qml`."""
         if current is None:
-            raise FlowError("`style` operates on the loaded layer — load one first",
-                            line=stage.line, stage=stage.raw)
-        if stage.options or len(stage.args) != 2 or stage.args[0] not in ("apply", "save"):
-            raise FlowError("`style` takes `style apply <file>` or `style save <file>` "
-                            "(a .qml style or .qmd metadata sidecar)",
-                            line=stage.line, stage=stage.raw)
+            raise FlowError(
+                "`style` operates on the loaded layer — load one first",
+                line=stage.line,
+                stage=stage.raw,
+            )
+        if (
+            stage.options
+            or len(stage.args) != 2
+            or stage.args[0] not in ("apply", "save")
+        ):
+            raise FlowError(
+                "`style` takes `style apply <file>` or `style save <file>` "
+                "(a .qml style or .qmd metadata sidecar)",
+                line=stage.line,
+                stage=stage.raw,
+            )
         action = stage.args[0]
         path = os.path.expanduser(stage.args[1])
         ext = os.path.splitext(path)[1].lower()
         # `apply` reads a QGIS-native sidecar; `save` also exports SLD (interop) and QLR
         # (a portable layer-definition: datasource + style).
-        allowed = (".qml", ".qmd", ".sld", ".qlr") if action == "save" else (".qml", ".qmd")
+        allowed = (
+            (".qml", ".qmd", ".sld", ".qlr") if action == "save" else (".qml", ".qmd")
+        )
         if ext not in allowed:
-            hint = (" — `.sld`/`.qlr` are export-only, use `style save`"
-                    if action == "apply" and ext in (".sld", ".qlr") else "")
-            raise FlowError(f"`style {action}` takes {', '.join(allowed)} — `{path}` is not one"
-                            + hint, line=stage.line, stage=stage.raw)
+            hint = (
+                " — `.sld`/`.qlr` are export-only, use `style save`"
+                if action == "apply" and ext in (".sld", ".qlr")
+                else ""
+            )
+            raise FlowError(
+                f"`style {action}` takes {', '.join(allowed)} — `{path}` is not one"
+                + hint,
+                line=stage.line,
+                stage=stage.raw,
+            )
         if action == "apply" and not os.path.isfile(path):
-            raise FlowError(f"`style apply`: not a file: {path}",
-                            line=stage.line, stage=stage.raw)
+            raise FlowError(
+                f"`style apply`: not a file: {path}", line=stage.line, stage=stage.raw
+            )
         self.backend.style_layer(current, action, path)
         verb = "applied" if action == "apply" else "saved"
         self._emit(f"  style {verb} → {path}")  # confirm the action in the dock/CLI
+        return current  # pass-through
+
+    _FIGURE_EXTS = (".png", ".jpg", ".jpeg")
+
+    def _figure(self, stage, current: Layer | None) -> Layer | None:
+        """`figure <out.png> [size=WxH] [dpi=N] [extent=layer|x1,y1,x2,y2|<layer>]
+        [layers="a;b"] [basemap=osm|<xyz-url>] [bg=<colour>] [labels=<field>]` — render a
+        quick map **image** of the current layer(s), vector or raster, honouring any labels.
+        Pass-through, so it chains: `… | save out.gpkg | figure preview.png`."""
+        if current is None:
+            raise FlowError(
+                "`figure` renders the loaded layer — load one first",
+                line=stage.line,
+                stage=stage.raw,
+            )
+        if not stage.args:
+            raise FlowError(
+                "`figure` needs an output image: `figure map.png [size=1200x900]`",
+                line=stage.line,
+                stage=stage.raw,
+            )
+        if len(stage.args) > 1:
+            raise FlowError(
+                "`figure` takes one output path, then key=value options",
+                line=stage.line,
+                stage=stage.raw,
+            )
+        dest = os.path.expanduser(stage.args[0])
+        ext = os.path.splitext(dest)[1].lower()
+        if ext not in self._FIGURE_EXTS:
+            raise FlowError(
+                f"`figure` writes {', '.join(self._FIGURE_EXTS)} — `{dest}` is not one",
+                line=stage.line,
+                stage=stage.raw,
+            )
+        opts = dict(stage.options)
+        size = self._parse_size(opts.pop("size", None), stage)
+        dpi = self._parse_int(opts.pop("dpi", None), "dpi", stage, default=96)
+        extent = self._parse_extent(opts.pop("extent", None))
+        raw_layers = opts.pop("layers", None)
+        overlay = (
+            [os.path.expanduser(s.strip()) for s in raw_layers.split(";") if s.strip()]
+            if raw_layers
+            else []
+        )
+        basemap = opts.pop("basemap", None)
+        bg = opts.pop("bg", None)
+        labels = opts.pop("labels", None)
+        if opts:
+            raise FlowError(
+                f"`figure`: unknown option(s) {', '.join(sorted(opts))} — valid: "
+                "size, dpi, extent, layers, basemap, bg, labels",
+                line=stage.line,
+                stage=stage.raw,
+            )
+        self.backend.render_figure(
+            current,
+            dest,
+            size=size,
+            dpi=dpi,
+            extent=extent,
+            layers=overlay,
+            basemap=basemap,
+            bg=bg,
+            labels=labels,
+            progress=self.progress,
+        )
+        self._emit(f"  figure → {dest}")
+        return current  # pass-through
+
+    @staticmethod
+    def _parse_size(value, stage):
+        if value is None:
+            return None
+        m = re.fullmatch(r"\s*(\d+)\s*[x×]\s*(\d+)\s*", str(value))
+        if not m:
+            raise FlowError(
+                f"`figure size=` must be WxH in pixels (e.g. 1200x900); got {value!r}",
+                line=stage.line,
+                stage=stage.raw,
+            )
+        return (int(m.group(1)), int(m.group(2)))
+
+    @staticmethod
+    def _parse_int(value, name, stage, *, default):
+        if value is None:
+            return default
+        try:
+            return int(str(value))
+        except ValueError:
+            raise FlowError(
+                f"`figure {name}=` must be an integer; got {value!r}",
+                line=stage.line,
+                stage=stage.raw,
+            ) from None
+
+    @staticmethod
+    def _parse_extent(value):
+        if value is None or value == "layer":
+            return None
+        parts = [p.strip() for p in str(value).split(",")]
+        if len(parts) == 4:
+            try:
+                return tuple(float(p) for p in parts)
+            except ValueError:
+                pass  # not numeric — fall through to treat as a layer path
+        return os.path.expanduser(str(value))  # a layer path to borrow the extent from
+
+    _MAP_EXTS = (".pdf", ".png", ".jpg", ".jpeg", ".svg")
+    # Composition elements are ON by default — a map is a cartographic product, so a bare
+    # `map out.pdf` yields a useful layout (map + legend + scale bar + north arrow). `bare`
+    # strips them; `no<x>` drops one; the bare flag name forces it on.
+    _MAP_FLAGS = {
+        "legend",
+        "scalebar",
+        "northarrow",
+        "bare",
+        "nolegend",
+        "noscalebar",
+        "nonortharrow",
+        "portrait",
+        "landscape",
+    }
+
+    def _map(self, stage, current: Layer | None) -> Layer | None:
+        """`map <out.pdf|.png|.svg> [title="…"] [legend|nolegend] [scalebar|noscalebar]
+        [northarrow|nonortharrow] [bare] [page=A4|Letter|WxH] [portrait|landscape] [dpi=N]
+        [layers="a;b"] [basemap=] [labels=<field>] [extent=…]` — compose a cartographic
+        **layout** (→ PDF/PNG/SVG). Or `map <out.pdf> from=<project.qgz> [layout=<name>]`
+        to export an existing QGIS print layout. Pass-through."""
+        if current is None:
+            raise FlowError(
+                "`map` renders the loaded layer — load one first",
+                line=stage.line,
+                stage=stage.raw,
+            )
+        if not stage.args:
+            raise FlowError(
+                '`map` needs an output: `map out.pdf [title="…"]`',
+                line=stage.line,
+                stage=stage.raw,
+            )
+        dest = os.path.expanduser(stage.args[0])
+        ext = os.path.splitext(dest)[1].lower()
+        if ext not in self._MAP_EXTS:
+            raise FlowError(
+                f"`map` writes {', '.join(self._MAP_EXTS)} — `{dest}` is not one",
+                line=stage.line,
+                stage=stage.raw,
+            )
+        flags = {a.lstrip("-") for a in stage.args[1:]}
+        unknown = flags - self._MAP_FLAGS
+        if unknown:
+            raise FlowError(
+                f"`map`: unknown flag(s) {', '.join(sorted(unknown))} — valid: "
+                "legend, scalebar, northarrow, bare, portrait, landscape",
+                line=stage.line,
+                stage=stage.raw,
+            )
+
+        def on(name):  # default-on element, with `bare`/`no<name>` opt-out
+            if "bare" in flags or f"no{name}" in flags:
+                return False
+            return True
+
+        legend, scalebar, northarrow = on("legend"), on("scalebar"), on("northarrow")
+        orientation = "portrait" if "portrait" in flags else "landscape"
+
+        opts = dict(stage.options)
+        from_project = opts.pop("from", None)
+        layout = opts.pop("layout", None)
+        title = opts.pop("title", None)
+        page = opts.pop("page", "A4")
+        orientation = opts.pop("orientation", orientation)
+        dpi = self._parse_int(opts.pop("dpi", None), "dpi", stage, default=300)
+        extent = self._parse_extent(opts.pop("extent", None))
+        raw_layers = opts.pop("layers", None)
+        overlay = (
+            [os.path.expanduser(s.strip()) for s in raw_layers.split(";") if s.strip()]
+            if raw_layers
+            else []
+        )
+        basemap = opts.pop("basemap", None)
+        labels = opts.pop("labels", None)
+        if opts:
+            raise FlowError(
+                f"`map`: unknown option(s) {', '.join(sorted(opts))} — valid: "
+                "title, page, orientation, dpi, extent, layers, basemap, labels, "
+                "from, layout",
+                line=stage.line,
+                stage=stage.raw,
+            )
+
+        self.backend.render_map(
+            current,
+            dest,
+            title=title,
+            legend=legend,
+            scalebar=scalebar,
+            northarrow=northarrow,
+            page=page,
+            orientation=orientation,
+            dpi=dpi,
+            extent=extent,
+            layers=overlay,
+            basemap=basemap,
+            labels=labels,
+            from_project=os.path.expanduser(from_project) if from_project else None,
+            layout=layout,
+            progress=self.progress,
+        )
+        self._emit(f"  map → {dest}")
         return current  # pass-through
 
     # A QGIS bookmark stores an extent, not a centre+scale. So `scale=N` is converted to a
@@ -1300,31 +1844,48 @@ class Engine:
         at, scale, width = (stage.options.get(k) for k in ("at", "scale", "width"))
         if name is None:
             if at or scale or width:
-                raise FlowError("`at=`/`scale=`/`width=` only apply with `bookmark=<name>`",
-                                line=stage.line, stage=stage.raw)
+                raise FlowError(
+                    "`at=`/`scale=`/`width=` only apply with `bookmark=<name>`",
+                    line=stage.line,
+                    stage=stage.raw,
+                )
             return None
         spec = {"name": name, "at": None, "width": None}
         if at is not None:
             try:
                 x, y = (float(v) for v in at.split(","))
             except ValueError:
-                raise FlowError(f'`at` must be "x,y" map coordinates — got `{at}`',
-                                line=stage.line, stage=stage.raw)
+                raise FlowError(
+                    f'`at` must be "x,y" map coordinates — got `{at}`',
+                    line=stage.line,
+                    stage=stage.raw,
+                )
             spec["at"] = (x, y)
             if scale and width:
-                raise FlowError("give a centred bookmark `scale=` or `width=`, not both",
-                                line=stage.line, stage=stage.raw)
+                raise FlowError(
+                    "give a centred bookmark `scale=` or `width=`, not both",
+                    line=stage.line,
+                    stage=stage.raw,
+                )
             if width is not None:
                 spec["width"] = self._bookmark_float(width, "width", stage)
             elif scale is not None:
-                spec["width"] = (self._bookmark_float(scale, "scale", stage)
-                                 * self._BOOKMARK_SCALE_REF_M)
+                spec["width"] = (
+                    self._bookmark_float(scale, "scale", stage)
+                    * self._BOOKMARK_SCALE_REF_M
+                )
             else:
-                raise FlowError("a centred `bookmark` with `at=` needs `scale=` or `width=`",
-                                line=stage.line, stage=stage.raw)
+                raise FlowError(
+                    "a centred `bookmark` with `at=` needs `scale=` or `width=`",
+                    line=stage.line,
+                    stage=stage.raw,
+                )
         elif scale or width:
-            raise FlowError('`scale=`/`width=` need a centre `at="x,y"`',
-                            line=stage.line, stage=stage.raw)
+            raise FlowError(
+                '`scale=`/`width=` need a centre `at="x,y"`',
+                line=stage.line,
+                stage=stage.raw,
+            )
         return spec
 
     @staticmethod
@@ -1332,11 +1893,17 @@ class Engine:
         try:
             n = float(value)
         except ValueError:
-            raise FlowError(f"`{what}` must be a number — got `{value}`",
-                            line=stage.line, stage=stage.raw)
+            raise FlowError(
+                f"`{what}` must be a number — got `{value}`",
+                line=stage.line,
+                stage=stage.raw,
+            )
         if n <= 0:
-            raise FlowError(f"`{what}` must be positive — got `{value}`",
-                            line=stage.line, stage=stage.raw)
+            raise FlowError(
+                f"`{what}` must be positive — got `{value}`",
+                line=stage.line,
+                stage=stage.raw,
+            )
         return n
 
     def _project_new(self, stage) -> Layer | None:
@@ -1345,54 +1912,85 @@ class Engine:
         multi-layer container, like `each`). The complement to repointing: build a project
         for freshly compiled outputs without needing an existing one. Terminal."""
         if len(stage.args) != 1:  # just the `new` keyword
-            raise FlowError("`project new` takes options only — "
-                            "`project new from=<dir> to=<out.qgs> [crs= title=]`",
-                            line=stage.line, stage=stage.raw)
+            raise FlowError(
+                "`project new` takes options only — "
+                "`project new from=<dir> to=<out.qgs> [crs= title=]`",
+                line=stage.line,
+                stage=stage.raw,
+            )
         extra = [k for k in stage.options if k not in ("from", "to", "crs", "title")]
         if extra:
             raise FlowError(
                 f"`project new` takes `from=`, `to=`, `crs=`, `title=` — got `{extra[0]}=`",
-                line=stage.line, stage=stage.raw)
+                line=stage.line,
+                stage=stage.raw,
+            )
         source = stage.options.get("from")
         out = stage.options.get("to")
         if not source:
-            raise FlowError("`project new` needs `from=<dir|glob>`",
-                            line=stage.line, stage=stage.raw)
+            raise FlowError(
+                "`project new` needs `from=<dir|glob>`",
+                line=stage.line,
+                stage=stage.raw,
+            )
         if not out:
-            raise FlowError("`project new` needs `to=<out.qgs>`",
-                            line=stage.line, stage=stage.raw)
+            raise FlowError(
+                "`project new` needs `to=<out.qgs>`", line=stage.line, stage=stage.raw
+            )
         out = os.path.expanduser(out)
         if os.path.splitext(out)[1].lower() not in (".qgs", ".qgz"):
-            raise FlowError(f"`project new` writes a .qgs or .qgz — `{out}` is neither",
-                            line=stage.line, stage=stage.raw)
-        items = self._resolve_sources(source, verb="project new",
-                                      line=stage.line, raw=stage.raw)
+            raise FlowError(
+                f"`project new` writes a .qgs or .qgz — `{out}` is neither",
+                line=stage.line,
+                stage=stage.raw,
+            )
+        items = self._resolve_sources(
+            source, verb="project new", line=stage.line, raw=stage.raw
+        )
         if not items:
-            raise FlowError(f"`project new`: no geospatial datasets found in `{source}`",
-                            line=stage.line, stage=stage.raw)
+            raise FlowError(
+                f"`project new`: no geospatial datasets found in `{source}`",
+                line=stage.line,
+                stage=stage.raw,
+            )
         layers = [uri for _name, uri in items]
-        self.backend.create_project(layers, out, crs=stage.options.get("crs"),
-                                    title=stage.options.get("title"), progress=self._emit)
+        self.backend.create_project(
+            layers,
+            out,
+            crs=stage.options.get("crs"),
+            title=stage.options.get("title"),
+            progress=self._emit,
+        )
         return None  # terminal
 
     def _project_info(self, stage) -> Layer | None:
         """`project info <src.qgs|qgz> [to=<out.md>]` — inventory a project's layers
         (name, datasource, provider, CRS, validity) to a Markdown report. Terminal."""
         if len(stage.args) != 2:
-            raise FlowError("`project info` takes one project — "
-                            "`project info <src.qgs> [to=<out.md>]`",
-                            line=stage.line, stage=stage.raw)
+            raise FlowError(
+                "`project info` takes one project — "
+                "`project info <src.qgs> [to=<out.md>]`",
+                line=stage.line,
+                stage=stage.raw,
+            )
         src = os.path.expanduser(stage.args[1])
         if not os.path.isfile(src):
-            raise FlowError(f"`project info`: not a file: {src}",
-                            line=stage.line, stage=stage.raw)
+            raise FlowError(
+                f"`project info`: not a file: {src}", line=stage.line, stage=stage.raw
+            )
         if os.path.splitext(src)[1].lower() not in (".qgs", ".qgz"):
-            raise FlowError(f"`project info` reads a .qgs/.qgz — `{src}` is not one",
-                            line=stage.line, stage=stage.raw)
+            raise FlowError(
+                f"`project info` reads a .qgs/.qgz — `{src}` is not one",
+                line=stage.line,
+                stage=stage.raw,
+            )
         extra = [k for k in stage.options if k != "to"]
         if extra:
-            raise FlowError(f"`project info` takes only `to=` — got `{extra[0]}=`",
-                            line=stage.line, stage=stage.raw)
+            raise FlowError(
+                f"`project info` takes only `to=` — got `{extra[0]}=`",
+                line=stage.line,
+                stage=stage.raw,
+            )
         out = stage.options.get("to")
         out = os.path.expanduser(out) if out else os.path.splitext(src)[0] + "_info.md"
         info = self.backend.read_project(src)
@@ -1440,39 +2038,63 @@ class Engine:
         `$NIVA_TEMPLATES` / the user library `~/.niva/templates` (see `project to-template`).
         Unmatched slots follow `missing=` (default `keep`, to preserve layout structure).
         Terminal."""
-        extra = [k for k in stage.options if k not in ("from-template", "to", "data", "missing")]
+        extra = [
+            k
+            for k in stage.options
+            if k not in ("from-template", "to", "data", "missing")
+        ]
         if stage.args or extra:
             bad = f"`{extra[0]}=`" if extra else f"`{stage.args[0]}`"
             raise FlowError(
                 "`project from-template=` takes `to=`, `data=`, `missing=` only — "
                 f"`project from-template=<name|path> to=<out.qgs> data=<dir|glob>` (got {bad})",
-                line=stage.line, stage=stage.raw)
+                line=stage.line,
+                stage=stage.raw,
+            )
         template = self._resolve_template(stage.options["from-template"], stage)
         out = stage.options.get("to")
         data = stage.options.get("data")
         missing = stage.options.get("missing", "keep")
         if not out:
-            raise FlowError("`project from-template` needs an output: `to=<out.qgs>`",
-                            line=stage.line, stage=stage.raw)
+            raise FlowError(
+                "`project from-template` needs an output: `to=<out.qgs>`",
+                line=stage.line,
+                stage=stage.raw,
+            )
         if not data:
-            raise FlowError("`project from-template` needs `data=<dir|glob>` to fill the "
-                            "template's layer slots", line=stage.line, stage=stage.raw)
+            raise FlowError(
+                "`project from-template` needs `data=<dir|glob>` to fill the "
+                "template's layer slots",
+                line=stage.line,
+                stage=stage.raw,
+            )
         if missing not in ("fail", "keep", "drop"):
-            raise FlowError(f"`missing={missing}` is not valid — use fail, keep, or drop",
-                            line=stage.line, stage=stage.raw)
+            raise FlowError(
+                f"`missing={missing}` is not valid — use fail, keep, or drop",
+                line=stage.line,
+                stage=stage.raw,
+            )
         out = os.path.expanduser(out)
         if os.path.splitext(out)[1].lower() not in (".qgs", ".qgz"):
-            raise FlowError(f"`project from-template` writes a .qgs or .qgz — `{out}` is neither",
-                            line=stage.line, stage=stage.raw)
-        items = self._resolve_sources(data, verb="project from-template",
-                                      line=stage.line, raw=stage.raw)
+            raise FlowError(
+                f"`project from-template` writes a .qgs or .qgz — `{out}` is neither",
+                line=stage.line,
+                stage=stage.raw,
+            )
+        items = self._resolve_sources(
+            data, verb="project from-template", line=stage.line, raw=stage.raw
+        )
         if not items:
-            raise FlowError(f"`project from-template`: no geospatial datasets found in `{data}`",
-                            line=stage.line, stage=stage.raw)
+            raise FlowError(
+                f"`project from-template`: no geospatial datasets found in `{data}`",
+                line=stage.line,
+                stage=stage.raw,
+            )
         # name → load-uri; last wins on a duplicate slot name (a flat-dir convention).
         layer_map = {name: uri for name, uri in items}
-        self.backend.repoint_project(template, out, target=layer_map, missing=missing,
-                                     progress=self._emit)
+        self.backend.repoint_project(
+            template, out, target=layer_map, missing=missing, progress=self._emit
+        )
         return None  # terminal
 
     def _project_to_template(self, stage) -> Layer | None:
@@ -1490,27 +2112,43 @@ class Engine:
             raise FlowError(
                 "`project to-template=` takes `from=`, `paths=` only — "
                 f"`project to-template=<name|path> from=<src.qgs>` (got {bad})",
-                line=stage.line, stage=stage.raw)
+                line=stage.line,
+                stage=stage.raw,
+            )
         src = stage.options.get("from")
         if not src:
-            raise FlowError("`project to-template` needs the project to register: "
-                            "`from=<src.qgs|qgz>`", line=stage.line, stage=stage.raw)
+            raise FlowError(
+                "`project to-template` needs the project to register: "
+                "`from=<src.qgs|qgz>`",
+                line=stage.line,
+                stage=stage.raw,
+            )
         src = os.path.expanduser(src)
         if not os.path.isfile(src):
-            raise FlowError(f"`project to-template`: not a file: {src}",
-                            line=stage.line, stage=stage.raw)
+            raise FlowError(
+                f"`project to-template`: not a file: {src}",
+                line=stage.line,
+                stage=stage.raw,
+            )
         if os.path.splitext(src)[1].lower() not in (".qgs", ".qgz"):
-            raise FlowError(f"`project to-template` reads a .qgs/.qgz — `{src}` is not one",
-                            line=stage.line, stage=stage.raw)
+            raise FlowError(
+                f"`project to-template` reads a .qgs/.qgz — `{src}` is not one",
+                line=stage.line,
+                stage=stage.raw,
+            )
         paths = stage.options.get("paths")
         if paths is not None and paths not in ("relative", "absolute"):
-            raise FlowError(f"`paths={paths}` is not valid — use relative or absolute",
-                            line=stage.line, stage=stage.raw)
+            raise FlowError(
+                f"`paths={paths}` is not valid — use relative or absolute",
+                line=stage.line,
+                stage=stage.raw,
+            )
         dest = self._resolve_template_dest(stage.options["to-template"], stage)
         # Reuse the copy/convert path (no repoint): target=None copies the project as-is,
         # carrying its layouts + styled slots, optionally rewriting path storage.
-        self.backend.repoint_project(src, dest, target=None, missing="keep",
-                                     paths=paths, progress=self._emit)
+        self.backend.repoint_project(
+            src, dest, target=None, missing="keep", paths=paths, progress=self._emit
+        )
         self._emit(f"   registered template → {dest}")
         return None  # terminal
 
@@ -1528,7 +2166,9 @@ class Engine:
             if os.path.splitext(dest)[1].lower() not in (".qgs", ".qgz"):
                 raise FlowError(
                     f"`project to-template` writes a .qgs or .qgz — `{dest}` is neither",
-                    line=stage.line, stage=stage.raw)
+                    line=stage.line,
+                    stage=stage.raw,
+                )
             return dest
         return os.path.join(self._template_library(), value + ".qgz")
 
@@ -1544,12 +2184,17 @@ class Engine:
         )
         if looks_like_path:
             if not os.path.isfile(expanded):
-                raise FlowError(f"`project from-template`: not a file: {expanded}",
-                                line=stage.line, stage=stage.raw)
+                raise FlowError(
+                    f"`project from-template`: not a file: {expanded}",
+                    line=stage.line,
+                    stage=stage.raw,
+                )
             if os.path.splitext(expanded)[1].lower() not in (".qgs", ".qgz"):
                 raise FlowError(
                     f"`project from-template` reads a .qgs/.qgz — `{expanded}` is not one",
-                    line=stage.line, stage=stage.raw)
+                    line=stage.line,
+                    stage=stage.raw,
+                )
             return expanded
         roots = self._template_roots()
         for root in roots:
@@ -1557,15 +2202,25 @@ class Engine:
                 cand = os.path.join(root, value + ext)
                 if os.path.isfile(cand):
                     return cand
-        avail = sorted({os.path.splitext(os.path.basename(p))[0]
-                        for root in roots
-                        for p in glob.glob(os.path.join(root, "*.qgz"))
-                        + glob.glob(os.path.join(root, "*.qgs"))})
-        hint = (f" — available: {', '.join(avail)}" if avail
-                else f" — none found (set ${self._TEMPLATES_ENV}, drop .qgz templates in "
-                     f"{self._TEMPLATES_USER}, or pass a path)")
-        raise FlowError(f"`project from-template`: no template named `{value}`{hint}",
-                        line=stage.line, stage=stage.raw)
+        avail = sorted(
+            {
+                os.path.splitext(os.path.basename(p))[0]
+                for root in roots
+                for p in glob.glob(os.path.join(root, "*.qgz"))
+                + glob.glob(os.path.join(root, "*.qgs"))
+            }
+        )
+        hint = (
+            f" — available: {', '.join(avail)}"
+            if avail
+            else f" — none found (set ${self._TEMPLATES_ENV}, drop .qgz templates in "
+            f"{self._TEMPLATES_USER}, or pass a path)"
+        )
+        raise FlowError(
+            f"`project from-template`: no template named `{value}`{hint}",
+            line=stage.line,
+            stage=stage.raw,
+        )
 
     def _expand_value(self, value: str, stage):
         """A `run` option value, with **`~` and glob expansion**. A `;`-joined value
@@ -1578,12 +2233,16 @@ class Engine:
         items, globbed = [], False
         for seg in (s.strip() for s in value.split(";") if s.strip()):
             seg = os.path.expanduser(seg)
-            is_path_glob = any(c in seg for c in "*?[") and ("/" in seg or os.sep in seg or " " not in seg)
+            is_path_glob = any(c in seg for c in "*?[") and (
+                "/" in seg or os.sep in seg or " " not in seg
+            )
             if is_path_glob:
                 pattern = seg if os.path.isabs(seg) else os.path.join(base, seg)
                 matches = sorted(glob.glob(pattern))
                 if not matches:
-                    raise FlowError(f"no files match `{seg}`", line=stage.line, stage=stage.raw)
+                    raise FlowError(
+                        f"no files match `{seg}`", line=stage.line, stage=stage.raw
+                    )
                 items.extend(matches)
                 globbed = True
             else:
@@ -1605,14 +2264,19 @@ class Engine:
             if not (isinstance(val, str) and is_connection_ref(val)):
                 continue
             try:
-                conn, schema, table = parse_connection_ref(val, self.backend.connection_names())
+                conn, schema, table = parse_connection_ref(
+                    val, self.backend.connection_names()
+                )
             except ValueError as exc:
-                raise FlowError(f"`{stage.verb}`: {exc}", line=stage.line, stage=stage.raw)
+                raise FlowError(
+                    f"`{stage.verb}`: {exc}", line=stage.line, stage=stage.raw
+                )
             if table is None:
                 raise FlowError(
                     f"`{stage.verb}`: `{val}` is a bare connection — name a table "
                     "(`@conn.table`) to use it as a layer",
-                    line=stage.line, stage=stage.raw,
+                    line=stage.line,
+                    stage=stage.raw,
                 )
             op.params[pname] = self.backend.load_table(conn, schema, table).ref
 
@@ -1629,7 +2293,8 @@ class Engine:
                 raise FlowError(
                     f"`{val}` is not a recognised CRS — use an EPSG code (`EPSG:6346`), a WKT/PROJ "
                     "string, or an authority id QGIS knows",
-                    line=stage.line, stage=stage.raw,
+                    line=stage.line,
+                    stage=stage.raw,
                 )
 
     def _resolve_distances(self, params: dict, layer: Layer, stage) -> dict:
@@ -1637,7 +2302,11 @@ class Engine:
             return params
         crs = self.backend.crs_of(layer)
         return {
-            key: (resolve_distance(value, crs, stage=stage) if isinstance(value, Distance) else value)
+            key: (
+                resolve_distance(value, crs, stage=stage)
+                if isinstance(value, Distance)
+                else value
+            )
             for key, value in params.items()
         }
 
@@ -1645,8 +2314,22 @@ class Engine:
 _METADATA_FIELDS = {"title", "abstract", "keywords", "identifier", "license"}
 
 # Extensions that mean "this `@ref` is really a file, not a connection name".
-_FILE_EXTS = (".gpkg", ".shp", ".geojson", ".json", ".tif", ".tiff", ".sqlite",
-              ".db", ".gml", ".kml", ".csv", ".gpx", ".fgb", ".parquet")
+_FILE_EXTS = (
+    ".gpkg",
+    ".shp",
+    ".geojson",
+    ".json",
+    ".tif",
+    ".tiff",
+    ".sqlite",
+    ".db",
+    ".gml",
+    ".kml",
+    ".csv",
+    ".gpx",
+    ".fgb",
+    ".parquet",
+)
 
 
 def _safe_name(name: str) -> str:
@@ -1669,10 +2352,10 @@ def _is_query(sql: str) -> bool:
     while s:
         if s.startswith("--"):
             nl = s.find("\n")
-            s = "" if nl < 0 else s[nl + 1:]
+            s = "" if nl < 0 else s[nl + 1 :]
         elif s.startswith("/*"):
             end = s.find("*/")
-            s = "" if end < 0 else s[end + 2:]
+            s = "" if end < 0 else s[end + 2 :]
         elif s.startswith("("):
             s = s[1:]
         else:
@@ -1701,7 +2384,8 @@ def _format_project_info(info: dict, src: str) -> str:
             lines.append(
                 f"| {layer.get('name', '')} | {layer.get('type', '')} "
                 f"| {layer.get('provider', '')} | {layer.get('crs', '')} "
-                f"| `{source}` | {'✓' if layer.get('valid') else '✗'} |")
+                f"| `{source}` | {'✓' if layer.get('valid') else '✗'} |"
+            )
         lines.append("")
     return "\n".join(lines)
 
@@ -1729,7 +2413,12 @@ def _fmt_elapsed(seconds: float) -> str:
 def _format_assessment(profile: dict, deep: bool) -> str:
     """Render a profile dict (from Backend.profile) as a markdown quality report."""
     name = profile.get("name") or "(unnamed)"
-    lines = [f"# Data quality assessment — {name}", "", "_Generated by niva `assess`._", ""]
+    lines = [
+        f"# Data quality assessment — {name}",
+        "",
+        "_Generated by niva `assess`._",
+        "",
+    ]
 
     crs = profile.get("crs") or {}
     crs_kind = "geographic" if crs.get("geographic") else "projected"
@@ -1759,7 +2448,14 @@ def _format_assessment(profile: dict, deep: bool) -> str:
     lines.append("")
 
     meta = profile.get("metadata") or {}
-    if any([meta.get("title"), meta.get("abstract"), meta.get("keywords"), meta.get("history")]):
+    if any(
+        [
+            meta.get("title"),
+            meta.get("abstract"),
+            meta.get("keywords"),
+            meta.get("history"),
+        ]
+    ):
         lines += ["## Metadata", ""]
         if meta.get("title"):
             lines.append(f"- **Title:** {meta['title']}")
@@ -1775,15 +2471,26 @@ def _format_assessment(profile: dict, deep: bool) -> str:
 
     fields = profile.get("fields")
     if fields is not None:
-        lines += [f"## Fields ({len(fields)})", "", "| name | type |", "|------|------|"]
+        lines += [
+            f"## Fields ({len(fields)})",
+            "",
+            "| name | type |",
+            "|------|------|",
+        ]
         lines += [f"| {f['name']} | {f['type']} |" for f in fields]
         lines.append("")
 
     if deep:
         lines += ["## Quality checks", ""]
-        lines.append(f"- **Invalid geometries:** {profile.get('invalid_geometries', 'n/a')}")
-        lines.append(f"- **Empty geometries:** {profile.get('empty_geometries', 'n/a')}")
-        lines.append(f"- **Duplicate geometries:** {profile.get('duplicate_geometries', 'n/a')}")
+        lines.append(
+            f"- **Invalid geometries:** {profile.get('invalid_geometries', 'n/a')}"
+        )
+        lines.append(
+            f"- **Empty geometries:** {profile.get('empty_geometries', 'n/a')}"
+        )
+        lines.append(
+            f"- **Duplicate geometries:** {profile.get('duplicate_geometries', 'n/a')}"
+        )
         nulls = profile.get("null_counts") or {}
         if nulls:
             flagged = {k: v for k, v in nulls.items() if v}

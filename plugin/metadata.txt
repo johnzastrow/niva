@@ -4,7 +4,7 @@ qgisMinimumVersion=3.22
 qgisMaximumVersion=4.99
 supportsQt6=True
 description=Run niva flows — a concise text pipeline for QGIS geoprocessing — from a dock.
-version=0.37.0
+version=0.40.0
 author=John Zastrow
 email=br8kwall@gmail.com
 about=niva is a concise, readable text-pipeline grammar for QGIS geoprocessing
@@ -25,7 +25,18 @@ deprecated=False
 # one-line summary for the new version here, mirroring the top entry of ../CHANGELOG.md (the
 # repo file stays the full history; this field is just the highlights). Drop the oldest line
 # so it never grows past ~2 entries. Continuation lines MUST stay indented (like `about=`).
-changelog=0.37.0 — Added: `search <keyword>` (fuzzy-find verbs + the live QGIS algorithm catalog)
+changelog=0.40.0 — Added: `map` verb — a composed cartographic layout (PDF/PNG/SVG) with legend,
+    scale bar, north arrow ON by default; a bare `map out.pdf` yields a complete map, no template
+    needed. Overlays, basemap, labels, page/orientation/dpi; or `from=project.qgz` to export an
+    existing QGIS layout/atlas. figure/map now stream render progress. Long-run resilience test suite.
+    0.39.0 — Added: `figure` verb — render a quick map image (PNG/JPG) of the current
+    layer, vector OR raster, with labels and sensible defaults (`load x | figure out.png` just works).
+    Options: size, dpi, extent, layers (overlays), basemap=osm, bg, labels. Pass-through.
+    0.38.0 — Added: native-CLI harness — `run pdalcli:<cmd>` drives PDAL (pdal_wrench) on
+    raw LAS/LAZ/COPC (DTM/DSM/CHM, class filtering, merge/clip/classify — no COPC step), and
+    `run saga:<lib>:<tool>` drives saga_cmd. Delegates all other ids to QGIS unchanged; graceful
+    degradation when a tool is missing or the SAGA version differs. Example: lidar_pdal_grass.niva.
+    0.37.0 — Added: `search <keyword>` (fuzzy-find verbs + the live QGIS algorithm catalog)
     and `docs <keyword>` (full describe of every match → your own mini-guide). `describe` now ends
     with a runnable example (curated or synthesised) and covers built-in verbs too.
     0.36.0 — Added: `describe` now runs as a flow verb (works in the dock and mid-script),
