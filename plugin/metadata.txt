@@ -6,7 +6,7 @@ name=niva
 qgisMinimumVersion=3.22
 qgisMaximumVersion=4.99
 description=Run niva flows — a concise text pipeline for QGIS geoprocessing — from a dock.
-version=0.42.5
+version=0.43.0
 author=John Zastrow
 email=br8kwall@gmail.com
 about=niva is a concise, readable text-pipeline grammar for QGIS geoprocessing
@@ -28,7 +28,12 @@ deprecated=False
 # one-line summary for the new version here, mirroring the top entry of ../CHANGELOG.md (the
 # repo file stays the full history; this field is just the highlights). Drop the oldest line
 # so it never grows past ~2 entries. Continuation lines MUST stay indented (like `about=`).
-changelog=0.42.5 — Security: cleared all 5 blocking findings from the QGIS plugin security scan
+changelog=0.43.0 — Added: `niva pdal [check|test|setup]` sets up & tests the point-cloud (PDAL)
+    backend (finds pdal_wrench, OS-tailored fixes); a cross-platform install self-test
+    (platform_selftest) + pdal-setup guide. Fixed: `run` no longer glob-expands compact formula
+    values; pdalcli:/saga: no longer crash on a missing NIVA_TMPDIR. CI now enforces ruff + the
+    plugin-store security scan (bandit/detect-secrets) so every release stays scan-clean.
+    0.42.5 — Security: cleared all 5 blocking findings from the QGIS plugin security scan
     (Bandit) — usedforsecurity=False on a dedup hash, parameterized SpatiaLite lineage writes, an
     http(s)-only scheme allowlist + file/ftp-free openers for network fetches, and a DOCTYPE-refusing
     XML parser. Real hardening, not just suppressions. Added a security-scanning playbook to the docs.

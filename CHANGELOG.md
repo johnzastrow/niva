@@ -11,6 +11,8 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.43.0] - 2026-07-05
+
 ### Added
 - **`examples/platform_selftest.niva` + `platform_selftest.sh` — validate a niva install on any
   platform.** A self-contained flow that exercises every provider — vector (`native`), raster
@@ -40,6 +42,16 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   QGIS path), so a bespoke scratch dir made every run die with a raw `FileNotFoundError`;
   `_temp_path` now creates it. Also: the setup docs no longer advise `LD_LIBRARY_PATH` (the conda
   `pdal_wrench` self-locates its libs via RPATH; setting it globally shadowed QGIS's own gdal libs).
+
+### Changed
+- **CI now enforces `ruff` (lint + format) and the plugin-store security scan.** Two new required
+  jobs: `lint & format (ruff)` (ruff pinned to **0.15.19** so `format --check` is byte-for-byte) and
+  `security scan` running the **same `bandit` + `detect-secrets`** plugins.qgis.org runs (gating on
+  MEDIUM+ bandit severity). So `main` is always store-clean and any version cut from it passes the
+  scan. One-time repo-wide `ruff format` came with it (no behavior change).
+- **`CONTRIBUTING.md`** — a developer paved road for the several machines working on niva: pinned
+  tool versions, the four local gates, and the QGIS test-env setup.
+- **Logos** — added color + b&w wordmark assets (`logo_text_color.svg`/`.png`, `logo_text_bw.svg`).
 
 ## [0.42.5] - 2026-07-05
 
