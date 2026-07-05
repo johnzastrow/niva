@@ -16,9 +16,13 @@ STAGE="$WORK/$NAME"
 trap 'rm -rf "$WORK"' EXIT
 
 mkdir -p "$STAGE/libs"
-for f in __init__.py plugin.py dock.py runner.py flowtask.py environment.py metadata.txt icon.svg README.md; do
+for f in __init__.py plugin.py dock.py runner.py flowtask.py environment.py metadata.txt icon.svg icon.png README.md; do
   [ -f "$HERE/$f" ] && cp "$HERE/$f" "$STAGE/$f"
 done
+
+# Ship the project license inside the package (GPL-3.0-or-later) — expected by the QGIS
+# Plugin Repository and good practice for any distributed plugin.
+cp "$ROOT/LICENSE" "$STAGE/LICENSE"
 
 # Vendor the niva package (pure Python, zero deps).
 cp -r "$ROOT/niva" "$STAGE/libs/niva"
