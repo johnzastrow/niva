@@ -11,6 +11,17 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.42.1] - 2026-07-05
+
+### Changed
+- **License text corrected to GPL-3.0-or-later.** The `LICENSE` file previously held GPL **v2**
+  text, contradicting the project's stated license everywhere else (`pyproject.toml`, the README
+  badge and its "GPLv3 — consistent with the QGIS ecosystem" rationale, and the pitch deck). The
+  file now contains the canonical GPL v3 text; no other license references change. No functional
+  code change from 0.42.0.
+- **QGIS plugin `tags`** added to `plugin/metadata.txt` (`processing, automation, workflow,
+  pipeline, batch, vector, raster, …`) for discoverability on the QGIS Plugin Repository.
+
 ## [0.42.0] - 2026-07-05
 
 ### Added
