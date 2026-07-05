@@ -11,6 +11,33 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.42.0] - 2026-07-05
+
+### Added
+- **`niva validate <file.niva …>` — an offline linter (issues #26, #29).** Grammar-checks and
+  structurally validates one or more `.niva` files with **no QGIS**, then *exercises* them over the
+  `MockBackend` so a clean pass means the flow is genuinely runnable, not just well-formed. It
+  reports every issue at once (not just the first) with a line number, severity, and did-you-mean
+  hints. New module `niva/validate.py`; the same core also powers the `--explain` verb check below.
+  - **Errors** (exit `1`): grammar failures; an **invented or typo'd verb** (the verb set is closed
+    — e.g. `stats` → *"did you mean `zonalstats`?"*, the exact issue-#28 mistake); a **missing
+    required arg**, **unknown option**, or **bad enum value** on an alias; an **unknown CRS**; a
+    `{name}` placeholder used outside a batch; `run` with no id; and any cross-stage failure the
+    dry-run surfaces (e.g. a transform before `load`).
+  - **Warnings** (still exit `0`): a distance with **no unit** (silently read as CRS units); a
+    `run <id>` **unknown parameter** (did-you-mean) or **unknown algorithm id**; a `run <id>` that
+    has a **friendly verb** (prefer the verb); **SAGA/OTB** provider use; a flow with **no `save`**;
+    and data-dependent dry-run failures (a glob/file not present) downgraded so validating a
+    *template* never false-fails.
+- **`--explain` now rejects an invented verb in built-in position (issue #29).** The offline verb
+  check is the closed set from `Engine._BUILTIN_VERBS` + the registry aliases, so `--explain` exits
+  non-zero on an unknown verb — a real CI/agent gate — with a did-you-mean suggestion.
+
+### Changed
+- **LLM/agent docs steer to `niva validate`** as the primary offline check — `AGENTS.md`,
+  `.claude/skills/niva/SKILL.md`, the cheatsheet, and `docs/guide/reference.md §9` now document it
+  (with `--explain`/`--dry-run` retained as lighter one-off checks on inline flows).
+
 ## [0.41.0] - 2026-07-05
 
 ### Added

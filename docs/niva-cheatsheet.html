@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>niva cheat sheet</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=JetBrains+Mono:wght@400;500&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #faf6f0;
+  --surface: #ffffff;
+  --surface2: #f0ede8;
+  --border: #d6cec0;
+  --text: #2c2520;
+  --text-muted: #7a6e60;
+  --accent: #b86a38;
+  --accent2: #4d7c66;
+  --accent3: #a55e3e;
+  --code-bg: #f3efe8;
+  --builtin: #3d7a65;
+  --alias: #b86a38;
+  --flag: #4f6d8a;
+  --string: #5f7a3a;
+  --comment: #9a8c7a;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { font-size: 13px; }
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  padding: 2.5rem 2rem;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+}
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+/* header */
+.header {
+  display: flex;
+  align-items: flex-end;
+  gap: 1.5rem;
+  margin-bottom: 2.5rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 2px solid var(--border);
+}
+.header h1 {
+  font-family: 'Syne', sans-serif;
+  font-size: 3.2rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  color: var(--accent);
+}
+.header .subtitle {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  margin-top: 0.2rem;
+}
+.header .version {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  background: var(--surface);
+  padding: 0.2rem 0.6rem;
+  border-radius: 4px;
+  margin-left: auto;
+  align-self: flex-end;
+  margin-bottom: 0.3rem;
+}
+/* grid */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.25rem; }
+.grid-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 1.25rem; }
+@media print {
+  body { padding: 0.4in; background: white; }
+  .card { break-inside: avoid; border-color: #ccc; box-shadow: none; }
+  .header h1 { -webkit-text-fill-color: initial; color: #b86a38; }
+  .grid-4 { grid-template-columns: 1fr 1fr; }
+  .flow-model { background: #f5f0e8; }
+  .code-block { background: #f5f0e8; }
+}
+/* card */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1rem 1.1rem;
+  break-inside: avoid;
+}
+.card h2 {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+  margin-bottom: 0.7rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid var(--border);
+}
+.card h3 {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--accent2);
+  margin: 0.7rem 0 0.4rem;
+}
+/* flow model */
+.flow-model {
+  background: var(--code-bg);
+  border-radius: 6px;
+  padding: 0.75rem 1rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.78rem;
+  line-height: 1.6;
+  margin-bottom: 0.5rem;
+  overflow-x: auto;
+  white-space: nowrap;
+  border: 1px solid var(--border);
+}
+.flow-model .hl-load { color: var(--builtin); font-weight: 500; }
+.flow-model .hl-pipe { color: var(--text-muted); }
+.flow-model .hl-verb { color: var(--alias); }
+.flow-model .hl-arg { color: var(--text); }
+.flow-model .hl-opt { color: var(--flag); }
+.flow-model .hl-save { color: var(--builtin); }
+/* verb tables */
+.verb-table {
+  width: 100%;
+  font-size: 0.72rem;
+  border-collapse: collapse;
+}
+.verb-table th {
+  text-align: left;
+  font-weight: 600;
+  color: var(--text-muted);
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.2rem 0.3rem 0.2rem 0;
+  border-bottom: 1px solid var(--border);
+}
+.verb-table td {
+  padding: 0.25rem 0.3rem 0.25rem 0;
+  border-bottom: 1px solid rgba(50, 59, 72, 0.4);
+  vertical-align: top;
+  line-height: 1.35;
+}
+.verb-table tr:last-child td { border-bottom: none; }
+.verb-table .v { font-family: 'JetBrains Mono', monospace; font-weight: 500; white-space: nowrap; }
+.verb-table .v.b { color: var(--builtin); }
+.verb-table .v.a { color: var(--alias); }
+.verb-table .d { color: var(--text-muted); font-size: 0.68rem; }
+/* code inline */
+code, .code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem;
+  background: var(--code-bg);
+  padding: 0.1em 0.35em;
+  border-radius: 3px;
+}
+.code-block {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem;
+  background: var(--code-bg);
+  padding: 0.5rem 0.6rem;
+  border-radius: 4px;
+  line-height: 1.55;
+  margin: 0.3rem 0;
+  overflow-x: auto;
+  white-space: pre;
+}
+.key { color: var(--accent); }
+.val { color: var(--string); }
+.pipe { color: var(--text-muted); }
+.cm { color: var(--comment); }
+.builtin { color: var(--builtin); }
+.alias { color: var(--alias); }
+.flag { color: var(--flag); }
+/* info row */
+.info-row {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin: 0.3rem 0;
+}
+.info-row .tag {
+  display: inline-block;
+  font-size: 0.62rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.15rem 0.45rem;
+  border-radius: 3px;
+  background: var(--surface2);
+  color: var(--accent2);
+}
+.tag.tag-builtin { color: var(--builtin); }
+.tag.tag-alias { color: var(--alias); }
+.tag.tag-raster { color: #b87a5a; }
+.tag.tag-term { color: var(--accent3); }
+.tag.tag-batch { color: var(--flag); }
+/* examples grid */
+.examples {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.4rem;
+  margin-top: 0.3rem;
+}
+.examples .ex-code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.65rem;
+  background: var(--code-bg);
+  padding: 0.35rem 0.5rem;
+  border-radius: 3px;
+  line-height: 1.5;
+}
+.examples .ex-label {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  margin-bottom: 0.1rem;
+}
+/* section links */
+.section-link {
+  color: var(--accent2);
+  text-decoration: none;
+  font-size: 0.65rem;
+}
+.section-link:hover { text-decoration: underline; }
+hr { border: none; border-top: 1px solid var(--border); margin: 1.2rem 0; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<!-- HEADER -->
+<div class="header">
+  <div>
+    <h1>niva</h1>
+    <div class="subtitle">text-pipeline grammar for QGIS geoprocessing</div>
+  </div>
+  <div class="version">v0.42.0</div>
+</div>
+
+<!-- FLOW MODEL -->
+<div class="flow-model">
+<span class="hl-load">load</span> <span class="hl-arg">roads.gpkg</span> <span class="hl-pipe">|</span>
+<span class="hl-verb">reproject</span> <span class="hl-arg">EPSG:6346</span> <span class="hl-pipe">|</span>
+<span class="hl-verb">buffer</span> <span class="hl-arg">100m</span> <span class="hl-flag">dissolve</span> <span class="hl-pipe">|</span>
+<span class="hl-save">save</span> <span class="hl-arg">corridors.gpkg</span>
+</div>
+
+<div class="info-row">
+  <span class="tag tag-builtin">built-in</span> engine-handled verbs: <code>load</code> <code>save</code> <code>run</code> <code>filter</code> <code>sql</code> <code>split</code> <code>each</code> <code>call</code> <code>describe</code> <code>search</code> <code>docs</code> <code>show</code> <code>info</code> <code>catalog</code> <code>assess</code> <code>metadata</code> <code>notify</code> <code>email</code> <code>project</code> <code>style</code> <code>remove</code>
+  <span class="tag tag-alias">alias</span> 45 friendly verbs → QGIS <code>native:*</code> algorithms
+  <span class="tag tag-term">run</span> <code>run &lt;id&gt; KEY=val</code> → any of ~769 algorithms
+</div>
+
+<hr>
+
+<!-- GRID: BUILT-IN + ALIAS VERBS -->
+<div class="grid-4">
+
+<!-- BUILT-IN VERBS -->
+<div class="card">
+  <h2>Built-in verbs</h2>
+  <table class="verb-table">
+    <tr><th>verb</th><th>what it does</th></tr>
+    <tr><td class="v b">load</td><td class="d">read a file, URI, or <code>@conn</code></td></tr>
+    <tr><td class="v b">save</td><td class="d">write layer; <code>mode=create|replace|append</code></td></tr>
+    <tr><td class="v b">run</td><td class="d">escape hatch: <code>run &lt;id&gt; KEY=val</code></td></tr>
+    <tr><td class="v b">filter</td><td class="d">attribute filter — QGIS expression</td></tr>
+    <tr><td class="v b">sql</td><td class="d">SELECT pipes; DDL/DML terminal</td></tr>
+    <tr><td class="v b">split</td><td class="d">keep one geom type: <code>point|line|polygon</code></td></tr>
+    <tr><td class="v b">each</td><td class="d">batch: once per item in dir/glob/container</td></tr>
+    <tr><td class="v b">call</td><td class="d">include another <code>.niva</code> file</td></tr>
+    <tr><td class="v b">describe</td><td class="d">show verb/algorithm signature</td></tr>
+    <tr><td class="v b">search</td><td class="d">fuzzy-find verbs + algorithms</td></tr>
+    <tr><td class="v b">docs</td><td class="d">full reference for search matches</td></tr>
+    <tr><td class="v b">show</td><td class="d">list loadable layers at path/URL/connection</td></tr>
+    <tr><td class="v b">info</td><td class="d">QGIS environment report</td></tr>
+    <tr><td class="v b">catalog</td><td class="d">inventory directory → Markdown report</td></tr>
+    <tr><td class="v b">assess</td><td class="d">profile layer data quality (pass-through)</td></tr>
+    <tr><td class="v b">metadata</td><td class="d">stamp title/abstract/keywords (pass-through)</td></tr>
+    <tr><td class="v b">notify</td><td class="d">ntfy push notification (pass-through)</td></tr>
+    <tr><td class="v b">email</td><td class="d">SMTP email (pass-through)</td></tr>
+    <tr><td class="v b">project</td><td class="d">create/convert/repoint QGIS projects</td></tr>
+    <tr><td class="v b">style</td><td class="d">apply/save .qml|.qmd sidecars (pass-through)</td></tr>
+    <tr><td class="v b">remove</td><td class="d">delete output + sidecars (safety gate)</td></tr>
+    <tr><td class="v b">figure</td><td class="d">quick map image (PNG/JPG) of a layer (pass-through)</td></tr>
+    <tr><td class="v b">map</td><td class="d">composed layout → PDF/PNG (legend, scale, N-arrow)</td></tr>
+  </table>
+</div>
+
+<!-- VECTOR GEOMETRY -->
+<div class="card">
+  <h2>Vector geometry (alias)</h2>
+  <table class="verb-table">
+    <tr><th>verb</th><th>key args / options</th></tr>
+    <tr><td class="v a">buffer</td><td class="d">&lt;dist&gt; · <code>dissolve</code> · <code>cap=</code>round|flat|square · <code>segments=</code>N · <code>join=</code></td></tr>
+    <tr><td class="v a">clip</td><td class="d">&lt;overlay&gt; · clip input to overlay extent</td></tr>
+    <tr><td class="v a">intersect</td><td class="d">&lt;overlay&gt; · overlap + merge attributes</td></tr>
+    <tr><td class="v a">difference</td><td class="d">&lt;overlay&gt; · keep parts outside overlay</td></tr>
+    <tr><td class="v a">symdifference</td><td class="d">&lt;overlay&gt; · XOR of two layers</td></tr>
+    <tr><td class="v a">union</td><td class="d">&lt;overlay&gt; · split + full attributes</td></tr>
+    <tr><td class="v a">dissolve</td><td class="d">[field] · <code>separate</code> · merge features</td></tr>
+    <tr><td class="v a">selectloc</td><td class="d">&lt;overlay&gt; · <code>predicate=</code>intersect|within|…</td></tr>
+    <tr><td class="v a">spatialjoin</td><td class="d"><code>with=</code> · <code>predicate=</code> · <code>method=</code></td></tr>
+    <tr><td class="v a">join</td><td class="d"><code>with=</code> · <code>field=</code> · <code>field2=</code> · <code>fields=</code></td></tr>
+    <tr><td class="v a">reproject</td><td class="d">&lt;crs&gt; · <code>convert_curved</code> · <code>transform_z</code></td></tr>
+    <tr><td class="v a">centroid</td><td class="d">polygon → point at center</td></tr>
+    <tr><td class="v a">convexhull</td><td class="d">minimum convex hull</td></tr>
+    <tr><td class="v a">boundingbox</td><td class="d">axis-aligned envelope per feature</td></tr>
+    <tr><td class="v a">minrect</td><td class="d">minimum-area oriented bounding box</td></tr>
+    <tr><td class="v a">voronoi</td><td class="d">Voronoi polygons from points</td></tr>
+    <tr><td class="v a">delaunay</td><td class="d">Delaunay triangulation</td></tr>
+    <tr><td class="v a">simplify</td><td class="d">&lt;dist&gt; · <code>method=</code>area|distance</td></tr>
+    <tr><td class="v a">smooth</td><td class="d">[iterations] · <code>offset=</code></td></tr>
+    <tr><td class="v a">fixgeom</td><td class="d">repair invalid geometries</td></tr>
+    <tr><td class="v a">explode</td><td class="d">multi-part → single-part features</td></tr>
+    <tr><td class="v a">collect</td><td class="d">aggregate → multi-geometry</td></tr>
+    <tr><td class="v a">promote</td><td class="d">convert multi-part to single</td></tr>
+    <tr><td class="v a">subdivide</td><td class="d">&lt;max_verts&gt;</td></tr>
+    <tr><td class="v a">densify</td><td class="d">&lt;dist&gt; · <code>interval=</code></td></tr>
+    <tr><td class="v a">offset</td><td class="d">&lt;dx&gt; &lt;dy&gt; · shift geometry (not buffer)</td></tr>
+    <tr><td class="v a">snap</td><td class="d">&lt;ref&gt; &lt;tol&gt;</td></tr>
+    <tr><td class="v a">swapxy</td><td class="d">swap X/Y coordinates</td></tr>
+    <tr><td class="v a">forcerhr</td><td class="d">force right-hand-rule orientation</td></tr>
+    <tr><td class="v a">pointonsurface</td><td class="d">guaranteed interior point per polygon</td></tr>
+    <tr><td class="v a">vertices</td><td class="d">extract all vertices as points</td></tr>
+    <tr><td class="v a">pointsalong</td><td class="d">&lt;dist&gt; · points at intervals on line</td></tr>
+    <tr><td class="v a">zonalstats</td><td class="d"><code>raster=</code> · <code>stats=</code>mean|min|max|…</td></tr>
+    <tr><td class="v a">sample</td><td class="d">&lt;raster&gt; · extract values at points</td></tr>
+    <tr><td class="v a">countpoints</td><td class="d">count points in each polygon</td></tr>
+  </table>
+</div>
+
+<!-- ATTRIBUTE + RASTER + BATCH -->
+<div class="card">
+  <h2>Attribute &amp; raster</h2>
+  <table class="verb-table">
+    <tr><th colspan="2">Attribute</th></tr>
+    <tr><td class="v a">renamefield</td><td class="d">&lt;old&gt; &lt;new&gt;</td></tr>
+    <tr><td class="v a">dropfields</td><td class="d">&lt;field&gt;,&lt;field&gt;…</td></tr>
+    <tr><td class="v a">keepfields</td><td class="d">&lt;field&gt;,&lt;field&gt;…</td></tr>
+  </table>
+  <table class="verb-table" style="margin-top:0.6rem">
+    <tr><th colspan="2">Raster (GDAL-backed)</th></tr>
+    <tr><td class="v a">warp</td><td class="d">&lt;crs&gt; · <code>resolution=</code> · <code>resampling=</code>near|bilinear|average</td></tr>
+    <tr><td class="v a">clipraster</td><td class="d">&lt;mask&gt; · clip raster to polygon</td></tr>
+    <tr><td class="v a">hillshade</td><td class="d"><code>z_factor=</code> · <code>azimuth=</code> · <code>altitude=</code></td></tr>
+    <tr><td class="v a">slope</td><td class="d"><code>percent</code> flag · from DEM</td></tr>
+    <tr><td class="v a">aspect</td><td class="d">aspect from DEM</td></tr>
+    <tr><td class="v a">polygonize</td><td class="d">[field=] · vectorize classified raster</td></tr>
+  </table>
+  <h3>Value types</h3>
+  <table class="verb-table">
+    <tr><th>type</th><th>examples</th></tr>
+    <tr><td class="v">distance</td><td class="d"><code>100m</code> <code>1.5km</code> <code>500ft</code> <code>10</code> (CRS units)</td></tr>
+    <tr><td class="v">crs</td><td class="d"><code>EPSG:6346</code> <code>EPSG:4326</code></td></tr>
+    <tr><td class="v">field</td><td class="d"><code>zoning</code> <code>parcel_id</code></td></tr>
+    <tr><td class="v">fields</td><td class="d"><code>pop,income</code> (comma-sep)</td></tr>
+    <tr><td class="v">expression</td><td class="d"><code>"area &gt; 1000"</code> (QGIS expr, quoted)</td></tr>
+  </table>
+  <h3>Run escape hatch</h3>
+  <div class="code-block"><span class="builtin">run</span> <span style="color:var(--alias)">native:slope</span> <span class="key">INPUT</span>=<span class="val">dem.tif</span> <span class="key">Z_FACTOR</span>=<span class="val">2</span></div>
+  <div style="font-size:0.65rem;color:var(--text-muted);margin-top:0.2rem">
+    Enum params use integer index (0,1,2). GRASS/PDAL use named output params (terminal).
+    Raw LiDAR (LAS/LAZ): <code>run pdalcli:to_raster|height_above_ground|classify_ground|boundary</code> — COPC-free.
+    <strong>Learn a verb offline with <code>describe &lt;verb&gt;</code></strong> (mapping, options+defaults, QGIS params, example);
+    for a <code>run &lt;id&gt;</code> algorithm look up <code>docs/algorithms/&lt;provider&gt;.md</code> (<code>describe &lt;id&gt;</code> needs QGIS).
+    Providers: native → gdal → GRASS (last); no SAGA/OTB by default.
+  </div>
+</div>
+
+<!-- SYNTAX + CONNECTIONS -->
+<div class="card">
+  <h2>Syntax &amp; connections</h2>
+  <table class="verb-table">
+    <tr><th colspan="2">Syntax per stage</th></tr>
+    <tr><td class="v">verb</td><td class="d">first token</td></tr>
+    <tr><td class="v">positionals</td><td class="d">ordered args</td></tr>
+    <tr><td class="v"><code>key=value</code></td><td class="d">options</td></tr>
+    <tr><td class="v">flags</td><td class="d">bare words, boolean ON</td></tr>
+  </table>
+  <table class="verb-table" style="margin-top:0.6rem">
+    <tr><th colspan="2">Database connections (@conn)</th></tr>
+    <tr><td colspan="2" class="d">Credentials stay in QGIS — niva only passes the name.</td></tr>
+    <tr><td class="v"><code>@conn</code></td><td class="d"><code>sql @conn "SELECT …"</code></td></tr>
+    <tr><td class="v"><code>@conn.table</code></td><td class="d"><code>load @conn.table</code></td></tr>
+    <tr><td class="v"><code>@conn.schema.table</code></td><td class="d"><code>save @conn.schema.table mode=replace</code></td></tr>
+    <tr><td class="v"><code>@"name"</code></td><td class="d">dotted name quoting</td></tr>
+  </table>
+  <h3>Multi-layer GeoPackage</h3>
+  <div class="code-block"><span class="builtin">load</span> <span class="val">"data.gpkg|layername=parcels"</span> <span class="pipe">|</span> <span class="alias">clip</span> <span class="val">aoi.gpkg</span></div>
+  <h3>Mode values (save/write)</h3>
+  <table class="verb-table">
+    <tr><td class="v flag">create</td><td class="d">fail if exists (default, safe)</td></tr>
+    <tr><td class="v flag">replace</td><td class="d">drop + recreate</td></tr>
+    <tr><td class="v flag">append</td><td class="d">insert into existing</td></tr>
+  </table>
+  <h3>Comments &amp; continuation</h3>
+  <div class="code-block"><span class="cm"># this is a comment</span>
+<span class="builtin">load</span> roads.gpkg <span class="pipe">|</span>
+  <span class="alias">buffer</span> 100m <span class="pipe">|</span>
+  <span class="builtin">save</span> out.gpkg</div>
+</div>
+
+</div><!-- .grid-4 -->
+
+<hr>
+
+<!-- GRID: COMMON PATTERNS + BATCH + ERROR -->
+<div class="grid-3">
+
+<!-- COMMON PATTERNS -->
+<div class="card">
+  <h2>Common patterns</h2>
+  <div class="examples">
+    <div>
+      <div class="ex-label">Buffer roads</div>
+      <div class="ex-code"><span class="builtin">load</span> roads.gpkg <span class="pipe">|</span>
+        <span class="alias">buffer</span> 100m dissolve <span class="pipe">|</span>
+        <span class="builtin">save</span> corridors.gpkg</div>
+    </div>
+    <div>
+      <div class="ex-label">Clip to AOI</div>
+      <div class="ex-code"><span class="builtin">load</span> parcels.gpkg <span class="pipe">|</span>
+        <span class="alias">clip</span> aoi.gpkg <span class="pipe">|</span>
+        <span class="builtin">save</span> clipped.gpkg</div>
+    </div>
+    <div>
+      <div class="ex-label">Filter + reproject</div>
+      <div class="ex-code"><span class="builtin">load</span> roads.gpkg <span class="pipe">|</span>
+        <span class="builtin">filter</span> <span class="val">"class = 'primary'"</span> <span class="pipe">|</span>
+        <span class="alias">reproject</span> EPSG:6346 <span class="pipe">|</span>
+        <span class="builtin">save</span> primary.gpkg</div>
+    </div>
+    <div>
+      <div class="ex-label">Spatial join</div>
+      <div class="ex-code"><span class="builtin">load</span> incidents.gpkg <span class="pipe">|</span>
+        <span class="alias">spatialjoin</span> <span class="key">with</span>=<span class="val">districts.gpkg</span>
+        <span class="key">predicate</span>=<span class="val">within</span> <span class="pipe">|</span>
+        <span class="builtin">save</span> tagged.gpkg</div>
+    </div>
+    <div>
+      <div class="ex-label">DEM → slope</div>
+      <div class="ex-code"><span class="builtin">load</span> dem.tif <span class="pipe">|</span>
+        <span class="alias">slope</span> percent <span class="pipe">|</span>
+        <span class="builtin">save</span> slope_pct.tif</div>
+    </div>
+    <div>
+      <div class="ex-label">DB read → process</div>
+      <div class="ex-code"><span class="builtin">sql</span> @pg <span class="val">"SELECT * FROM
+    parcels WHERE area &gt; 5000"</span> <span class="pipe">|</span>
+        <span class="alias">centroid</span> <span class="pipe">|</span>
+        <span class="builtin">save</span> centers.gpkg</div>
+    </div>
+    <div>
+      <div class="ex-label">Cleanup pipeline</div>
+      <div class="ex-code"><span class="builtin">load</span> messy.gpkg <span class="pipe">|</span>
+        <span class="alias">fixgeom</span> <span class="pipe">|</span>
+        <span class="alias">reproject</span> EPSG:6346 <span class="pipe">|</span>
+        <span class="alias">explode</span> <span class="pipe">|</span>
+        <span class="builtin">save</span> clean.gpkg</div>
+    </div>
+    <div>
+      <div class="ex-label">Overlay analysis</div>
+      <div class="ex-code"><span class="builtin">load</span> parcels.gpkg <span class="pipe">|</span>
+        <span class="alias">intersect</span> floodzone.gpkg <span class="pipe">|</span>
+        <span class="builtin">save</span> at_risk.gpkg</div>
+    </div>
+  </div>
+</div>
+
+<!-- BATCH + DB -->
+<div class="card">
+  <h2>Batch &amp; database</h2>
+  <h3>Batch with <code>each</code></h3>
+  <div class="code-block"><span class="builtin">each</span> <span class="val">"in/*.shp"</span> <span class="pipe">|</span>
+  <span class="alias">reproject</span> EPSG:6346 <span class="pipe">|</span>
+  <span class="builtin">save</span> collected.gpkg</div>
+  <div class="code-block"><span class="builtin">each</span> <span class="val">"rasters/*.tif"</span> <span class="pipe">|</span>
+  <span class="alias">warp</span> EPSG:6346 <span class="pipe">|</span>
+  <span class="builtin">save</span> <span class="val">"out/{name}.tif"</span></div>
+  <div style="font-size:0.65rem;color:var(--text-muted);margin-top:0.2rem">
+    Failed items skip; batch continues. <code>{name}</code> per-item output.
+  </div>
+
+  <h3 style="margin-top:0.6rem">SpatiaLite SQL</h3>
+  <div class="code-block"><span class="builtin">sql</span> @sl <span class="val">"SELECT id,
+  ST_Buffer(geometry, 50) AS geometry FROM wells"</span></div>
+
+  <h3>PostGIS SQL</h3>
+  <div class="code-block"><span class="builtin">sql</span> @pg <span class="val">"SELECT a.id, a.geom
+  FROM parcels a JOIN flood b ON
+  ST_Intersects(a.geom, b.geom)"</span></div>
+
+  <h3 style="margin-top:0.6rem">Write results to DB</h3>
+  <div class="code-block"><span class="builtin">load</span> parcels.gpkg <span class="pipe">|</span>
+  <span class="alias">clip</span> aoi.gpkg <span class="pipe">|</span>
+  <span class="builtin">save</span> @pg.public.parcels_clip <span class="key">mode</span>=<span class="val">replace</span></div>
+</div>
+
+<!-- ERROR + TIPS -->
+<div class="card">
+  <h2>Gotchas &amp; fixes</h2>
+  <table class="verb-table">
+    <tr><th>symptom</th><th>fix</th></tr>
+    <tr><td class="d"><code>disk quota exceeded</code></td><td class="d">set <code>NIVA_TMPDIR</code> to disk-backed dir</td></tr>
+    <tr><td class="d"><code>could not import QGIS</code></td><td class="d">run with QGIS's own Python</td></tr>
+    <tr><td class="d">segfault after tests pass</td><td class="d">harmless QGIS teardown — check <code>OK</code>/<code>FAILED</code></td></tr>
+    <tr><td class="d"><code>table already exists</code></td><td class="d">use <code>mode=replace</code> or <code>mode=append</code></td></tr>
+    <tr><td class="d"><code>no such connection</code></td><td class="d">verify name in QGIS Browser / <code>info</code></td></tr>
+    <tr><td class="d"><code>unknown option</code></td><td class="d"><code>describe &lt;verb&gt;</code> for valid options</td></tr>
+    <tr><td class="d"><code>unknown verb</code> / invented verb</td><td class="d">verbs are a <strong>closed set</strong> — check <code>reference.md §5</code>. <code>stats</code>/<code>contour</code>/<code>index</code>/<code>dtm</code> are NOT verbs → use <code>run &lt;id&gt;</code></td></tr>
+    <tr><td class="d"><code>a stage must start with a verb</code></td><td class="d">break flows between stages with a trailing <code>|</code>; one stage's options stay on ONE line (<code>\</code> is not continuation)</td></tr>
+    <tr><td class="d"><code>notify needs a topic</code></td><td class="d">set <code>NIVA_NTFY_TOPIC</code> or add <code>to=&lt;topic&gt;</code></td></tr>
+    <tr><td class="d"><code>EPSG:4326</code> + <code>buffer 100</code></td><td class="d">= 100 degrees! add unit: <code>buffer 100km</code></td></tr>
+  </table>
+
+  <h3 style="margin-top:0.6rem">Quick tips</h3>
+  <div style="font-size:0.7rem;color:var(--text-muted);line-height:1.55">
+    <div>• <strong>Lint offline (no QGIS):</strong> <code>niva validate &lt;flow.niva&gt;</code> — grammar + closed-set verbs (did-you-mean) + alias args/options/enums + <code>run &lt;id&gt;</code> params, then a MockBackend dry-run; errors + style warnings with line numbers. Exit 0 clean / 1 on error. (<code>niva "&lt;flow&gt;" --explain</code> / <code>--dry-run</code> are lighter inline checks.)</div>
+    <div>• <code>run &lt;id&gt;</code> params: look up offline in <code>docs/algorithms/&lt;provider&gt;.md</code></div>
+    <div>• Cartography: <code>map</code> → PDF layout (legend/scale/N-arrow), <code>figure</code> → quick PNG (pass-through, chains after <code>save</code>)</div>
+    <div>• Learn a verb <strong>offline</strong>: <code>niva describe &lt;verb&gt;</code> — options, defaults, QGIS-param mapping, example</div>
+    <div>• Log run: <code>NIVA_LOG=./log niva "&lt;flow&gt;"</code></div>
+    <div>• Read a specific GPKG layer: <code>"file.gpkg|layername=x"</code></div>
+    <div>• Reports to file: <code>describe &lt;verb&gt; to=file.md</code></div>
+    <div>• <code>save</code> is pass-through — mid-pipe <code>save</code> works</div>
+    <div>• <code>each</code> eats item failures; <code>FlowError</code> aborts</div>
+    <div>• Offscreen QGIS: <code>QT_QPA_PLATFORM=offscreen</code></div>
+  </div>
+</div>
+
+</div><!-- .grid-3 -->
+
+<hr>
+
+<!-- FOOTER -->
+<div style="display:flex;justify-content:space-between;font-size:0.65rem;color:var(--text-muted);padding:0 0.2rem">
+  <span>niva cheat sheet — v0.42.0 · github.com/johnzastrow/niva</span>
+  <span>Full docs: <code>docs/guide/reference.md</code> · <code>docs/guide/cookbook.md</code> (90 recipes) · <code>docs/algorithms/</code> (878 run ids)</span>
+</div>
+
+</div><!-- .container -->
+</body>
+</html>

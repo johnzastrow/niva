@@ -70,5 +70,39 @@ class TestRunValidation(unittest.TestCase):
         self.assertEqual(self._warn("saga:ta_morphometry:0", {"UNIT_SLOPE": "1"}), [])
 
 
+class TestExplainVerbValidation(unittest.TestCase):
+    """`--explain` must reject an invented verb in built-in position (issue #29)."""
+
+    def _plan(self, flow):
+        import contextlib
+        import io
+
+        from niva.cli.main import _print_plan
+        from niva.grammar import parse
+
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            unknown = _print_plan(parse(flow), "<t>")
+        return unknown, buf.getvalue()
+
+    def test_invented_verb_is_flagged(self):
+        unknown, out = self._plan('load a.gpkg | compute foo="1" | save b.gpkg')
+        self.assertTrue(unknown)  # → CLI exits non-zero
+        self.assertIn("UNKNOWN VERB", out)
+
+    def test_typo_gets_suggestion(self):
+        _, out = self._plan("load a.gpkg | reproj EPSG:3857 | save b.gpkg")
+        self.assertIn("did you mean `reproject`?", out)
+
+    def test_valid_flow_passes(self):
+        unknown, _ = self._plan('load a.gpkg | filter "x>1" | buffer 100m | save b.gpkg')
+        self.assertFalse(unknown)
+
+    def test_run_id_not_treated_as_unknown_verb(self):
+        # a run <id> is validated separately (soft warning), never an unknown-verb error
+        unknown, _ = self._plan("load a.las | run pdalcli:to_raster attribute=Z | save b.tif")
+        self.assertFalse(unknown)
+
+
 if __name__ == "__main__":
     unittest.main()
