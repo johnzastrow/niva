@@ -547,6 +547,30 @@ export-only `.sld` (OGC) and `.qlr` (portable layer definition). Chains after `s
 load roads.gpkg | clip aoi.gpkg | save roads_clip.gpkg | style apply house.qml
 ```
 
+### `figure` — render a quick map image *(pass-through)*
+
+```
+figure <out.png|.jpg> [size=WxH] [dpi=N] [extent=layer|x1,y1,x2,y2|<layer>]
+                      [layers="a;b"] [basemap=osm|<xyz-url>] [bg=<colour>] [labels=<field>]
+```
+
+Renders a map **image** of the current layer — **vector or raster** — with sensible defaults, so
+`load x | figure out.png` alone shows something useful: the full data extent (with a small margin),
+a 1200 px-wide canvas at the data's aspect, antialiasing, a white background, single-band rasters
+min/max-stretched, and each layer's own style (labels included when its style has them). Options
+layer more on top: `layers=` overlays extra sources (drawn beneath the piped one), `basemap=osm`
+adds an OpenStreetMap tile layer underneath, `labels=<field>` turns on simple labeling, and
+`extent`/`size`/`dpi`/`bg` control the framing. Pass-through, so it chains.
+
+```
+load dem.tif | figure hillshade.png                                  # simplest — just works
+load parcels.gpkg | figure map.png layers="roads.gpkg" basemap=osm labels=owner size=1600x1000
+load flood.gpkg | save flood.gpkg | figure flood.png                 # chains after save
+```
+
+For a composed cartographic layout (title, legend, scale bar, north arrow → PDF/SVG), the
+richer `map` verb is next on the roadmap.
+
 ### `notify` — push a message via ntfy *(pass-through)*
 
 ```

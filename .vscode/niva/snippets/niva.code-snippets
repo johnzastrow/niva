@@ -317,5 +317,15 @@
     "prefix": "saga",
     "body": ["load ${1:dtm.tif} | run saga:${2:library}:${3:tool} _in=${4:ELEVATION} _out=${5:SLOPE} | save ${6:out.tif}$0"],
     "description": "Run a saga_cmd tool (prefer tool names over indices)"
+  },
+  "Figure — quick map image": {
+    "prefix": "figure",
+    "body": ["load ${1:data.gpkg} | figure ${2:map.png}${3: size=1200x900}$0"],
+    "description": "Render a quick map image (vector or raster) with sensible defaults"
+  },
+  "Figure — labelled with overlay + basemap": {
+    "prefix": "figure-full",
+    "body": ["load ${1:parcels.gpkg} | figure ${2:map.png} layers=\"${3:roads.gpkg}\" basemap=${4|osm|} labels=${5:name} size=${6:1600x1000}$0"],
+    "description": "Figure with an overlay layer, basemap, and field labels"
   }
 }

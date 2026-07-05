@@ -11,6 +11,22 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.39.0] - 2026-07-05
+
+### Added
+- **`figure` verb** — render a quick map **image** (`.png`/`.jpg`) of the current layer,
+  **vector or raster**, honouring labels. Built for sensible defaults: `load x | figure out.png`
+  alone frames the full data extent (with margin), a 1200 px-wide canvas at the data's aspect,
+  antialiasing, a white background, a min/max stretch for single-band rasters, and each layer's
+  own style. Options layer more on top: `size=WxH`, `dpi=`, `extent=layer|x1,y1,x2,y2|<layer>`,
+  `layers="a;b"` (overlays drawn beneath), `basemap=osm|<xyz-url>`, `bg=`, `labels=<field>`.
+  Pass-through, so it snapshots a mid-pipe step and chains after `save`. New `Backend.render_figure`
+  (implemented in `PyqgisBackend` via `QgsMapSettings`/`QgsMapRendererParallelJob`; recorded by
+  `MockBackend`). Verified end to end on raster, vector+labels, overlays, and the every-option form.
+  A composed cartographic `map` verb (title/legend/scale bar → PDF/SVG) is the planned follow-up.
+- Cookbook recipes 83–84 (simplest form + every-knob thematic map); reference §4 `figure` entry;
+  VS Code `figure`/`figure-full` snippets. Built-in verb count 21 → 22.
+
 ## [0.38.0] - 2026-07-05
 
 ### Added

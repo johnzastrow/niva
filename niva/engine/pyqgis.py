@@ -89,6 +89,7 @@ def _layer_source_path(layer):
         return None
     return os.path.abspath(src.split("|", 1)[0])
 
+
 # Retained module-side so neither object is garbage-collected after creation:
 # a dropped QgsApplication tears down the whole Processing registry, and a dropped
 # QgsNativeAlgorithms takes its 339 algorithms with it. Both bit us in testing.
@@ -101,16 +102,33 @@ _NATIVE_PROVIDER = None
 # (3.x) reports some — e.g. KNN2 and data_licenses — as ordinary spatial tables, so `show @conn`
 # would advertise them as loadable layers. Drop them so discovery lists only real layers
 # consistently across QGIS versions. Names are SpatiaLite-reserved, so this can't hide user data.
-_SPATIALITE_SYSTEM_TABLES = frozenset({
-    "spatial_ref_sys", "spatial_ref_sys_aux", "spatialite_history", "sql_statements_log",
-    "geometry_columns", "geometry_columns_auth", "geometry_columns_field_infos",
-    "geometry_columns_statistics", "geometry_columns_time",
-    "views_geometry_columns", "views_geometry_columns_auth",
-    "views_geometry_columns_field_infos", "views_geometry_columns_statistics",
-    "virts_geometry_columns", "virts_geometry_columns_auth",
-    "virts_geometry_columns_field_infos", "virts_geometry_columns_statistics",
-    "spatialindex", "elementarygeometries", "knn", "knn2", "data_licenses", "sqlite_sequence",
-})
+_SPATIALITE_SYSTEM_TABLES = frozenset(
+    {
+        "spatial_ref_sys",
+        "spatial_ref_sys_aux",
+        "spatialite_history",
+        "sql_statements_log",
+        "geometry_columns",
+        "geometry_columns_auth",
+        "geometry_columns_field_infos",
+        "geometry_columns_statistics",
+        "geometry_columns_time",
+        "views_geometry_columns",
+        "views_geometry_columns_auth",
+        "views_geometry_columns_field_infos",
+        "views_geometry_columns_statistics",
+        "virts_geometry_columns",
+        "virts_geometry_columns_auth",
+        "virts_geometry_columns_field_infos",
+        "virts_geometry_columns_statistics",
+        "spatialindex",
+        "elementarygeometries",
+        "knn",
+        "knn2",
+        "data_licenses",
+        "sqlite_sequence",
+    }
+)
 
 
 def _is_spatialite_system_table(name: str) -> bool:
@@ -175,6 +193,7 @@ def _qgis_prefix_path() -> str:
     postgres, WFS, …). On Linux the QGIS prefix is typically ``/usr``.
     """
     import sys
+
     exe = sys.executable  # e.g. .../QGIS.app/Contents/MacOS/python3.12
     parts = exe.replace("\\", "/").split("/")
     # Walk up to find the .app bundle root on macOS.
@@ -205,7 +224,9 @@ def ensure_qgis(prefix: str | None = None):
         else:
             app = QgsApplication([], False)
         app.initQgis()
-        _QGIS_APP = app  # CRITICAL: keep a reference, or it is GC'd and the registry dies
+        _QGIS_APP = (
+            app  # CRITICAL: keep a reference, or it is GC'd and the registry dies
+        )
         _install_gdal_error_filter()
         owns = True
     _init_processing()
@@ -317,7 +338,9 @@ def _capture_qgis_messages(progress):
 
     def handler(message, tag, level):
         try:
-            if int(level) >= 1 and message and message.strip():  # Warning(1)/Critical(2)
+            if (
+                int(level) >= 1 and message and message.strip()
+            ):  # Warning(1)/Critical(2)
                 text = message.strip()
                 progress(f"   [QGIS:{tag}] {text}")
                 captured.append(text)
@@ -394,12 +417,14 @@ def algorithm_catalog():
     for alg in QgsApplication.processingRegistry().algorithms():
         if int(alg.flags()) & int(hidden):
             continue
-        out.append({
-            "id": alg.id(),
-            "display_name": alg.displayName(),
-            "group": alg.group() or "",
-            "description": alg.shortDescription() or "",
-        })
+        out.append(
+            {
+                "id": alg.id(),
+                "display_name": alg.displayName(),
+                "group": alg.group() or "",
+                "description": alg.shortDescription() or "",
+            }
+        )
     return out
 
 
@@ -434,8 +459,12 @@ def _init_processing():
 
 class PyqgisBackend(Backend):
     def __init__(self):
-        self._note = None        # per-op handling notice (e.g. mixed geometry), read by Engine
-        self._scratch: list[str] = []  # raster intermediates to delete when the run ends
+        self._note = (
+            None  # per-op handling notice (e.g. mixed geometry), read by Engine
+        )
+        self._scratch: list[
+            str
+        ] = []  # raster intermediates to delete when the run ends
 
     def purge_scratch(self, keep=None, remove_dir=False) -> None:
         """Delete the intermediates this run created in the scratch dir.
@@ -486,7 +515,9 @@ class PyqgisBackend(Backend):
                 raise OpError(
                     f"`{source}` holds {len(subs)} layers — name one with "
                     f'`load "{base}|layername=<name>"`. Available: {names}',
-                    algorithm="load", params={"source": source}, backend="pyqgis",
+                    algorithm="load",
+                    params={"source": source},
+                    backend="pyqgis",
                 )
         name = os.path.basename(src.split("|", 1)[0]) or src
         if "layername=" in src:
@@ -503,7 +534,9 @@ class PyqgisBackend(Backend):
             return Layer(SOURCE, rl, facet="raster", name=name)
         raise OpError(
             f"could not open `{source}` as a vector or raster layer",
-            algorithm="load", params={"source": source}, backend="pyqgis",
+            algorithm="load",
+            params={"source": source},
+            backend="pyqgis",
         )
 
     # Delimited-text extensions niva will try to geometrize, and the coordinate-column names it
@@ -524,7 +557,9 @@ class PyqgisBackend(Backend):
         path = src.split("|", 1)[0]
         if os.path.splitext(path)[1].lower() not in self._CSV_EXTS:
             return None
-        if not self._is_aspatial(ogr_layer):  # already has geometry (e.g. a WKT column) — leave it
+        if not self._is_aspatial(
+            ogr_layer
+        ):  # already has geometry (e.g. a WKT column) — leave it
             return None
         fields = {f.name().lower(): f.name() for f in ogr_layer.fields()}
         xcol = next((fields[n] for n in self._LON_NAMES if n in fields), None)
@@ -537,9 +572,16 @@ class PyqgisBackend(Backend):
 
         url = QUrl.fromLocalFile(os.path.abspath(path))
         query = QUrlQuery()
-        for key, val in (("type", "csv"), ("detectTypes", "yes"),
-                         ("xField", xcol), ("yField", ycol), ("crs", "EPSG:4326"),
-                         ("spatialIndex", "no"), ("subsetIndex", "no"), ("watchFile", "no")):
+        for key, val in (
+            ("type", "csv"),
+            ("detectTypes", "yes"),
+            ("xField", xcol),
+            ("yField", ycol),
+            ("crs", "EPSG:4326"),
+            ("spatialIndex", "no"),
+            ("subsetIndex", "no"),
+            ("watchFile", "no"),
+        ):
             query.addQueryItem(key, val)
         url.setQuery(query)
         pts = QgsVectorLayer(url.toString(), name, "delimitedtext")
@@ -570,12 +612,24 @@ class PyqgisBackend(Backend):
             for g in getattr(preferred, "grids", []):
                 if not g.isAvailable:
                     grids.append(getattr(g, "url", "") or g.shortName)
-            grid_txt = ("; install: " + ", ".join(dict.fromkeys(grids))) if grids else ""
-            used_acc = f"±{used.accuracy} m" if used and used.accuracy and used.accuracy > 0 else "a fallback"
-            pref_acc = f"±{preferred.accuracy} m" if preferred.accuracy and preferred.accuracy > 0 else "a more accurate"
-            return (f"datum transform {src.authid()}→{dst.authid()}: the preferred "
-                    f"transform ({pref_acc}) needs a grid not installed, so {used_acc} "
-                    f"was used{grid_txt}")
+            grid_txt = (
+                ("; install: " + ", ".join(dict.fromkeys(grids))) if grids else ""
+            )
+            used_acc = (
+                f"±{used.accuracy} m"
+                if used and used.accuracy and used.accuracy > 0
+                else "a fallback"
+            )
+            pref_acc = (
+                f"±{preferred.accuracy} m"
+                if preferred.accuracy and preferred.accuracy > 0
+                else "a more accurate"
+            )
+            return (
+                f"datum transform {src.authid()}→{dst.authid()}: the preferred "
+                f"transform ({pref_acc}) needs a grid not installed, so {used_acc} "
+                f"was used{grid_txt}"
+            )
         except Exception:
             return None
 
@@ -590,7 +644,12 @@ class PyqgisBackend(Backend):
     def _run_error(algorithm, params, cancel, exc):
         """Wrap a processing failure as OpError — as a cancellation if one was asked."""
         if cancel and cancel():
-            return OpError(f"`{algorithm}` canceled", algorithm=algorithm, params={}, backend="pyqgis")
+            return OpError(
+                f"`{algorithm}` canceled",
+                algorithm=algorithm,
+                params={},
+                backend="pyqgis",
+            )
         return OpError(str(exc), algorithm=algorithm, params=params, backend="pyqgis")
 
     @staticmethod
@@ -604,9 +663,13 @@ class PyqgisBackend(Backend):
         ``_NivaFeedback`` we passed in; ``command_failure`` returns the proving line."""
         err = feedback.command_failure() if feedback is not None else None
         if err:
-            raise OpError(f"`{algorithm}` failed — the underlying command did not complete "
-                          f"({err}). The input may be corrupt or truncated.",
-                          algorithm=algorithm, params=params, backend="pyqgis")
+            raise OpError(
+                f"`{algorithm}` failed — the underlying command did not complete "
+                f"({err}). The input may be corrupt or truncated.",
+                algorithm=algorithm,
+                params=params,
+                backend="pyqgis",
+            )
 
     @staticmethod
     def _output_is_raster(algorithm: str, output_param: str) -> bool:
@@ -623,8 +686,17 @@ class PyqgisBackend(Backend):
             od = None
         return od is not None and "raster" in (od.type() or "").lower()
 
-    def run(self, algorithm: str, params: dict, *, input_param: str,
-            input_layer: Layer, output_param: str, progress=None, cancel=None) -> Layer:
+    def run(
+        self,
+        algorithm: str,
+        params: dict,
+        *,
+        input_param: str,
+        input_layer: Layer,
+        output_param: str,
+        progress=None,
+        cancel=None,
+    ) -> Layer:
         import processing
 
         full = dict(params)
@@ -653,11 +725,13 @@ class PyqgisBackend(Backend):
                 if _is_geometry_type_error(exc):
                     retried = self._lossless_retry(algorithm, input_layer, full)
                     if retried is not None:
-                        note = ("mixed geometry encountered (GeometryCollection): reprojected "
-                                "LOSSLESSLY into a generic-geometry layer, keeping every part. "
-                                "Note: a single-type target like Shapefile can't store this, and "
-                                "homogenising ops (clip/dissolve) would drop the odd parts — use "
-                                "`split` to separate by type if you need them kept.")
+                        note = (
+                            "mixed geometry encountered (GeometryCollection): reprojected "
+                            "LOSSLESSLY into a generic-geometry layer, keeping every part. "
+                            "Note: a single-type target like Shapefile can't store this, and "
+                            "homogenising ops (clip/dissolve) would drop the odd parts — use "
+                            "`split` to separate by type if you need them kept."
+                        )
                         self._note = note
                         if progress:
                             progress("   ⚠ " + note)
@@ -675,15 +749,29 @@ class PyqgisBackend(Backend):
                 self._note = tnote
                 if progress:
                     progress("   ⚠ " + tnote)
-        if cancel and cancel():  # canceled algorithms return an empty result, not an error
-            raise OpError(f"`{algorithm}` canceled", algorithm=algorithm, params={}, backend="pyqgis")
+        if (
+            cancel and cancel()
+        ):  # canceled algorithms return an empty result, not an error
+            raise OpError(
+                f"`{algorithm}` canceled",
+                algorithm=algorithm,
+                params={},
+                backend="pyqgis",
+            )
         out = result.get(output_param)
         if isinstance(out, str):  # a path/uri rather than a live layer — wrap it
             out = self.load(out).ref
         return Layer(MEMORY, out, facet=self._facet(out), name=algorithm)
 
-    def run_raw(self, algorithm: str, params: dict, *, input_layer: Layer | None = None,
-                progress=None, cancel=None):
+    def run_raw(
+        self,
+        algorithm: str,
+        params: dict,
+        *,
+        input_layer: Layer | None = None,
+        progress=None,
+        cancel=None,
+    ):
         import processing
 
         full = dict(params)
@@ -698,8 +786,15 @@ class PyqgisBackend(Backend):
                 raise self._run_error(algorithm, full, cancel, exc)
         self._raise_on_command_failure(algorithm, full, feedback)
         self._note_qgis_messages(captured)
-        if cancel and cancel():  # canceled algorithms return an empty result, not an error
-            raise OpError(f"`{algorithm}` canceled", algorithm=algorithm, params={}, backend="pyqgis")
+        if (
+            cancel and cancel()
+        ):  # canceled algorithms return an empty result, not an error
+            raise OpError(
+                f"`{algorithm}` canceled",
+                algorithm=algorithm,
+                params={},
+                backend="pyqgis",
+            )
         out = result.get("OUTPUT")
         if out is None:  # no pipeable output (e.g. a folder/PDF export) — terminal
             return None
@@ -741,8 +836,12 @@ class PyqgisBackend(Backend):
         e = ref.extent()
         if e.isNull() or e.isEmpty():
             return None
-        return {"xmin": e.xMinimum(), "ymin": e.yMinimum(),
-                "xmax": e.xMaximum(), "ymax": e.yMaximum()}
+        return {
+            "xmin": e.xMinimum(),
+            "ymin": e.yMinimum(),
+            "xmax": e.xMaximum(),
+            "ymax": e.yMaximum(),
+        }
 
     def _profile_vector(self, layer: Layer, deep: bool) -> dict:
         from qgis.core import QgsWkbTypes
@@ -783,8 +882,12 @@ class PyqgisBackend(Backend):
                 for n in names:
                     if feat[n] == NULL:
                         nulls[n] += 1
-            prof.update(invalid_geometries=invalid, empty_geometries=empty,
-                        duplicate_geometries=duplicates, null_counts=nulls)
+            prof.update(
+                invalid_geometries=invalid,
+                empty_geometries=empty,
+                duplicate_geometries=duplicates,
+                null_counts=nulls,
+            )
         return prof
 
     def _profile_raster(self, layer: Layer) -> dict:
@@ -808,7 +911,9 @@ class PyqgisBackend(Backend):
             elif key == "abstract":
                 md.setAbstract(value)
             elif key == "keywords":
-                md.setKeywords({"keywords": [k.strip() for k in value.split(",") if k.strip()]})
+                md.setKeywords(
+                    {"keywords": [k.strip() for k in value.split(",") if k.strip()]}
+                )
             elif key == "identifier":
                 md.setIdentifier(value)
             elif key in ("license", "licence"):
@@ -817,8 +922,15 @@ class PyqgisBackend(Backend):
         layer.ref.setMetadata(md)
         return layer
 
-    def save(self, layer: Layer, dest: str, lineage: list | None = None, *,
-             layer_name: str | None = None, append: bool = False) -> Layer:
+    def save(
+        self,
+        layer: Layer,
+        dest: str,
+        lineage: list | None = None,
+        *,
+        layer_name: str | None = None,
+        append: bool = False,
+    ) -> Layer:
         # Use QgsVectorFileWriter directly rather than a Processing algorithm: it is
         # the canonical write API, picks the driver from the extension, and does not
         # depend on the Processing registry being populated. We use a standalone
@@ -853,24 +965,31 @@ class PyqgisBackend(Backend):
         # geometry) and surface the loss rather than failing the save.
         try:
             from qgis.PyQt.QtCore import QMetaType
+
             user_type = int(QMetaType.Type.User)
         except Exception:  # pragma: no cover — Qt5 fallback
             from qgis.PyQt.QtCore import QVariant
+
             user_type = int(QVariant.UserType)
 
         def _is_geom_field(f):
-            return int(f.type()) == user_type \
-                or (f.typeName() or "").lower() in ("geometry", "geography")
+            return int(f.type()) == user_type or (f.typeName() or "").lower() in (
+                "geometry",
+                "geography",
+            )
 
         drop = [i for i, f in enumerate(wfields) if _is_geom_field(f)]
         if drop:
             options.attributes = [i for i in range(len(wfields)) if i not in drop]
             dropped = ", ".join(f"`{wfields[i].name()}`" for i in drop)
-            self._note = (f"save: dropped geometry-typed attribute field(s) {dropped} — a "
-                          f"{ext.lstrip('.') or 'vector'} file can't hold a geometry as an "
-                          "attribute (the layer's own geometry is unaffected)")
-        names = {wfields[i].name().lower()
-                 for i in range(len(wfields)) if i not in drop}
+            self._note = (
+                f"save: dropped geometry-typed attribute field(s) {dropped} — a "
+                f"{ext.lstrip('.') or 'vector'} file can't hold a geometry as an "
+                "attribute (the layer's own geometry is unaffected)"
+            )
+        names = {
+            wfields[i].name().lower() for i in range(len(wfields)) if i not in drop
+        }
         layer_opts: list[str] = []
 
         if multilayer:  # a known layer name is needed to persist metadata later
@@ -880,10 +999,13 @@ class PyqgisBackend(Backend):
             # (CreateOrOverwriteLayer) — so a batch accumulates layers in one .gpkg.
             if append and os.path.exists(dest):
                 try:  # Qt6 scopes the enum; Qt5 exposes it flat
-                    options.actionOnExistingFile = \
+                    options.actionOnExistingFile = (
                         QgsVectorFileWriter.ActionOnExistingFile.CreateOrOverwriteLayer
+                    )
                 except AttributeError:  # pragma: no cover — Qt5 path
-                    options.actionOnExistingFile = QgsVectorFileWriter.CreateOrOverwriteLayer
+                    options.actionOnExistingFile = (
+                        QgsVectorFileWriter.CreateOrOverwriteLayer
+                    )
             # (2) If the layer carries an `fid` field (many QGIS outputs do — e.g.
             # points-along-lines, intersection, joins), its values can collide with the
             # GeoPackage primary key → "UNIQUE constraint failed: fid". Tell GDAL to mint
@@ -911,20 +1033,28 @@ class PyqgisBackend(Backend):
             if ext.lower() == ".shp":
                 # Shapefile stores ONE geometry type per file; mixed/collection geometry
                 # (kept losslessly through reproject/clip) can't be written to it.
-                hint = (" — Shapefile stores a single geometry type, so it can't hold "
-                        "mixed/GeometryCollection geometry; save to .gpkg or .sqlite "
-                        "instead.")
-            elif not os.path.isabs(dest) and ("unable to open" in err[1].lower()
-                                               or "creation of data source" in err[1].lower()):
+                hint = (
+                    " — Shapefile stores a single geometry type, so it can't hold "
+                    "mixed/GeometryCollection geometry; save to .gpkg or .sqlite "
+                    "instead."
+                )
+            elif not os.path.isabs(dest) and (
+                "unable to open" in err[1].lower()
+                or "creation of data source" in err[1].lower()
+            ):
                 # A relative path resolves against the QGIS plugin's working directory
                 # (inside the app bundle on macOS, or another non-writable location).
                 # Give a concrete corrective hint instead of a raw OGR error.
-                hint = (f" — `{dest}` is a relative path; the QGIS plugin's working "
-                        "directory is not writable. Use an absolute path, e.g. "
-                        f"`~/Desktop/{dest}` or `/Users/you/Documents/{dest}`.")
+                hint = (
+                    f" — `{dest}` is a relative path; the QGIS plugin's working "
+                    "directory is not writable. Use an absolute path, e.g. "
+                    f"`~/Desktop/{dest}` or `/Users/you/Documents/{dest}`."
+                )
             raise OpError(
                 f"could not write `{dest}`: {err[1]}{hint}",
-                algorithm="save", params={"dest": dest}, backend="pyqgis",
+                algorithm="save",
+                params={"dest": dest},
+                backend="pyqgis",
             )
         self._persist_metadata(layer, dest, name, multilayer, lineage)
         return Layer(SOURCE, dest, facet="vector", name=os.path.basename(dest))
@@ -978,7 +1108,9 @@ class PyqgisBackend(Backend):
             "layer has mixed geometry types, insert `fixgeom` before it to coerce them. If "
             "`fixgeom` doesn't help, the geometry is likely invalid or empty (e.g. NaN "
             "coordinates or no CRS) — inspect the layer with `assess` or `show`.",
-            algorithm=algorithm, params={}, backend="pyqgis",
+            algorithm=algorithm,
+            params={},
+            backend="pyqgis",
         )
 
     @staticmethod
@@ -1014,7 +1146,9 @@ class PyqgisBackend(Backend):
             if dstSRS:
                 kwargs["dstSRS"] = dstSRS
                 kwargs["reproject"] = True
-            gdal.VectorTranslate(out, path, options=gdal.VectorTranslateOptions(**kwargs))
+            gdal.VectorTranslate(
+                out, path, options=gdal.VectorTranslateOptions(**kwargs)
+            )
             return out
         except Exception:  # GDAL unavailable / option unsupported — re-raise original
             return None
@@ -1067,12 +1201,18 @@ class PyqgisBackend(Backend):
             # can dwarf its inputs). Default to QUALITY=25 — a sensible visually-lossless
             # ratio for imagery. Override via `run gdal:translate … CREATION_OPTIONS=…`.
             params["CREATION_OPTIONS"] = "QUALITY=25"
-        feedback = _feedback(None)  # captures a nonzero "returned error code" from gdal_translate
+        feedback = _feedback(
+            None
+        )  # captures a nonzero "returned error code" from gdal_translate
         try:
             result = processing.run("gdal:translate", params, feedback=feedback)
         except Exception as exc:
-            raise OpError(f"could not write raster `{dest}`: {exc}",
-                          algorithm="save", params={"dest": dest}, backend="pyqgis")
+            raise OpError(
+                f"could not write raster `{dest}`: {exc}",
+                algorithm="save",
+                params={"dest": dest},
+                backend="pyqgis",
+            )
         self._raise_on_command_failure("save", {"dest": dest}, feedback)
         out = result.get("OUTPUT") or dest
         return Layer(SOURCE, out, facet="raster", name=os.path.basename(dest))
@@ -1097,8 +1237,9 @@ class PyqgisBackend(Backend):
             pass
         return "|".join(opts)
 
-    def _persist_metadata(self, layer: Layer, dest: str, name: str,
-                          multilayer: bool, lineage: list | None) -> None:
+    def _persist_metadata(
+        self, layer: Layer, dest: str, name: str, multilayer: bool, lineage: list | None
+    ) -> None:
         """Carry the source layer's descriptive metadata onto the written file and
         record the niva lineage into its history (08-§3). Best effort; runs only when
         there is something to write (descriptive fields or lineage)."""
@@ -1152,14 +1293,18 @@ class PyqgisBackend(Backend):
             if md is None:
                 continue
             try:
-                conns = md.connections(False)  # {name: connection}; raises on non-DB providers
+                conns = md.connections(
+                    False
+                )  # {name: connection}; raises on non-DB providers
             except Exception:
                 continue
             if name in conns:
                 return md, conns[name]
         raise OpError(
             f"no saved QGIS connection named `{name}` — configure it in QGIS first",
-            algorithm="connection", params={"connection": name}, backend="pyqgis",
+            algorithm="connection",
+            params={"connection": name},
+            backend="pyqgis",
         )
 
     def load_table(self, conn: str, schema: str | None, table: str) -> Layer:
@@ -1171,7 +1316,9 @@ class PyqgisBackend(Backend):
         except Exception as exc:
             raise OpError(
                 f"connection `{conn}` cannot reference table `{table}`: {exc}",
-                algorithm="load", params={"connection": conn, "table": table}, backend="pyqgis",
+                algorithm="load",
+                params={"connection": conn, "table": table},
+                backend="pyqgis",
             ) from exc
         layer = QgsVectorLayer(uri, table, md.key())
         # Some `tableUri` results omit the geometry column (seen with PostGIS tables whose name
@@ -1182,14 +1329,17 @@ class PyqgisBackend(Backend):
         if layer.isValid() and self._is_aspatial(layer):
             geom_col = self._table_geometry_column(connection, schema or "", table)
             if geom_col:
-                spatial = self._spatial_table_layer(connection, schema or "", table,
-                                                    geom_col, md.key())
+                spatial = self._spatial_table_layer(
+                    connection, schema or "", table, geom_col, md.key()
+                )
                 if spatial is not None:
                     layer = spatial
         if not layer.isValid():
             raise OpError(
                 f"could not load table `{table}` from connection `{conn}`",
-                algorithm="load", params={"connection": conn, "table": table}, backend="pyqgis",
+                algorithm="load",
+                params={"connection": conn, "table": table},
+                backend="pyqgis",
             )
         return Layer(DB_TABLE, layer, facet="vector", name=table)
 
@@ -1212,7 +1362,9 @@ class PyqgisBackend(Backend):
         return None
 
     @staticmethod
-    def _spatial_table_layer(connection, schema: str, table: str, geom_col: str, provider: str):
+    def _spatial_table_layer(
+        connection, schema: str, table: str, geom_col: str, provider: str
+    ):
         """Open ``table`` as a layer with an explicit geometry column, building the URI from
         the live connection (host/credentials stay in QGIS). Returns the layer if it is valid
         and actually spatial, else None."""
@@ -1241,12 +1393,16 @@ class PyqgisBackend(Backend):
             # provider). No credentials are ever in scope here.
             raise OpError(
                 f"SQL query against connection `{conn}` failed: {exc}",
-                algorithm="sql", params={"connection": conn}, backend="pyqgis",
+                algorithm="sql",
+                params={"connection": conn},
+                backend="pyqgis",
             ) from exc
         if layer is None or not layer.isValid():
             raise OpError(
                 f"SQL query against connection `{conn}` produced no valid layer",
-                algorithm="sql", params={"connection": conn}, backend="pyqgis",
+                algorithm="sql",
+                params={"connection": conn},
+                backend="pyqgis",
             )
         # The provider doesn't always auto-detect the geometry column of a SELECT result, so a
         # spatial query can come back *aspatial* (NoGeometry) with the geometry sitting as an
@@ -1260,10 +1416,21 @@ class PyqgisBackend(Backend):
     # geometry can masquerade as. SpatiaLite surfaces a **computed** geometry (e.g.
     # `ST_Centroid(geom)`) as a BLOB/text attribute with no geometry type to detect, so
     # the type-based pass below finds nothing — we then probe these and verify by result.
-    _GEOMISH_NAMES = frozenset({
-        "geom", "geometry", "the_geom", "geom2", "shape", "wkb_geometry", "way", "wkb",
-    })
-    _BLOBISH_TYPES = frozenset({"text", "binary", "blob", "bytea", "bytearray", "string", ""})
+    _GEOMISH_NAMES = frozenset(
+        {
+            "geom",
+            "geometry",
+            "the_geom",
+            "geom2",
+            "shape",
+            "wkb_geometry",
+            "way",
+            "wkb",
+        }
+    )
+    _BLOBISH_TYPES = frozenset(
+        {"text", "binary", "blob", "bytea", "bytearray", "string", ""}
+    )
 
     def _respatialize_sql(self, connection, options, layer):
         """Turn an *aspatial* SQL result back into a geometry layer by naming its geometry
@@ -1280,8 +1447,10 @@ class PyqgisBackend(Backend):
             nm = f.name()
             if nm in candidates:
                 continue
-            if nm.lower() in self._GEOMISH_NAMES \
-                    or (f.typeName() or "").lower() in self._BLOBISH_TYPES:
+            if (
+                nm.lower() in self._GEOMISH_NAMES
+                or (f.typeName() or "").lower() in self._BLOBISH_TYPES
+            ):
                 candidates.append(nm)
         for col in candidates[:8]:  # bound the probing; SQL results have few columns
             options.geometryColumn = col
@@ -1289,19 +1458,39 @@ class PyqgisBackend(Backend):
                 respatial = connection.createSqlVectorLayer(options)
             except Exception:  # noqa: BLE001 — a bad guess just isn't a geometry column
                 continue
-            if respatial is not None and respatial.isValid() \
-                    and not self._is_aspatial(respatial):
+            if (
+                respatial is not None
+                and respatial.isValid()
+                and not self._is_aspatial(respatial)
+            ):
                 return respatial
         return None
 
     # Field type names that mark a geometry column in a SQL result — both the generic
     # PostGIS/PostgreSQL names and the per-type names SpatiaLite reports (e.g. `point`).
-    _GEOM_FIELD_TYPES = frozenset({
-        "geometry", "geography", "point", "linestring", "polygon", "multipoint",
-        "multilinestring", "multipolygon", "geometrycollection", "curve", "multicurve",
-        "surface", "multisurface", "circularstring", "compoundcurve", "curvepolygon",
-        "polyhedralsurface", "tin", "triangle",
-    })
+    _GEOM_FIELD_TYPES = frozenset(
+        {
+            "geometry",
+            "geography",
+            "point",
+            "linestring",
+            "polygon",
+            "multipoint",
+            "multilinestring",
+            "multipolygon",
+            "geometrycollection",
+            "curve",
+            "multicurve",
+            "surface",
+            "multisurface",
+            "circularstring",
+            "compoundcurve",
+            "curvepolygon",
+            "polyhedralsurface",
+            "tin",
+            "triangle",
+        }
+    )
 
     @staticmethod
     def _geometry_field_name(layer):
@@ -1311,12 +1500,16 @@ class PyqgisBackend(Backend):
         SpatiaLite's per-type names (`point`, …), with a Qt user-type fallback."""
         try:
             from qgis.PyQt.QtCore import QMetaType
+
             user = int(QMetaType.Type.User)
         except Exception:  # noqa: BLE001 — Qt5 fallback
             from qgis.PyQt.QtCore import QVariant
+
             user = int(QVariant.UserType)
         for f in layer.fields():
-            tn = (f.typeName() or "").lower().rstrip("zm ")  # drop a Z/M dimension suffix
+            tn = (
+                (f.typeName() or "").lower().rstrip("zm ")
+            )  # drop a Z/M dimension suffix
             if tn in PyqgisBackend._GEOM_FIELD_TYPES or int(f.type()) == user:
                 return f.name()
         return None
@@ -1331,12 +1524,22 @@ class PyqgisBackend(Backend):
         except Exception as exc:
             raise OpError(
                 f"SQL statement against connection `{conn}` failed: {exc}",
-                algorithm="sql", params={"connection": conn}, backend="pyqgis",
+                algorithm="sql",
+                params={"connection": conn},
+                backend="pyqgis",
             ) from exc
         return None
 
-    def save_table(self, layer: Layer, conn: str, schema: str | None, table: str, *,
-                   mode: str = "create", lineage: list | None = None) -> Layer:
+    def save_table(
+        self,
+        layer: Layer,
+        conn: str,
+        schema: str | None,
+        table: str,
+        *,
+        mode: str = "create",
+        lineage: list | None = None,
+    ) -> Layer:
         from qgis.core import (
             QgsDataSourceUri,
             QgsVectorLayer,
@@ -1353,7 +1556,9 @@ class PyqgisBackend(Backend):
             raise OpError(
                 f"table `{where}` already exists on connection `{conn}` — use "
                 "mode=replace or mode=append",
-                algorithm="save", params={"connection": conn, "table": table}, backend="pyqgis",
+                algorithm="save",
+                params={"connection": conn, "table": table},
+                backend="pyqgis",
             )
         if mode == "replace" and exists:
             try:
@@ -1361,7 +1566,9 @@ class PyqgisBackend(Backend):
             except Exception as exc:
                 raise OpError(
                     f"could not replace table `{table}` on connection `{conn}`: {exc}",
-                    algorithm="save", params={"connection": conn, "table": table}, backend="pyqgis",
+                    algorithm="save",
+                    params={"connection": conn, "table": table},
+                    backend="pyqgis",
                 ) from exc
 
         # Append adds rows to an existing table — the exporter can only *create* one
@@ -1369,7 +1576,9 @@ class PyqgisBackend(Backend):
         # so we open the target and add features. Appending to a missing table falls
         # through to create.
         if mode == "append" and exists:
-            return self._append_to_table(layer, connection, eff_schema, table, provider, conn)
+            return self._append_to_table(
+                layer, connection, eff_schema, table, provider, conn
+            )
 
         # create / replace → export a fresh table.
         # Build the destination URI from the *live connection* so host/port/dbname and
@@ -1379,7 +1588,12 @@ class PyqgisBackend(Backend):
         uri.setDataSource(eff_schema, table, geom_col)
 
         res = QgsVectorLayerExporter.exportLayer(
-            layer.ref, uri.uri(False), provider, layer.ref.crs(), False, {"overwrite": True}
+            layer.ref,
+            uri.uri(False),
+            provider,
+            layer.ref.crs(),
+            False,
+            {"overwrite": True},
         )
         # exportLayer returns (resultCode, message); Success == 0. Keep the URI and message
         # out of the error we raise — they can carry credentials.
@@ -1387,14 +1601,19 @@ class PyqgisBackend(Backend):
         if int(code) != int(QgsVectorLayerExporter.NoError):
             raise OpError(
                 f"could not write table `{table}` on connection `{conn}`",
-                algorithm="save", params={"connection": conn, "table": table}, backend="pyqgis",
+                algorithm="save",
+                params={"connection": conn, "table": table},
+                backend="pyqgis",
             )
 
         # Record lineage best-effort into the table comment — PostgreSQL only (SQLite /
         # SpatiaLite and most others have no COMMENT ON TABLE). Never fatal, no credentials.
         if lineage and provider == "postgres":
-            ident = self._quote_ident(table) if not eff_schema \
+            ident = (
+                self._quote_ident(table)
+                if not eff_schema
                 else f"{self._quote_ident(eff_schema)}.{self._quote_ident(table)}"
+            )
             note = " | ".join(str(x) for x in lineage).replace("'", "''")
             try:
                 connection.executeSql(f"COMMENT ON TABLE {ident} IS '{note}'")
@@ -1403,11 +1622,22 @@ class PyqgisBackend(Backend):
 
         # Reload the written table as a live layer so the result stays pipeable.
         out = QgsVectorLayer(connection.tableUri(eff_schema, table), table, provider)
-        return Layer(DB_TABLE, out if out.isValid() else uri.uri(False),
-                     facet="vector", name=table)
+        return Layer(
+            DB_TABLE,
+            out if out.isValid() else uri.uri(False),
+            facet="vector",
+            name=table,
+        )
 
-    def _append_to_table(self, layer: Layer, connection, schema: str, table: str,
-                         provider: str, conn: str) -> Layer:
+    def _append_to_table(
+        self,
+        layer: Layer,
+        connection,
+        schema: str,
+        table: str,
+        provider: str,
+        conn: str,
+    ) -> Layer:
         """INSERT the source features into an existing DB table (`mode=append`). Maps
         attributes by field name (the exporter adds a `pk` column, so positions differ)
         and transforms geometry to the table's CRS if needed. No credentials in scope."""
@@ -1423,7 +1653,9 @@ class PyqgisBackend(Backend):
         if not dest.isValid():
             raise OpError(
                 f"could not open table `{table}` on connection `{conn}` to append",
-                algorithm="save", params={"connection": conn, "table": table}, backend="pyqgis",
+                algorithm="save",
+                params={"connection": conn, "table": table},
+                backend="pyqgis",
             )
         src = layer.ref
         dfields = dest.fields()
@@ -1439,7 +1671,9 @@ class PyqgisBackend(Backend):
             next_pk = (int(mx) + 1) if mx is not None else 1
         xform = None
         if src.crs() != dest.crs() and src.crs().isValid() and dest.crs().isValid():
-            xform = QgsCoordinateTransform(src.crs(), dest.crs(), QgsCoordinateTransformContext())
+            xform = QgsCoordinateTransform(
+                src.crs(), dest.crs(), QgsCoordinateTransformContext()
+            )
         rows = []
         for sf in src.getFeatures():
             nf = QgsFeature(dfields)
@@ -1462,7 +1696,9 @@ class PyqgisBackend(Backend):
         if not ok:
             raise OpError(
                 f"could not append to table `{table}` on connection `{conn}`",
-                algorithm="save", params={"connection": conn, "table": table}, backend="pyqgis",
+                algorithm="save",
+                params={"connection": conn, "table": table},
+                backend="pyqgis",
             )
         return Layer(DB_TABLE, dest, facet="vector", name=table)
 
@@ -1485,17 +1721,30 @@ class PyqgisBackend(Backend):
 
     # --- project file repointing (the `project` verb, roadmap §project) ----------
 
-    def repoint_project(self, src: str, dest: str, *, target, missing: str,
-                        rasters: str | None = None, paths: str | None = None,
-                        bookmark: str | None = None, progress=None) -> None:
+    def repoint_project(
+        self,
+        src: str,
+        dest: str,
+        *,
+        target,
+        missing: str,
+        rasters: str | None = None,
+        paths: str | None = None,
+        bookmark: str | None = None,
+        progress=None,
+    ) -> None:
         # Use a STANDALONE QgsProject (never QgsProject.instance()) so this is safe on
         # the flow's worker thread — see plugin/flowtask.py and 15-§3.
         from qgis.core import QgsProject, QgsRasterLayer, QgsVectorLayer
 
         proj = QgsProject()
         if not proj.read(src):
-            raise OpError(f"could not read project `{src}`",
-                          algorithm="project", params={"src": src}, backend="pyqgis")
+            raise OpError(
+                f"could not read project `{src}`",
+                algorithm="project",
+                params={"src": src},
+                backend="pyqgis",
+            )
         # target=None → copy/convert without repointing vectors (still does rasters/paths).
         # A {name: uri} dict is the `project from-template` slot map: every layer slot —
         # vector OR raster — is repointed from the one map by name (no separate rasters=).
@@ -1513,7 +1762,10 @@ class PyqgisBackend(Backend):
                 raise OpError(
                     f"layer `{lyr.name()}` (source `{name}`) is not in the repoint target "
                     "— use missing=keep or missing=drop to override",
-                    algorithm="project", params={"src": src}, backend="pyqgis")
+                    algorithm="project",
+                    params={"src": src},
+                    backend="pyqgis",
+                )
             if missing == "drop":
                 label = lyr.name()  # read before removeMapLayer deletes the object
                 proj.removeMapLayer(lyr.id())
@@ -1552,7 +1804,9 @@ class PyqgisBackend(Backend):
                 # Repoint them into the `rasters=` directory by basename; else leave them.
                 if rasters is None:
                     counts["kept"] += 1
-                    emit(f"   ⚠ left raster `{lyr.name()}` unchanged (no rasters= target)")
+                    emit(
+                        f"   ⚠ left raster `{lyr.name()}` unchanged (no rasters= target)"
+                    )
                     continue
                 base = os.path.basename(lyr.source().split("|", 1)[0])
                 cand = os.path.join(rasters, base)
@@ -1565,7 +1819,9 @@ class PyqgisBackend(Backend):
                 continue
             if not isinstance(lyr, QgsVectorLayer):
                 counts["kept"] += 1
-                emit(f"   ⚠ left `{lyr.name()}` unchanged (not a vector or raster layer)")
+                emit(
+                    f"   ⚠ left `{lyr.name()}` unchanged (not a vector or raster layer)"
+                )
                 continue
             if resolve is None:  # no repoint target — leave vector layers as they are
                 counts["kept"] += 1
@@ -1588,20 +1844,36 @@ class PyqgisBackend(Backend):
         if paths in ("relative", "absolute"):
             from qgis.core import Qgis
 
-            proj.setFilePathStorage(Qgis.FilePathType.Relative if paths == "relative"
-                                    else Qgis.FilePathType.Absolute)
+            proj.setFilePathStorage(
+                Qgis.FilePathType.Relative
+                if paths == "relative"
+                else Qgis.FilePathType.Absolute
+            )
             emit(f"   datasource paths → {paths}")
         parent = os.path.dirname(dest)
         if parent:
             os.makedirs(parent, exist_ok=True)
         if not proj.write(dest):  # output format (.qgs/.qgz) follows dest's extension
-            raise OpError(f"could not write project `{dest}`",
-                          algorithm="project", params={"dest": dest}, backend="pyqgis")
-        emit(f"   project written → {dest} ({counts['repointed']} repointed, "
-             f"{counts['kept']} kept, {counts['dropped']} dropped)")
+            raise OpError(
+                f"could not write project `{dest}`",
+                algorithm="project",
+                params={"dest": dest},
+                backend="pyqgis",
+            )
+        emit(
+            f"   project written → {dest} ({counts['repointed']} repointed, "
+            f"{counts['kept']} kept, {counts['dropped']} dropped)"
+        )
 
-    def create_project(self, layers: list, dest: str, *, crs: str | None = None,
-                       title: str | None = None, progress=None) -> None:
+    def create_project(
+        self,
+        layers: list,
+        dest: str,
+        *,
+        crs: str | None = None,
+        title: str | None = None,
+        progress=None,
+    ) -> None:
         # Standalone QgsProject (never the GUI singleton) — safe on the worker thread.
         from qgis.core import QgsCoordinateReferenceSystem, QgsProject
 
@@ -1621,8 +1893,12 @@ class PyqgisBackend(Backend):
             if progress:
                 progress(f"   added `{name}`")
         if added == 0:
-            raise OpError("`project new`: none of the sources could be loaded",
-                          algorithm="project", params={"dest": dest}, backend="pyqgis")
+            raise OpError(
+                "`project new`: none of the sources could be loaded",
+                algorithm="project",
+                params={"dest": dest},
+                backend="pyqgis",
+            )
         if crs:
             ref = QgsCoordinateReferenceSystem(str(crs))
             if ref.isValid():
@@ -1633,8 +1909,12 @@ class PyqgisBackend(Backend):
         if parent:
             os.makedirs(parent, exist_ok=True)
         if not proj.write(dest):
-            raise OpError(f"could not write project `{dest}`",
-                          algorithm="project", params={"dest": dest}, backend="pyqgis")
+            raise OpError(
+                f"could not write project `{dest}`",
+                algorithm="project",
+                params={"dest": dest},
+                backend="pyqgis",
+            )
         if progress:
             progress(f"   created project → {dest} ({added} layer(s))")
 
@@ -1643,18 +1923,24 @@ class PyqgisBackend(Backend):
 
         proj = QgsProject()
         if not proj.read(src):
-            raise OpError(f"could not read project `{src}`",
-                          algorithm="project", params={"src": src}, backend="pyqgis")
+            raise OpError(
+                f"could not read project `{src}`",
+                algorithm="project",
+                params={"src": src},
+                backend="pyqgis",
+            )
         layers = []
         for lyr in proj.mapLayers().values():
-            layers.append({
-                "name": lyr.name(),
-                "source": lyr.source(),
-                "provider": lyr.providerType() or "",
-                "type": "vector" if isinstance(lyr, QgsVectorLayer) else "raster",
-                "crs": lyr.crs().authid(),
-                "valid": lyr.isValid(),
-            })
+            layers.append(
+                {
+                    "name": lyr.name(),
+                    "source": lyr.source(),
+                    "provider": lyr.providerType() or "",
+                    "type": "vector" if isinstance(lyr, QgsVectorLayer) else "raster",
+                    "crs": lyr.crs().authid(),
+                    "valid": lyr.isValid(),
+                }
+            )
         layers.sort(key=lambda d: d["name"])
         return {"title": proj.title(), "crs": proj.crs().authid(), "layers": layers}
 
@@ -1695,13 +1981,15 @@ class PyqgisBackend(Backend):
                         kind, typ = "vector", geom
                 else:
                     kind, typ = "raster", self._raster_summary(d.uri(), d.providerKey())
-                rows.append({
-                    "name": d.name(),
-                    "kind": kind,
-                    "type": typ,
-                    "format": d.driverName() or d.providerKey() or "",
-                    "ref": d.uri(),
-                })
+                rows.append(
+                    {
+                        "name": d.name(),
+                        "kind": kind,
+                        "type": typ,
+                        "format": d.driverName() or d.providerKey() or "",
+                        "ref": d.uri(),
+                    }
+                )
             except Exception:  # noqa: BLE001 — one bad sublayer must not break the listing
                 continue
         return rows
@@ -1726,8 +2014,9 @@ class PyqgisBackend(Backend):
         except Exception:  # noqa: BLE001
             return "raster"
 
-    def list_tables(self, conn: str, schema: str | None = None,
-                    table: str | None = None, warn=None) -> list:
+    def list_tables(
+        self, conn: str, schema: str | None = None, table: str | None = None, warn=None
+    ) -> list:
         """List a connection's tables via the QGIS connection API. SpatiaLite has no
         schemas (``schemas()`` raises) → a single unnamed schema; PostGIS iterates
         schemas (or just the one requested). Geometry type from the table's first
@@ -1762,7 +2051,9 @@ class PyqgisBackend(Backend):
                 # Surface per-schema failures (auth, network, permissions) so the user
                 # sees a meaningful message instead of a silent empty listing.
                 if warn:
-                    warn(f"  show @{conn}{('.' + sch) if sch else ''}: tables() — {exc}")
+                    warn(
+                        f"  show @{conn}{('.' + sch) if sch else ''}: tables() — {exc}"
+                    )
                 continue
             for t in props:
                 name = t.tableName()
@@ -1782,9 +2073,16 @@ class PyqgisBackend(Backend):
                 else:
                     kind, typ = "table", "(aspatial)"
                 ref = f"@{conn}." + (f"{sch}.{name}" if sch else name)
-                rows.append({"name": name, "kind": kind, "type": typ,
-                             "format": provider, "ref": ref})
-        rows.sort(key=lambda r: (r.get("name") or ""))
+                rows.append(
+                    {
+                        "name": name,
+                        "kind": kind,
+                        "type": typ,
+                        "format": provider,
+                        "ref": ref,
+                    }
+                )
+        rows.sort(key=lambda r: r.get("name") or "")
         return rows
 
     def list_service(self, url: str) -> list:
@@ -1860,7 +2158,10 @@ class PyqgisBackend(Backend):
                 raise OpError(
                     f"`project` repoint target `{target}` names a table — use "
                     "`@conn` or `@conn.<schema>`",
-                    algorithm="project", params={}, backend="pyqgis")
+                    algorithm="project",
+                    params={},
+                    backend="pyqgis",
+                )
             md, connection = self._find_connection(conn)
             sch = default_schema(md.key(), table)
             try:
@@ -1877,6 +2178,7 @@ class PyqgisBackend(Backend):
         # GeoPackage / file container target. Query ALL layer names (unlike
         # ``sublayers``, which returns [] for a single-layer container).
         from qgis.core import QgsProviderRegistry
+
         try:
             details = QgsProviderRegistry.instance().querySublayers(target)
             available = {d.name() for d in details if d.name()}
@@ -1910,8 +2212,12 @@ class PyqgisBackend(Backend):
 
             loaded = QgsVectorLayer(ml, layer.name or "layer", "ogr")
             if not loaded.isValid():
-                raise OpError(f"could not open `{ml}` to style it",
-                              algorithm="style", params={"path": path}, backend="pyqgis")
+                raise OpError(
+                    f"could not open `{ml}` to style it",
+                    algorithm="style",
+                    params={"path": path},
+                    backend="pyqgis",
+                )
             ml = loaded
         ext = os.path.splitext(path)[1].lower()
         if action == "save":
@@ -1924,10 +2230,199 @@ class PyqgisBackend(Backend):
         msg = res[0] if isinstance(res, tuple) else ""
         if not ok:
             kind = "metadata" if is_meta else "style"
-            raise OpError(f"could not apply {kind} `{path}`" + (f": {msg}" if msg else ""),
-                          algorithm="style", params={"path": path}, backend="pyqgis")
+            raise OpError(
+                f"could not apply {kind} `{path}`" + (f": {msg}" if msg else ""),
+                algorithm="style",
+                params={"path": path},
+                backend="pyqgis",
+            )
         self._persist_style(ml, is_meta)
         return None
+
+    # --- figure: render a simple map image (vector + raster + labels) --------
+
+    def render_figure(
+        self,
+        layer: Layer,
+        dest: str,
+        *,
+        size=None,
+        dpi: int = 96,
+        extent=None,
+        layers: list | None = None,
+        basemap: str | None = None,
+        bg: str | None = None,
+        labels: str | None = None,
+        progress=None,
+    ) -> None:
+        from qgis.core import (
+            QgsCoordinateReferenceSystem,
+            QgsMapRendererParallelJob,
+            QgsMapSettings,
+            QgsProject,
+            QgsRasterLayer,
+            QgsVectorLayer,
+        )
+        from qgis.PyQt.QtCore import QEventLoop, QSize
+        from qgis.PyQt.QtGui import QColor
+
+        primary = self._as_map_layer(layer.ref, layer.name)
+        stack = [primary]
+        for src in layers or []:
+            stack.append(self._as_map_layer(os.path.expanduser(str(src)), None))
+        if basemap:
+            bm = self._basemap_layer(basemap)
+            if bm is not None:
+                stack.append(bm)  # bottom of the draw order
+
+        # Optional convenience labeling of the primary vector layer by a field.
+        if labels and isinstance(primary, QgsVectorLayer):
+            self._enable_simple_labels(primary, labels)
+
+        dest_crs = (
+            primary.crs()
+            if primary.crs().isValid()
+            else QgsCoordinateReferenceSystem("EPSG:3857")
+        )
+        rect = self._resolve_extent(extent, stack, dest_crs)
+
+        # Sensible default so the simplest `figure out.png` shows something useful: give
+        # single-band rasters a min/max stretch over the visible extent (a flat DTM/DSM
+        # otherwise renders washed-out).
+        for ml in stack:
+            if isinstance(ml, QgsRasterLayer):
+                self._default_raster_stretch(ml, rect)
+
+        # Size: explicit (w,h), else derive height from the extent aspect at a 1200 px width.
+        if size:
+            w, h = int(size[0]), int(size[1])
+        else:
+            w = 1200
+            ar = (rect.height() / rect.width()) if rect.width() else 0.75
+            h = max(1, min(8000, int(round(w * ar))))
+
+        ms = QgsMapSettings()
+        ms.setLayers(stack)
+        ms.setDestinationCrs(dest_crs)
+        ms.setExtent(rect)
+        ms.setOutputSize(QSize(w, h))
+        ms.setOutputDpi(dpi)
+        ms.setFlag(QgsMapSettings.Flag.DrawLabeling, True)  # honour any layer's labels
+        ms.setFlag(
+            QgsMapSettings.Flag.Antialiasing, True
+        )  # smooth lines/text by default
+        ms.setFlag(QgsMapSettings.Flag.UseAdvancedEffects, True)
+        ms.setBackgroundColor(QColor(bg) if bg else QColor(255, 255, 255))
+        ms.setTransformContext(QgsProject.instance().transformContext())
+
+        if progress:
+            progress(f"   rendering {w}×{h} figure ({len(stack)} layer(s))")
+        job = QgsMapRendererParallelJob(ms)
+        loop = QEventLoop()
+        job.finished.connect(loop.quit)
+        job.start()
+        loop.exec()
+        img = job.renderedImage()
+        os.makedirs(os.path.dirname(os.path.abspath(dest)) or ".", exist_ok=True)
+        if not img.save(dest):
+            raise OpError(
+                f"could not write figure to `{dest}` (unsupported format? use .png/.jpg)",
+                algorithm="figure",
+                params={"dest": dest},
+                backend="pyqgis",
+            )
+
+    def _as_map_layer(self, ref, name):
+        """Resolve a layer handle or source path to a live vector/raster QgsMapLayer."""
+        from qgis.core import QgsMapLayer
+
+        if isinstance(ref, QgsMapLayer):
+            return ref
+        loaded = self.load(
+            str(ref)
+        ).ref  # opens as vector or raster, else raises OpError
+        return loaded
+
+    def _basemap_layer(self, spec: str):
+        """An XYZ tile basemap. ``osm`` is a shortcut; anything else is treated as an
+        XYZ URL template (with ``{z}/{x}/{y}``)."""
+        from qgis.core import QgsRasterLayer
+
+        url = (
+            "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+            if spec.lower() in ("osm", "openstreetmap")
+            else spec
+        )
+        uri = f"type=xyz&url={url}&zmax=19&zmin=0"
+        bm = QgsRasterLayer(uri, "basemap", "wms")
+        return bm if bm.isValid() else None
+
+    def _resolve_extent(self, extent, stack, dest_crs):
+        """Return a QgsRectangle in ``dest_crs``: an explicit bbox tuple, a borrowed
+        layer's extent, or the union of every drawn layer's extent."""
+        from qgis.core import QgsCoordinateTransform, QgsProject, QgsRectangle
+
+        ctx = QgsProject.instance().transformContext()
+
+        def to_dest(rect, crs):
+            if crs.isValid() and crs != dest_crs:
+                try:
+                    return QgsCoordinateTransform(
+                        crs, dest_crs, ctx
+                    ).transformBoundingBox(rect)
+                except Exception:  # noqa: BLE001 — unprojectable layer; use as-is
+                    return rect
+            return rect
+
+        if isinstance(extent, (tuple, list)) and len(extent) == 4:
+            return QgsRectangle(
+                float(extent[0]), float(extent[1]), float(extent[2]), float(extent[3])
+            )
+        if isinstance(extent, str) and extent not in ("", "layer"):
+            borrow = self._as_map_layer(os.path.expanduser(extent), None)
+            return to_dest(borrow.extent(), borrow.crs())
+        union = QgsRectangle()
+        union.setMinimal()
+        for ml in stack:
+            e = ml.extent()
+            if e.isNull() or e.isEmpty():
+                continue
+            union.combineExtentWith(to_dest(e, ml.crs()))
+        if union.isNull() or union.width() == 0:
+            union = stack[0].extent()
+        union.scale(1.05)  # a small margin around the data
+        return union
+
+    def _default_raster_stretch(self, rl, rect):
+        """Stretch a single-band-gray raster to its min/max over ``rect`` so a bare
+        `figure` of a DEM/elevation raster reads well. Leaves RGB/paletted rasters alone."""
+        from qgis.core import QgsContrastEnhancement, QgsSingleBandGrayRenderer
+
+        try:
+            if isinstance(rl.renderer(), QgsSingleBandGrayRenderer):
+                rl.setContrastEnhancement(
+                    QgsContrastEnhancement.ContrastEnhancementAlgorithm.StretchToMinimumMaximum,
+                    extent=rect,
+                )
+        except Exception:  # noqa: BLE001 — a nice-to-have; never fail the render over it
+            pass
+
+    def _enable_simple_labels(self, vlayer, field: str):
+        """Turn on single-field labeling on a vector layer (a convenience for `figure`)."""
+        from qgis.core import QgsPalLayerSettings, QgsVectorLayerSimpleLabeling
+
+        if field not in [f.name() for f in vlayer.fields()]:
+            raise OpError(
+                f"`figure labels={field}`: no field `{field}` in `{vlayer.name()}`",
+                algorithm="figure",
+                params={"labels": field},
+                backend="pyqgis",
+            )
+        s = QgsPalLayerSettings()
+        s.fieldName = field
+        s.enabled = True
+        vlayer.setLabeling(QgsVectorLayerSimpleLabeling(s))
+        vlayer.setLabelsEnabled(True)
 
     def _save_style(self, ml, path: str, ext: str) -> None:
         """Export the layer's style/metadata: ``.qml`` (QGIS style), ``.qmd`` (metadata),
@@ -1938,10 +2433,15 @@ class PyqgisBackend(Backend):
 
             node = QgsLayerTreeLayer(ml)
             ok, err = QgsLayerDefinition.exportLayerDefinition(
-                path, [node], Qgis.FilePathType.Absolute)
+                path, [node], Qgis.FilePathType.Absolute
+            )
             if not ok:
-                raise OpError(f"could not export QLR to `{path}`" + (f": {err}" if err else ""),
-                              algorithm="style", params={"path": path}, backend="pyqgis")
+                raise OpError(
+                    f"could not export QLR to `{path}`" + (f": {err}" if err else ""),
+                    algorithm="style",
+                    params={"path": path},
+                    backend="pyqgis",
+                )
             return None
         if ext == ".sld":
             msg, ok = ml.saveSldStyle(path)
@@ -1950,8 +2450,12 @@ class PyqgisBackend(Backend):
         else:  # .qml
             msg, ok = ml.saveNamedStyle(path)
         if not ok:
-            raise OpError(f"could not save to `{path}`" + (f": {msg}" if msg else ""),
-                          algorithm="style", params={"path": path}, backend="pyqgis")
+            raise OpError(
+                f"could not save to `{path}`" + (f": {msg}" if msg else ""),
+                algorithm="style",
+                params={"path": path},
+                backend="pyqgis",
+            )
         return None
 
     def _persist_style(self, ml, is_meta: bool) -> None:
@@ -1964,20 +2468,33 @@ class PyqgisBackend(Backend):
             raise OpError(
                 "`style apply` needs a file-backed layer — save it first, e.g. "
                 "`… | save out.gpkg | style apply house.qml`",
-                algorithm="style", params={}, backend="pyqgis")
+                algorithm="style",
+                params={},
+                backend="pyqgis",
+            )
         ext = os.path.splitext(src)[1].lower()
         is_container = ext in (".gpkg", ".sqlite", ".db")
         if not is_meta and is_container and hasattr(ml, "saveStyleToDatabaseV2"):
             _result, err = ml.saveStyleToDatabaseV2("default", "", True, "")
             if err:
-                raise OpError(f"could not store style in `{os.path.basename(src)}`: {err}",
-                              algorithm="style", params={}, backend="pyqgis")
+                raise OpError(
+                    f"could not store style in `{os.path.basename(src)}`: {err}",
+                    algorithm="style",
+                    params={},
+                    backend="pyqgis",
+                )
             return None
         sidecar = os.path.splitext(src)[0] + (".qmd" if is_meta else ".qml")
-        msg, ok = ml.saveNamedMetadata(sidecar) if is_meta else ml.saveNamedStyle(sidecar)
+        msg, ok = (
+            ml.saveNamedMetadata(sidecar) if is_meta else ml.saveNamedStyle(sidecar)
+        )
         if not ok:
-            raise OpError(f"could not write sidecar `{sidecar}`" + (f": {msg}" if msg else ""),
-                          algorithm="style", params={}, backend="pyqgis")
+            raise OpError(
+                f"could not write sidecar `{sidecar}`" + (f": {msg}" if msg else ""),
+                algorithm="style",
+                params={},
+                backend="pyqgis",
+            )
         return None
 
     def valid_crs(self, text: str) -> bool:
@@ -1997,7 +2514,8 @@ class PyqgisBackend(Backend):
         map_unit = crs.mapUnits()
         factor = QgsUnitTypes.fromUnitToUnitFactor(map_unit, Qgis.DistanceUnit.Meters)
         return CrsInfo(
-            authid, False,
+            authid,
+            False,
             units_to_meters=factor or 1.0,
             map_units=QgsUnitTypes.toString(map_unit),
         )

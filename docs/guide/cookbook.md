@@ -554,6 +554,23 @@ load tile.las | run pdalcli:translate filter="Classification==6" output=building
 load buildings.laz | run pdalcli:boundary | fixgeom | simplify 0.5m | save building_footprints.gpkg
 ```
 
+**83. The simplest possible map** — one layer, one line, no options; `figure` picks a sensible
+extent, size, and stretch so it just works for vector *or* raster
+```
+load dem.tif | figure dem.png
+```
+
+**84. Push it — a full thematic map using every knob** — themed primary layer, a raster hillshade
+plus two vector overlays, an OSM basemap, field labels, a borrowed extent, and print-scale output
+```
+load flood_zones.gpkg | style apply=flood.qml \
+  | figure flood_map.png layers="hillshade.tif;roads.gpkg;places.gpkg" \
+      basemap=osm labels=zone_name extent=study_area.gpkg size=2400x1600 dpi=200 bg="#eef3f7"
+```
+Draw order is top-down: `flood_zones` (styled) over the overlays over the basemap. `extent=` borrows
+another layer's bounds; `labels=` labels by an attribute; `dpi=200` sizes symbols/text for print.
+Being pass-through, `figure` can also snapshot a mid-pipe step: `… | figure step.png | save out.gpkg`.
+
 ---
 
 ## Capstone — full pipelines

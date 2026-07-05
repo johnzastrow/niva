@@ -40,8 +40,16 @@ class Backend(abc.ABC):
         text is never logged in errors."""
 
     @abc.abstractmethod
-    def save_table(self, layer: Layer, conn: str, schema: str | None, table: str, *,
-                   mode: str = "create", lineage: list | None = None) -> Layer:
+    def save_table(
+        self,
+        layer: Layer,
+        conn: str,
+        schema: str | None,
+        table: str,
+        *,
+        mode: str = "create",
+        lineage: list | None = None,
+    ) -> Layer:
         """Write ``layer`` into a table on the named QGIS connection and return a
         handle to it. ``mode`` is fail-closed: ``create`` errors if the table exists,
         ``replace`` drops+recreates it, ``append`` INSERTs into it. The destination
@@ -49,16 +57,32 @@ class Backend(abc.ABC):
         sees them. ``lineage`` is recorded best-effort into the table's comment."""
 
     @abc.abstractmethod
-    def run(self, algorithm: str, params: dict, *, input_param: str,
-            input_layer: Layer, output_param: str, progress=None, cancel=None) -> Layer:
+    def run(
+        self,
+        algorithm: str,
+        params: dict,
+        *,
+        input_param: str,
+        input_layer: Layer,
+        output_param: str,
+        progress=None,
+        cancel=None,
+    ) -> Layer:
         """Run ``algorithm`` with ``params``, feeding ``input_layer`` into
         ``input_param`` and a temporary sink into ``output_param``; return the
         output as a new handle. Failures raise ``OpError``. ``progress`` is an
         optional ``callable(str)`` for live status (algorithm progress %)."""
 
     @abc.abstractmethod
-    def run_raw(self, algorithm: str, params: dict, *, input_layer: Layer | None = None,
-                progress=None, cancel=None):
+    def run_raw(
+        self,
+        algorithm: str,
+        params: dict,
+        *,
+        input_layer: Layer | None = None,
+        progress=None,
+        cancel=None,
+    ):
         """The `run` escape hatch: pass ``params`` to ``algorithm`` verbatim. The
         backend injects ``INPUT`` from ``input_layer`` if absent (piped use) and a
         temporary ``OUTPUT`` if absent, then returns the output as a handle, or
@@ -77,8 +101,15 @@ class Backend(abc.ABC):
         return it (a pass-through). Persisted to disk by the next ``save``."""
 
     @abc.abstractmethod
-    def save(self, layer: Layer, dest: str, lineage: list | None = None, *,
-             layer_name: str | None = None, append: bool = False) -> Layer:
+    def save(
+        self,
+        layer: Layer,
+        dest: str,
+        lineage: list | None = None,
+        *,
+        layer_name: str | None = None,
+        append: bool = False,
+    ) -> Layer:
         """Write ``layer`` to ``dest`` and return a handle to the written file.
         ``lineage`` is the list of niva stages that built the layer; the backend
         records them into the output's metadata history (08-§3). ``layer_name`` names
@@ -91,9 +122,18 @@ class Backend(abc.ABC):
         """Report ``layer``'s CRS — used to resolve distances (units.py)."""
 
     @abc.abstractmethod
-    def repoint_project(self, src: str, dest: str, *, target, missing: str,
-                        rasters: str | None = None, paths: str | None = None,
-                        bookmark: str | None = None, progress=None) -> None:
+    def repoint_project(
+        self,
+        src: str,
+        dest: str,
+        *,
+        target,
+        missing: str,
+        rasters: str | None = None,
+        paths: str | None = None,
+        bookmark: str | None = None,
+        progress=None,
+    ) -> None:
         """Copy the QGIS project ``src`` to ``dest``, optionally repointing each vector
         layer's datasource to ``target``, matched by layer name and preserving subset
         filters and symbology. ``target`` is one of: a GeoPackage path; an
@@ -113,8 +153,44 @@ class Backend(abc.ABC):
         ends ``.qml`` (symbology) or ``.qmd`` (metadata). The `style` verb."""
 
     @abc.abstractmethod
-    def create_project(self, layers: list, dest: str, *, crs: str | None = None,
-                       title: str | None = None, progress=None) -> None:
+    def render_figure(
+        self,
+        layer: Layer,
+        dest: str,
+        *,
+        size=None,
+        dpi: int = 96,
+        extent=None,
+        layers: list | None = None,
+        basemap: str | None = None,
+        bg: str | None = None,
+        labels: str | None = None,
+        progress=None,
+    ) -> None:
+        """Render a simple map **image** of ``layer`` (the `figure` verb) to ``dest``
+        (`.png`/`.jpg`). Handles **both raster and vector** layers — ``QgsMapSettings``
+        draws them uniformly. Each layer draws with its current/attached style, else QGIS's
+        default renderer; a vector layer whose style enables **labels** renders them
+        automatically. ``layer`` is the top; ``layers`` (extra source paths) draw beneath
+        it; ``basemap`` (``'osm'`` or an XYZ-tile URL) draws at the bottom.
+
+        ``size`` is ``(width, height)`` in px (derived from the extent's aspect if None);
+        ``dpi`` scales symbol/text sizes; ``extent`` is ``None`` (union of drawn layers),
+        a ``(xmin, ymin, xmax, ymax)`` tuple, or a layer-source path to borrow; ``labels``
+        turns on simple labeling of the primary vector layer by that attribute field (a
+        convenience over configuring labeling in the layer's style). A terminal rendering
+        with no pipeable result — the engine treats `figure` as pass-through."""
+
+    @abc.abstractmethod
+    def create_project(
+        self,
+        layers: list,
+        dest: str,
+        *,
+        crs: str | None = None,
+        title: str | None = None,
+        progress=None,
+    ) -> None:
         """Write a new QGIS project at ``dest`` loading each layer URI in ``layers``,
         optionally setting the project CRS and title. The `project new` form."""
 
@@ -134,8 +210,9 @@ class Backend(abc.ABC):
         that's ``catalog``)."""
 
     @abc.abstractmethod
-    def list_tables(self, conn: str, schema: str | None = None,
-                    table: str | None = None, warn=None) -> list:
+    def list_tables(
+        self, conn: str, schema: str | None = None, table: str | None = None, warn=None
+    ) -> list:
         """List the tables in a database connection (the loadable ``@conn`` targets).
         ``schema`` limits to one schema (PostGIS); ``table`` limits to one table. Returns
         the same per-entry dicts as :meth:`list_layers`, with ``ref`` an
@@ -181,8 +258,15 @@ class Backend(abc.ABC):
 
     # --- journal echo (concrete; shared by every backend) --------------------
 
-    def render_call(self, algorithm: str, params: dict, *, input_param: str | None = None,
-                    input_layer: Layer | None = None, output_param: str | None = None) -> str:
+    def render_call(
+        self,
+        algorithm: str,
+        params: dict,
+        *,
+        input_param: str | None = None,
+        input_layer: Layer | None = None,
+        output_param: str | None = None,
+    ) -> str:
         """A copy-pasteable ``processing.run(...)`` string equivalent to the call this
         op runs — echoed into the journal's machine (jsonl) record. Reconstructs the
         exact dict ``run``/``run_raw`` hand to ``processing.run``: the input layer
@@ -191,7 +275,9 @@ class Backend(abc.ABC):
         param names; omit both for the ``run`` escape hatch (INPUT/OUTPUT defaults)."""
         full = dict(params)
         if input_param:
-            full[input_param] = self._ref_source(input_layer) if input_layer is not None else None
+            full[input_param] = (
+                self._ref_source(input_layer) if input_layer is not None else None
+            )
         elif input_layer is not None and "INPUT" not in full:
             full["INPUT"] = self._ref_source(input_layer)
         full.setdefault(output_param or "OUTPUT", "TEMPORARY_OUTPUT")
@@ -221,8 +307,13 @@ class MockBackend(Backend):
         self.saves: list = []  # one dict per save: {dest, layer_name, append}
         self.db_saves: list = []  # one dict per DB save: {conn, schema, table, mode}
         self.sublayer_map: dict = {}  # source path -> [layer names], for `each` tests
-        self.layer_map = None  # source -> [layer names] for `show` dir tests; None = 2 fakes
-        self.conn_names = ["pg", "sl"]  # registered @conn names; tests may add dotted ones
+        self.layer_map = (
+            None  # source -> [layer names] for `show` dir tests; None = 2 fakes
+        )
+        self.conn_names = [
+            "pg",
+            "sl",
+        ]  # registered @conn names; tests may add dotted ones
         self._n = 0
 
     def sublayers(self, source: str) -> list:
@@ -247,15 +338,35 @@ class MockBackend(Backend):
         self.calls.append(("load", source))
         return Layer(SOURCE, source, facet=facet, name=source)
 
-    def run(self, algorithm: str, params: dict, *, input_param: str,
-            input_layer: Layer, output_param: str, progress=None, cancel=None) -> Layer:
+    def run(
+        self,
+        algorithm: str,
+        params: dict,
+        *,
+        input_param: str,
+        input_layer: Layer,
+        output_param: str,
+        progress=None,
+        cancel=None,
+    ) -> Layer:
         self.calls.append(("run", algorithm, params))
         self._n += 1
-        return Layer(MEMORY, f"result-{self._n}", facet=input_layer.facet,
-                     name=f"{algorithm}#{self._n}")
+        return Layer(
+            MEMORY,
+            f"result-{self._n}",
+            facet=input_layer.facet,
+            name=f"{algorithm}#{self._n}",
+        )
 
-    def run_raw(self, algorithm: str, params: dict, *, input_layer: Layer | None = None,
-                progress=None, cancel=None):
+    def run_raw(
+        self,
+        algorithm: str,
+        params: dict,
+        *,
+        input_layer: Layer | None = None,
+        progress=None,
+        cancel=None,
+    ):
         self.calls.append(("run", algorithm, params))
         self._n += 1
         facet = input_layer.facet if input_layer is not None else "vector"
@@ -275,25 +386,83 @@ class MockBackend(Backend):
         self.calls.append(("execute_sql", conn, query))
         return None
 
-    def save_table(self, layer: Layer, conn: str, schema: str | None, table: str, *,
-                   mode: str = "create", lineage: list | None = None) -> Layer:
+    def save_table(
+        self,
+        layer: Layer,
+        conn: str,
+        schema: str | None,
+        table: str,
+        *,
+        mode: str = "create",
+        lineage: list | None = None,
+    ) -> Layer:
         self.calls.append(("save_table", conn, schema, table, mode))
-        self.db_saves.append({"conn": conn, "schema": schema, "table": table, "mode": mode})
+        self.db_saves.append(
+            {"conn": conn, "schema": schema, "table": table, "mode": mode}
+        )
         self.last_lineage = list(lineage) if lineage else []
         ref = f"@{conn}." + (f"{schema}.{table}" if schema else table)
         return Layer(DB_TABLE, ref, facet="vector", name=table)
 
-    def repoint_project(self, src: str, dest: str, *, target, missing: str,
-                        rasters: str | None = None, paths: str | None = None,
-                        bookmark: str | None = None, progress=None) -> None:
+    def repoint_project(
+        self,
+        src: str,
+        dest: str,
+        *,
+        target,
+        missing: str,
+        rasters: str | None = None,
+        paths: str | None = None,
+        bookmark: str | None = None,
+        progress=None,
+    ) -> None:
         self.calls.append(
-            ("repoint_project", src, dest, target, missing, rasters, paths, bookmark))
+            ("repoint_project", src, dest, target, missing, rasters, paths, bookmark)
+        )
 
     def style_layer(self, layer: Layer, action: str, path: str) -> None:
         self.calls.append(("style", action, path))
 
-    def create_project(self, layers: list, dest: str, *, crs: str | None = None,
-                       title: str | None = None, progress=None) -> None:
+    def render_figure(
+        self,
+        layer: Layer,
+        dest: str,
+        *,
+        size=None,
+        dpi: int = 96,
+        extent=None,
+        layers: list | None = None,
+        basemap: str | None = None,
+        bg: str | None = None,
+        labels: str | None = None,
+        progress=None,
+    ) -> None:
+        self.calls.append(
+            (
+                "figure",
+                layer.name,
+                dest,
+                {
+                    "size": size,
+                    "dpi": dpi,
+                    "extent": extent,
+                    "layers": list(layers or []),
+                    "basemap": basemap,
+                    "bg": bg,
+                    "labels": labels,
+                },
+            )
+        )
+
+    def create_project(
+        self,
+        layers: list,
+        dest: str,
+        *,
+        crs: str | None = None,
+        title: str | None = None,
+        progress=None,
+    ) -> None:
         self.calls.append(("create_project", list(layers), dest, crs, title))
 
     def read_project(self, src: str) -> dict:
@@ -306,34 +475,73 @@ class MockBackend(Backend):
             # Realistic: only mapped sources have layers; everything else is empty (so a
             # directory scan that probes every file mirrors querySublayers filtering junk).
             names = list(self.layer_map.get(source, []))
-            return [{"name": n, "kind": "vector", "type": "Polygon", "format": "GPKG",
-                     "ref": f"{source}|layername={n}"} for n in names]
+            return [
+                {
+                    "name": n,
+                    "kind": "vector",
+                    "type": "Polygon",
+                    "format": "GPKG",
+                    "ref": f"{source}|layername={n}",
+                }
+                for n in names
+            ]
         return [
-            {"name": "layer_a", "kind": "vector", "type": "Polygon",
-             "format": "GPKG", "ref": f"{source}|layername=layer_a"},
-            {"name": "layer_b", "kind": "vector", "type": "Point",
-             "format": "GPKG", "ref": f"{source}|layername=layer_b"},
+            {
+                "name": "layer_a",
+                "kind": "vector",
+                "type": "Polygon",
+                "format": "GPKG",
+                "ref": f"{source}|layername=layer_a",
+            },
+            {
+                "name": "layer_b",
+                "kind": "vector",
+                "type": "Point",
+                "format": "GPKG",
+                "ref": f"{source}|layername=layer_b",
+            },
         ]
 
-    def list_tables(self, conn: str, schema: str | None = None,
-                    table: str | None = None, warn=None) -> list:
+    def list_tables(
+        self, conn: str, schema: str | None = None, table: str | None = None, warn=None
+    ) -> list:
         self.calls.append(("list_tables", conn, schema, table))
         prefix = f"@{conn}." + (f"{schema}." if schema else "")
         rows = [
-            {"name": "roads", "kind": "vector", "type": "LineString",
-             "format": "postgres", "ref": f"{prefix}roads"},
-            {"name": "homes", "kind": "vector", "type": "Point",
-             "format": "postgres", "ref": f"{prefix}homes"},
+            {
+                "name": "roads",
+                "kind": "vector",
+                "type": "LineString",
+                "format": "postgres",
+                "ref": f"{prefix}roads",
+            },
+            {
+                "name": "homes",
+                "kind": "vector",
+                "type": "Point",
+                "format": "postgres",
+                "ref": f"{prefix}homes",
+            },
         ]
         return [r for r in rows if table is None or r["name"] == table]
 
     def list_service(self, url: str) -> list:
         self.calls.append(("list_service", url))
         return [
-            {"name": "topp:states", "kind": "vector", "type": "EPSG:4326",
-             "format": "WFS", "ref": f"WFS:{url}"},
-            {"name": "topp:roads", "kind": "vector", "type": "EPSG:4326",
-             "format": "WFS", "ref": f"WFS:{url}"},
+            {
+                "name": "topp:states",
+                "kind": "vector",
+                "type": "EPSG:4326",
+                "format": "WFS",
+                "ref": f"WFS:{url}",
+            },
+            {
+                "name": "topp:roads",
+                "kind": "vector",
+                "type": "EPSG:4326",
+                "format": "WFS",
+                "ref": f"WFS:{url}",
+            },
         ]
 
     def environment_report(self) -> str:
@@ -345,14 +553,30 @@ class MockBackend(Backend):
         # PyqgisBackend enumerates the live processing registry (1000+ algorithms).
         self.calls.append(("algorithm_catalog",))
         return [
-            {"id": "native:buffer", "display_name": "Buffer", "group": "Vector geometry",
-             "description": "Computes a buffer area for all the features in an input layer."},
-            {"id": "native:centroids", "display_name": "Centroids", "group": "Vector geometry",
-             "description": "Creates a point layer of the centroids of input geometries."},
-            {"id": "gdal:warpreproject", "display_name": "Warp (reproject)", "group": "Raster projections",
-             "description": "Reprojects a raster into another coordinate reference system."},
-            {"id": "qgis:randomselection", "display_name": "Random selection", "group": "Vector selection",
-             "description": "Selects a random subset of features in a layer."},
+            {
+                "id": "native:buffer",
+                "display_name": "Buffer",
+                "group": "Vector geometry",
+                "description": "Computes a buffer area for all the features in an input layer.",
+            },
+            {
+                "id": "native:centroids",
+                "display_name": "Centroids",
+                "group": "Vector geometry",
+                "description": "Creates a point layer of the centroids of input geometries.",
+            },
+            {
+                "id": "gdal:warpreproject",
+                "display_name": "Warp (reproject)",
+                "group": "Raster projections",
+                "description": "Reprojects a raster into another coordinate reference system.",
+            },
+            {
+                "id": "qgis:randomselection",
+                "display_name": "Random selection",
+                "group": "Vector selection",
+                "description": "Selects a random subset of features in a layer.",
+            },
         ]
 
     def profile(self, layer: Layer, deep: bool = False) -> dict:
@@ -368,16 +592,27 @@ class MockBackend(Backend):
             "metadata": {"title": "", "abstract": "", "keywords": [], "history": []},
         }
         if deep:
-            prof.update(invalid_geometries=0, empty_geometries=0,
-                        duplicate_geometries=0, null_counts={"id": 0})
+            prof.update(
+                invalid_geometries=0,
+                empty_geometries=0,
+                duplicate_geometries=0,
+                null_counts={"id": 0},
+            )
         return prof
 
     def set_metadata(self, layer: Layer, fields: dict) -> Layer:
         self.calls.append(("metadata", fields))
         return layer
 
-    def save(self, layer: Layer, dest: str, lineage: list | None = None, *,
-             layer_name: str | None = None, append: bool = False) -> Layer:
+    def save(
+        self,
+        layer: Layer,
+        dest: str,
+        lineage: list | None = None,
+        *,
+        layer_name: str | None = None,
+        append: bool = False,
+    ) -> Layer:
         self.calls.append(("save", dest))
         self.saves.append({"dest": dest, "layer_name": layer_name, "append": append})
         self.last_lineage = list(lineage) if lineage else []

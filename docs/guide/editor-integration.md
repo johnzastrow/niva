@@ -122,7 +122,7 @@ of the files above are the source of truth.
 
 ## Keeping the definitions in sync
 
-All formats encode the same three lists — **21 built-in verbs**, **45 alias verbs**, and the
+All formats encode the same three lists — **22 built-in verbs**, **45 alias verbs**, and the
 token rules (options `key=`, `@conn`, `EPSG:`, distances, pipe, `{template}`). When verbs change,
 update every file under `.vscode/niva/`. The lists mirror niva's registry
 ([`niva/registry/definitions.py`](../../niva/registry/definitions.py)) and the built-in dispatch
