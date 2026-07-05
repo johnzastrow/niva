@@ -2428,7 +2428,17 @@ class PyqgisBackend(Backend):
         else:
             pw, ph = min(pw, ph), max(pw, ph)
 
-        proj = QgsProject.instance()
+        # The stack must live in a project's layer tree for the LEGEND to populate (a map
+        # item's setLayers() alone leaves the legend empty). Adding a layer to a project
+        # transfers OWNERSHIP, and this binding exposes no `takeOwnership` flag — so add
+        # CLONES, never the originals: the isolated project owns/deletes the clones, while
+        # the engine's live piped layer is untouched. Clones carry the style, labeling, and
+        # raster stretch applied above. An ISOLATED project (never QgsProject.instance(),
+        # which in the plugin is the user's live project) also keeps the render self-contained.
+        render_stack = [ml.clone() for ml in stack]
+        proj = QgsProject()
+        proj.addMapLayers(render_stack, True)  # addToLegend=True → legend auto-populates
+        proj.setCrs(dest_crs)
         lay = QgsLayout(proj)
         lay.initializeDefaults()
         lay.pageCollection().pages()[0].setPageSize(
@@ -2445,7 +2455,7 @@ class PyqgisBackend(Backend):
         mi = QgsLayoutItemMap(lay)
         mi.attemptMove(QgsLayoutPoint(map_x, map_y, QgsUnitTypes.LayoutMillimeters))
         mi.attemptResize(QgsLayoutSize(map_w, map_h, QgsUnitTypes.LayoutMillimeters))
-        mi.setLayers(stack)
+        mi.setLayers(render_stack)
         mi.setCrs(dest_crs)
         mi.zoomToExtent(rect)
         mi.setBackgroundColor(self._q_white())
