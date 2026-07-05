@@ -1,0 +1,65 @@
+# =============================================================================
+# platform_selftest.niva — validate a niva install on ANY platform
+# =============================================================================
+# Exercises every core provider end-to-end using ONLY the tiny fixtures shipped
+# in examples/selftest_data/ (~320 KB, committed with niva) — no downloads, no
+# demo build, nothing to fetch. Works on a pristine clone. A clean run means this
+# machine's QGIS + niva can do vector, raster, GRASS terrain, AND LiDAR/point-cloud
+# processing. Every step writes a figure to selftest_out/ so you can SEE it worked.
+#
+# HOW TO RUN THE FULL PLATFORM CHECK (base utilities + this flow):
+#   The companion runner drives the base CLI utilities first, then this flow:
+#       bash platform_selftest.sh                 # from examples/
+#   or run the pieces yourself (any OS):
+#       niva pdal check                           # is the point-cloud backend wired?
+#       niva pdal test                            # wrench grids a cloud end-to-end
+#       niva validate platform_selftest.niva      # offline lint of this flow
+#       niva run platform_selftest.niva --explain # plan only (no QGIS)
+#       niva run platform_selftest.niva           # THIS flow (needs QGIS)
+#   Run from the examples/ directory (paths are relative to it).
+#
+# SHIPPED INPUTS (examples/selftest_data/, committed — regenerate with
+#   examples/build_selftest_data.sh if ever needed):
+#   area.gpkg (a polygon) · dem.tif (elevation) · points.copc.laz (LiDAR, class 2=ground)
+#
+# The sections are INDEPENDENT: vector/raster/GRASS validate even if the LiDAR
+# backend isn't set up. The pdalcli:/pdal: sections need pdal_wrench +
+# $QGIS_WRENCH_EXECUTABLE; if they're not wired the flow stops there with an
+# actionable message — run `niva pdal check` and see docs/guide/pdal-setup.md.
+# Ordered core → optional so the always-available providers validate first.
+# =============================================================================
+
+# --- 1 · VECTOR (native provider) -------------------------------------------
+# reproject + repair, buffer (metric), and centroid — the everyday vector spine.
+load "selftest_data/area.gpkg" | reproject EPSG:4326 | fixgeom | save selftest_out/01_area_4326.gpkg | figure selftest_out/01_vector_reproject.png
+load "selftest_data/area.gpkg" | buffer 50m | save selftest_out/02_area_buffer.gpkg | figure selftest_out/02_vector_buffer.png
+load "selftest_data/area.gpkg" | centroid | save selftest_out/03_area_centroid.gpkg
+
+# --- 2 · RASTER (gdal provider) ---------------------------------------------
+# slope + hillshade from the shipped DEM, and a raster-algebra pass.
+load selftest_data/dem.tif | slope | save selftest_out/04_slope.tif | figure selftest_out/04_raster_slope.png
+load selftest_data/dem.tif | hillshade | save selftest_out/05_hillshade.tif | figure selftest_out/05_raster_hillshade.png
+run gdal:rastercalculator FORMULA="A+1.0" INPUT_A=selftest_data/dem.tif BAND_A=1 OUTPUT=selftest_out/06_dem_copy.tif
+load selftest_out/06_dem_copy.tif | figure selftest_out/06_raster_calc.png
+
+# --- 3 · TERRAIN (GRASS provider — ships with QGIS) -------------------------
+# GRASS r.slope.aspect on the same DEM (terminal, named output), then render it.
+# (A GDAL "SetColorTable() only supported for Byte or UInt16" line here is BENIGN —
+#  GRASS just can't attach a colour table to the Float32 slope; the raster is valid.)
+run grass:r.slope.aspect elevation=selftest_data/dem.tif slope=selftest_out/07_grass_slope.tif
+load selftest_out/07_grass_slope.tif | figure selftest_out/07_grass_slope.png
+
+# --- 4 · POINT CLOUD via pdalcli: (raw/COPC — no COPC step) -----------------
+# DTM from ground points (class 2) and DSM from all returns. pdalcli: reads the
+# COPC directly and takes native PDAL filters.
+load selftest_data/points.copc.laz | run pdalcli:to_raster attribute=Z filter="Classification==2" resolution=2 | save selftest_out/08_pc_dtm.tif | figure selftest_out/08_pointcloud_dtm.png
+load selftest_data/points.copc.laz | run pdalcli:to_raster attribute=Z resolution=2 | save selftest_out/09_pc_dsm.tif | figure selftest_out/09_pointcloud_dsm.png
+
+# --- 5 · POINT CLOUD via the QGIS pdal: provider (COPC input) ---------------
+# Same DTM through the QGIS PDAL algorithm. NOTE the =-free filter form: QGIS
+# evaluates FILTER_EXPRESSION as a QGIS expression and silently drops `==`
+# (see docs/guide/pdal-setup.md) — this range selects class 2 only.
+load selftest_data/points.copc.laz | run pdal:exportraster ATTRIBUTE=Z FILTER_EXPRESSION="Classification > 1.5 and Classification < 2.5" RESOLUTION=2 | save selftest_out/10_pc_dtm_qgis.tif | figure selftest_out/10_pointcloud_dtm_qgis.png
+
+# If you reached here: vector, raster, GRASS, and BOTH point-cloud paths work on
+# this platform. Figures are in selftest_out/. You're ready to run real flows.

@@ -12,6 +12,12 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ## [Unreleased]
 
 ### Added
+- **`examples/platform_selftest.niva` + `platform_selftest.sh` — validate a niva install on any
+  platform.** A self-contained flow that exercises every provider — vector (`native`), raster
+  (`gdal`), terrain (`grass`), and LiDAR point clouds via **both** `pdalcli:` and `pdal:` — using
+  only data shipped under `examples/demo/` (adds a tiny 180 KB `demo_points.copc.laz`; nothing to
+  download). The companion runner drives the base CLI utilities too (`niva pdal check` → `pdal test`
+  → `validate` → `--explain` → `run`) and reports PASS/FAIL per step.
 - **`niva pdal [check|test|setup]` — set up & test the point-cloud (PDAL) backend.** Finds
   `pdal_wrench` (env vars → `PATH` → conda envs → QGIS bundles), reports its version and the QGIS
   PDAL provider/data-provider state, and prints an **OS-tailored fix** when anything is missing.
@@ -24,6 +30,11 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   `pdalcli:`), and that QGIS's `pdal:exportraster` silently drops `==` in `FILTER_EXPRESSION`.
 
 ### Fixed
+- **`run` no longer glob-expands a compact expression value.** A `run` option value with `*` but no
+  spaces and no path separator (e.g. `FORMULA="A*1.0"`, `"(A<0.2)*1"`, `"A*tan(B*0.0174533)"`) was
+  mistaken for a bare file glob and failed with *"no files match"*. Such a value now passes through
+  as a literal when nothing matches; a path-shaped glob (`tiles/*.jp2`) that matches nothing still
+  errors (typo detection preserved).
 - **`pdalcli:`/`saga:` runs no longer crash when `NIVA_TMPDIR` doesn't exist.** The native-CLI
   harness wrote temp outputs via `mkstemp(dir=NIVA_TMPDIR)` but never created that dir (unlike the
   QGIS path), so a bespoke scratch dir made every run die with a raw `FileNotFoundError`;

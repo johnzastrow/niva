@@ -2275,18 +2275,25 @@ class Engine:
         items, globbed = [], False
         for seg in (s.strip() for s in value.split(";") if s.strip()):
             seg = os.path.expanduser(seg)
-            is_path_glob = any(c in seg for c in "*?[") and (
-                "/" in seg or os.sep in seg or " " not in seg
-            )
+            has_sep = "/" in seg or os.sep in seg
+            is_path_glob = any(c in seg for c in "*?[") and (has_sep or " " not in seg)
             if is_path_glob:
                 pattern = seg if os.path.isabs(seg) else os.path.join(base, seg)
                 matches = sorted(glob.glob(pattern))
-                if not matches:
+                if matches:
+                    items.extend(matches)
+                    globbed = True
+                elif has_sep:
+                    # A path-shaped glob (`tiles/*.jp2`) that matches nothing is a real
+                    # error — almost certainly a typo in the path.
                     raise FlowError(
                         f"no files match `{seg}`", line=stage.line, stage=stage.raw
                     )
-                items.extend(matches)
-                globbed = True
+                else:
+                    # No path separator and nothing matched → this wasn't a glob at all
+                    # but a value that merely contains `*` (a math expression like
+                    # FORMULA="A*1.0" or "(A<0.2)*1"). Pass it through untouched.
+                    items.append(_scalar(seg))
             else:
                 items.append(_scalar(seg))
         if globbed or len(items) > 1:
