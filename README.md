@@ -63,6 +63,11 @@ niva in the QGIS plugin dock and on the command line — see **[docs/screenshots
 
 ## Quick start
 
+> **Dependencies:** the only requirement is **QGIS 3.22+/4.x** (niva runs in its Python) — core
+> geoprocessing needs nothing else. Point clouds (`pdalcli:`/`pdal:`), SAGA, OTB, LAStools,
+> `notify`/`email`, and editor highlighting are **optional** add-ons; see
+> **[Dependencies — required & optional](docs/guide/user-guide.md#dependencies--required--optional)**.
+
 ### In QGIS — no install needed (easiest)
 
 1. Get `niva_qgis.zip` — download it from the

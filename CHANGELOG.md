@@ -32,6 +32,12 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - Cookbook recipes 85–90 (`map` tiny → extreme, incl. many-layer multi-type plates); reference §4
   `map` entry; VS Code `map`/`map-full`/`map-from` snippets; `map` added to all five editor grammars.
 
+### Docs
+- **Dependencies section** in the User Guide (and a README pointer) — the single required
+  dependency (QGIS) plus a per-feature table of optional ones (`pdal_wrench` for `pdalcli:`,
+  `saga_cmd`, OTB, LAStools, ntfy/SMTP env for `notify`/`email`, editor tooling), each with how
+  to install it.
+
 ## [0.39.0] - 2026-07-05
 
 ### Added
