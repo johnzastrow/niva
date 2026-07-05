@@ -82,6 +82,52 @@ jobs:
           python3 -m unittest tests.test_pyqgis -v 2>&1 | tee /tmp/qgis-tests.log || true
           grep -qE '^OK' /tmp/qgis-tests.log
 
+  lint:
+    name: lint & format (ruff)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v4.2.2
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v5.3.0
+        with:
+          python-version: "3.12"
+      # Pin ruff EXACTLY: `format --check` is byte-for-byte, so a different ruff can
+      # reformat differently and fail. Bump this pin and reformat in the same commit.
+      - run: python -m pip install "ruff==0.15.19"
+      - name: ruff check (lint)
+        run: ruff check .
+      - name: ruff format (enforce — no drift)
+        run: ruff format --check --diff .
+
+  security:
+    name: security scan (bandit + detect-secrets)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v4.2.2
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v5.3.0
+        with:
+          python-version: "3.12"
+      # The SAME tools plugins.qgis.org runs — so main is always plugin-repo-clean and
+      # any version we cut passes the store's scan. Bandit gates on MEDIUM+ (the store's
+      # blocking threshold); LOW findings (best-effort try/except, the shell=False PDAL/SAGA
+      # subprocess harness) are intentional and don't block. See docs/guide/qgis-plugin-publishing.md.
+      - run: python -m pip install "bandit==1.9.4" "detect-secrets==1.5.0"
+      - name: Bandit (fail on MEDIUM+ severity)
+        run: bandit -r niva plugin --severity-level medium
+      - name: detect-secrets (no hardcoded secrets)
+        run: |
+          detect-secrets scan niva plugin > ds-report.json
+          python - <<'PY'
+          import json, sys
+          results = json.load(open("ds-report.json")).get("results", {})
+          n = sum(len(v) for v in results.values())
+          print(f"detect-secrets: {n} potential secret(s)")
+          if n:
+              for path, items in results.items():
+                  for it in items:
+                      print(f"  {path}:{it.get('line_number')} {it.get('type')}")
+              sys.exit(1)
+          PY
+
   build:
     name: build wheel + smoke-test the install
     runs-on: ubuntu-latest
