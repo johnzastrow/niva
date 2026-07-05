@@ -89,7 +89,9 @@ class TestPyqgisBackend(unittest.TestCase):
 
         csv = os.path.join(self.tmp, "pts.csv")
         with open(csv, "w", encoding="utf-8") as fh:
-            fh.write("id,name,longitude,latitude\n1,a,-79.0,43.0\n2,b,-79.1,43.1\n3,c,-79.2,43.2\n")
+            fh.write(
+                "id,name,longitude,latitude\n1,a,-79.0,43.0\n2,b,-79.1,43.1\n3,c,-79.2,43.2\n"
+            )
         out = os.path.join(self.tmp, "csvpts.gpkg")
         niva.flow(f'load "{csv}" | reproject EPSG:3857 | buffer 1000m | save "{out}"')
         layer = self._saved(out)
@@ -158,8 +160,12 @@ class TestPyqgisBackend(unittest.TestCase):
 
         gp = os.path.join(self.tmp, "rw.gpkg")
         niva.flow(f'load {self.src} | save "{gp}" as base')
-        niva.flow(f'load "{gp}|layername=base" | save "{gp}" as copy')  # read+write same file
-        names = sorted(d.name() for d in QgsProviderRegistry.instance().querySublayers(gp))
+        niva.flow(
+            f'load "{gp}|layername=base" | save "{gp}" as copy'
+        )  # read+write same file
+        names = sorted(
+            d.name() for d in QgsProviderRegistry.instance().querySublayers(gp)
+        )
         self.assertEqual(names, ["base", "copy"])
 
     def test_describe_real_algorithm(self):
@@ -179,8 +185,9 @@ class TestPyqgisBackend(unittest.TestCase):
 
         out = niva.describe("native:buffer")
         self.assertIn("example:", out)
-        example = [ln.strip() for ln in out.splitlines()
-                   if ln.strip().startswith("load ")][-1]
+        example = [
+            ln.strip() for ln in out.splitlines() if ln.strip().startswith("load ")
+        ][-1]
         self.assertIn("run native:buffer", example)
         Engine(MockBackend()).execute(parse(example))  # runnable over the mock
 
@@ -191,8 +198,8 @@ class TestPyqgisBackend(unittest.TestCase):
 
         hits = search("reproject", algorithms=PyqgisBackend().algorithm_catalog())
         names = [h.name for h in hits]
-        self.assertIn("reproject", names)               # the niva verb
-        self.assertTrue(any(":" in n for n in names))   # at least one live algorithm id
+        self.assertIn("reproject", names)  # the niva verb
+        self.assertTrue(any(":" in n for n in names))  # at least one live algorithm id
 
     def test_docs_verb_writes_a_guide(self):
         import niva
@@ -202,8 +209,8 @@ class TestPyqgisBackend(unittest.TestCase):
         self.assertTrue(os.path.exists(out))
         text = open(out, encoding="utf-8").read()
         self.assertIn("Reference for `buffer`", text)
-        self.assertIn("## `buffer`", text)            # the verb, fully described
-        self.assertIn("native:buffer", text)          # a live algorithm match, too
+        self.assertIn("## `buffer`", text)  # the verb, fully described
+        self.assertIn("native:buffer", text)  # a live algorithm match, too
 
     def test_assess_deep_real_layer(self):
         import niva
@@ -214,10 +221,10 @@ class TestPyqgisBackend(unittest.TestCase):
         with open(report_path, encoding="utf-8") as fh:
             report = fh.read()
         self.assertIn("# Data quality assessment", report)
-        self.assertIn("**Features:** 2", report)        # the fixture has 2 points
+        self.assertIn("**Features:** 2", report)  # the fixture has 2 points
         self.assertIn("EPSG:3857", report)
-        self.assertIn("| id |", report)                 # the fixture's field
-        self.assertIn("## Quality checks", report)      # deep
+        self.assertIn("| id |", report)  # the fixture's field
+        self.assertIn("## Quality checks", report)  # deep
         self.assertIn("**Invalid geometries:** 0", report)
         self.assertIn("**Duplicate geometries:** 0", report)
 
@@ -287,13 +294,21 @@ class TestPyqgisConnections(unittest.TestCase):
     CONN = "niva_smoke_sl"
 
     def setUp(self):
-        from qgis.core import (QgsFeature, QgsGeometry, QgsPointXY, QgsProject,
-                               QgsProviderRegistry, QgsVectorFileWriter, QgsVectorLayer)
+        from qgis.core import (
+            QgsFeature,
+            QgsGeometry,
+            QgsPointXY,
+            QgsProject,
+            QgsProviderRegistry,
+            QgsVectorFileWriter,
+            QgsVectorLayer,
+        )
 
         self.tmp = tempfile.mkdtemp(prefix="niva_sl_")
         self.db = os.path.join(self.tmp, "test.sqlite")
-        vl = QgsVectorLayer("Point?crs=EPSG:4326&field=id:integer&field=name:string",
-                            "t", "memory")
+        vl = QgsVectorLayer(
+            "Point?crs=EPSG:4326&field=id:integer&field=name:string", "t", "memory"
+        )
         pr = vl.dataProvider()
         for i, nm in [(1, "a"), (2, "b")]:
             f = QgsFeature()
@@ -366,7 +381,9 @@ class TestPyqgisConnections(unittest.TestCase):
 
         backend = PyqgisBackend()
         _md, conn = backend._find_connection(self.CONN)
-        gcol = PyqgisBackend._table_geometry_column(conn, "", "homes")  # whatever it's named
+        gcol = PyqgisBackend._table_geometry_column(
+            conn, "", "homes"
+        )  # whatever it's named
         vl = backend.run_sql(
             self.CONN, f'SELECT ST_Centroid("{gcol}") AS centroid_pt FROM homes'
         ).ref
@@ -381,7 +398,9 @@ class TestPyqgisConnections(unittest.TestCase):
         _md, conn = PyqgisBackend()._find_connection(self.CONN)
         col = PyqgisBackend._table_geometry_column(conn, "", "homes")
         self.assertTrue(col)  # a real column name, detected by type
-        self.assertIsNone(PyqgisBackend._table_geometry_column(conn, "", "no_such_table"))
+        self.assertIsNone(
+            PyqgisBackend._table_geometry_column(conn, "", "no_such_table")
+        )
 
     def test_show_lists_connection_tables(self):
         from niva.engine.pyqgis import PyqgisBackend
@@ -421,8 +440,10 @@ class TestPyqgisConnections(unittest.TestCase):
         import niva
 
         niva.flow(f"load @{self.CONN}.homes | save @{self.CONN}.r")
-        niva.flow(f'sql @{self.CONN} "SELECT * FROM homes WHERE id = 1" '
-                  f"| save @{self.CONN}.r mode=replace")
+        niva.flow(
+            f'sql @{self.CONN} "SELECT * FROM homes WHERE id = 1" '
+            f"| save @{self.CONN}.r mode=replace"
+        )
         self.assertEqual(self._table_count("r"), 1)
 
     def test_save_table_append(self):
@@ -450,8 +471,9 @@ class TestFidCollisionSave(unittest.TestCase):
         from niva.engine.pyqgis import PyqgisBackend
 
         tmp = tempfile.mkdtemp(prefix="niva_fid_")
-        vl = QgsVectorLayer("Point?crs=EPSG:3857&field=fid:integer&field=name:string",
-                            "t", "memory")
+        vl = QgsVectorLayer(
+            "Point?crs=EPSG:3857&field=fid:integer&field=name:string", "t", "memory"
+        )
         pr = vl.dataProvider()
         for i in range(3):
             f = QgsFeature()
@@ -500,7 +522,9 @@ class TestGeometryAttributeSave(unittest.TestCase):
         from niva.engine.pyqgis import PyqgisBackend
 
         vl = self._polygon_layer("&field=fid:integer&field=name:string")
-        vl.dataProvider().addAttributes([QgsField("shape", QMetaType.Type.User, "geometry")])
+        vl.dataProvider().addAttributes(
+            [QgsField("shape", QMetaType.Type.User, "geometry")]
+        )
         vl.updateFields()
 
         tmp = tempfile.mkdtemp(prefix="niva_geomattr_")
@@ -512,9 +536,9 @@ class TestGeometryAttributeSave(unittest.TestCase):
         saved = QgsVectorLayer(out, "s", "ogr")
         self.assertTrue(saved.isValid())
         names = [f.name() for f in saved.fields()]
-        self.assertNotIn("shape", names)           # the geometry-typed attribute is gone
-        self.assertIn("name", names)               # ordinary attributes survive
-        self.assertIsNotNone(backend._note)         # the drop is surfaced, not silent
+        self.assertNotIn("shape", names)  # the geometry-typed attribute is gone
+        self.assertIn("name", names)  # ordinary attributes survive
+        self.assertIsNotNone(backend._note)  # the drop is surfaced, not silent
         self.assertIn("shape", backend._note)
 
     def test_attribute_named_like_geometry_column_survives(self):
@@ -526,7 +550,9 @@ class TestGeometryAttributeSave(unittest.TestCase):
         from niva.engine.layer import MEMORY, Layer
         from niva.engine.pyqgis import PyqgisBackend
 
-        vl = self._polygon_layer("&field=fid:integer&field=geom:string&field=name:string")
+        vl = self._polygon_layer(
+            "&field=fid:integer&field=geom:string&field=name:string"
+        )
         vl.getFeature(1)  # touch
         # set the `geom` text field on the single feature
         vl.startEditing()
@@ -540,7 +566,9 @@ class TestGeometryAttributeSave(unittest.TestCase):
 
         saved = QgsVectorLayer(out, "s", "ogr")
         self.assertTrue(saved.isValid())
-        self.assertIn("geom", [f.name() for f in saved.fields()])  # the attribute survived
+        self.assertIn(
+            "geom", [f.name() for f in saved.fields()]
+        )  # the attribute survived
         self.assertEqual(saved.featureCount(), 1)
 
 
@@ -548,15 +576,23 @@ class TestMultiLayerLoad(unittest.TestCase):
     """A GeoPackage holds many layers — niva must not silently grab the first."""
 
     def setUp(self):
-        from qgis.core import (QgsFeature, QgsGeometry, QgsPointXY, QgsProject,
-                               QgsVectorFileWriter, QgsVectorLayer)
+        from qgis.core import (
+            QgsFeature,
+            QgsGeometry,
+            QgsPointXY,
+            QgsProject,
+            QgsVectorFileWriter,
+            QgsVectorLayer,
+        )
 
         self.tmp = tempfile.mkdtemp(prefix="niva_multi_")
         self.gpkg = os.path.join(self.tmp, "multi.gpkg")
         action = QgsVectorFileWriter.ActionOnExistingFile
 
         def add(layername, on_existing):
-            vl = QgsVectorLayer("Point?crs=EPSG:3857&field=id:integer", layername, "memory")
+            vl = QgsVectorLayer(
+                "Point?crs=EPSG:3857&field=id:integer", layername, "memory"
+            )
             pr = vl.dataProvider()
             f = QgsFeature()
             f.setGeometry(QgsGeometry.fromPointXY(QgsPointXY(0, 0)))
@@ -597,7 +633,8 @@ class TestMultiLayerLoad(unittest.TestCase):
 
 @unittest.skipUnless(
     os.environ.get("NIVA_TEST_PG"),
-    "set NIVA_TEST_PG='host=… port=… dbname=… user=… password=…' to run the PostGIS tier")
+    "set NIVA_TEST_PG='host=… port=… dbname=… user=… password=…' to run the PostGIS tier",
+)
 class TestPyqgisPostgres(unittest.TestCase):
     """Real PostGIS write/analyse — the postgres-specific paths SpatiaLite can't exercise
     (COMMENT lineage, schema-qualified writes), plus the create/replace/append modes
@@ -611,10 +648,17 @@ class TestPyqgisPostgres(unittest.TestCase):
         params = dict(kv.split("=", 1) for kv in os.environ["NIVA_TEST_PG"].split())
         s = QgsSettings()
         base = f"PostgreSQL/connections/{self.CONN}"
-        for key, pg in (("host", "host"), ("port", "port"), ("database", "dbname"),
-                        ("username", "user"), ("password", "password")):
+        for key, pg in (
+            ("host", "host"),
+            ("port", "port"),
+            ("database", "dbname"),
+            ("username", "user"),
+            ("password", "password"),
+        ):
             s.setValue(f"{base}/{key}", params.get(pg, ""))
-        s.setValue(f"{base}/saveUsername", "true")  # persist creds so the URI can connect
+        s.setValue(
+            f"{base}/saveUsername", "true"
+        )  # persist creds so the URI can connect
         s.setValue(f"{base}/savePassword", "true")  # headless (no interactive prompt)
         s.sync()
         self._sql_quiet("DROP TABLE IF EXISTS niva_t1, niva_t2")
@@ -629,7 +673,9 @@ class TestPyqgisPostgres(unittest.TestCase):
         self._sql_quiet("DROP TABLE IF EXISTS niva_t1, niva_t2")
         self._sql_quiet("DROP SCHEMA IF EXISTS niva_s CASCADE")
         try:
-            QgsProviderRegistry.instance().providerMetadata("postgres").deleteConnection(self.CONN)
+            QgsProviderRegistry.instance().providerMetadata(
+                "postgres"
+            ).deleteConnection(self.CONN)
         except Exception:
             pass
 
@@ -647,7 +693,9 @@ class TestPyqgisPostgres(unittest.TestCase):
         from niva.engine.pyqgis import PyqgisBackend
 
         _md, c = PyqgisBackend()._find_connection(self.CONN)
-        return QgsVectorLayer(c.tableUri(schema, table), table, "postgres").featureCount()
+        return QgsVectorLayer(
+            c.tableUri(schema, table), table, "postgres"
+        ).featureCount()
 
     def test_save_round_trip(self):
         import niva
@@ -700,9 +748,12 @@ class TestPyqgisPostgres(unittest.TestCase):
 
         niva.flow(f'load "{self.g}" | save @{self.CONN}.public.niva_t1')
         layer = niva.flow(
-            f"sql @{self.CONN} \"SELECT obj_description('public.niva_t1'::regclass) AS c\"")
+            f"sql @{self.CONN} \"SELECT obj_description('public.niva_t1'::regclass) AS c\""
+        )
         comment = next(layer.ref.getFeatures())["c"]
-        self.assertTrue(comment and "load" in comment, f"no lineage comment: {comment!r}")
+        self.assertTrue(
+            comment and "load" in comment, f"no lineage comment: {comment!r}"
+        )
 
 
 class TestPyqgisProject(unittest.TestCase):
@@ -805,10 +856,14 @@ class TestPyqgisProject(unittest.TestCase):
 
         rsrc, new = self._raster_project()
         out = os.path.join(self.tmp, "rout.qgs")
-        niva.flow(f'project "{rsrc}" to="{out}" repoint="{self.consolidated}" '
-                  f'rasters="{new}" missing=keep')
+        niva.flow(
+            f'project "{rsrc}" to="{out}" repoint="{self.consolidated}" '
+            f'rasters="{new}" missing=keep'
+        )
         layer = self._reload(out)[0]
-        self.assertIn("rnew/dem.tif", layer.source())  # QGIS source() uses '/' on every OS
+        self.assertIn(
+            "rnew/dem.tif", layer.source()
+        )  # QGIS source() uses '/' on every OS
         self.assertTrue(layer.isValid())
 
     def test_raster_left_unchanged_without_rasters_option(self):
@@ -816,7 +871,9 @@ class TestPyqgisProject(unittest.TestCase):
 
         rsrc, _new = self._raster_project()
         out = os.path.join(self.tmp, "rout2.qgs")
-        niva.flow(f'project "{rsrc}" to="{out}" repoint="{self.consolidated}" missing=keep')
+        niva.flow(
+            f'project "{rsrc}" to="{out}" repoint="{self.consolidated}" missing=keep'
+        )
         self.assertIn("rold/dem.tif", self._reload(out)[0].source())
 
     def test_project_new_from_dir(self):
@@ -827,7 +884,9 @@ class TestPyqgisProject(unittest.TestCase):
         _write_points(os.path.join(outs, "a.gpkg"), "EPSG:4326", [(1, 1), (2, 2)])
         _write_raster(os.path.join(outs, "dem.tif"))
         proj_out = os.path.join(self.tmp, "new.qgs")
-        niva.flow(f'project new from="{outs}" to="{proj_out}" crs=EPSG:6346 title="Region"')
+        niva.flow(
+            f'project new from="{outs}" to="{proj_out}" crs=EPSG:6346 title="Region"'
+        )
         layers = self._reload(proj_out)  # keeps the project alive via self._p
         self.assertEqual(sorted(layer.name() for layer in layers), ["a", "dem"])
         self.assertTrue(all(layer.isValid() for layer in layers))
@@ -840,10 +899,10 @@ class TestPyqgisProject(unittest.TestCase):
         out = os.path.join(self.tmp, "info.md")
         niva.flow(f'project info "{self.src}" to="{out}"')
         text = open(out).read()
-        self.assertIn("roads", text)        # the layer
-        self.assertIn("ogr", text)          # provider
-        self.assertIn("roads.gpkg", text)   # datasource
-        self.assertIn("| Layer |", text)    # the table
+        self.assertIn("roads", text)  # the layer
+        self.assertIn("ogr", text)  # provider
+        self.assertIn("roads.gpkg", text)  # datasource
+        self.assertIn("| Layer |", text)  # the table
 
     def test_copy_convert_qgs_to_qgz(self):
         import niva
@@ -858,7 +917,9 @@ class TestPyqgisProject(unittest.TestCase):
     def test_paths_relative(self):
         import niva
 
-        out = os.path.join(self.tmp, "rel.qgs")  # sibling of roads.gpkg (both in self.tmp)
+        out = os.path.join(
+            self.tmp, "rel.qgs"
+        )  # sibling of roads.gpkg (both in self.tmp)
         niva.flow(f'project "{self.src}" to="{out}" paths=relative')
         self.assertIn("./roads.gpkg", open(out).read())
 
@@ -868,8 +929,9 @@ class TestPyqgisProject(unittest.TestCase):
         out = os.path.join(self.tmp, "bm.qgs")
         niva.flow(f'project "{self.src}" to="{out}" bookmark="Study Area"')
         self._reload(out)  # keeps the project alive on self._p
-        self.assertEqual([b.name() for b in self._p.bookmarkManager().bookmarks()],
-                         ["Study Area"])
+        self.assertEqual(
+            [b.name() for b in self._p.bookmarkManager().bookmarks()], ["Study Area"]
+        )
 
     def test_bookmark_centred(self):
         import niva
@@ -892,7 +954,9 @@ class TestPyqgisProject(unittest.TestCase):
         _write_points(os.path.join(src, "roads.gpkg"), "EPSG:4326", [(0, 0)])
         _write_raster(os.path.join(src, "dem.tif"))
         proj = QgsProject()
-        vl = QgsVectorLayer(f"{os.path.join(src, 'roads.gpkg')}|layername=roads", "roads", "ogr")
+        vl = QgsVectorLayer(
+            f"{os.path.join(src, 'roads.gpkg')}|layername=roads", "roads", "ogr"
+        )
         vl.setOpacity(opacity)  # the template's distinctive symbology
         proj.addMapLayer(vl)
         proj.addMapLayer(QgsRasterLayer(os.path.join(src, "dem.tif"), "dem"))
@@ -919,9 +983,9 @@ class TestPyqgisProject(unittest.TestCase):
         self.assertEqual(set(layers), {"roads", "dem"})
         roads = layers["roads"]
         self.assertIn("mydata/roads.gpkg", roads.source())  # repointed
-        self.assertEqual(roads.featureCount(), 2)                            # to the user's data
+        self.assertEqual(roads.featureCount(), 2)  # to the user's data
         self.assertTrue(roads.isValid())
-        self.assertAlmostEqual(roads.opacity(), 0.42, places=3)             # style rode along
+        self.assertAlmostEqual(roads.opacity(), 0.42, places=3)  # style rode along
         self.assertIn("mydata/dem.tif", layers["dem"].source())  # raster slot
 
     def test_from_template_named_via_env(self):
@@ -938,8 +1002,10 @@ class TestPyqgisProject(unittest.TestCase):
             niva.flow(f'project from-template=atlas to="{out}" data="{data}"')
         finally:
             del os.environ["NIVA_TEMPLATES"]
-        self.assertIn("mydata/roads.gpkg",
-                      {layer.name(): layer.source() for layer in self._reload(out)}["roads"])
+        self.assertIn(
+            "mydata/roads.gpkg",
+            {layer.name(): layer.source() for layer in self._reload(out)}["roads"],
+        )
 
     def test_from_template_unmatched_slot_kept_by_default(self):
         import niva
@@ -958,15 +1024,24 @@ class TestPyqgisProject(unittest.TestCase):
         """An *existing* real project: a styled slot whose **display name** (`parcels`)
         differs from its datasource layername (`src`), plus a named print layout — the
         case where a user reuses one of their own projects as a template."""
-        from qgis.core import (QgsLayoutItemLabel, QgsLayoutItemMap, QgsLayoutPoint,
-                               QgsLayoutSize, QgsPrintLayout, QgsProject, QgsUnitTypes,
-                               QgsVectorLayer)
+        from qgis.core import (
+            QgsLayoutItemLabel,
+            QgsLayoutItemMap,
+            QgsLayoutPoint,
+            QgsLayoutSize,
+            QgsPrintLayout,
+            QgsProject,
+            QgsUnitTypes,
+            QgsVectorLayer,
+        )
 
         srcgpkg = os.path.join(self.tmp, "src.gpkg")
         _write_points(srcgpkg, "EPSG:4326", [(0, 0)])
         proj = QgsProject()
         proj.setTitle("My Report")
-        vl = QgsVectorLayer(f"{srcgpkg}|layername=src", "parcels", "ogr")  # name ≠ layername
+        vl = QgsVectorLayer(
+            f"{srcgpkg}|layername=src", "parcels", "ogr"
+        )  # name ≠ layername
         vl.setOpacity(0.42)
         proj.addMapLayer(vl)
         lay = QgsPrintLayout(proj)
@@ -992,15 +1067,19 @@ class TestPyqgisProject(unittest.TestCase):
         data = os.path.join(self.tmp, "mydata")
         os.makedirs(data, exist_ok=True)
         # user data named for the slot's DISPLAY name (`parcels`), not its old layername.
-        _write_points(os.path.join(data, "parcels.gpkg"), "EPSG:4326", [(5, 5), (6, 6), (7, 7)])
+        _write_points(
+            os.path.join(data, "parcels.gpkg"), "EPSG:4326", [(5, 5), (6, 6), (7, 7)]
+        )
         out = os.path.join(self.tmp, "instance.qgz")
         niva.flow(f'project from-template="{existing}" to="{out}" data="{data}"')
         layers = self._reload(out)
-        self.assertEqual([lay.name() for lay in self._p.layoutManager().layouts()], ["Report"])
+        self.assertEqual(
+            [lay.name() for lay in self._p.layoutManager().layouts()], ["Report"]
+        )
         parcels = {layer.name(): layer for layer in layers}["parcels"]
         self.assertIn("mydata/parcels.gpkg", parcels.source())  # display-name match
-        self.assertEqual(parcels.featureCount(), 3)                              # the user's data
-        self.assertAlmostEqual(parcels.opacity(), 0.42, places=3)               # style preserved
+        self.assertEqual(parcels.featureCount(), 3)  # the user's data
+        self.assertAlmostEqual(parcels.opacity(), 0.42, places=3)  # style preserved
 
     def test_to_template_then_from_template_by_name(self):
         import niva
@@ -1014,12 +1093,16 @@ class TestPyqgisProject(unittest.TestCase):
         os.environ["NIVA_TEMPLATES"] = lib
         try:
             niva.flow(f'project to-template=report from="{existing}" paths=relative')
-            self.assertTrue(os.path.isfile(os.path.join(lib, "report.qgz")))  # registered
+            self.assertTrue(
+                os.path.isfile(os.path.join(lib, "report.qgz"))
+            )  # registered
             niva.flow(f'project from-template=report to="{out}" data="{data}"')
         finally:
             del os.environ["NIVA_TEMPLATES"]
         layers = {layer.name(): layer for layer in self._reload(out)}  # sets self._p
-        self.assertEqual([lay.name() for lay in self._p.layoutManager().layouts()], ["Report"])
+        self.assertEqual(
+            [lay.name() for lay in self._p.layoutManager().layouts()], ["Report"]
+        )
         self.assertIn("mydata2/parcels.gpkg", layers["parcels"].source())
 
     def test_bundled_example_instantiates(self):
@@ -1030,8 +1113,11 @@ class TestPyqgisProject(unittest.TestCase):
         data = os.path.join(self.tmp, "exdata")
         os.makedirs(data, exist_ok=True)
         for slot in ("boundary", "roads", "places"):
-            _write_points(os.path.join(data, f"{slot}.gpkg"), "EPSG:4326",
-                          [(-79.06, 43.09), (-79.05, 43.10)])
+            _write_points(
+                os.path.join(data, f"{slot}.gpkg"),
+                "EPSG:4326",
+                [(-79.06, 43.09), (-79.05, 43.10)],
+            )
         out = os.path.join(self.tmp, "example_out.qgz")
         niva.flow(f'project from-template=example to="{out}" data="{data}"')
         layers = {layer.name(): layer for layer in self._reload(out)}  # sets self._p
@@ -1039,9 +1125,12 @@ class TestPyqgisProject(unittest.TestCase):
         for slot in ("boundary", "roads", "places"):
             self.assertIn(f"exdata/{slot}.gpkg", layers[slot].source())
             self.assertTrue(layers[slot].isValid())
-        self.assertEqual([lay.name() for lay in self._p.layoutManager().layouts()], ["Map"])
-        self.assertEqual([b.name() for b in self._p.bookmarkManager().bookmarks()],
-                         ["Study Area"])
+        self.assertEqual(
+            [lay.name() for lay in self._p.layoutManager().layouts()], ["Map"]
+        )
+        self.assertEqual(
+            [b.name() for b in self._p.bookmarkManager().bookmarks()], ["Study Area"]
+        )
         self.assertEqual(self._p.title(), "Example Map")
 
 
@@ -1085,7 +1174,9 @@ class TestPyqgisStyle(unittest.TestCase):
         import niva
 
         out = os.path.join(self.tmp, "saved.gpkg")
-        niva.flow(f'load "{self.gpkg}|layername=roads" | save "{out}" | style apply "{self.qml}"')
+        niva.flow(
+            f'load "{self.gpkg}|layername=roads" | save "{out}" | style apply "{self.qml}"'
+        )
         self.assertEqual(self._opacity(out), 0.37)
 
     def test_apply_to_single_file_writes_sidecar(self):
@@ -1169,7 +1260,7 @@ class TestPyqgisShow(unittest.TestCase):
         ds = None
         rows = PyqgisBackend().list_layers(path)
         owners = next(r for r in rows if r["name"] == "owners")
-        self.assertEqual(owners["kind"], "table")       # not "vector"
+        self.assertEqual(owners["kind"], "table")  # not "vector"
         self.assertEqual(owners["type"], "(aspatial)")
 
     def test_list_layers_reports_raster_band_and_dtype(self):
@@ -1180,7 +1271,7 @@ class TestPyqgisShow(unittest.TestCase):
         rows = PyqgisBackend().list_layers(tif)
         self.assertEqual(len(rows), 1)
         self.assertEqual(rows[0]["kind"], "raster")
-        self.assertIn("band", rows[0]["type"])      # e.g. "1 band · Byte"
+        self.assertIn("band", rows[0]["type"])  # e.g. "1 band · Byte"
         self.assertEqual(rows[0]["format"], "GTiff")
 
     def _show_text(self, flowtext):
@@ -1205,7 +1296,7 @@ class TestPyqgisShow(unittest.TestCase):
         niva.flow(f'load "{self.gpkg}|layername=roads" | save "{nested}"')
 
         shallow = self._show_text(f'show "{self.tmp}"')
-        self.assertIn("data.sqlite", shallow)   # format-agnostic: SQLite is listed
+        self.assertIn("data.sqlite", shallow)  # format-agnostic: SQLite is listed
         self.assertIn("multi.gpkg", shallow)
         self.assertNotIn("nested.gpkg", shallow)  # shallow does not recurse
 
@@ -1228,12 +1319,21 @@ class TestPyqgisEnvironmentReport(unittest.TestCase):
         from niva.environment import report_markdown
 
         report = report_markdown()
-        for heading in ("# niva — environment", "## niva", "## Verbs & algorithms",
-                        "## Database connections", "## Listing data", "## QGIS profiles",
-                        "## Environment (niva variables)", "## QGIS & geo stack",
-                        "## Python & platform"):
+        for heading in (
+            "# niva — environment",
+            "## niva",
+            "## Verbs & algorithms",
+            "## Database connections",
+            "## Listing data",
+            "## QGIS profiles",
+            "## Environment (niva variables)",
+            "## QGIS & geo stack",
+            "## Python & platform",
+        ):
             self.assertIn(heading, report)
-        self.assertIn("ArcGIS REST", report)  # the `show` examples mention remote services
+        self.assertIn(
+            "ArcGIS REST", report
+        )  # the `show` examples mention remote services
         # The reachable-algorithm count must resolve to a real number, and QGIS must
         # report a version (not the "unavailable" fallback).
         self.assertNotIn("**unavailable** algorithms", report)

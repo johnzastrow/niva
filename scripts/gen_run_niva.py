@@ -38,11 +38,17 @@ def main() -> int:
     for companion in companions:
         source = companion[: -len(".run.niva")] + ".niva"
         if not os.path.exists(source):
-            print(f"warning: source missing for {os.path.basename(companion)} — leaving as is")
+            print(
+                f"warning: source missing for {os.path.basename(companion)} — leaving as is"
+            )
             continue
         # `--emit <source>` writes <source-without-.niva>.run.niva (pure, no QGIS needed).
-        subprocess.run([sys.executable, RUNNER, "--emit", source],
-                       check=True, env=env, stdout=subprocess.DEVNULL)
+        subprocess.run(
+            [sys.executable, RUNNER, "--emit", source],
+            check=True,
+            env=env,
+            stdout=subprocess.DEVNULL,
+        )
         n += 1
     print(f"regenerated {n} .run.niva companion(s) under tests/suites/")
     return 0

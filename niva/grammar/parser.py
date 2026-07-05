@@ -30,7 +30,7 @@ class Stage:
     """One ``verb [args…] [key=value…]`` step of a flow."""
 
     verb: str
-    args: list = field(default_factory=list)        # positionals OR flags (unresolved)
+    args: list = field(default_factory=list)  # positionals OR flags (unresolved)
     options: dict = field(default_factory=dict)
     line: int = 0
     raw: str = ""
@@ -64,9 +64,15 @@ def parse(text: str, *, file: str | None = None) -> list:
         toks = tokenize(raw)
         if toks and toks[0] == "call":
             if len(toks) != 2:
-                raise FlowError("`call` takes exactly one file path", line=line,
-                                stage=raw, file=file)
-            program.append(Call(target=_unquote(toks[1], line, raw, file), line=line, raw=raw))
+                raise FlowError(
+                    "`call` takes exactly one file path",
+                    line=line,
+                    stage=raw,
+                    file=file,
+                )
+            program.append(
+                Call(target=_unquote(toks[1], line, raw, file), line=line, raw=raw)
+            )
         else:
             program.append(_parse_flow(raw, line, file))
     return program
@@ -104,8 +110,9 @@ def _parse_flow(raw: str, line: int, file: str | None) -> Flow:
     stages = []
     for part in split_pipes(raw):
         if not part:
-            raise FlowError("empty stage (a stray or doubled `|`?)", line=line,
-                            stage=raw, file=file)
+            raise FlowError(
+                "empty stage (a stray or doubled `|`?)", line=line, stage=raw, file=file
+            )
         stages.append(_parse_stage(part, line, file))
     return Flow(stages=stages, line=line, raw=raw)
 
@@ -132,8 +139,12 @@ def _parse_stage(raw: str, line: int, file: str | None) -> Stage:
         raise FlowError("empty stage", line=line, stage=raw, file=file)
     verb, *rest = toks
     if _is_option(verb):
-        raise FlowError(f"a stage must start with a verb, got option `{verb}`",
-                        line=line, stage=raw, file=file)
+        raise FlowError(
+            f"a stage must start with a verb, got option `{verb}`",
+            line=line,
+            stage=raw,
+            file=file,
+        )
     stage = Stage(verb=verb, line=line, raw=raw)
     for tok in rest:
         if _is_option(tok):

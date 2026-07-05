@@ -15,7 +15,9 @@ class NivaError(Exception):
 class FlowError(NivaError):
     """A parse/grammar problem. Names the stage and (file +) line. CLI exit code 2."""
 
-    def __init__(self, message: str, *, line: int = 0, stage: str = "", file: str | None = None):
+    def __init__(
+        self, message: str, *, line: int = 0, stage: str = "", file: str | None = None
+    ):
         self.message = message
         self.line = line
         self.stage = stage
@@ -33,8 +35,14 @@ class FlowError(NivaError):
 class OpError(NivaError):
     """A runtime problem from an algorithm/SQL step. CLI exit code 1."""
 
-    def __init__(self, message: str, *, algorithm: str | None = None,
-                 params: dict | None = None, backend: str | None = None):
+    def __init__(
+        self,
+        message: str,
+        *,
+        algorithm: str | None = None,
+        params: dict | None = None,
+        backend: str | None = None,
+    ):
         self.message = message
         self.algorithm = algorithm
         self.params = params

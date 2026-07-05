@@ -31,7 +31,9 @@ class TestDiscovery(unittest.TestCase):
             self.skipTest("shell-script fake exe is POSIX-only")
         with tempfile.TemporaryDirectory() as td:
             exe = _make_fake_exe(td, "pdal_wrench", "pdal_wrench version: 9.9.9")
-            with mock.patch.dict(os.environ, {"QGIS_WRENCH_EXECUTABLE": exe}, clear=False):
+            with mock.patch.dict(
+                os.environ, {"QGIS_WRENCH_EXECUTABLE": exe}, clear=False
+            ):
                 found, how = pd._find(pd._wrench_name())
             self.assertEqual(found, exe)
             self.assertEqual(how, "QGIS_WRENCH_EXECUTABLE")
@@ -41,10 +43,14 @@ class TestDiscovery(unittest.TestCase):
             self.skipTest("shell-script fake exe is POSIX-only")
         with tempfile.TemporaryDirectory() as td:
             exe = _make_fake_exe(td, "pdal_wrench", "pdal_wrench version: 9.9.9")
-            self.assertEqual(pd._version(exe, ["--version"]), "pdal_wrench version: 9.9.9")
+            self.assertEqual(
+                pd._version(exe, ["--version"]), "pdal_wrench version: 9.9.9"
+            )
 
     def test_version_none_when_not_executable(self):
-        self.assertIsNone(pd._version("/definitely/not/here/pdal_wrench", ["--version"]))
+        self.assertIsNone(
+            pd._version("/definitely/not/here/pdal_wrench", ["--version"])
+        )
 
 
 class TestSynthesize(unittest.TestCase):
@@ -94,7 +100,9 @@ class TestDispatch(unittest.TestCase):
             env = {"QGIS_WRENCH_EXECUTABLE": exe, "PATH": "/usr/bin:/bin"}
             with (
                 mock.patch.dict(os.environ, env, clear=False),
-                mock.patch.object(pd, "_qgis_pointcloud_status", return_value=(None, {})),
+                mock.patch.object(
+                    pd, "_qgis_pointcloud_status", return_value=(None, {})
+                ),
             ):
                 self.assertEqual(pd._cmd_check(), 0)  # ready
 

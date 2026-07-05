@@ -17,15 +17,17 @@ def _touch(path):
 class TestMultiLayerWrite(unittest.TestCase):
     def test_save_as_names_the_layer_and_appends(self):
         mb = MockBackend()
-        flow('load a.gpkg | dissolve | save out.gpkg as regions', backend=mb)
-        self.assertEqual(mb.saves[-1], {"dest": "out.gpkg", "layer_name": "regions",
-                                        "append": True})
+        flow("load a.gpkg | dissolve | save out.gpkg as regions", backend=mb)
+        self.assertEqual(
+            mb.saves[-1], {"dest": "out.gpkg", "layer_name": "regions", "append": True}
+        )
 
     def test_plain_save_overwrites_file(self):
         mb = MockBackend()
         flow("load a.gpkg | save out.gpkg", backend=mb)
-        self.assertEqual(mb.saves[-1], {"dest": "out.gpkg", "layer_name": None,
-                                        "append": False})
+        self.assertEqual(
+            mb.saves[-1], {"dest": "out.gpkg", "layer_name": None, "append": False}
+        )
 
     def test_save_as_requires_a_container(self):
         with self.assertRaises(FlowError):
@@ -42,7 +44,9 @@ class TestEachBatch(unittest.TestCase):
     def test_each_glob_runs_per_file_into_one_gpkg(self):
         root = self._dir_with("roads.geojson", "rivers.geojson", "notes.txt")
         mb = MockBackend()
-        flow(f'each "{root}/*.geojson" | reproject EPSG:6346 | save out.gpkg', backend=mb)
+        flow(
+            f'each "{root}/*.geojson" | reproject EPSG:6346 | save out.gpkg', backend=mb
+        )
         # one save per matched file, each as its own layer, appending
         layers = sorted(s["layer_name"] for s in mb.saves)
         self.assertEqual(layers, ["rivers", "roads"])
@@ -64,14 +68,18 @@ class TestEachBatch(unittest.TestCase):
         mb = MockBackend()
         mb.sublayer_map[gpkg] = ["town", "parcels", "streets"]
         flow(f'each "{gpkg}" | reproject EPSG:6346 | save collected.gpkg', backend=mb)
-        self.assertEqual(sorted(s["layer_name"] for s in mb.saves),
-                         ["parcels", "streets", "town"])
+        self.assertEqual(
+            sorted(s["layer_name"] for s in mb.saves), ["parcels", "streets", "town"]
+        )
 
     def test_each_raster_name_template(self):
         root = self._dir_with("dem1.tif", "dem2.tif")
         mb = MockBackend()
         out = os.path.join(root, "out")
-        flow(f'each "{root}/*.tif" | warp EPSG:6346 | save "{out}/{{name}}.tif"', backend=mb)
+        flow(
+            f'each "{root}/*.tif" | warp EPSG:6346 | save "{out}/{{name}}.tif"',
+            backend=mb,
+        )
         dests = sorted(os.path.basename(s["dest"]) for s in mb.saves)
         self.assertEqual(dests, ["dem1.tif", "dem2.tif"])
 

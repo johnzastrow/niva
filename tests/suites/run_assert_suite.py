@@ -27,6 +27,7 @@ Run under QGIS's Python:
     PYTHONPATH=<repo>:/usr/share/qgis/python:/usr/lib/python3/dist-packages \
       QT_QPA_PLATFORM=offscreen python3 tests/suites/run_assert_suite.py examples/<suite>.niva
 """
+
 from __future__ import annotations
 
 import contextlib
@@ -37,7 +38,9 @@ import re
 import sys
 import tempfile
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # find the sibling report module
+sys.path.insert(
+    0, os.path.dirname(os.path.abspath(__file__))
+)  # find the sibling report module
 import _suite_report  # noqa: E402
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -56,6 +59,7 @@ _TOKENS = {**_suite_report.data_tokens(REPO), "tmp": TMP}
 def _subst(text):
     return _suite_report.subst(text, _TOKENS)
 
+
 _HDR = re.compile(r"#\s*=+\s*(PREAMBLE|TEST\s+\d+)\s*\|\s*(.*?)\s*\|\s*(.*?)\s*=+\s*$")
 
 
@@ -65,8 +69,15 @@ def parse(path):
         line = raw.rstrip("\n")
         m = _HDR.match(line)
         if m:
-            cur = {"id": m.group(1).strip(), "cat": m.group(2), "desc": m.group(3),
-                   "flows": [], "fails": [], "checks": [], "cleanups": []}
+            cur = {
+                "id": m.group(1).strip(),
+                "cat": m.group(2),
+                "desc": m.group(3),
+                "flows": [],
+                "fails": [],
+                "checks": [],
+                "cleanups": [],
+            }
             blocks.append(cur)
             continue
         if cur is None:
@@ -75,11 +86,11 @@ def parse(path):
         if not s:
             continue
         if s.startswith("#@fails "):
-            cur["fails"].append(s[len("#@fails "):].strip())
+            cur["fails"].append(s[len("#@fails ") :].strip())
         elif s.startswith("#@check "):
-            cur["checks"].append(s[len("#@check "):].strip())
+            cur["checks"].append(s[len("#@check ") :].strip())
         elif s.startswith("#@cleanup "):
-            cur["cleanups"].append(s[len("#@cleanup "):].strip())
+            cur["cleanups"].append(s[len("#@cleanup ") :].strip())
         elif not s.startswith("#"):
             cur["flows"].append(line)
     return blocks
@@ -88,6 +99,7 @@ def parse(path):
 # --- layer helpers (file paths; @conn is round-tripped through niva's own load) ----------
 def _vl(path):
     from qgis.core import QgsVectorLayer
+
     p = _subst(path)
     if p.startswith("@"):
         t = os.path.join(TMP, "_assess.gpkg")
@@ -136,10 +148,15 @@ def _helpers():
 
     def nonempty(p):
         gs = _geoms(p)
-        return bool(gs) and all(not g.isEmpty() for g in gs[:50]) and gtype(p) != "NoGeometry"
+        return (
+            bool(gs)
+            and all(not g.isEmpty() for g in gs[:50])
+            and gtype(p) != "NoGeometry"
+        )
 
     def within_all(pts, polys):
         from qgis.core import QgsGeometry
+
         poly = QgsGeometry.unaryUnion(_geoms(polys))
         return all(poly.contains(g) for g in _geoms(pts) if not g.isEmpty())
 
@@ -162,18 +179,44 @@ def _helpers():
         return any(tok in low for tok in toks)
 
     return {
-        "exists": exists, "count": count, "gtype": gtype, "crs": crs, "fields": fields,
-        "values": values, "area": area, "length": length, "bbox": bbox, "nonempty": nonempty,
-        "within_all": within_all, "approx": approx, "filetext": filetext, "leaks": leaks,
-        "abs": abs, "min": min, "max": max, "round": round, "len": len, "all": all,
-        "any": any, "sum": sum, "sorted": sorted, "set": set, "str": str, "int": int,
-        "float": float, "bool": bool,
+        "exists": exists,
+        "count": count,
+        "gtype": gtype,
+        "crs": crs,
+        "fields": fields,
+        "values": values,
+        "area": area,
+        "length": length,
+        "bbox": bbox,
+        "nonempty": nonempty,
+        "within_all": within_all,
+        "approx": approx,
+        "filetext": filetext,
+        "leaks": leaks,
+        "abs": abs,
+        "min": min,
+        "max": max,
+        "round": round,
+        "len": len,
+        "all": all,
+        "any": any,
+        "sum": sum,
+        "sorted": sorted,
+        "set": set,
+        "str": str,
+        "int": int,
+        "float": float,
+        "bool": bool,
     }
 
 
 def _flow(text, log):
     import niva
-    with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+
+    with (
+        contextlib.redirect_stdout(io.StringIO()),
+        contextlib.redirect_stderr(io.StringIO()),
+    ):
         niva.flow(text, log=log, log_append=log is not None)
 
 
@@ -181,7 +224,13 @@ def cleanup(directive):
     d = _subst(directive.strip())
     if d.startswith("rm "):
         d = "remove " + d[3:].strip()
-    flow = d if d.startswith("remove ") else d[5:].strip() if d.startswith("flow ") else None
+    flow = (
+        d
+        if d.startswith("remove ")
+        else d[5:].strip()
+        if d.startswith("flow ")
+        else None
+    )
     if flow:
         with contextlib.suppress(Exception):
             _flow(flow, None)
@@ -189,13 +238,17 @@ def cleanup(directive):
 
 def main():
     import time
+
     os.makedirs(JDIR, exist_ok=True)
     blocks = parse(SUITE)
     npass = 0
     rows = []
     env = _suite_report.environment()
     run_t0 = time.monotonic()
-    print(f"niva assertion suite: {os.path.basename(SUITE)} — {len(blocks)} block(s)\n" + "=" * 80)
+    print(
+        f"niva assertion suite: {os.path.basename(SUITE)} — {len(blocks)} block(s)\n"
+        + "=" * 80
+    )
     helpers = _helpers()
     for b in blocks:
         logbase = os.path.join(JDIR, re.sub(r"\W+", "_", b["id"]))
@@ -214,12 +267,15 @@ def main():
         def journal(_lb=logbase):
             txt = ""
             for ext in (".log", ".jsonl"):
-                with contextlib.suppress(OSError), open(_lb + ext, encoding="utf-8") as fh:
+                with (
+                    contextlib.suppress(OSError),
+                    open(_lb + ext, encoding="utf-8") as fh,
+                ):
                     txt += fh.read()
             return txt
 
         ns = dict(helpers)
-        ns["err"] = lambda _e=err: ("" if _e is None else str(_e))
+        ns["err"] = lambda _e=err: "" if _e is None else str(_e)
         ns["journal"] = journal
 
         problems = []
@@ -230,9 +286,13 @@ def main():
                 et = str(err).lower()
                 for sub in b["fails"]:
                     if sub.lower() not in et:
-                        problems.append(f"error missing {sub!r}: {str(err).splitlines()[0][:80]}")
+                        problems.append(
+                            f"error missing {sub!r}: {str(err).splitlines()[0][:80]}"
+                        )
         elif err is not None:
-            problems.append(f"unexpected error: {type(err).__name__}: {str(err).splitlines()[0][:90]}")
+            problems.append(
+                f"unexpected error: {type(err).__name__}: {str(err).splitlines()[0][:90]}"
+            )
 
         if not (b["fails"] and err is None):
             # Helpers go in GLOBALS (not locals) so names resolve inside generator/comprehension
@@ -251,8 +311,16 @@ def main():
         dt = time.monotonic() - t0
         ok = not problems
         npass += ok
-        rows.append([b["id"], b["cat"], b["desc"][:48], "PASS" if ok else "FAIL",
-                     f"{dt:.2f}", (problems[0] if problems else "ok")[:80]])
+        rows.append(
+            [
+                b["id"],
+                b["cat"],
+                b["desc"][:48],
+                "PASS" if ok else "FAIL",
+                f"{dt:.2f}",
+                (problems[0] if problems else "ok")[:80],
+            ]
+        )
         print(f"[{'PASS' if ok else 'FAIL'}] {b['id']:8} [{b['cat']}] {b['desc'][:48]}")
         for p in problems:
             print(f"         ✗ {p}")
@@ -261,9 +329,14 @@ def main():
     try:
         suite = os.path.splitext(os.path.basename(SUITE))[0]
         path = _suite_report.write_summary(
-            suite, env, ["ID", "category", "description", "status", "time (s)", "notes"], rows,
+            suite,
+            env,
+            ["ID", "category", "description", "status", "time (s)", "notes"],
+            rows,
             [f"{npass}/{len(blocks)} blocks passed", f"total elapsed {elapsed:.1f}s"],
-            env["timestamp_utc"], elapsed)
+            env["timestamp_utc"],
+            elapsed,
+        )
         print(f"summary report → {path}")
     except Exception as exc:  # noqa: BLE001 — reporting must never fail the run
         print(f"(could not write summary report: {exc})")

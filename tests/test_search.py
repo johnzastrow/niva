@@ -7,12 +7,24 @@ from niva.search import format_docs, format_results, search
 
 # A small fake live catalog, shaped like backend.algorithm_catalog().
 CATALOG = [
-    {"id": "native:buffer", "display_name": "Buffer", "group": "Vector geometry",
-     "description": "Computes a buffer around features."},
-    {"id": "gdal:warpreproject", "display_name": "Warp (reproject)", "group": "Raster projections",
-     "description": "Reprojects a raster into another CRS."},
-    {"id": "native:slope", "display_name": "Slope", "group": "Raster terrain analysis",
-     "description": "Slope of a DEM in degrees."},
+    {
+        "id": "native:buffer",
+        "display_name": "Buffer",
+        "group": "Vector geometry",
+        "description": "Computes a buffer around features.",
+    },
+    {
+        "id": "gdal:warpreproject",
+        "display_name": "Warp (reproject)",
+        "group": "Raster projections",
+        "description": "Reprojects a raster into another CRS.",
+    },
+    {
+        "id": "native:slope",
+        "display_name": "Slope",
+        "group": "Raster terrain analysis",
+        "description": "Slope of a DEM in degrees.",
+    },
 ]
 
 
@@ -33,8 +45,8 @@ class TestSearchRanking(unittest.TestCase):
 
     def test_substring_matches_multiple(self):
         names = self._names("project", algorithms=CATALOG)
-        self.assertIn("reproject", names)   # verb (substring)
-        self.assertIn("project", names)     # built-in verb
+        self.assertIn("reproject", names)  # verb (substring)
+        self.assertIn("project", names)  # built-in verb
 
     def test_algorithms_included_only_when_catalog_passed(self):
         self.assertIn("gdal:warpreproject", self._names("warp", algorithms=CATALOG))
@@ -43,14 +55,16 @@ class TestSearchRanking(unittest.TestCase):
 
     def test_multiword_is_or_semantics(self):
         names = self._names("raster slope", algorithms=CATALOG)
-        self.assertIn("slope", names)              # matched "slope"
+        self.assertIn("slope", names)  # matched "slope"
         self.assertIn("native:slope", names)
 
     def test_no_matches_returns_empty(self):
         self.assertEqual(search("zzzznomatch", algorithms=CATALOG, threshold=0.6), [])
 
     def test_limit_caps_results(self):
-        self.assertLessEqual(len(search("e", algorithms=CATALOG, threshold=0.0, limit=3)), 3)
+        self.assertLessEqual(
+            len(search("e", algorithms=CATALOG, threshold=0.0, limit=3)), 3
+        )
 
 
 class TestFormatResults(unittest.TestCase):
@@ -83,8 +97,8 @@ class TestFormatDocs(unittest.TestCase):
             return f"DESC<{name}>"
 
         out = format_docs("buffer", hits, flaky)
-        self.assertIn("DESC<buffer>", out)             # good entry survived
-        self.assertIn("could not introspect", out)     # bad entry degraded to a note
+        self.assertIn("DESC<buffer>", out)  # good entry survived
+        self.assertIn("could not introspect", out)  # bad entry degraded to a note
 
     def test_no_matches_message(self):
         self.assertIn("No matches", format_docs("zzz", [], lambda n: n))

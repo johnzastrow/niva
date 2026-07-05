@@ -13,6 +13,7 @@ Layers (EPSG:6346 unless noted): points, lines, polygons, multipolys, aoi, point
 plus two awkward names — "weird name" (space) and "select" (reserved word). Files written:
     niva_testdata.gpkg   niva_testdata_dem.tif   niva_testdata.sqlite
 """
+
 from __future__ import annotations
 
 import math
@@ -56,8 +57,12 @@ def _add(lyr, wkt, attrs):
     lyr.CreateFeature(f)
 
 
-_FIELDS = [("id", ogr.OFTInteger), ("name", ogr.OFTString),
-           ("category", ogr.OFTString), ("value", ogr.OFTReal)]
+_FIELDS = [
+    ("id", ogr.OFTInteger),
+    ("name", ogr.OFTString),
+    ("category", ogr.OFTString),
+    ("value", ogr.OFTReal),
+]
 _CATS = ("alpha", "beta", "gamma")
 
 
@@ -73,16 +78,27 @@ def build_vectors(gpkg_path):
         for c in range(8):
             x, y = OX + c * (EXT / 7), OY + r * (EXT / 7)
             name = None if (r + c) % 7 == 0 else f"pt_{r}_{c}"  # some nulls
-            _add(pts, f"POINT({x} {y})",
-                 {"id": fid, "name": name, "category": _CATS[fid % 3], "value": fid * 1.5})
+            _add(
+                pts,
+                f"POINT({x} {y})",
+                {
+                    "id": fid,
+                    "name": name,
+                    "category": _CATS[fid % 3],
+                    "value": fid * 1.5,
+                },
+            )
             fid += 1
 
     # lines — 8 horizontal lines spanning the extent
     lines = _layer(ds, "lines", ogr.wkbLineString, 6346, _FIELDS)
     for i in range(8):
         y = OY + i * (EXT / 7)
-        _add(lines, f"LINESTRING({OX} {y}, {OX + EXT} {y})",
-             {"id": i, "name": f"line_{i}", "category": _CATS[i % 3], "value": float(i)})
+        _add(
+            lines,
+            f"LINESTRING({OX} {y}, {OX + EXT} {y})",
+            {"id": i, "name": f"line_{i}", "category": _CATS[i % 3], "value": float(i)},
+        )
 
     # polygons — 4×4 grid of 1200 m squares (16)
     polys = _layer(ds, "polygons", ogr.wkbPolygon, 6346, _FIELDS)
@@ -91,11 +107,20 @@ def build_vectors(gpkg_path):
     for r in range(4):
         for c in range(4):
             x, y = OX + c * 1600, OY + r * 1600
-            ring = (f"{x} {y}, {x + side} {y}, {x + side} {y + side}, "
-                    f"{x} {y + side}, {x} {y}")
-            _add(polys, f"POLYGON(({ring}))",
-                 {"id": fid, "name": f"poly_{r}_{c}", "category": _CATS[fid % 3],
-                  "value": side * side})
+            ring = (
+                f"{x} {y}, {x + side} {y}, {x + side} {y + side}, "
+                f"{x} {y + side}, {x} {y}"
+            )
+            _add(
+                polys,
+                f"POLYGON(({ring}))",
+                {
+                    "id": fid,
+                    "name": f"poly_{r}_{c}",
+                    "category": _CATS[fid % 3],
+                    "value": side * side,
+                },
+            )
             fid += 1
 
     # multipolys — 4 multipolygons, each two disjoint squares (exercises explode/promote/collect)
@@ -106,27 +131,58 @@ def build_vectors(gpkg_path):
         sq1 = f"(({x} {y}, {x + s} {y}, {x + s} {y + s}, {x} {y + s}, {x} {y}))"
         x2 = x + 700
         sq2 = f"(({x2} {y}, {x2 + s} {y}, {x2 + s} {y + s}, {x2} {y + s}, {x2} {y}))"
-        _add(multi, f"MULTIPOLYGON({sq1}, {sq2})",
-             {"id": i, "name": f"multi_{i}", "category": _CATS[i % 3], "value": 2 * s * s})
+        _add(
+            multi,
+            f"MULTIPOLYGON({sq1}, {sq2})",
+            {
+                "id": i,
+                "name": f"multi_{i}",
+                "category": _CATS[i % 3],
+                "value": 2 * s * s,
+            },
+        )
 
     # aoi — one rectangle covering most of the extent (a clip/centroid fixture)
-    aoi = _layer(ds, "aoi", ogr.wkbPolygon, 6346, [("id", ogr.OFTInteger), ("name", ogr.OFTString)])
+    aoi = _layer(
+        ds,
+        "aoi",
+        ogr.wkbPolygon,
+        6346,
+        [("id", ogr.OFTInteger), ("name", ogr.OFTString)],
+    )
     m = 500
-    ring = (f"{OX + m} {OY + m}, {OX + EXT - m} {OY + m}, {OX + EXT - m} {OY + EXT - m}, "
-            f"{OX + m} {OY + EXT - m}, {OX + m} {OY + m}")
+    ring = (
+        f"{OX + m} {OY + m}, {OX + EXT - m} {OY + m}, {OX + EXT - m} {OY + EXT - m}, "
+        f"{OX + m} {OY + EXT - m}, {OX + m} {OY + m}"
+    )
     _add(aoi, f"POLYGON(({ring}))", {"id": 1, "name": "aoi"})
 
     # points_wgs84 — a few points in EPSG:4326 (for geographic-CRS / units error tests)
-    geo = _layer(ds, "points_wgs84", ogr.wkbPoint, 4326,
-                 [("id", ogr.OFTInteger), ("name", ogr.OFTString)])
+    geo = _layer(
+        ds,
+        "points_wgs84",
+        ogr.wkbPoint,
+        4326,
+        [("id", ogr.OFTInteger), ("name", ogr.OFTString)],
+    )
     for i, (lon, lat) in enumerate([(-79.0, 43.0), (-79.01, 43.01), (-78.99, 43.02)]):
         _add(geo, f"POINT({lon} {lat})", {"id": i, "name": f"geo_{i}"})
 
     # awkward identifiers — a space and a SQL reserved word as LAYER names
     for nm in ("weird name", "select"):
-        wl = _layer(ds, nm, ogr.wkbPoint, 6346, [("id", ogr.OFTInteger), ("name", ogr.OFTString)])
+        wl = _layer(
+            ds,
+            nm,
+            ogr.wkbPoint,
+            6346,
+            [("id", ogr.OFTInteger), ("name", ogr.OFTString)],
+        )
         for i in range(3):
-            _add(wl, f"POINT({OX + i * 100} {OY + i * 100})", {"id": i, "name": f"{nm}_{i}"})
+            _add(
+                wl,
+                f"POINT({OX + i * 100} {OY + i * 100})",
+                {"id": i, "name": f"{nm}_{i}"},
+            )
 
     ds = None
     return gpkg_path
@@ -135,8 +191,9 @@ def build_vectors(gpkg_path):
 def build_dem(tif_path, size=200):
     """A smooth synthetic elevation surface, EPSG:6346, Float32 — for warp/slope/aspect tests."""
     drv = gdal.GetDriverByName("GTiff")
-    ds = drv.Create(tif_path, size, size, 1, gdal.GDT_Float32,
-                    ["COMPRESS=DEFLATE", "TILED=YES"])
+    ds = drv.Create(
+        tif_path, size, size, 1, gdal.GDT_Float32, ["COMPRESS=DEFLATE", "TILED=YES"]
+    )
     pixel = EXT / size
     ds.SetGeoTransform([OX, pixel, 0, OY + EXT, 0, -pixel])  # north-up
     ds.SetProjection(_srs(6346).ExportToWkt())
@@ -144,8 +201,12 @@ def build_dem(tif_path, size=200):
     for row in range(size):
         vals = []
         for col in range(size):
-            z = (100.0 + 40.0 * math.sin(col / 18.0) + 30.0 * math.cos(row / 22.0)
-                 + 0.01 * (col + row))
+            z = (
+                100.0
+                + 40.0 * math.sin(col / 18.0)
+                + 30.0 * math.cos(row / 22.0)
+                + 0.01 * (col + row)
+            )
             vals.append(z)
         band.WriteRaster(0, row, size, 1, struct.pack(f"<{size}f", *vals))
     band.FlushCache()
@@ -180,6 +241,7 @@ def build_kml(kml_path, gpkg_path):
 def build_filegdb(gdb_path, gpkg_path):
     """A FileGeodatabase (OpenFileGDB) with the points & polygons layers — a raw .gdb input."""
     import shutil
+
     if os.path.isdir(gdb_path):
         shutil.rmtree(gdb_path)
     src = ogr.Open(gpkg_path)
@@ -204,14 +266,14 @@ def build_csv_points(csv_path):
     layer = os.path.splitext(base)[0]
     with open(vrt_path, "w", encoding="utf-8") as fh:
         fh.write(
-            f'<OGRVRTDataSource>\n'
+            f"<OGRVRTDataSource>\n"
             f'  <OGRVRTLayer name="{layer}">\n'
             f'    <SrcDataSource relativeToVRT="1">{base}</SrcDataSource>\n'
-            f'    <GeometryType>wkbPoint</GeometryType>\n'
-            f'    <LayerSRS>EPSG:4326</LayerSRS>\n'
+            f"    <GeometryType>wkbPoint</GeometryType>\n"
+            f"    <LayerSRS>EPSG:4326</LayerSRS>\n"
             f'    <GeometryField encoding="PointFromColumns" x="longitude" y="latitude"/>\n'
-            f'  </OGRVRTLayer>\n'
-            f'</OGRVRTDataSource>\n'
+            f"  </OGRVRTLayer>\n"
+            f"</OGRVRTDataSource>\n"
         )
     return csv_path, vrt_path
 
@@ -247,11 +309,26 @@ def main():
     dem = build_dem(os.path.join(OUT, "niva_testdata_dem.tif"))
     extra = []
     for label, fn in (
-        ("niva_testdata.sqlite", lambda: build_spatialite(os.path.join(OUT, "niva_testdata.sqlite"), gpkg)),
-        ("niva_testdata.kml", lambda: build_kml(os.path.join(OUT, "niva_testdata.kml"), gpkg)),
-        ("niva_testdata.gdb", lambda: build_filegdb(os.path.join(OUT, "niva_testdata.gdb"), gpkg)),
-        ("niva_testdata_points.csv", lambda: build_csv_points(os.path.join(OUT, "niva_testdata_points.csv"))[0]),
-        ("niva_testdata.jp2", lambda: build_jp2(os.path.join(OUT, "niva_testdata.jp2"), dem)),
+        (
+            "niva_testdata.sqlite",
+            lambda: build_spatialite(os.path.join(OUT, "niva_testdata.sqlite"), gpkg),
+        ),
+        (
+            "niva_testdata.kml",
+            lambda: build_kml(os.path.join(OUT, "niva_testdata.kml"), gpkg),
+        ),
+        (
+            "niva_testdata.gdb",
+            lambda: build_filegdb(os.path.join(OUT, "niva_testdata.gdb"), gpkg),
+        ),
+        (
+            "niva_testdata_points.csv",
+            lambda: build_csv_points(os.path.join(OUT, "niva_testdata_points.csv"))[0],
+        ),
+        (
+            "niva_testdata.jp2",
+            lambda: build_jp2(os.path.join(OUT, "niva_testdata.jp2"), dem),
+        ),
     ):
         try:
             extra.append(fn() or f"(skipped: {label})")
@@ -266,8 +343,13 @@ def main():
             print(f"  {p}")
     # quick self-check: report layer feature counts
     ds = ogr.Open(gpkg)
-    print("layers:", ", ".join(f"{ds.GetLayer(i).GetName()}={ds.GetLayer(i).GetFeatureCount()}"
-                               for i in range(ds.GetLayerCount())))
+    print(
+        "layers:",
+        ", ".join(
+            f"{ds.GetLayer(i).GetName()}={ds.GetLayer(i).GetFeatureCount()}"
+            for i in range(ds.GetLayerCount())
+        ),
+    )
 
 
 if __name__ == "__main__":

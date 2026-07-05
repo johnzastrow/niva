@@ -54,11 +54,15 @@ WMS13 = b"""<?xml version="1.0"?>
 </WMS_Capabilities>"""
 
 
-ARCGIS_SERVICE = (b'{"layers":['
-                  b'{"id":0,"name":"Roads","geometryType":"esriGeometryPolyline"},'
-                  b'{"id":1,"name":"Parks","geometryType":"esriGeometryPolygon"}],'
-                  b'"tables":[{"id":2,"name":"Owners"}]}')
-ARCGIS_LAYER = b'{"id":0,"name":"Roads","type":"Feature Layer","geometryType":"esriGeometryPoint"}'
+ARCGIS_SERVICE = (
+    b'{"layers":['
+    b'{"id":0,"name":"Roads","geometryType":"esriGeometryPolyline"},'
+    b'{"id":1,"name":"Parks","geometryType":"esriGeometryPolygon"}],'
+    b'"tables":[{"id":2,"name":"Owners"}]}'
+)
+ARCGIS_LAYER = (
+    b'{"id":0,"name":"Roads","type":"Feature Layer","geometryType":"esriGeometryPoint"}'
+)
 ARCGIS_ERROR = b'{"error":{"code":400,"message":"Invalid token"}}'
 
 
@@ -83,14 +87,16 @@ class TestServiceDetection(unittest.TestCase):
         self.assertEqual(remote._detect_service("https://h/geoserver/wms")[0], "WMS")
 
     def test_detect_arcgis(self):
-        for u in ("https://h/arcgis/rest/services/Foo/FeatureServer",
-                  "https://h/x/MapServer", "https://h/x/MapServer/3",
-                  "https://h/x/ImageServer"):
+        for u in (
+            "https://h/arcgis/rest/services/Foo/FeatureServer",
+            "https://h/x/MapServer",
+            "https://h/x/MapServer/3",
+            "https://h/x/ImageServer",
+        ):
             self.assertEqual(remote._detect_service(u)[0], "ARCGIS", u)
 
     def test_detect_xyz_template(self):
-        self.assertEqual(
-            remote._detect_service("https://t/{z}/{x}/{y}.png")[0], "XYZ")
+        self.assertEqual(remote._detect_service("https://t/{z}/{x}/{y}.png")[0], "XYZ")
         self.assertEqual(remote._detect_service("https://t/{q}.png")[0], "XYZ")
 
     def test_undeterminable_is_none(self):
@@ -108,7 +114,9 @@ class TestCapabilitiesUrl(unittest.TestCase):
         self.assertIn("version=1.3.0", remote._capabilities_url("https://h/ows", "WMS"))
 
     def test_preserves_other_params_replaces_ows_ones(self):
-        u = remote._capabilities_url("https://h/ows?map=/x.map&service=WMS&request=GetMap", "WFS")
+        u = remote._capabilities_url(
+            "https://h/ows?map=/x.map&service=WMS&request=GetMap", "WFS"
+        )
         self.assertIn("map=%2Fx.map", u)
         self.assertIn("service=WFS", u)
         self.assertNotIn("GetMap", u)
@@ -122,7 +130,9 @@ class TestParsing(unittest.TestCase):
     def test_parse_wfs_20(self):
         rows = remote.list_service("https://h/wfs?service=WFS", fetch=lambda u: WFS20)
         self.assertEqual([r["name"] for r in rows], ["topp:states", "topp:roads"])
-        self.assertTrue(all(r["kind"] == "vector" and r["format"] == "WFS" for r in rows))
+        self.assertTrue(
+            all(r["kind"] == "vector" and r["format"] == "WFS" for r in rows)
+        )
         self.assertIn("4326", rows[0]["type"])
         self.assertTrue(rows[0]["ref"].startswith("WFS:"))
 
@@ -135,7 +145,9 @@ class TestParsing(unittest.TestCase):
         rows = remote.list_service("https://h/wms?service=WMS", fetch=lambda u: WMS13)
         names = [r["name"] for r in rows]
         self.assertEqual(names, ["osm", "topo"])  # container skipped, duplicate deduped
-        self.assertTrue(all(r["kind"] == "raster" and r["format"] == "WMS" for r in rows))
+        self.assertTrue(
+            all(r["kind"] == "raster" and r["format"] == "WMS" for r in rows)
+        )
         self.assertEqual(rows[0]["type"], "OpenStreetMap")
 
     def test_fetch_receives_a_getcapabilities_url(self):
@@ -172,7 +184,8 @@ class TestArcGisRest(unittest.TestCase):
             return ARCGIS_SERVICE
 
         rows = remote.list_service(
-            "https://h/arcgis/rest/services/Foo/FeatureServer", fetch=fetch)
+            "https://h/arcgis/rest/services/Foo/FeatureServer", fetch=fetch
+        )
         self.assertIn("f=json", seen["u"])
         self.assertEqual([r["name"] for r in rows], ["Roads", "Parks", "Owners"])
         self.assertEqual(rows[0]["type"], "LineString")
@@ -183,11 +196,14 @@ class TestArcGisRest(unittest.TestCase):
 
     def test_parse_single_layer_endpoint(self):
         rows = remote.list_service(
-            "https://h/x/FeatureServer/0", fetch=lambda u: ARCGIS_LAYER)
+            "https://h/x/FeatureServer/0", fetch=lambda u: ARCGIS_LAYER
+        )
         self.assertEqual(len(rows), 1)
         self.assertEqual(rows[0]["name"], "Roads")
         self.assertEqual(rows[0]["type"], "Point")
-        self.assertTrue(rows[0]["ref"].endswith("/FeatureServer/0"))  # single ⇒ base as-is
+        self.assertTrue(
+            rows[0]["ref"].endswith("/FeatureServer/0")
+        )  # single ⇒ base as-is
 
     def test_arcgis_error_response_raises(self):
         with self.assertRaises(ValueError):
@@ -208,8 +224,10 @@ class TestXyz(unittest.TestCase):
 
 class TestSecurity(unittest.TestCase):
     def test_doctype_is_refused(self):
-        evil = (b'<?xml version="1.0"?>\n<!DOCTYPE x [<!ENTITY a "boom">]>\n'
-                b'<wfs:WFS_Capabilities xmlns:wfs="http://www.opengis.net/wfs/2.0"/>')
+        evil = (
+            b'<?xml version="1.0"?>\n<!DOCTYPE x [<!ENTITY a "boom">]>\n'
+            b'<wfs:WFS_Capabilities xmlns:wfs="http://www.opengis.net/wfs/2.0"/>'
+        )
         with self.assertRaises(ValueError):
             remote.list_service("https://h/wfs?service=WFS", fetch=lambda u: evil)
 
@@ -218,8 +236,10 @@ class TestSecurity(unittest.TestCase):
             remote.list_service("https://h/endpoint", fetch=lambda u: WFS20)
 
 
-@unittest.skipUnless(os.environ.get("NIVA_TEST_REMOTE") == "1",
-                     "set NIVA_TEST_REMOTE=1 to hit the network")
+@unittest.skipUnless(
+    os.environ.get("NIVA_TEST_REMOTE") == "1",
+    "set NIVA_TEST_REMOTE=1 to hit the network",
+)
 class TestLiveOws(unittest.TestCase):
     def test_live_wfs(self):
         rows = remote.list_service("https://demo.mapserver.org/cgi-bin/wfs?service=WFS")
@@ -232,10 +252,13 @@ class TestLiveOws(unittest.TestCase):
 
     def test_live_arcgis(self):
         rows = remote.list_service(
-            "https://sampleserver6.arcgisonline.com/arcgis/rest/services/Census/MapServer")
+            "https://sampleserver6.arcgisonline.com/arcgis/rest/services/Census/MapServer"
+        )
         self.assertTrue(rows)
         self.assertTrue(all(r["format"] == "ArcGIS" for r in rows))
-        self.assertTrue(any(r["type"] in ("Point", "Polygon", "LineString") for r in rows))
+        self.assertTrue(
+            any(r["type"] in ("Point", "Polygon", "LineString") for r in rows)
+        )
 
 
 if __name__ == "__main__":

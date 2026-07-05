@@ -5,6 +5,7 @@ from different computers (Linux, macOS, Windows) can be gathered and compared. E
 an environment fingerprint (computer, OS, CPU, RAM), niva and QGIS versions, run timing, and a
 per-test results table. Pure standard library; no third-party dependencies.
 """
+
 from __future__ import annotations
 
 import contextlib
@@ -19,7 +20,9 @@ def _total_ram_mb():
     """Total physical RAM in MB, cross-platform and best-effort (None if undiscoverable)."""
     # Linux & macOS expose this via sysconf.
     try:
-        return round(os.sysconf("SC_PHYS_PAGES") * os.sysconf("SC_PAGE_SIZE") / (1024 * 1024))
+        return round(
+            os.sysconf("SC_PHYS_PAGES") * os.sysconf("SC_PAGE_SIZE") / (1024 * 1024)
+        )
     except (ValueError, AttributeError, OSError):
         pass
     # Windows: GlobalMemoryStatusEx via ctypes.
@@ -27,13 +30,17 @@ def _total_ram_mb():
         import ctypes
 
         class _MemStatus(ctypes.Structure):
-            _fields_ = [("dwLength", ctypes.c_ulong), ("dwMemoryLoad", ctypes.c_ulong),
-                        ("ullTotalPhys", ctypes.c_ulonglong), ("ullAvailPhys", ctypes.c_ulonglong),
-                        ("ullTotalPageFile", ctypes.c_ulonglong),
-                        ("ullAvailPageFile", ctypes.c_ulonglong),
-                        ("ullTotalVirtual", ctypes.c_ulonglong),
-                        ("ullAvailVirtual", ctypes.c_ulonglong),
-                        ("ullAvailExtendedVirtual", ctypes.c_ulonglong)]
+            _fields_ = [
+                ("dwLength", ctypes.c_ulong),
+                ("dwMemoryLoad", ctypes.c_ulong),
+                ("ullTotalPhys", ctypes.c_ulonglong),
+                ("ullAvailPhys", ctypes.c_ulonglong),
+                ("ullTotalPageFile", ctypes.c_ulonglong),
+                ("ullAvailPageFile", ctypes.c_ulonglong),
+                ("ullTotalVirtual", ctypes.c_ulonglong),
+                ("ullAvailVirtual", ctypes.c_ulonglong),
+                ("ullAvailExtendedVirtual", ctypes.c_ulonglong),
+            ]
 
         stat = _MemStatus()
         stat.dwLength = ctypes.sizeof(_MemStatus)
@@ -61,9 +68,11 @@ def environment() -> dict:
     }
     with contextlib.suppress(Exception):
         import niva
+
         env["niva_version"] = niva.__version__
     with contextlib.suppress(Exception):
         from qgis.core import Qgis
+
         env["qgis_version"] = Qgis.QGIS_VERSION
     return env
 
@@ -93,9 +102,14 @@ def data_tokens(repo: str) -> dict:
     datagen = os.path.join(repo, "tests", "datagen")
     testdata = os.path.join(datagen, "testdata")
     data = os.path.join(repo, "data")
-    full = os.environ.get("NIVA_TESTDATA") or (data if os.path.isdir(data) else testdata)
-    return {"data": full, "testdata": testdata,
-            "realworld": os.path.join(datagen, "realworld")}
+    full = os.environ.get("NIVA_TESTDATA") or (
+        data if os.path.isdir(data) else testdata
+    )
+    return {
+        "data": full,
+        "testdata": testdata,
+        "realworld": os.path.join(datagen, "realworld"),
+    }
 
 
 def subst(text: str, tokens: dict) -> str:
@@ -106,8 +120,19 @@ def subst(text: str, tokens: dict) -> str:
     return text
 
 
-_ENV_ORDER = ("host", "os", "os_release", "platform", "machine", "processor", "cpu_count",
-              "ram_total_mb", "python", "niva_version", "qgis_version")
+_ENV_ORDER = (
+    "host",
+    "os",
+    "os_release",
+    "platform",
+    "machine",
+    "processor",
+    "cpu_count",
+    "ram_total_mb",
+    "python",
+    "niva_version",
+    "qgis_version",
+)
 
 
 def env_table(env: dict) -> list[str]:
@@ -117,8 +142,15 @@ def env_table(env: dict) -> list[str]:
     return lines
 
 
-def write_summary(suite: str, env: dict, columns, rows, summary_lines,
-                  started_utc: str, elapsed_s: float) -> Path:
+def write_summary(
+    suite: str,
+    env: dict,
+    columns,
+    rows,
+    summary_lines,
+    started_utc: str,
+    elapsed_s: float,
+) -> Path:
     """Write `<suite>_<host>_<UTCstamp>.md` and refresh `<suite>_latest.md` in ~/niva-test-results.
 
     `columns` are header strings; `rows` are equal-length lists of cell values. Returns the path
@@ -126,16 +158,25 @@ def write_summary(suite: str, env: dict, columns, rows, summary_lines,
     """
     host = re.sub(r"\W+", "_", env.get("host") or "host")
     lines = [
-        f"# niva — {suite}", "",
+        f"# niva — {suite}",
+        "",
         f"**{env.get('timestamp_utc')}** · host `{env.get('host')}` · "
         f"niva `{env.get('niva_version')}` · QGIS `{env.get('qgis_version')}` · "
-        f"{env.get('os')} {env.get('machine')}", "",
+        f"{env.get('os')} {env.get('machine')}",
+        "",
     ]
     lines += env_table(env)
-    lines += [f"| run started (UTC) | {started_utc} |",
-              f"| total elapsed (s) | {round(elapsed_s, 2)} |", ""]
-    lines += ["## Results", "", "| " + " | ".join(columns) + " |",
-              "|" + "|".join("---" for _ in columns) + "|"]
+    lines += [
+        f"| run started (UTC) | {started_utc} |",
+        f"| total elapsed (s) | {round(elapsed_s, 2)} |",
+        "",
+    ]
+    lines += [
+        "## Results",
+        "",
+        "| " + " | ".join(columns) + " |",
+        "|" + "|".join("---" for _ in columns) + "|",
+    ]
     for r in rows:
         lines.append("| " + " | ".join("" if c is None else str(c) for c in r) + " |")
     lines += ["", "## Summary", ""] + [f"- {s}" for s in summary_lines]

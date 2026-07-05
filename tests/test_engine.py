@@ -10,8 +10,12 @@ from niva.engine.layer import MEMORY, SOURCE
 from niva.errors import FlowError
 from niva.grammar import parse
 
-PROJECTED_M = CrsInfo("EPSG:3857", is_geographic=False, units_to_meters=1.0, map_units="meters")
-PROJECTED_FT = CrsInfo("EPSG:2262", is_geographic=False, units_to_meters=0.3048, map_units="feet")
+PROJECTED_M = CrsInfo(
+    "EPSG:3857", is_geographic=False, units_to_meters=1.0, map_units="meters"
+)
+PROJECTED_FT = CrsInfo(
+    "EPSG:2262", is_geographic=False, units_to_meters=0.3048, map_units="feet"
+)
 GEOGRAPHIC = CrsInfo("EPSG:4326", is_geographic=True, map_units="degrees")
 
 
@@ -29,8 +33,10 @@ class TestSaveCreatesParentDir(unittest.TestCase):
         tmp = tempfile.mkdtemp(prefix="niva_save_")
         dest = os.path.join(tmp, "a", "b", "c", "out.gpkg")
         run(f'load roads.gpkg | buffer 100m | save "{dest}"')
-        self.assertTrue(os.path.isdir(os.path.dirname(dest)),
-                        "save should create the target's parent directory")
+        self.assertTrue(
+            os.path.isdir(os.path.dirname(dest)),
+            "save should create the target's parent directory",
+        )
 
 
 class TestPipeline(unittest.TestCase):
@@ -48,7 +54,7 @@ class TestPipeline(unittest.TestCase):
         self.assertEqual(result.kind, MEMORY)
 
     def test_filter_routes_as_alias(self):
-        backend, _ = run("load a.gpkg | filter \"pop > 100\" | save b.gpkg")
+        backend, _ = run('load a.gpkg | filter "pop > 100" | save b.gpkg')
         self.assertEqual(backend.calls[1][1], "native:extractbyexpression")
         self.assertEqual(backend.calls[1][2]["EXPRESSION"], "pop > 100")
 
@@ -67,10 +73,14 @@ class TestDistanceResolution(unittest.TestCase):
 
     def test_metres_on_feet_crs(self):
         # 100 m expressed in a feet CRS = 100 / 0.3048 ≈ 328.08 ft
-        self.assertAlmostEqual(self._distance("load a | buffer 100m", PROJECTED_FT), 328.0839895, places=4)
+        self.assertAlmostEqual(
+            self._distance("load a | buffer 100m", PROJECTED_FT), 328.0839895, places=4
+        )
 
     def test_feet_on_metre_crs(self):
-        self.assertAlmostEqual(self._distance("load a | buffer 100ft", PROJECTED_M), 30.48, places=6)
+        self.assertAlmostEqual(
+            self._distance("load a | buffer 100ft", PROJECTED_M), 30.48, places=6
+        )
 
     def test_kilometres(self):
         self.assertEqual(self._distance("load a | buffer 2km", PROJECTED_M), 2000.0)
@@ -102,7 +112,9 @@ class TestRunEscapeHatch(unittest.TestCase):
         self.assertEqual(run_call[2], {"Z_FACTOR": 2})  # "2" coerced to int
 
     def test_run_coerces_float_bool_keeps_strings(self):
-        backend, _ = run('load a | run x:y RES=1.5 FLAG=true CRS=EPSG:2262 PATH=a/b.tif')
+        backend, _ = run(
+            "load a | run x:y RES=1.5 FLAG=true CRS=EPSG:2262 PATH=a/b.tif"
+        )
         params = next(c for c in backend.calls if c[0] == "run")[2]
         self.assertEqual(params["RES"], 1.5)
         self.assertIs(params["FLAG"], True)
@@ -125,7 +137,9 @@ class TestRunEscapeHatch(unittest.TestCase):
 
     def test_run_semicolon_value_becomes_list(self):
         # multilayer params (e.g. gdal:merge INPUT) need a list — `;` splits it
-        backend, _ = run('run gdal:merge INPUT="a.tif;b.tif;c.tif" DATA_TYPE=5 | save x.tif')
+        backend, _ = run(
+            'run gdal:merge INPUT="a.tif;b.tif;c.tif" DATA_TYPE=5 | save x.tif'
+        )
         params = next(c for c in backend.calls if c[0] == "run")[2]
         self.assertEqual(params["INPUT"], ["a.tif", "b.tif", "c.tif"])
         self.assertEqual(params["DATA_TYPE"], 5)
@@ -137,9 +151,13 @@ class TestRunEscapeHatch(unittest.TestCase):
         d = tempfile.mkdtemp()
         for name in ("b.jp2", "a.jp2", "c.tif"):  # c.tif must NOT match *.jp2
             open(os.path.join(d, name), "w").close()
-        backend, _ = run(f'run gdal:buildvirtualraster INPUT="{d}/*.jp2" OUTPUT=/tmp/x.vrt')
+        backend, _ = run(
+            f'run gdal:buildvirtualraster INPUT="{d}/*.jp2" OUTPUT=/tmp/x.vrt'
+        )
         params = next(c for c in backend.calls if c[0] == "run")[2]
-        self.assertEqual(params["INPUT"], [os.path.join(d, "a.jp2"), os.path.join(d, "b.jp2")])
+        self.assertEqual(
+            params["INPUT"], [os.path.join(d, "a.jp2"), os.path.join(d, "b.jp2")]
+        )
 
     def test_run_glob_no_match_is_error(self):
         with self.assertRaises(FlowError) as ctx:
@@ -149,7 +167,9 @@ class TestRunEscapeHatch(unittest.TestCase):
     def test_run_does_not_glob_an_expression(self):
         backend, _ = run('load a | run native:fieldcalculator FORMULA="area * 2"')
         params = next(c for c in backend.calls if c[0] == "run")[2]
-        self.assertEqual(params["FORMULA"], "area * 2")  # `*` in an expression is left alone
+        self.assertEqual(
+            params["FORMULA"], "area * 2"
+        )  # `*` in an expression is left alone
 
     def test_run_does_not_glob_a_compact_expression(self):
         # No spaces AND no path separator (e.g. FORMULA="A*1.0", "(A<0.2)*1") — used to be
@@ -188,7 +208,7 @@ class TestMetadata(unittest.TestCase):
 
     def test_metadata_requires_set_subcommand(self):
         with self.assertRaises(FlowError):
-            run('load a | metadata get')
+            run("load a | metadata get")
 
     def test_metadata_requires_fields(self):
         with self.assertRaises(FlowError):
@@ -196,7 +216,7 @@ class TestMetadata(unittest.TestCase):
 
     def test_metadata_rejects_unknown_field(self):
         with self.assertRaises(FlowError) as ctx:
-            run('load a | metadata set colour=red')
+            run("load a | metadata set colour=red")
         self.assertIn("colour", str(ctx.exception))
 
 
@@ -213,7 +233,9 @@ class TestAssess(unittest.TestCase):
             return backend, fh.read()
 
     def test_assess_writes_report_and_is_passthrough(self):
-        backend, report = self._assess("load a.gpkg | assess to {path} | save o.gpkg", "r.md")
+        backend, report = self._assess(
+            "load a.gpkg | assess to {path} | save o.gpkg", "r.md"
+        )
         self.assertEqual([c[0] for c in backend.calls], ["load", "assess", "save"])
         self.assertIn("# Data quality assessment", report)
         self.assertIn("Features:", report)
@@ -248,7 +270,8 @@ class TestAssess(unittest.TestCase):
         path = os.path.join(tempfile.mkdtemp(prefix="niva_assess_"), "r.md")
         msgs = []
         Engine(MockBackend(), progress=msgs.append).execute(
-            parse(f"load a.gpkg | assess to {path}"))
+            parse(f"load a.gpkg | assess to {path}")
+        )
         self.assertTrue(any(m.strip() == f"assessment → {path}" for m in msgs), msgs)
 
 
@@ -318,7 +341,9 @@ class TestLineage(unittest.TestCase):
         return [e.split(" ", 1)[1] for e in lineage]
 
     def test_save_receives_build_lineage(self):
-        backend, _ = run("load roads.gpkg | reproject EPSG:2262 | buffer 100m dissolve | save out.gpkg")
+        backend, _ = run(
+            "load roads.gpkg | reproject EPSG:2262 | buffer 100m dissolve | save out.gpkg"
+        )
         self.assertEqual(
             self._texts(backend.last_lineage),
             ["load roads.gpkg", "reproject EPSG:2262", "buffer 100m dissolve"],
@@ -331,9 +356,13 @@ class TestLineage(unittest.TestCase):
         self.assertEqual(self._texts(backend.last_lineage), ["load a.gpkg"])
 
     def test_second_save_accumulates_intermediate_stages(self):
-        backend, _ = run("load a.gpkg | save b.gpkg\n\nload c.gpkg | buffer 5m | save d.gpkg")
+        backend, _ = run(
+            "load a.gpkg | save b.gpkg\n\nload c.gpkg | buffer 5m | save d.gpkg"
+        )
         # last_lineage reflects the most recent save (second flow)
-        self.assertEqual(self._texts(backend.last_lineage), ["load c.gpkg", "buffer 5m"])
+        self.assertEqual(
+            self._texts(backend.last_lineage), ["load c.gpkg", "buffer 5m"]
+        )
 
 
 class TestProgress(unittest.TestCase):
@@ -341,8 +370,11 @@ class TestProgress(unittest.TestCase):
         from niva import flow
 
         msgs = []
-        flow("load a.gpkg | buffer 100m dissolve | save out.gpkg",
-             backend=MockBackend(), progress=msgs.append)
+        flow(
+            "load a.gpkg | buffer 100m dissolve | save out.gpkg",
+            backend=MockBackend(),
+            progress=msgs.append,
+        )
         self.assertEqual(
             [m for m in msgs if m.startswith("▶")],
             ["▶ load a.gpkg", "▶ buffer 100m dissolve", "▶ save out.gpkg"],
@@ -351,13 +383,19 @@ class TestProgress(unittest.TestCase):
     def test_no_progress_callback_is_fine(self):
         from niva import flow
 
-        flow("load a.gpkg | save b.gpkg", backend=MockBackend())  # progress=None → no-op
+        flow(
+            "load a.gpkg | save b.gpkg", backend=MockBackend()
+        )  # progress=None → no-op
 
     def test_emits_elapsed_after_each_stage(self):
         from niva import flow
 
         msgs = []
-        flow("load a.gpkg | buffer 5m | save b.gpkg", backend=MockBackend(), progress=msgs.append)
+        flow(
+            "load a.gpkg | buffer 5m | save b.gpkg",
+            backend=MockBackend(),
+            progress=msgs.append,
+        )
         done = [m for m in msgs if m.strip().startswith("✓")]
         self.assertEqual(len(done), 3)  # one ✓ per stage, with its elapsed
 
@@ -386,7 +424,7 @@ class TestErrors(unittest.TestCase):
     def test_conn_ref_as_secondary_layer_is_loaded(self):
         # A @conn.table used as a secondary layer (clip's overlay) is loaded via the backend,
         # not passed through as a bogus string. (MockBackend resolves "pg" by longest prefix.)
-        backend, _ = run('load roads.gpkg | clip @pg.public.zones')
+        backend, _ = run("load roads.gpkg | clip @pg.public.zones")
         self.assertIn(("load_table", "pg", "public", "zones"), backend.calls)
 
     def test_bare_conn_as_layer_is_a_flow_error(self):
@@ -421,7 +459,9 @@ class TestErrors(unittest.TestCase):
 
     def test_error_names_the_line(self):
         try:
-            run("load a.gpkg | save out.gpkg\n\nload b.gpkg | buffer 10m\n  | frobnicate")
+            run(
+                "load a.gpkg | save out.gpkg\n\nload b.gpkg | buffer 10m\n  | frobnicate"
+            )
         except FlowError as exc:
             self.assertEqual(exc.line, 3)  # the frobnicate flow starts on line 3
         else:

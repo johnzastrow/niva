@@ -32,8 +32,11 @@ def main() -> int:
     try:
         from qgis.core import QgsApplication
     except ImportError:
-        print("lint_registry: run me with QGIS's own Python (import qgis failed). "
-              "Set QGIS_PYTHON_PATH to the bindings dir if needed.", file=sys.stderr)
+        print(
+            "lint_registry: run me with QGIS's own Python (import qgis failed). "
+            "Set QGIS_PYTHON_PATH to the bindings dir if needed.",
+            file=sys.stderr,
+        )
         return 3
 
     QgsApplication.setPrefixPath(sys.prefix, True)

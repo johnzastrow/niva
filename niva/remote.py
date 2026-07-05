@@ -32,8 +32,10 @@ _SCHEME_PREFIXES = ("http://", "https://")
 _ARCGIS_RE = re.compile(r"/(feature|map|image)server(/\d+)?/?$", re.IGNORECASE)
 # ESRI geometry type → a familiar geometry name.
 _ESRI_GEOM = {
-    "esriGeometryPoint": "Point", "esriGeometryMultipoint": "MultiPoint",
-    "esriGeometryPolyline": "LineString", "esriGeometryPolygon": "Polygon",
+    "esriGeometryPoint": "Point",
+    "esriGeometryMultipoint": "MultiPoint",
+    "esriGeometryPolyline": "LineString",
+    "esriGeometryPolygon": "Polygon",
     "esriGeometryEnvelope": "Envelope",
 }
 
@@ -87,13 +89,17 @@ def _capabilities_url(base: str, service: str) -> str:
     parts = urllib.parse.urlsplit(base)
     if parts.scheme not in ("http", "https"):
         raise ValueError(f"unsupported URL scheme `{parts.scheme}` — only http/https")
-    keep = [(k, v) for k, v in urllib.parse.parse_qsl(parts.query)
-            if k.lower() not in ("service", "request", "version")]
+    keep = [
+        (k, v)
+        for k, v in urllib.parse.parse_qsl(parts.query)
+        if k.lower() not in ("service", "request", "version")
+    ]
     keep.append(("service", service))
     keep.append(("request", "GetCapabilities"))
     keep.append(("version", "2.0.0" if service == "WFS" else "1.3.0"))
     return urllib.parse.urlunsplit(
-        (parts.scheme, parts.netloc, parts.path, urllib.parse.urlencode(keep), ""))
+        (parts.scheme, parts.netloc, parts.path, urllib.parse.urlencode(keep), "")
+    )
 
 
 def _http_get(url: str) -> bytes:
@@ -138,7 +144,9 @@ def _safe_xml(data: bytes):
     import xml.etree.ElementTree as ET  # nosec B405 — DOCTYPE refused below; no entity expansion
 
     if b"<!DOCTYPE" in data[:16384] or b"<!doctype" in data[:16384]:
-        raise ValueError("refusing to parse XML with a DOCTYPE declaration (possible XXE)")
+        raise ValueError(
+            "refusing to parse XML with a DOCTYPE declaration (possible XXE)"
+        )
     return ET.fromstring(data)  # nosec B314 — input validated DOCTYPE-free above
 
 
@@ -161,8 +169,15 @@ def _parse_wfs(root, base: str) -> list:
         if not name:
             continue
         crs = _child_text(ft, "DefaultCRS") or _child_text(ft, "DefaultSRS") or ""
-        entries.append({"name": name, "kind": "vector", "type": crs or "feature type",
-                        "format": "WFS", "ref": f"WFS:{base}"})
+        entries.append(
+            {
+                "name": name,
+                "kind": "vector",
+                "type": crs or "feature type",
+                "format": "WFS",
+                "ref": f"WFS:{base}",
+            }
+        )
     return entries
 
 
@@ -176,8 +191,15 @@ def _parse_wms(root, base: str) -> list:
             continue
         seen.add(name)
         title = _child_text(lyr, "Title") or ""
-        entries.append({"name": name, "kind": "raster", "type": title or "WMS layer",
-                        "format": "WMS", "ref": f"WMS:{base}"})
+        entries.append(
+            {
+                "name": name,
+                "kind": "raster",
+                "type": title or "WMS layer",
+                "format": "WMS",
+                "ref": f"WMS:{base}",
+            }
+        )
     return entries
 
 
@@ -189,7 +211,8 @@ def _arcgis_json_url(base: str) -> str:
     query = [(k, v) for k, v in urllib.parse.parse_qsl(parts.query) if k.lower() != "f"]
     query.append(("f", "json"))
     return urllib.parse.urlunsplit(
-        (parts.scheme, parts.netloc, parts.path, urllib.parse.urlencode(query), ""))
+        (parts.scheme, parts.netloc, parts.path, urllib.parse.urlencode(query), "")
+    )
 
 
 def _arcgis_entry(d: dict, base: str, *, table: bool, single: bool) -> dict:
@@ -214,14 +237,20 @@ def _parse_arcgis(data: bytes, base: str) -> list:
     except ValueError as exc:
         raise ValueError(f"invalid ArcGIS REST JSON: {exc}") from exc
     if isinstance(obj, dict) and obj.get("error"):
-        raise ValueError(f"ArcGIS REST error: {(obj['error'] or {}).get('message', '?')}")
+        raise ValueError(
+            f"ArcGIS REST error: {(obj['error'] or {}).get('message', '?')}"
+        )
     if not isinstance(obj, dict):
         raise ValueError("unexpected ArcGIS REST response")
 
     layers, tables = obj.get("layers"), obj.get("tables")
     if layers or tables:
-        entries = [_arcgis_entry(d, base, table=False, single=False) for d in (layers or [])]
-        entries += [_arcgis_entry(d, base, table=True, single=False) for d in (tables or [])]
+        entries = [
+            _arcgis_entry(d, base, table=False, single=False) for d in (layers or [])
+        ]
+        entries += [
+            _arcgis_entry(d, base, table=True, single=False) for d in (tables or [])
+        ]
         return entries
     if obj.get("name") or obj.get("id") is not None:  # a single layer/table endpoint
         return [_arcgis_entry(obj, base, table=obj.get("type") == "Table", single=True)]
@@ -232,8 +261,15 @@ def _parse_xyz(url: str) -> list:
     """An XYZ tile template is a single (raster) layer — echo it as one loadable entry."""
     parts = urllib.parse.urlsplit(url)
     name = parts.netloc or url
-    return [{"name": name, "kind": "raster", "type": "XYZ tiles", "format": "XYZ",
-             "ref": f"type=xyz&url={url}"}]
+    return [
+        {
+            "name": name,
+            "kind": "raster",
+            "type": "XYZ tiles",
+            "format": "XYZ",
+            "ref": f"type=xyz&url={url}",
+        }
+    ]
 
 
 def list_service(url: str, *, fetch=None) -> list:
@@ -249,7 +285,8 @@ def list_service(url: str, *, fetch=None) -> list:
         raise ValueError(
             "could not tell what kind of service this is — add `?service=WFS`/`?service=WMS` "
             "(or a `WFS:`/`WMS:` prefix), pass an ArcGIS REST `…/FeatureServer` URL, or an XYZ "
-            "`{z}/{x}/{y}` template")
+            "`{z}/{x}/{y}` template"
+        )
     if service == "ARCGIS":
         return _parse_arcgis(fetch(_arcgis_json_url(base)), base)
     data = fetch(_capabilities_url(base, service))

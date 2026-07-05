@@ -41,10 +41,38 @@ try:
     VERBS = set(core_registry().verbs()) | set(BUILTINS)
 except Exception:  # noqa: BLE001 — generator must run even without niva on the path
     VERBS = {
-        "load", "save", "sql", "run", "split", "metadata", "assess", "catalog", "show",
-        "info", "describe", "search", "docs", "project", "style", "notify", "email",
-        "remove", "each", "call", "buffer", "clip", "reproject", "dissolve", "filter",
-        "intersect", "difference", "centroid", "spatialjoin", "join", "warp", "selectloc",
+        "load",
+        "save",
+        "sql",
+        "run",
+        "split",
+        "metadata",
+        "assess",
+        "catalog",
+        "show",
+        "info",
+        "describe",
+        "search",
+        "docs",
+        "project",
+        "style",
+        "notify",
+        "email",
+        "remove",
+        "each",
+        "call",
+        "buffer",
+        "clip",
+        "reproject",
+        "dissolve",
+        "filter",
+        "intersect",
+        "difference",
+        "centroid",
+        "spatialjoin",
+        "join",
+        "warp",
+        "selectloc",
     }
 
 
@@ -111,7 +139,9 @@ def _flows_in(fn: ast.AST) -> list[str]:
                 if arg is not None:
                     if name == "describe":
                         add(f"describe {arg}")
-                    elif name in FLOW_FUNCS and (_looks_like_flow(arg) or name in {"parse", "flow"}):
+                    elif name in FLOW_FUNCS and (
+                        _looks_like_flow(arg) or name in {"parse", "flow"}
+                    ):
                         add(arg)
         # A piped string literal anywhere is a flow, even if we didn't see the call wrapper.
         text = _reconstruct(node)
@@ -130,11 +160,13 @@ def _tests_in(node: ast.AST):
     for item in node.body:
         if isinstance(item, ast.ClassDef):
             for sub in item.body:
-                if isinstance(sub, (ast.FunctionDef, ast.AsyncFunctionDef)) \
-                        and sub.name.startswith("test"):
+                if isinstance(
+                    sub, (ast.FunctionDef, ast.AsyncFunctionDef)
+                ) and sub.name.startswith("test"):
                     yield item.name, sub
-        elif isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef)) \
-                and item.name.startswith("test"):
+        elif isinstance(
+            item, (ast.FunctionDef, ast.AsyncFunctionDef)
+        ) and item.name.startswith("test"):
             yield None, item
 
 
@@ -175,8 +207,9 @@ def _render(module: str, tree: ast.AST) -> str:
 
 def main() -> int:
     os.makedirs(OUT_DIR, exist_ok=True)
-    test_files = sorted(f for f in os.listdir(TESTS)
-                        if f.startswith("test_") and f.endswith(".py"))
+    test_files = sorted(
+        f for f in os.listdir(TESTS) if f.startswith("test_") and f.endswith(".py")
+    )
     written = []
     for f in test_files:
         module = f[:-3]

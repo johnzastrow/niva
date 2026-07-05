@@ -27,7 +27,9 @@ class TestRefParsing(unittest.TestCase):
         self.assertEqual(parse_connection_ref("@pg.roads"), ("pg", None, "roads"))
 
     def test_schema_table(self):
-        self.assertEqual(parse_connection_ref("@pg.public.roads"), ("pg", "public", "roads"))
+        self.assertEqual(
+            parse_connection_ref("@pg.public.roads"), ("pg", "public", "roads")
+        )
 
     def test_empty_raises(self):
         with self.assertRaises(ValueError):
@@ -84,7 +86,9 @@ class TestRefParsing(unittest.TestCase):
 class TestLoadConnection(unittest.TestCase):
     def test_load_table(self):
         backend, _ = run("load @cats_pg.human_homes | save out.gpkg")
-        self.assertEqual(backend.calls[0], ("load_table", "cats_pg", None, "human_homes"))
+        self.assertEqual(
+            backend.calls[0], ("load_table", "cats_pg", None, "human_homes")
+        )
 
     def test_load_schema_table(self):
         backend, _ = run("load @pg.public.roads")
@@ -111,22 +115,38 @@ class TestLoadConnection(unittest.TestCase):
         # The Source `show @basemap.gpkg` prints for a GeoPackage connection is
         # `@basemap.gpkg.<table>`. Loading it must reach the *whole* dotted connection,
         # not a phantom `basemap` connection (the bug this fix closes).
-        backend, _ = run("load @basemap.gpkg.roads | save out.gpkg",
-                          conn_names=["basemap.gpkg", "pg"])
-        self.assertEqual(backend.calls[0], ("load_table", "basemap.gpkg", None, "roads"))
+        backend, _ = run(
+            "load @basemap.gpkg.roads | save out.gpkg",
+            conn_names=["basemap.gpkg", "pg"],
+        )
+        self.assertEqual(
+            backend.calls[0], ("load_table", "basemap.gpkg", None, "roads")
+        )
 
     def test_save_to_dotted_connection_round_trips(self):
-        backend, _ = run("load @basemap.gpkg.roads | save @basemap.gpkg.roads_copy",
-                          conn_names=["basemap.gpkg"])
-        self.assertEqual(backend.db_saves[-1],
-                         {"conn": "basemap.gpkg", "schema": None,
-                          "table": "roads_copy", "mode": "create"})
+        backend, _ = run(
+            "load @basemap.gpkg.roads | save @basemap.gpkg.roads_copy",
+            conn_names=["basemap.gpkg"],
+        )
+        self.assertEqual(
+            backend.db_saves[-1],
+            {
+                "conn": "basemap.gpkg",
+                "schema": None,
+                "table": "roads_copy",
+                "mode": "create",
+            },
+        )
 
 
 class TestSql(unittest.TestCase):
     def test_sql_runs_query(self):
-        backend, _ = run('sql @cats_pg "SELECT * FROM homes WHERE has_cat" | save t.gpkg')
-        self.assertEqual(backend.calls[0], ("sql", "cats_pg", "SELECT * FROM homes WHERE has_cat"))
+        backend, _ = run(
+            'sql @cats_pg "SELECT * FROM homes WHERE has_cat" | save t.gpkg'
+        )
+        self.assertEqual(
+            backend.calls[0], ("sql", "cats_pg", "SELECT * FROM homes WHERE has_cat")
+        )
         self.assertEqual(backend.calls[1][0], "save")
 
     def test_sql_result_is_pipeable(self):
@@ -136,8 +156,9 @@ class TestSql(unittest.TestCase):
     def test_sql_on_dotted_connection(self):
         # A bare dotted connection (`@basemap.gpkg`) must resolve whole — not be read as
         # connection `basemap` + table `gpkg` (which `sql` would then reject).
-        backend, _ = run('sql @basemap.gpkg "SELECT 1" | save o.gpkg',
-                         conn_names=["basemap.gpkg"])
+        backend, _ = run(
+            'sql @basemap.gpkg "SELECT 1" | save o.gpkg', conn_names=["basemap.gpkg"]
+        )
         self.assertEqual(backend.calls[0], ("sql", "basemap.gpkg", "SELECT 1"))
 
     def test_sql_needs_connection_and_query(self):
@@ -164,10 +185,16 @@ class TestSqlExecute(unittest.TestCase):
 
     def test_create_routes_to_execute(self):
         backend, _ = run('sql @pg "CREATE TABLE t AS SELECT 1 AS a"')
-        self.assertEqual(backend.calls[0], ("execute_sql", "pg", "CREATE TABLE t AS SELECT 1 AS a"))
+        self.assertEqual(
+            backend.calls[0], ("execute_sql", "pg", "CREATE TABLE t AS SELECT 1 AS a")
+        )
 
     def test_update_and_insert_and_drop_route_to_execute(self):
-        for stmt in ("UPDATE homes SET x = 1", "INSERT INTO t VALUES (1)", "DROP TABLE t"):
+        for stmt in (
+            "UPDATE homes SET x = 1",
+            "INSERT INTO t VALUES (1)",
+            "DROP TABLE t",
+        ):
             backend, _ = run(f'sql @pg "{stmt}"')
             self.assertEqual(backend.calls[0], ("execute_sql", "pg", stmt))
 
@@ -205,7 +232,9 @@ class TestDefaultSchema(unittest.TestCase):
 
         self.assertEqual(default_schema("postgres", None), "public")
         self.assertEqual(default_schema("spatialite", None), "")
-        self.assertEqual(default_schema("postgres", "niagara"), "niagara")  # explicit wins
+        self.assertEqual(
+            default_schema("postgres", "niagara"), "niagara"
+        )  # explicit wins
         self.assertEqual(default_schema("spatialite", "x"), "x")
 
     def test_execute_is_terminal(self):
@@ -220,16 +249,22 @@ class TestDbSave(unittest.TestCase):
 
     def test_save_table_default_mode(self):
         backend, _ = run("load roads.gpkg | save @pg.roads")
-        self.assertEqual(backend.calls[-1], ("save_table", "pg", None, "roads", "create"))
+        self.assertEqual(
+            backend.calls[-1], ("save_table", "pg", None, "roads", "create")
+        )
 
     def test_save_schema_qualified(self):
         backend, _ = run("load roads.gpkg | save @pg.public.roads")
-        self.assertEqual(backend.calls[-1], ("save_table", "pg", "public", "roads", "create"))
+        self.assertEqual(
+            backend.calls[-1], ("save_table", "pg", "public", "roads", "create")
+        )
 
     def test_mode_replace_and_append(self):
         for mode in ("replace", "append"):
             backend, _ = run(f"load roads.gpkg | save @pg.roads mode={mode}")
-            self.assertEqual(backend.calls[-1], ("save_table", "pg", None, "roads", mode))
+            self.assertEqual(
+                backend.calls[-1], ("save_table", "pg", None, "roads", mode)
+            )
 
     def test_bad_mode_is_error(self):
         with self.assertRaises(FlowError) as ctx:
@@ -273,7 +308,9 @@ class TestDbSaveBatch(unittest.TestCase):
         saved = [c for c in backend.calls if c[0] == "save_table"]
         tables = sorted(c[3] for c in saved)
         self.assertEqual(tables, ["alpha", "beta"])
-        self.assertTrue(all(c[1] == "pg" and c[2] is None and c[4] == "create" for c in saved))
+        self.assertTrue(
+            all(c[1] == "pg" and c[2] is None and c[4] == "create" for c in saved)
+        )
 
     def test_batch_schema_qualified(self):
         backend = MockBackend()

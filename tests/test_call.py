@@ -32,7 +32,10 @@ class TestCall(unittest.TestCase):
 
     def test_call_runs_the_other_files_flow(self):
         self.write("acquire.niva", "load source.gpkg | save work.gpkg")
-        self.write("main.niva", "call acquire.niva\nload work.gpkg | buffer 10m | save out.gpkg")
+        self.write(
+            "main.niva",
+            "call acquire.niva\nload work.gpkg | buffer 10m | save out.gpkg",
+        )
         backend, _ = self.run_file("main.niva")
         kinds = [c[0] for c in backend.calls]
         # acquire's load+save, then main's load+run+save
@@ -92,7 +95,9 @@ class TestCall(unittest.TestCase):
         self.write("once.niva", "load o.gpkg | save o_out.gpkg")
         self.write("main.niva", "call once.niva\ncall once.niva")
         backend, _ = self.run_file("main.niva")
-        self.assertEqual([c[0] for c in backend.calls], ["load", "save", "load", "save"])
+        self.assertEqual(
+            [c[0] for c in backend.calls], ["load", "save", "load", "save"]
+        )
 
 
 if __name__ == "__main__":

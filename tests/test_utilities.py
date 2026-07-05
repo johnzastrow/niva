@@ -68,26 +68,41 @@ class TestEmail(unittest.TestCase):
         class FakeSMTP:
             def __init__(self, host, port, timeout=0):
                 sent["host"], sent["port"] = host, port
-            def __enter__(self): return self
-            def __exit__(self, *a): return False
-            def starttls(self, context=None): sent["starttls"] = True
-            def login(self, u, p): sent["login"] = u
-            def send_message(self, msg): sent["to"] = msg["To"]
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+            def starttls(self, context=None):
+                sent["starttls"] = True
+
+            def login(self, u, p):
+                sent["login"] = u
+
+            def send_message(self, msg):
+                sent["to"] = msg["To"]
 
         import smtplib
+
         orig = smtplib.SMTP
         smtplib.SMTP = FakeSMTP
         try:
             utilities.send_email(
-                to="dest@example.com", subject="hi",
-                env={"NIVA_SMTP_FROM": "me@gmail.com", "NIVA_SMTP_USER": "me@gmail.com",
-                     "NIVA_SMTP_PASSWORD": "app-password"},
+                to="dest@example.com",
+                subject="hi",
+                env={
+                    "NIVA_SMTP_FROM": "me@gmail.com",
+                    "NIVA_SMTP_USER": "me@gmail.com",
+                    "NIVA_SMTP_PASSWORD": "app-password",
+                },
             )
         finally:
             smtplib.SMTP = orig
         self.assertEqual(sent["host"], "smtp.gmail.com")
         self.assertEqual(sent["port"], 587)
-        self.assertTrue(sent["starttls"])           # TLS enforced
+        self.assertTrue(sent["starttls"])  # TLS enforced
         self.assertEqual(sent["to"], "dest@example.com")
 
     def test_email_verb_passes_options_through(self):
@@ -100,7 +115,10 @@ class TestEmail(unittest.TestCase):
         orig = utilities.send_email
         utilities.send_email = fake
         try:
-            flow('email to=me@example.com subject="done" body="ok"', backend=MockBackend())
+            flow(
+                'email to=me@example.com subject="done" body="ok"',
+                backend=MockBackend(),
+            )
         finally:
             utilities.send_email = orig
         self.assertEqual(captured["to"], "me@example.com")
@@ -142,8 +160,13 @@ class TestShowFormat(unittest.TestCase):
     """`format_show` — the Markdown table the `show` verb renders."""
 
     def _entry(self, name, kind="vector", typ="Polygon", fmt="GPKG", ref=None):
-        return {"name": name, "kind": kind, "type": typ, "format": fmt,
-                "ref": ref or f"x.gpkg|layername={name}"}
+        return {
+            "name": name,
+            "kind": kind,
+            "type": typ,
+            "format": fmt,
+            "ref": ref or f"x.gpkg|layername={name}",
+        }
 
     def test_table_has_header_and_rows(self):
         from niva.utilities import format_show
@@ -158,8 +181,10 @@ class TestShowFormat(unittest.TestCase):
 
         self.assertIn("1 dataset.", format_show("x", [self._entry("a")]))
         self.assertIn("1 table.", format_show("@c", [self._entry("a")], is_db=True))
-        self.assertIn("2 tables.", format_show("@c", [self._entry("a"), self._entry("b")],
-                                               is_db=True))
+        self.assertIn(
+            "2 tables.",
+            format_show("@c", [self._entry("a"), self._entry("b")], is_db=True),
+        )
 
     def test_empty_listing(self):
         from niva.utilities import format_show
@@ -172,13 +197,17 @@ class TestShowFormat(unittest.TestCase):
         from niva.utilities import format_show
 
         self.assertIn("ogrinfo", format_show("x", [self._entry("a")]))
-        self.assertIn("credentials stay in QGIS",
-                      format_show("@c", [self._entry("a")], is_db=True))
+        self.assertIn(
+            "credentials stay in QGIS",
+            format_show("@c", [self._entry("a")], is_db=True),
+        )
 
     def test_examples_use_the_first_real_source(self):
         from niva.utilities import format_show
 
-        out = format_show("x.gpkg", [self._entry("roads", ref="x.gpkg|layername=roads")])
+        out = format_show(
+            "x.gpkg", [self._entry("roads", ref="x.gpkg|layername=roads")]
+        )
         self.assertIn("Examples", out)
         # shell-ready: wrapped in `niva '…'` so a paste into bash doesn't eat the quotes or
         # split on `|` (the reported failure)
@@ -186,7 +215,9 @@ class TestShowFormat(unittest.TestCase):
         # (degrees) layer — otherwise `buffer 100m` errors on EPSG:4326 data.
         self.assertIn(
             'niva \'load "x.gpkg|layername=roads" | reproject EPSG:3857 | buffer 100m '
-            "| save ~/buffered.gpkg'", out)
+            "| save ~/buffered.gpkg'",
+            out,
+        )
         # second example is `fixgeom` (geometry-agnostic) — `centroid` crashed on mixed geometry
         self.assertIn("| fixgeom | save ~/fixed.gpkg", out)
         self.assertNotIn("| centroid ", out)
@@ -194,16 +225,23 @@ class TestShowFormat(unittest.TestCase):
     def test_examples_include_write_into_existing_targets(self):
         from niva.utilities import format_show
 
-        out = format_show("x.gpkg", [self._entry("roads", ref="x.gpkg|layername=roads")])
+        out = format_show(
+            "x.gpkg", [self._entry("roads", ref="x.gpkg|layername=roads")]
+        )
         self.assertIn("Write into an **existing** container", out)
-        self.assertIn("| save ~/analysis.gpkg as roads", out)          # add a layer to a gpkg
-        self.assertIn("| save @conn.public.roads mode=append", out)  # append to a DB table
+        self.assertIn("| save ~/analysis.gpkg as roads", out)  # add a layer to a gpkg
+        self.assertIn(
+            "| save @conn.public.roads mode=append", out
+        )  # append to a DB table
 
     def test_write_example_sanitises_a_problematic_name(self):
         from niva.utilities import format_show
 
-        out = format_show("@c", [self._entry("My Roads #1", fmt="postgres",
-                                             ref="@c.public.My Roads #1")], is_db=True)
+        out = format_show(
+            "@c",
+            [self._entry("My Roads #1", fmt="postgres", ref="@c.public.My Roads #1")],
+            is_db=True,
+        )
         # the layer/table name in the save target is a clean identifier, no quoting needed
         self.assertIn("| save ~/analysis.gpkg as my_roads_1", out)
         self.assertIn("| save @conn.public.my_roads_1 mode=append", out)
@@ -211,9 +249,17 @@ class TestShowFormat(unittest.TestCase):
     def test_examples_pick_raster_aliases_for_a_raster(self):
         from niva.utilities import format_show
 
-        out = format_show("dem.tif", [self._entry("dem", kind="raster", typ="1 band",
-                                                  fmt="GTiff", ref="dem.tif")])
-        self.assertIn("niva 'load dem.tif | warp EPSG:3857", out)  # warp first (always safe)
+        out = format_show(
+            "dem.tif",
+            [
+                self._entry(
+                    "dem", kind="raster", typ="1 band", fmt="GTiff", ref="dem.tif"
+                )
+            ],
+        )
+        self.assertIn(
+            "niva 'load dem.tif | warp EPSG:3857", out
+        )  # warp first (always safe)
         self.assertIn("| hillshade | save ~/hillshade.tif", out)
 
     def test_aspatial_example_is_runnable(self):
@@ -221,17 +267,21 @@ class TestShowFormat(unittest.TestCase):
         # yields a flow that errors. Regression guard for the broken `… | assess` example.
         from niva.utilities import format_show
 
-        out = format_show("stats.gpkg", [self._entry("stats", kind="table",
-                                                     typ="(aspatial)", ref="stats.gpkg")])
+        out = format_show(
+            "stats.gpkg",
+            [self._entry("stats", kind="table", typ="(aspatial)", ref="stats.gpkg")],
+        )
         self.assertIn("load stats.gpkg | assess to ", out)
         self.assertNotIn("| assess\n", out)  # never a bare, output-less assess
 
     def test_service_listing_has_no_load_examples(self):
         from niva.utilities import format_show
 
-        out = format_show("https://h/wfs", [self._entry("roads", fmt="WFS",
-                                                        ref="WFS:https://h/wfs")],
-                          is_service=True)
+        out = format_show(
+            "https://h/wfs",
+            [self._entry("roads", fmt="WFS", ref="WFS:https://h/wfs")],
+            is_service=True,
+        )
         self.assertNotIn("Examples", out)  # remote sources aren't `load`-piped
 
     def test_example_quotes_a_source_with_special_chars(self):
@@ -240,11 +290,14 @@ class TestShowFormat(unittest.TestCase):
         from niva.utilities import format_show
 
         for ref in ("@c.public.name-with-dash#hash", "@c.public.My Roads"):
-            out = format_show("@c", [self._entry("t", fmt="postgres", ref=ref)], is_db=True)
+            out = format_show(
+                "@c", [self._entry("t", fmt="postgres", ref=ref)], is_db=True
+            )
             self.assertIn(f'niva \'load "{ref}" |', out, ref)
         # a plain ref needs no quoting
-        plain = format_show("@c", [self._entry("t", fmt="postgres", ref="@c.public.roads")],
-                            is_db=True)
+        plain = format_show(
+            "@c", [self._entry("t", fmt="postgres", ref="@c.public.roads")], is_db=True
+        )
         self.assertIn("niva 'load @c.public.roads |", plain)
 
 
@@ -284,7 +337,12 @@ class TestShow(unittest.TestCase):
         """root/a.gpkg, root/data.sqlite, root/notes.txt, root/sub/b.gpkg."""
         root = tempfile.mkdtemp(prefix="niva_show_")
         os.makedirs(os.path.join(root, "sub"))
-        for rel in ("a.gpkg", "data.sqlite", "notes.txt", os.path.join("sub", "b.gpkg")):
+        for rel in (
+            "a.gpkg",
+            "data.sqlite",
+            "notes.txt",
+            os.path.join("sub", "b.gpkg"),
+        ):
             open(os.path.join(root, rel), "w").close()
         a = os.path.join(root, "a.gpkg")
         sqlite = os.path.join(root, "data.sqlite")
@@ -302,14 +360,14 @@ class TestShow(unittest.TestCase):
         self.assertIn(sqlite, called)
         self.assertNotIn(b, called)
         self.assertTrue(all("notes.txt" not in p for p in called))
-        self.assertIn("rs1", out)        # SQLite layer surfaced
-        self.assertNotIn("rb", out)      # nested layer NOT in a shallow listing
+        self.assertIn("rs1", out)  # SQLite layer surfaced
+        self.assertNotIn("rb", out)  # nested layer NOT in a shallow listing
 
     def test_deep_recurses_into_subdirectories(self):
         root, backend, a, sqlite, b = self._tree()
         out = self._run(f'show "{root}" deep', backend)
         called = self._called_paths(backend)
-        self.assertIn(b, called)         # nested container now probed
+        self.assertIn(b, called)  # nested container now probed
         self.assertIn("rb", out)
 
     def test_recursive_is_an_alias_for_deep(self):
@@ -319,7 +377,13 @@ class TestShow(unittest.TestCase):
 
     def test_sidecar_files_are_skipped(self):
         root = tempfile.mkdtemp(prefix="niva_show_")
-        for fn in ("roads.shp", "roads.dbf", "roads.shx", "roads.prj", "dem.tif.aux.xml"):
+        for fn in (
+            "roads.shp",
+            "roads.dbf",
+            "roads.shx",
+            "roads.prj",
+            "dem.tif.aux.xml",
+        ):
             open(os.path.join(root, fn), "w").close()
         backend = MockBackend()
         backend.layer_map = {os.path.join(root, "roads.shp"): ["roads"]}
@@ -327,8 +391,10 @@ class TestShow(unittest.TestCase):
         called = self._called_paths(backend)
         self.assertIn(os.path.join(root, "roads.shp"), called)
         for sidecar in ("roads.dbf", "roads.shx", "roads.prj", "dem.tif.aux.xml"):
-            self.assertTrue(all(not p.endswith(sidecar) for p in called),
-                            f"{sidecar} should be skipped")
+            self.assertTrue(
+                all(not p.endswith(sidecar) for p in called),
+                f"{sidecar} should be skipped",
+            )
 
     def test_directory_dataset_is_a_container_not_descended(self):
         root = tempfile.mkdtemp(prefix="niva_show_")
@@ -340,8 +406,8 @@ class TestShow(unittest.TestCase):
         backend.layer_map = {gdb: ["feature_class_1"]}
         out = self._run(f'show "{root}"', backend)
         called = self._called_paths(backend)
-        self.assertIn(gdb, called)        # the .gdb itself is listed as a container
-        self.assertNotIn(inner, called)   # we do NOT walk into it
+        self.assertIn(gdb, called)  # the .gdb itself is listed as a container
+        self.assertNotIn(inner, called)  # we do NOT walk into it
         self.assertIn("feature_class_1", out)
 
     def test_show_a_directory_dataset_directly(self):
@@ -388,7 +454,9 @@ class TestShow(unittest.TestCase):
         backend = DottedBackend()
         self._run("show @actual_spatialite.sqlite", backend)
         # The whole dotted name is the connection — not conn=actual_spatialite, table=sqlite.
-        self.assertIn(("list_tables", "actual_spatialite.sqlite", None, None), backend.calls)
+        self.assertIn(
+            ("list_tables", "actual_spatialite.sqlite", None, None), backend.calls
+        )
 
     def test_resolves_table_under_a_dotted_connection_name(self):
         class DottedBackend(MockBackend):
@@ -409,7 +477,9 @@ class TestShow(unittest.TestCase):
     def test_show_a_service_url_routes_to_list_service(self):
         backend = MockBackend()
         out = self._run('show "https://h/geoserver/wfs?service=WFS"', backend)
-        self.assertIn(("list_service", "https://h/geoserver/wfs?service=WFS"), backend.calls)
+        self.assertIn(
+            ("list_service", "https://h/geoserver/wfs?service=WFS"), backend.calls
+        )
         self.assertIn("topp:states", out)
         self.assertIn("layers", out)  # service noun is "layer(s)", not "dataset(s)"
 

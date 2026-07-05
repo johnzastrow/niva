@@ -27,8 +27,12 @@ def _run(text, *, progress=None):
     msgs = []
     buf = io.StringIO()
     with contextlib.redirect_stdout(buf):
-        Engine(MockBackend(), progress=(msgs.append if progress is None else progress)
-               if progress is not False else None).execute(parse(text))
+        Engine(
+            MockBackend(),
+            progress=(msgs.append if progress is None else progress)
+            if progress is not False
+            else None,
+        ).execute(parse(text))
     return buf.getvalue(), msgs
 
 
@@ -37,11 +41,11 @@ def _run(text, *, progress=None):
 # algorithm ids in MockBackend.algorithm_catalog(), so docs introspects only the pure verb
 # (no QGIS bootstrap) — keeping these routing tests fast and QGIS-free.
 REPORT_VERBS = [
-    ("show",     "show @pg",          "Data at",            "listed"),
-    ("info",     "info",              "niva — environment",  "environment report"),
-    ("describe", "describe buffer",   "buffer",             "description"),
-    ("search",   "search dissolve",   "dissolve",           "match(es)"),
-    ("docs",     "docs dissolve",     "dissolve",           "docs for"),
+    ("show", "show @pg", "Data at", "listed"),
+    ("info", "info", "niva — environment", "environment report"),
+    ("describe", "describe buffer", "buffer", "description"),
+    ("search", "search dissolve", "dissolve", "match(es)"),
+    ("docs", "docs dissolve", "dissolve", "docs for"),
 ]
 
 
@@ -53,8 +57,7 @@ class TestReportVerbsRouteIdentically(unittest.TestCase):
             with self.subTest(verb=name):
                 out = os.path.join(tempfile.mkdtemp(prefix=f"niva_{name}_"), "r.md")
                 msgs = []
-                stdout, _ = _run(f'{text} to="{out}"',
-                                 progress=msgs.append)
+                stdout, _ = _run(f'{text} to="{out}"', progress=msgs.append)
                 # report went to the FILE, not stdout
                 self.assertEqual(stdout, "", f"{name}: nothing should print to stdout")
                 self.assertTrue(os.path.exists(out))
@@ -87,18 +90,23 @@ class TestReportVerbsRouteIdentically(unittest.TestCase):
         # chrome — ▶/✓/run-started — so it's a superset, checked separately.)
         for name, text, _needle, _label in REPORT_VERBS:
             with self.subTest(verb=name):
-                stdout, _ = _run(text, progress=False)        # stdout sink (no progress)
+                stdout, _ = _run(text, progress=False)  # stdout sink (no progress)
                 from_stdout = stdout.strip()
                 out = os.path.join(tempfile.mkdtemp(prefix=f"niva_{name}_"), "r.md")
                 _run(f'{text} to="{out}"', progress=[].append)  # file sink
                 with open(out, encoding="utf-8") as fh:
                     from_file = fh.read().strip()
-                self.assertEqual(from_stdout, from_file, f"{name}: stdout vs file differ")
+                self.assertEqual(
+                    from_stdout, from_file, f"{name}: stdout vs file differ"
+                )
                 # and the body really is carried inside the streamed sink too
                 msgs = []
                 _run(text, progress=msgs.append)
-                self.assertIn(from_stdout.splitlines()[0], "\n".join(msgs),
-                              f"{name}: report body missing from stream")
+                self.assertIn(
+                    from_stdout.splitlines()[0],
+                    "\n".join(msgs),
+                    f"{name}: report body missing from stream",
+                )
 
 
 class TestActionVerbsEmitToTheDock(unittest.TestCase):

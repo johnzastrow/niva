@@ -29,13 +29,19 @@ class TestJournal(unittest.TestCase):
         # Curated verb and the `run` escape hatch each carry a copy-pasteable
         # processing.run(...) equivalent in the machine record; built-ins do not;
         # the human .log stays one line per op (no params dict).
-        self._run('load a.gpkg | buffer 100m | run native:centroids ALL_PARTS=true | save out.gpkg')
-        records = {r["kind"]: r for r in
-                   (json.loads(x) for x in open(self.base + ".jsonl") if x.strip())
-                   if "kind" in r}
+        self._run(
+            "load a.gpkg | buffer 100m | run native:centroids ALL_PARTS=true | save out.gpkg"
+        )
+        records = {
+            r["kind"]: r
+            for r in (json.loads(x) for x in open(self.base + ".jsonl") if x.strip())
+            if "kind" in r
+        }
 
         self.assertIn("pyqgis", records["buffer"])
-        self.assertTrue(records["buffer"]["pyqgis"].startswith("processing.run('native:buffer'"))
+        self.assertTrue(
+            records["buffer"]["pyqgis"].startswith("processing.run('native:buffer'")
+        )
         self.assertIn("'DISTANCE': 100.0", records["buffer"]["pyqgis"])
         self.assertIn("'OUTPUT': 'TEMPORARY_OUTPUT'", records["buffer"]["pyqgis"])
 
@@ -71,33 +77,43 @@ class TestJournal(unittest.TestCase):
     def test_human_log_is_readable_with_full_paths(self):
         self._run("load a.gpkg | buffer 100m | save out/b.gpkg")
         text = open(self.base + ".log").read()
-        self.assertIn("# run:", text)                   # one-line run header
-        self.assertIn("buffer 100m", text)              # the stage text
-        self.assertIn("native:buffer", text)            # the algorithm
+        self.assertIn("# run:", text)  # one-line run header
+        self.assertIn("buffer 100m", text)  # the stage text
+        self.assertIn("native:buffer", text)  # the algorithm
         self.assertIn(os.path.abspath("out/b.gpkg"), text)  # FULL path for the save
-        self.assertIn("# done:", text)                  # one-line footer
-        self.assertNotIn("{", text)                     # not JSON
+        self.assertIn("# done:", text)  # one-line footer
+        self.assertNotIn("{", text)  # not JSON
 
     def test_one_line_per_operation(self):
         self._run("load a.gpkg | buffer 100m | save out.gpkg")
         text = open(self.base + ".log").read()
-        op_lines = [ln for ln in text.splitlines()
-                    if ln and not ln.startswith("#")]
+        op_lines = [ln for ln in text.splitlines() if ln and not ln.startswith("#")]
         self.assertEqual(len(op_lines), 3)  # load, buffer, save — one line each
 
     def test_session_append_accumulates_runs(self):
-        flow("load a.gpkg | save a.gpkg", backend=MockBackend(), log=self.base, log_append=True)
-        flow("load b.gpkg | save b.gpkg", backend=MockBackend(), log=self.base, log_append=True)
+        flow(
+            "load a.gpkg | save a.gpkg",
+            backend=MockBackend(),
+            log=self.base,
+            log_append=True,
+        )
+        flow(
+            "load b.gpkg | save b.gpkg",
+            backend=MockBackend(),
+            log=self.base,
+            log_append=True,
+        )
         text = open(self.base + ".log").read()
-        self.assertEqual(text.count("# run:"), 2)        # both runs in one file
+        self.assertEqual(text.count("# run:"), 2)  # both runs in one file
         self.assertIn("load a.gpkg", text)
         self.assertIn("load b.gpkg", text)
 
     def test_failure_inline_one_line(self):
         with self.assertRaises(FlowError):
             flow("buffer 100m", backend=MockBackend(), log=self.base)  # op before load
-        lines = [ln for ln in open(self.base + ".log").read().splitlines()
-                 if "FAILED" in ln]
+        lines = [
+            ln for ln in open(self.base + ".log").read().splitlines() if "FAILED" in ln
+        ]
         self.assertEqual(len(lines), 1)  # the failure is a single line
 
     def test_footer_reports_elapsed(self):
@@ -129,13 +145,18 @@ class TestRunMetadata(unittest.TestCase):
     def setUp(self):
         import os
         import tempfile
+
         self.base = os.path.join(tempfile.mkdtemp(prefix="niva_meta_"), "run")
 
     def test_log_header_carries_niva_version(self):
         import niva
         from niva.engine import MockBackend
-        niva.flow("load a.gpkg | buffer 100m | save out.gpkg",
-                  backend=MockBackend(), log=self.base)
+
+        niva.flow(
+            "load a.gpkg | buffer 100m | save out.gpkg",
+            backend=MockBackend(),
+            log=self.base,
+        )
         header = open(self.base + ".log").readline()
         self.assertIn(f"niva {niva.__version__}", header)
         self.assertIn("started", header)
@@ -143,9 +164,11 @@ class TestRunMetadata(unittest.TestCase):
     def test_run_emits_version_and_start_finish(self):
         import niva
         from niva.engine import MockBackend
+
         lines = []
-        niva.flow("load a.gpkg | save out.gpkg", backend=MockBackend(),
-                  progress=lines.append)
+        niva.flow(
+            "load a.gpkg | save out.gpkg", backend=MockBackend(), progress=lines.append
+        )
         joined = "\n".join(lines)
         self.assertIn(f"niva {niva.__version__} — run started", joined)
         self.assertIn("run finished", joined)
@@ -153,8 +176,11 @@ class TestRunMetadata(unittest.TestCase):
     def test_record_note_appears_in_both_files(self):
         import json
         from niva.journal import Journal
+
         j = Journal(self.base).open(flow="<t>", niva_version="9.9.9")
-        j.record(text="reproject EPSG:6346", kind="reproject", note="mixed geometry kept")
+        j.record(
+            text="reproject EPSG:6346", kind="reproject", note="mixed geometry kept"
+        )
         j.close()
         log = open(self.base + ".log").read()
         self.assertIn("⚠ mixed geometry kept", log)

@@ -34,19 +34,28 @@ class TestGrammar(unittest.TestCase):
         f = self.one_flow("buffer 100m dissolve cap=flat segments=12")
         s = f.stages[0]
         self.assertEqual(s.verb, "buffer")
-        self.assertEqual(s.args, ["100m", "dissolve"])          # 100m positional, dissolve flag (unresolved)
+        self.assertEqual(
+            s.args, ["100m", "dissolve"]
+        )  # 100m positional, dissolve flag (unresolved)
         self.assertEqual(s.options, {"cap": "flat", "segments": "12"})
 
     def test_list_value_option(self):
-        f = self.one_flow("join with=census.csv field=tract fields=pop,income prefix=cen_")
+        f = self.one_flow(
+            "join with=census.csv field=tract fields=pop,income prefix=cen_"
+        )
         self.assertEqual(
             f.stages[0].options,
-            {"with": "census.csv", "field": "tract", "fields": "pop,income", "prefix": "cen_"},
+            {
+                "with": "census.csv",
+                "field": "tract",
+                "fields": "pop,income",
+                "prefix": "cen_",
+            },
         )
 
     def test_crs_value_not_an_option(self):
         f = self.one_flow("reproject EPSG:2262")
-        self.assertEqual(f.stages[0].args, ["EPSG:2262"])       # ':' is not '='
+        self.assertEqual(f.stages[0].args, ["EPSG:2262"])  # ':' is not '='
         self.assertEqual(f.stages[0].options, {})
 
     def test_connection_token(self):
@@ -69,7 +78,7 @@ class TestGrammar(unittest.TestCase):
         self.assertEqual(s.options, {"title": "Cat parcels"})
 
     def test_escaped_quote_in_string(self):
-        f = self.one_flow('filter "\\"zone\\" = 1"')               # source: filter "\"zone\" = 1"
+        f = self.one_flow('filter "\\"zone\\" = 1"')  # source: filter "\"zone\" = 1"
         self.assertEqual(f.stages[0].args, ['"zone" = 1'])
 
     def test_pipe_inside_quotes_is_not_a_split(self):
@@ -84,23 +93,32 @@ class TestGrammar(unittest.TestCase):
         self.assertEqual([s.verb for s in f.stages], ["load", "buffer"])
 
     def test_hash_inside_quotes_kept(self):
-        f = self.one_flow('filter "name = \'#1\'"')
+        f = self.one_flow("filter \"name = '#1'\"")
         self.assertEqual(f.stages[0].args, ["name = '#1'"])
 
     def test_quoted_connection_ref_keeps_at_strips_quotes(self):
         # `@"name"` / `@'name'` — a connection whose name has spaces/dots must resolve, so the
         # quotes are stripped but the `@` is kept (regression: the quotes used to leak in).
-        self.assertEqual(self.one_flow('show @"My PG Server"').stages[0].args, ["@My PG Server"])
-        self.assertEqual(self.one_flow("show @'spatialite.db'").stages[0].args, ["@spatialite.db"])
+        self.assertEqual(
+            self.one_flow('show @"My PG Server"').stages[0].args, ["@My PG Server"]
+        )
+        self.assertEqual(
+            self.one_flow("show @'spatialite.db'").stages[0].args, ["@spatialite.db"]
+        )
         self.assertEqual(
             self.one_flow('load @"CNYTriData.gpkg.course_points"').stages[0].args,
-            ["@CNYTriData.gpkg.course_points"])
+            ["@CNYTriData.gpkg.course_points"],
+        )
 
     def test_apostrophe_in_unquoted_token_is_literal(self):
         # A lone quote *inside* an unquoted token is data, not a delimiter — names like
         # O'Brien.shp must survive (we only strip a *surrounding* pair).
-        self.assertEqual(self.one_flow("load O'Brien.shp").stages[0].args, ["O'Brien.shp"])
-        self.assertEqual(self.one_flow('load "O\'Brien.shp"').stages[0].args, ["O'Brien.shp"])
+        self.assertEqual(
+            self.one_flow("load O'Brien.shp").stages[0].args, ["O'Brien.shp"]
+        )
+        self.assertEqual(
+            self.one_flow('load "O\'Brien.shp"').stages[0].args, ["O'Brien.shp"]
+        )
 
     def test_unterminated_quote_is_a_flow_error(self):
         for bad in ('load "foo', "load 'foo", 'show @"bar'):
