@@ -71,8 +71,10 @@ niva in the QGIS plugin dock and on the command line — see **[docs/screenshots
 ## Quick start
 
 > **Dependencies:** the only requirement is **QGIS 3.22+/4.x** (niva runs in its Python) — core
-> geoprocessing needs nothing else. Point clouds (`pdalcli:`/`pdal:`), SAGA, OTB, LAStools,
-> `notify`/`email`, and editor highlighting are **optional** add-ons; see
+> geoprocessing needs nothing else. Point clouds (`pdalcli:`/`pdal:`) need a PDAL backend
+> (`pdal_wrench`) — bundled in QGIS on Windows/macOS, a one-line conda install on Linux: see the
+> **[point-cloud setup guide](docs/guide/pdal-setup.md)**. SAGA, OTB, LAStools, `notify`/`email`,
+> and editor highlighting are **optional** add-ons; see
 > **[Dependencies — required & optional](docs/guide/user-guide.md#dependencies--required--optional)**.
 
 ### In QGIS — no install needed (easiest)

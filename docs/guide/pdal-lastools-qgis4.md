@@ -4,6 +4,10 @@ How to unlock point cloud processing in QGIS 4 and make LiDAR algorithms availab
 
 Verified on this host: **Ubuntu 26.04 LTS, QGIS 4.0.3-Norrköping**.
 
+> Just want the point-cloud backend working on your OS? The plain, per-platform
+> manual (Windows / macOS / Linux, no agent required) is **[pdal-setup.md](pdal-setup.md)**.
+> This page is the deep dive — every algorithm, LAStools/OTB/SAGA, and host specifics.
+
 **Quick status on this host (after the setup in this guide):**
 
 | Component | State | What it means |
@@ -52,7 +56,7 @@ cd ~ && curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/latest | tar -xv
 ```bash
 export MAMBA_ROOT_PREFIX=$HOME/micromamba
 ~/bin/micromamba create -y -p $HOME/micromamba/envs/pdal -c conda-forge pdal pdal_wrench
-# -> ~/micromamba/envs/pdal/bin/pdal_wrench   (v1.5.0, verified working)
+# -> ~/micromamba/envs/pdal/bin/pdal_wrench   (v1.5.1, verified working; pdal 2.10.2)
 ```
 
 **3. Point QGIS at it.** Add to `~/.bashrc` so both the QGIS desktop app (when launched from a shell) and the niva CLI inherit it:
@@ -322,6 +326,7 @@ The only copies still circulating are **untrusted third-party redistributions** 
 |---------|-------|-----|
 | PDAL algorithms visible but `run pdal:*` → *"wrench executable is not found"* | `pdal_wrench` binary missing or not pointed to | Install `pdal_wrench` (conda-forge `pdal_wrench` package) and set `QGIS_WRENCH_EXECUTABLE` |
 | `run pdal:*` → *"Could not load source layer for INPUT: … not found"* (file exists) | No `pdal` data provider here — raw LAS/LAZ can't be opened | Convert once: `pdal translate in.las out.copc.laz`, then use the `.copc.laz` as `INPUT` |
+| `run pdal:exportraster … FILTER_EXPRESSION="Classification==2"` → *"Argument 'filter' needs a value and none was provided"* | QGIS evaluates `FILTER_EXPRESSION` as a **QGIS** expression first; `==` is invalid QGIS syntax → it emits an empty `--filter=`. (Confirmed: QGIS logs `--filter=` for `==`, but a correct `--filter=…` for a `>`/`and` form.) | Use a `=`-free range form — `FILTER_EXPRESSION="Classification > 1.5 and Classification < 2.5"` — or use `run pdalcli:*` where `filter="Classification==2"` passes straight to wrench |
 | `sudo apt install pdal` → *"Unable to locate package"* | No `pdal` apt package in the current cache | Use micromamba/conda-forge (see above); Homebrew `pdal` lacks `pdal_wrench` |
 | `run pdal:groundfilter` / `pdal:smrf` → "algorithm not found" | Those IDs don't exist | Ground classification is `pdal:classifyground`; see the algorithm table for real IDs |
 | `pdal:*` point-cloud output → *"Incorrect parameter value for VPC_OUTPUT_FORMAT"* | That enum is required for point-cloud-producing algorithms | Pass a valid `VPC_OUTPUT_FORMAT`; run `niva describe pdal:<id>` for allowed values |
