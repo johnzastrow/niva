@@ -22,6 +22,7 @@ Design notes:
 from __future__ import annotations
 
 import glob
+import json
 import os
 import platform
 import shutil
@@ -306,12 +307,19 @@ def _synthesize_las(td: str) -> str | None:
         return None
     las = os.path.join(td, "faux.las")
     pipeline = os.path.join(td, "pipe.json")
+    # Build the pipeline with json.dumps so the LAS path is escaped correctly on every
+    # OS — a raw Windows path (C:\Users\…) written into JSON is an invalid \escape.
+    stages = [
+        {
+            "type": "readers.faux",
+            "mode": "random",
+            "count": 10000,
+            "bounds": "([0,100],[0,100],[70,90])",
+        },
+        {"type": "writers.las", "filename": las},
+    ]
     with open(pipeline, "w", encoding="utf-8") as fh:
-        fh.write(
-            '[{"type":"readers.faux","mode":"random","count":10000,'
-            '"bounds":"([0,100],[0,100],[70,90])"},'
-            f'{{"type":"writers.las","filename":"{las}"}}]'
-        )
+        json.dump(stages, fh)
     try:
         p = subprocess.run(
             [pdal_cli, "pipeline", pipeline],

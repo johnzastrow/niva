@@ -47,6 +47,32 @@ class TestDiscovery(unittest.TestCase):
         self.assertIsNone(pd._version("/definitely/not/here/pdal_wrench", ["--version"]))
 
 
+class TestSynthesize(unittest.TestCase):
+    def test_pipeline_json_is_valid_with_backslash_path(self):
+        # The faux pipeline must serialize a Windows-style output path as valid JSON
+        # (a raw C:\… embed is an invalid \escape). Capture what gets written.
+        import json
+
+        written = {}
+
+        def _capture_run(argv, **kw):
+            # argv = [pdal, "pipeline", <pipeline.json>] — read + validate it
+            with open(argv[2], encoding="utf-8") as fh:
+                written["stages"] = json.load(fh)  # raises if invalid JSON
+            return mock.Mock(returncode=1)  # force None return; we only want the JSON
+
+        with (
+            mock.patch.object(pd, "_find", return_value=("/opt/pdal", "PATH")),
+            mock.patch.object(pd, "_os_key", return_value="windows"),
+            mock.patch("niva.pdal_doctor.subprocess.run", _capture_run),
+            tempfile.TemporaryDirectory() as td,
+        ):
+            pd._synthesize_las(td)
+        types = [s["type"] for s in written["stages"]]
+        self.assertEqual(types, ["readers.faux", "writers.las"])
+        self.assertTrue(written["stages"][1]["filename"].endswith("faux.las"))
+
+
 class TestDispatch(unittest.TestCase):
     def test_setup_returns_zero(self):
         self.assertEqual(pd.run(["setup"]), 0)
