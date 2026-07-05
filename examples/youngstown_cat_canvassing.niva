@@ -81,11 +81,10 @@ load work/roads_v.gpkg | fixgeom | explode | save work/network_edges.gpkg
 # ---- Step 6 · select human homes linked to qualifying cat homes -------------
 # Pull the relationship + criteria straight from PostGIS (set work pushed to the
 # DB), then attach geometry from the geocoded points. Excludes dog/bird homes.
-sql @cats_pg "SELECT h.address, h.occupants
-              FROM human_homes h
-              JOIN cat_homes c USING (address)
-              WHERE c.has_cat AND NOT h.has_dog AND NOT h.has_bird"
-  | save work/targets_attr.gpkg
+# (niva's grammar is line-based: a quoted string can't span lines, so the SQL is one line;
+#  the flow continues onto the next line via the trailing `|`.)
+sql @cats_pg "SELECT h.address, h.occupants FROM human_homes h JOIN cat_homes c USING (address) WHERE c.has_cat AND NOT h.has_dog AND NOT h.has_bird" |
+  save work/targets_attr.gpkg
 
 load work/homes_points.gpkg
   | join with=work/targets_attr.gpkg field=address field2=address fields=occupants
@@ -104,28 +103,22 @@ run native:slope INPUT=work/dem.tif OUTPUT=work/slope.tif
 # one more reason GRASS is least-preferred. Verify with `describe grass:<id>`.
 run grass:r.cost input=work/slope.tif start_points=work/target_points.gpkg output=work/cost.tif
 # Travelling-salesman tour over the target stops on the network (one per mode):
-run grass:v.net.salesman input=work/network_edges.gpkg points=work/target_points.gpkg \
-    output=work/route_foot.gpkg
-run grass:v.net.salesman input=work/network_edges.gpkg points=work/target_points.gpkg \
-    output=work/route_bike.gpkg
+run grass:v.net.salesman input=work/network_edges.gpkg points=work/target_points.gpkg output=work/route_foot.gpkg
+run grass:v.net.salesman input=work/network_edges.gpkg points=work/target_points.gpkg output=work/route_bike.gpkg
 
 
 # ---- Step 8 · maps + per-canvasser handouts ---------------------------------
 # Export an existing atlas layout (.qpt) — one page per route/canvasser. The
 # layout is composed once in QGIS; niva just drives the export (a native algo).
-run native:atlaslayouttomultiplepdf LAYOUT=layouts/canvasser.qpt \
-    COVERAGE_LAYER=work/route_foot.gpkg OUTPUT_FOLDER=out/handouts_foot/
-run native:atlaslayouttomultiplepdf LAYOUT=layouts/canvasser.qpt \
-    COVERAGE_LAYER=work/route_bike.gpkg OUTPUT_FOLDER=out/handouts_bike/
+run native:atlaslayouttomultiplepdf LAYOUT=layouts/canvasser.qpt COVERAGE_LAYER=work/route_foot.gpkg OUTPUT_FOLDER=out/handouts_foot/
+run native:atlaslayouttomultiplepdf LAYOUT=layouts/canvasser.qpt COVERAGE_LAYER=work/route_bike.gpkg OUTPUT_FOLDER=out/handouts_bike/
 
 
 # ---- Step 9 · documented repository for reuse -------------------------------
 # Every `save` above already wrote per-step lineage into the layer metadata
 # history (08-§3). Stamp the headline deliverables with descriptive metadata:
 load work/target_points.gpkg
-  | metadata set title="Cat-owning residences — canvass targets (Youngstown)" \
-                 keywords=cats,canvass,youngstown,niagara \
-                 abstract="Geocoded cat-owning homes, excluding homes with dogs or birds; EPSG:2262."
+  | metadata set title="Cat-owning residences — canvass targets (Youngstown)" keywords=cats,canvass,youngstown,niagara abstract="Geocoded cat-owning homes, excluding homes with dogs or birds; EPSG:2262."
   | save deliverables/target_points.gpkg
 
 load work/route_foot.gpkg

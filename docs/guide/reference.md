@@ -112,7 +112,10 @@ buffer 100m dissolve cap=flat segments=12
   `filter "landuse = 'R'"`, `load "my data.gpkg|layername=roads"`. Single or double quotes;
   the outer pair is stripped.
 - `#` starts a **comment** to end of line. A line that is only a comment is ignored.
-- A trailing `\` **joins** the next line (for long flows).
+- A flow **continues across lines** when a `|` sits at the **end of a line or the start of the
+  next** (`niva/grammar/parser.py`) — split long flows *between stages* on the pipe. A backslash
+  `\` is **not** a line-continuation; a single stage's args/options must stay on one line, and a
+  quoted string cannot span lines.
 - Blank lines are ignored. Each non-blank line is its own flow.
 
 ### Paths

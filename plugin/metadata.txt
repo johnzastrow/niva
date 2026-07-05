@@ -4,7 +4,7 @@ qgisMinimumVersion=3.22
 qgisMaximumVersion=4.99
 supportsQt6=True
 description=Run niva flows — a concise text pipeline for QGIS geoprocessing — from a dock.
-version=0.42.1
+version=0.42.2
 author=John Zastrow
 email=br8kwall@gmail.com
 about=niva is a concise, readable text-pipeline grammar for QGIS geoprocessing
@@ -18,7 +18,7 @@ repository=https://github.com/johnzastrow/niva
 homepage=https://github.com/johnzastrow/niva
 category=Plugins
 tags=processing,automation,workflow,pipeline,batch,vector,raster,analysis,geoprocessing,gdal,grass,pdal,scripting
-icon=icon.svg
+icon=icon.png
 experimental=True
 deprecated=False
 # changelog — shown on the plugin's page in the QGIS Plugin Manager. KEEP IT CONCISE: the
@@ -26,7 +26,10 @@ deprecated=False
 # one-line summary for the new version here, mirroring the top entry of ../CHANGELOG.md (the
 # repo file stays the full history; this field is just the highlights). Drop the oldest line
 # so it never grows past ~2 entries. Continuation lines MUST stay indented (like `about=`).
-changelog=0.42.1 — Changed: license text corrected to GPL-3.0-or-later (matches the project's
+changelog=0.42.2 — Packaging: the plugin zip now bundles the GPL-3.0-or-later LICENSE and ships a
+    PNG icon (icon.png) for the QGIS Plugin Repository listing. Fixed an example that didn't parse
+    (multi-line SQL string — niva's grammar is line-based). No functional change to niva itself.
+    0.42.1 — Changed: license text corrected to GPL-3.0-or-later (matches the project's
     stated GPLv3 license); added plugin `tags` for discoverability. No functional change from 0.42.0.
     0.42.0 — Added: `niva validate <file.niva>` — an OFFLINE linter (no QGIS). Grammar +
     closed-set verb check (did-you-mean) + alias arg/option/enum binding + `run <id>` params, then a

@@ -11,6 +11,19 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.42.2] - 2026-07-05
+
+### Changed
+- **Plugin package hardening for the QGIS Plugin Repository.** `plugin/build_plugin.sh` now bundles
+  the `LICENSE` (GPL-3.0-or-later) inside the zip and ships a raster **`icon.png`** (rendered from
+  `icon.svg`); `plugin/metadata.txt` points `icon=` at the PNG (the repo website prefers a raster
+  thumbnail). No functional change to the niva package.
+
+### Fixed
+- **`examples/youngstown_cat_canvassing.niva` now parses.** It had a SQL string spanning four lines;
+  niva's grammar is line-based (a quoted string can't span lines), so the example never actually ran.
+  Collapsed the SQL to one line and continued the flow with a trailing `|`. Caught by `niva validate`.
+
 ## [0.42.1] - 2026-07-05
 
 ### Changed
