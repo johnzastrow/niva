@@ -1,0 +1,88 @@
+# =============================================================================
+# full_suite · 05 — IMPERVIOUS SURFACE from LiDAR + IMAGERY (fused)   [Stage 5]
+# =============================================================================
+# The study's impervious surface of RECORD, derived by FUSING the .las LiDAR with
+# the 4-band aerial ortho at 1 m — independent of NLCD (Hodgson et al. 2003).
+# NLCD is used later only as a benchmark comparison, never as the source of truth.
+# See use_case.md § "Impervious — FUSED from .las LiDAR + aerial imagery" and § 3.
+#
+# WHY FUSE: neither sensor alone is reliable — imagery confuses bright BARE SOIL
+# with pavement; LiDAR alone confuses low vegetation with flat ground. Combined:
+#   impervious ⇐ non-vegetated (NDVI<t) AND non-water (NDWI<t) AND hard-surface per
+#   LiDAR (building-class / high nDSM ROOFS, or ground-class LOW-ROUGHNESS pavement).
+#
+# PREREQUISITES — produced by 02_prepare.niva (all in EPSG:6346, clipped to AOI):
+#   derived/lidar_2024.laz         merged+AOI-clipped present LiDAR (from inputs/lidar)
+#   derived/{dtm,dsm,ndsm}_2024.tif shared 1 m terrain rasters (built in 02_prepare)
+#   derived/ortho_2024_6346.tif    2024 4-band ortho  (band 1=R 2=G 3=B 4=NIR)
+#   derived/huc12_6346.gpkg        WBD HUC12 units
+#   derived/parcels_6346.gpkg      parcels (owner-joined)
+#   (past epoch mirrors these: derived/lidar_2001.laz, derived/ortho_hist_6346.tif)
+#   derived/nlcd_imperv_2021_6346.tif , derived/nlcd_imperv_2001_6346.tif  (benchmark)
+#
+# PROVIDERS: gdal + PDAL (pdalcli:) only. No SAGA, no OTB. Thresholds are stated
+# here and are the study's tunable parameters (documented in the report Methods).
+# Figure-at-each-step: every step snapshots a PNG into outputs/figures/.
+# RUN: needs QGIS Python + pdal_wrench.  export QT_QPA_PLATFORM=offscreen ; NIVA_TMPDIR=...
+# =============================================================================
+
+# ======================= PRESENT EPOCH (2024) ================================
+
+# --- 1 · LiDAR structure for impervious (02's shared terrain + .las) --------
+# DTM / DSM / nDSM come from 02_prepare (derived/{dtm,dsm,ndsm}_2024.tif). Here we
+# add only the impervious-specific LiDAR metrics.
+# Surface roughness (smooth pavement vs. rough canopy) from the DSM:
+load derived/dsm_2024.tif | run gdal:roughness BAND=1 | save derived/roughness_2024.tif | figure outputs/figures/05_roughness_2024.png
+# Building-class footprints (class 6) — the roof component of impervious:
+load derived/lidar_2024.laz | run pdalcli:translate filter="Classification==6" output=derived/buildings_2024.laz
+load derived/buildings_2024.laz | run pdalcli:boundary | fixgeom | simplify 0.5m | save derived/building_footprints_2024.gpkg | figure outputs/figures/05_buildings_2024.png
+
+# --- 2 · Imagery spectral indices from the 4-band ortho (R,G,B,NIR) ----------
+# NDVI = (NIR-Red)/(NIR+Red): high on vegetation → used to REJECT vegetation.
+run gdal:rastercalculator FORMULA="(A-B)/(A+B)" INPUT_A=derived/ortho_2024_6346.tif BAND_A=4 INPUT_B=derived/ortho_2024_6346.tif BAND_B=1 OUTPUT=derived/ndvi_2024.tif
+load derived/ndvi_2024.tif | figure outputs/figures/05_ndvi_2024.png
+# NDWI = (Green-NIR)/(Green+NIR): high on water → used to REJECT water.
+run gdal:rastercalculator FORMULA="(A-B)/(A+B)" INPUT_A=derived/ortho_2024_6346.tif BAND_A=2 INPUT_B=derived/ortho_2024_6346.tif BAND_B=4 OUTPUT=derived/ndwi_2024.tif
+load derived/ndwi_2024.tif | figure outputs/figures/05_ndwi_2024.png
+
+# --- 3 · FUSE → 1 m impervious mask (0/1) -----------------------------------
+# Rule (numpy expr; thresholds are the study's tunable parameters):
+#   impervious = non-veg (NDVI<0.20) AND non-water (NDWI<0.00)
+#                AND hard-surface [ roof: nDSM>2.0 m  OR  pavement: roughness<0.5 ]
+#   A=NDVI  B=NDWI  C=nDSM  D=roughness
+run gdal:rastercalculator FORMULA="((A<0.20)&(B<0.0)&((C>2.0)|(D<0.5)))*1" INPUT_A=derived/ndvi_2024.tif BAND_A=1 INPUT_B=derived/ndwi_2024.tif BAND_B=1 INPUT_C=derived/ndsm_2024.tif BAND_C=1 INPUT_D=derived/roughness_2024.tif BAND_D=1 OUTPUT=derived/impervious_2024.tif
+load derived/impervious_2024.tif | save outputs/data/impervious_2024.tif | figure outputs/figures/05_impervious_2024.png
+# Vectorize to impervious POLYGONS (individual patches — roofs, roads, lots — kept
+# separate, not dissolved) for cartography, parcel overlay, feature-level change (06),
+# and sharing. Raster stays the source for the zonal AREA/% below.
+load outputs/data/impervious_2024.tif | run gdal:polygonize | filter "DN = 1" | fixgeom | save outputs/data/impervious_2024.gpkg | figure outputs/figures/05_impervious_2024_poly.png
+
+# ======================= PAST EPOCH (2001) ===================================
+# Same chain on derived/lidar_2001.laz + derived/ortho_hist_6346.tif. If no 2001
+# LiDAR exists, document the gap and reuse present terrain (nDSM/roughness) with the
+# 2001 imagery indices — flag the limitation in the report (see use_case.md § Data).
+run gdal:rastercalculator FORMULA="(A-B)/(A+B)" INPUT_A=derived/ortho_hist_6346.tif BAND_A=4 INPUT_B=derived/ortho_hist_6346.tif BAND_B=1 OUTPUT=derived/ndvi_2001.tif
+run gdal:rastercalculator FORMULA="(A-B)/(A+B)" INPUT_A=derived/ortho_hist_6346.tif BAND_A=2 INPUT_B=derived/ortho_hist_6346.tif BAND_B=4 OUTPUT=derived/ndwi_2001.tif
+run gdal:rastercalculator FORMULA="((A<0.20)&(B<0.0)&((C>2.0)|(D<0.5)))*1" INPUT_A=derived/ndvi_2001.tif BAND_A=1 INPUT_B=derived/ndwi_2001.tif BAND_B=1 INPUT_C=derived/ndsm_2024.tif BAND_C=1 INPUT_D=derived/roughness_2024.tif BAND_D=1 OUTPUT=derived/impervious_2001.tif
+load derived/impervious_2001.tif | save outputs/data/impervious_2001.tif | figure outputs/figures/05_impervious_2001.png
+load outputs/data/impervious_2001.tif | run gdal:polygonize | filter "DN = 1" | fixgeom | save outputs/data/impervious_2001.gpkg | figure outputs/figures/05_impervious_2001_poly.png
+
+# --- 4 · Impervious AREA & PERCENT per HUC12 and per parcel (§3) -------------
+# 1 m mask: zonal SUM = impervious area (m²); COUNT = zone area (m²); % = 100*sum/count.
+load derived/huc12_6346.gpkg   | zonalstats raster=outputs/data/impervious_2024.tif stats=sum,count prefix=imp24_ | run native:fieldcalculator FIELD_NAME=imp24_pct FORMULA="100.0*imp24_sum/imp24_count" | save outputs/data/imperv_by_huc12.gpkg | figure outputs/figures/05_imperv_huc12_2024.png
+load derived/parcels_6346.gpkg | zonalstats raster=outputs/data/impervious_2024.tif stats=sum,count prefix=imp24_ | run native:fieldcalculator FIELD_NAME=imp24_pct FORMULA="100.0*imp24_sum/imp24_count" | save outputs/data/imperv_by_parcel.gpkg | figure outputs/figures/05_imperv_parcel_2024.png
+
+# --- 5 · NLCD benchmark comparison (a defined study part — NOT the reference) -
+# Same zonal summary over NLCD % impervious, then difference vs. the fused product.
+load derived/huc12_6346.gpkg | zonalstats raster=derived/nlcd_imperv_2021_6346.tif stats=mean prefix=nlcd21_ | save outputs/data/nlcd_by_huc12.gpkg
+# Join fused vs NLCD per HUC12 and report the difference (fused − NLCD):
+load outputs/data/imperv_by_huc12.gpkg | join with=outputs/data/nlcd_by_huc12.gpkg field=NHDPlusID field2=NHDPlusID fields=nlcd21_mean | run native:fieldcalculator FIELD_NAME=imp_vs_nlcd FORMULA="imp24_pct-nlcd21_mean" | save outputs/data/imperv_benchmark_huc12.gpkg | figure outputs/figures/05_imperv_vs_nlcd_huc12.png
+
+# --- 6 · Deliverable maps (composed layouts, as needed) ---------------------
+# Present impervious over the AOI, and the fused-vs-NLCD benchmark map:
+load outputs/data/impervious_2024.tif | map outputs/figures/05_map_impervious_2024.png title="Impervious surface 2024 — LiDAR + imagery fusion (1 m)" layers="derived/village_6346.gpkg;derived/aoi_6346.gpkg" dpi=200
+load outputs/data/imperv_benchmark_huc12.gpkg | map outputs/figures/05_map_imperv_vs_nlcd.png title="Fused impervious vs NLCD — % difference by HUC12" labels=imp_vs_nlcd dpi=200
+
+# Outputs: outputs/data/impervious_{2024,2001}.tif, imperv_by_{huc12,parcel}.gpkg,
+# imperv_benchmark_huc12.gpkg; a full figure trail in outputs/figures/. Next stage
+# (06_change) differences the two epochs and adds the statistical assessment.

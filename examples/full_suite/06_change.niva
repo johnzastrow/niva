@@ -1,0 +1,57 @@
+# =============================================================================
+# full_suite · 06 — CHANGE: quantify, locate, rank + statistical assessment [Stage 6]
+# =============================================================================
+# Consolidate the past→present change and assess it statistically (use_case.md § 4):
+#   - impervious change per HUC12 and per parcel (Δ% and Δ area, present − past),
+#   - feature-level impervious GAINED / LOST polygons,
+#   - shoreline change (per-transect EPR from 04),
+#   then descriptive statistics, ranking of the top movers, and deliverable maps.
+#
+# There is NO `stats` verb — descriptive statistics use
+#   `run native:basicstatisticsforfields` (per field) and `run qgis:statisticsbycategories`.
+#
+# PREREQUISITES:
+#   outputs/data/imperv_by_huc12.gpkg , imperv_by_parcel.gpkg   (2024 zonal, imp24_* — from 05)
+#   outputs/data/impervious_2001.tif                             (2001 mask raster — from 05)
+#   outputs/data/impervious_2024.gpkg , impervious_2001.gpkg     (patch polygons — from 05)
+#   outputs/data/erosion_risk.gpkg  (+ transects/EPR — from 04)  (shoreline change)
+#   derived/dtm_hillshade_2024.tif , derived/village_6346.gpkg , derived/aoi_6346.gpkg
+#
+# PROVIDERS: native + gdal. No SAGA/OTB. Figure at each step; maps at the end.
+# EPOCHS: 2001 → 2024 (Δt = 23 yr).
+# =============================================================================
+
+# --- 1 · Impervious change per HUC12 (add 2001 zonal, difference vs 2024) ----
+load outputs/data/imperv_by_huc12.gpkg | zonalstats raster=outputs/data/impervious_2001.tif stats=sum,count prefix=imp01_ | run native:fieldcalculator FIELD_NAME=imp01_pct FORMULA="100.0*imp01_sum/imp01_count" | run native:fieldcalculator FIELD_NAME=d_imp_pct FORMULA="imp24_pct-imp01_pct" | run native:fieldcalculator FIELD_NAME=d_imp_area FORMULA="imp24_sum-imp01_sum" | save outputs/data/imperv_change_huc12.gpkg | figure outputs/figures/06_dimp_huc12.png
+
+# --- 2 · Impervious change per parcel ---------------------------------------
+load outputs/data/imperv_by_parcel.gpkg | zonalstats raster=outputs/data/impervious_2001.tif stats=sum,count prefix=imp01_ | run native:fieldcalculator FIELD_NAME=imp01_pct FORMULA="100.0*imp01_sum/imp01_count" | run native:fieldcalculator FIELD_NAME=d_imp_pct FORMULA="imp24_pct-imp01_pct" | run native:fieldcalculator FIELD_NAME=d_imp_area FORMULA="imp24_sum-imp01_sum" | save outputs/data/imperv_change_parcel.gpkg | figure outputs/figures/06_dimp_parcel.png
+
+# --- 3 · Feature-level impervious GAINED / LOST (polygons) ------------------
+# gained = 2024 impervious not present in 2001;  lost = 2001 impervious gone by 2024.
+load outputs/data/impervious_2024.gpkg | difference outputs/data/impervious_2001.gpkg | fixgeom | save outputs/data/impervious_gained.gpkg | figure outputs/figures/06_impervious_gained.png
+load outputs/data/impervious_2001.gpkg | difference outputs/data/impervious_2024.gpkg | fixgeom | save outputs/data/impervious_lost.gpkg | figure outputs/figures/06_impervious_lost.png
+
+# --- 4 · Statistical assessment (descriptive stats per metric) --------------
+# Basic statistics (count, mean, median, stdev, min, max, range…) of the change fields.
+run native:basicstatisticsforfields INPUT_LAYER=outputs/data/imperv_change_huc12.gpkg FIELD_NAME=d_imp_pct OUTPUT_HTML_FILE=outputs/tables/stats_dimp_huc12.html
+run native:basicstatisticsforfields INPUT_LAYER=outputs/data/imperv_change_parcel.gpkg FIELD_NAME=d_imp_pct OUTPUT_HTML_FILE=outputs/tables/stats_dimp_parcel.html
+# Shoreline change: same statistics on the per-transect EPR field (04 computes EPR;
+# see the DSAS flag there). Per-front summaries via statisticsbycategories on `front`:
+#   run qgis:statisticsbycategories INPUT=derived/epr.gpkg VALUES_FIELD_NAME=epr CATEGORIES_FIELD_NAME=front OUTPUT=outputs/tables/epr_by_front.gpkg
+
+# --- 5 · Locate & rank the top movers --------------------------------------
+# HUC12 units with a material impervious increase (>5 percentage points):
+load outputs/data/imperv_change_huc12.gpkg | filter "d_imp_pct > 5" | save outputs/data/imperv_hotspots_huc12.gpkg | figure outputs/figures/06_hotspots_huc12.png
+# Parcels with the largest impervious gain (>10 pts) → ranked worklist CSV:
+load outputs/data/imperv_change_parcel.gpkg | filter "d_imp_pct > 10" | save outputs/tables/top_impervious_gain_parcels.csv
+# (Optional hotspot clustering of change — Getis-Ord Gi* — is a `run` step if the
+#  algorithm is installed; documented as optional in use_case.md § 4.)
+
+# --- 6 · Deliverable maps ---------------------------------------------------
+load outputs/data/imperv_change_huc12.gpkg | map outputs/figures/06_map_dimp_huc12.png title="Impervious change 2001→2024 (Δ %) by HUC12" labels=d_imp_pct dpi=200
+load derived/dtm_hillshade_2024.tif | map outputs/figures/06_map_impervious_gain_loss.png title="Impervious gained (2001→2024) & lost" layers="outputs/data/impervious_gained.gpkg;outputs/data/impervious_lost.gpkg;derived/village_6346.gpkg;derived/aoi_6346.gpkg" dpi=200
+
+# Outputs: imperv_change_{huc12,parcel}.gpkg, impervious_{gained,lost}.gpkg, stats
+# tables, hotspot layers + ranked CSV, and change maps. Next: 07_scour (terrain +
+# Δimpervious → stream power) then 08_report assembles the md+PDF scientific report.

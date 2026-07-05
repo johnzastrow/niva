@@ -1,0 +1,84 @@
+# =============================================================================
+# full_suite · 02 — PREPARE (reproject + clip to the AOI)            [Stage 2]
+# =============================================================================
+# Turn the RAW, mixed-CRS, national-extent inputs/ into analysis-ready DERIVED
+# layers: all in EPSG:6346 (NAD83(2011)/UTM 18N, metres) and clipped to the AOI.
+# Raw is never touched — this stage READS inputs/ (+ shipped ../demo/) and WRITES
+# only to derived/ and outputs/figures/. It produces exactly the files that
+# 05_impervious.niva (and the later stages) consume.
+#
+# PREREQUISITE: `bash fetch_inputs.sh` has populated inputs/ (see 01_acquire.niva).
+#
+# PRODUCES (all EPSG:6346, AOI-clipped):
+#   derived/aoi_6346.gpkg          clip mask (also made by 01; rebuilt here so 02 stands alone)
+#   derived/huc12_6346.gpkg        WBD HUC12 (AOI portion; original IDs retained)
+#   derived/parcels_6346.gpkg      parcels (AOI portion)
+#   derived/ortho_2024_6346.tif    2024 4-band ortho (R,G,B,NIR)
+#   derived/ortho_hist_6346.tif    historical ortho (past epoch)
+#   derived/nlcd_imperv_2021_6346.tif , derived/nlcd_imperv_2001_6346.tif
+#   derived/lidar_2024.laz  (+ derived/lidar_2001.laz if a past vintage exists)
+#
+# PROVIDERS: native → gdal → PDAL (pdalcli:/pdal:). No SAGA, no OTB.
+# CONVENTION: figure at each step (pass-through PNG → outputs/figures/).
+#
+# ⚠ niva DEFAULTS THAT AFFECT THE DATA (documented per the study's transparency rule;
+#   see `--explain`): `warp` resamples **nearest** and writes **COMPRESS=DEFLATE|TILED=YES**;
+#   `reproject` keeps curved geometries off. Nearest is deliberate here — it preserves the
+#   NLCD % and the ortho DN values (no interpolation) for the NDVI/NDWI + impervious work.
+#
+# RUN (headless): export QT_QPA_PLATFORM=offscreen ; export NIVA_TMPDIR=/var/tmp/niva
+#      export NIVA_LOG=outputs/notes/journal/02_prepare ; cd examples/full_suite ; niva run 02_prepare.niva
+# =============================================================================
+
+# --- 0 · AOI clip mask (EPSG:6346) -----------------------------------------
+# Rebuilt from the shipped AOI so this stage is self-contained (01 also writes it).
+load "../demo/demo.gpkg|layername=aoi" | reproject EPSG:6346 | fixgeom | save derived/aoi_6346.gpkg | figure outputs/figures/02_aoi.png
+
+# --- 1 · Vector zones → EPSG:6346, clipped to the AOI ----------------------
+# HUC12 (WBD): reproject, clip to AOI (results are the AOI portion of each unit;
+# the original HUC12 id/area attributes are retained for the report).
+load "inputs/huc12/huc12.gpkg" | reproject EPSG:6346 | fixgeom | clip derived/aoi_6346.gpkg | save derived/huc12_6346.gpkg | figure outputs/figures/02_huc12.png
+# Parcels (shipped demo layer; already carry OwnrName + assessed values): reproject,
+# fix, clip to AOI. (owners.csv is available to `join` on PrintKey for parcel sets
+# that lack owner names — not needed here since the demo parcels already have them.)
+load "../demo/demo.gpkg|layername=parcels" | reproject EPSG:6346 | fixgeom | clip derived/aoi_6346.gpkg | save derived/parcels_6346.gpkg | figure outputs/figures/02_parcels.png
+
+# --- 2 · Rasters → EPSG:6346, clipped to the AOI ---------------------------
+# 2024 4-band ortho (R,G,B,NIR) — warp preserves all four bands; nearest keeps DNs.
+load "inputs/ortho_2024/porter_ortho.jp2" | warp EPSG:6346 | clipraster derived/aoi_6346.gpkg | save derived/ortho_2024_6346.tif | figure outputs/figures/02_ortho_2024.png
+# Historical ortho (past epoch).
+load "inputs/ortho_hist/porter_hist.tif" | warp EPSG:6346 | clipraster derived/aoi_6346.gpkg | save derived/ortho_hist_6346.tif | figure outputs/figures/02_ortho_hist.png
+# NLCD % impervious 2021 & 2001 (30 m, EPSG:5070) — nearest preserves the % values.
+load "inputs/nlcd/nlcd_impervious_2021.tif" | warp EPSG:6346 | clipraster derived/aoi_6346.gpkg | save derived/nlcd_imperv_2021_6346.tif | figure outputs/figures/02_nlcd_2021.png
+load "inputs/nlcd/nlcd_impervious_2001.tif" | warp EPSG:6346 | clipraster derived/aoi_6346.gpkg | save derived/nlcd_imperv_2001_6346.tif | figure outputs/figures/02_nlcd_2001.png
+
+# --- 3 · LiDAR point clouds → merged, EPSG:6346, AOI-clipped ---------------
+# fetch_inputs.sh organizes the fetched 3DEP tiles by vintage under inputs/lidar/<year>/
+# and writes a tile manifest. `pdalcli:merge files=` takes a ';'-separated LIST (not a
+# glob) — populate it from that manifest. Then reproject to the study CRS and clip to
+# the AOI polygon (same CRS). NOTE: `pdal:reproject` (QGIS provider) may want a COPC step
+# for raw LAS; the pdalcli: harness reprojects COPC-free — confirm the exact key against
+# the live tools (this is precisely what niva issue #26, offline `run` validation, covers).
+run pdalcli:merge files="inputs/lidar/2024/TILE1.laz;inputs/lidar/2024/TILE2.laz" output=derived/lidar_2024_merged.laz
+load derived/lidar_2024_merged.laz | run pdal:reproject CRS=EPSG:6346 | save derived/lidar_2024_6346.laz
+load derived/lidar_2024_6346.laz | run pdalcli:clip polygon=derived/aoi_6346.gpkg output=derived/lidar_2024.laz
+# Past-epoch LiDAR (2001) if a vintage exists — same chain (else 05 documents the gap):
+# run pdalcli:merge files="inputs/lidar/2001/TILE1.laz;..." output=derived/lidar_2001_merged.laz
+# load derived/lidar_2001_merged.laz | run pdal:reproject CRS=EPSG:6346 | save derived/lidar_2001_6346.laz
+# load derived/lidar_2001_6346.laz | run pdalcli:clip polygon=derived/aoi_6346.gpkg output=derived/lidar_2001.laz
+
+# --- 3b · Foundational terrain rasters from the AOI LiDAR (1 m) -------------
+# DTM (bare earth, class 2), DSM (all returns), nDSM (height above ground), and a
+# hillshade for cartography. SHARED by shoreline (§1 water contour), erosion (§2
+# bluff), impervious (§3/05), and scour (§5) — derived once, here.
+load derived/lidar_2024.laz | run pdalcli:to_raster attribute=Z filter="Classification==2" resolution=1 | save derived/dtm_2024.tif | figure outputs/figures/02_dtm_2024.png
+load derived/lidar_2024.laz | run pdalcli:to_raster attribute=Z resolution=1 | save derived/dsm_2024.tif | figure outputs/figures/02_dsm_2024.png
+run gdal:rastercalculator FORMULA="A-B" INPUT_A=derived/dsm_2024.tif BAND_A=1 INPUT_B=derived/dtm_2024.tif BAND_B=1 OUTPUT=derived/ndsm_2024.tif
+load derived/ndsm_2024.tif | figure outputs/figures/02_ndsm_2024.png
+load derived/dtm_2024.tif | hillshade | save derived/dtm_hillshade_2024.tif | figure outputs/figures/02_dtm_hillshade.png
+
+# --- 4 · QA map — everything prepared, over the AOI ------------------------
+load derived/ortho_2024_6346.tif | map outputs/figures/02_prepared_overview.png title="Prepared inputs (EPSG:6346, AOI-clipped)" layers="derived/huc12_6346.gpkg;derived/parcels_6346.gpkg;derived/aoi_6346.gpkg" dpi=200
+
+# Next: 05_impervious.niva (LiDAR+imagery fused impervious) — and 03/04 shoreline &
+# erosion — all read these derived/ layers. inputs/ remains byte-for-byte raw.
