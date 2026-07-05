@@ -30,9 +30,22 @@ from .units import resolve_distance
 
 class Engine:
     def __init__(
-        self, backend: Backend, registry=None, journal=None, progress=None, cancel=None
+        self,
+        backend: Backend,
+        registry=None,
+        journal=None,
+        progress=None,
+        cancel=None,
+        inert=False,
     ):
         self.backend = backend
+        # inert: suppress every OUTWARD side effect the engine performs directly — writing
+        # report/assessment/catalog files, deleting files (`remove`), and network sends
+        # (`notify`/`email`, ntfy auto-alerts). Argument validation still runs, so a linter
+        # (`niva validate`) or `--dry-run` can exercise a flow over the MockBackend without
+        # touching disk, the network, or existing files. Backend-delegated I/O is already
+        # inert under MockBackend; this covers the engine-direct actions it can't.
+        self.inert = inert
         self.registry = registry or core_registry()
         self.journal = (
             journal  # optional run journal (jsonl + human log); see niva.journal
@@ -73,6 +86,9 @@ class Engine:
         """
         if to:
             to = os.path.expanduser(to)
+            if self.inert:  # linter/dry-run: validate the path but write nothing
+                self._emit(f"  {label} → {to} (dry-run: not written)")
+                return
             parent = os.path.dirname(to)
             if parent:
                 os.makedirs(parent, exist_ok=True)
@@ -801,6 +817,9 @@ class Engine:
                 stage=stage.raw,
             )
         dest = os.path.expanduser(rest[1])
+        if self.inert:  # linter/dry-run: args validated above; write nothing
+            self._emit(f"  assessment → {dest} (dry-run: not written)")
+            return current
         profile = self.backend.profile(current, deep)
         report = _format_assessment(profile, deep)
         parent = os.path.dirname(dest)
@@ -906,7 +925,7 @@ class Engine:
         existing = [p for p in candidates if os.path.isfile(p)]
         sidecars = len(existing) - 1
 
-        if dryrun:
+        if dryrun or self.inert:  # inert (linter/dry-run) must never delete files
             shown = ", ".join(os.path.basename(p) for p in existing)
             self._emit(
                 f"  remove -dryrun: would delete {len(existing)} file(s) — {shown}"
@@ -998,6 +1017,9 @@ class Engine:
                 stage=stage.raw,
             )
         opts = stage.options
+        if self.inert:  # linter/dry-run: message validated above; send nothing
+            self._emit(f"  notify → {opts.get('to') or 'ntfy'} (dry-run: not sent)")
+            return current
         target = send_ntfy(
             self._interpolate(message),
             topic=opts.get("to"),
@@ -1034,6 +1056,8 @@ class Engine:
         """Best-effort ntfy alert, gated by an env flag. ``kind`` is "error" or
         "warning"; warnings are de-duplicated per run so a batch can't spam. Never
         raises — an alert must not break (or abort) the run."""
+        if self.inert:  # a linter/dry-run must not send auto-alerts
+            return
         flag = "NIVA_NTFY_ON_ERROR" if kind == "error" else "NIVA_NTFY_ON_WARNING"
         if str(os.environ.get(flag, "")).strip().lower() not in (
             "1",
@@ -1067,6 +1091,9 @@ class Engine:
 
         opts = stage.options
         to = opts.get("to") or (stage.args[0] if stage.args else None)
+        if self.inert:  # linter/dry-run: recipient resolved above; send nothing
+            self._emit(f"  email → {to or '(no recipient)'} (dry-run: not sent)")
+            return current
         recipient = send_email(
             to=to,
             subject=opts.get("subject", ""),
@@ -1180,6 +1207,11 @@ class Engine:
                     self._emit(f"  catalog: {display}")
 
         report = format_catalog(root, entries)
+        if self.inert:  # linter/dry-run: don't write the catalog file
+            self._emit(
+                f"  catalogued {len(entries)} dataset(s) → {out} (dry-run: not written)"
+            )
+            return None
         parent = os.path.dirname(out)
         if parent:
             os.makedirs(parent, exist_ok=True)

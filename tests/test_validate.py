@@ -281,5 +281,66 @@ class TestValidateCLI(unittest.TestCase):
         self.assertEqual(code, 2)
 
 
+# --------------------------------------------------------------------------- #
+# The dry-run exercise must be SIDE-EFFECT-FREE — a linter never touches disk,
+# the network, or existing files (engine `inert=True`).
+# --------------------------------------------------------------------------- #
+class TestExerciseHasNoSideEffects(unittest.TestCase):
+    def test_assess_report_is_not_written(self):
+        d = tempfile.mkdtemp()
+        report = os.path.join(d, "quality.md")
+        ok, _ = check(f'load a.gpkg | assess to "{report}" | save b.gpkg')
+        self.assertTrue(ok)
+        self.assertFalse(
+            os.path.exists(report), "validate must not write the assessment report"
+        )
+
+    def test_catalog_output_is_not_written(self):
+        d = tempfile.mkdtemp()
+        out = os.path.join(d, "catalog.md")
+        check(f'catalog "{d}" to="{out}"')
+        self.assertFalse(
+            os.path.exists(out), "validate must not write the catalog file"
+        )
+
+    def test_remove_does_not_delete(self):
+        fd, victim = tempfile.mkstemp(suffix=".gpkg")
+        os.close(fd)
+        try:
+            ok, _ = check(f'remove "{victim}" force')
+            self.assertTrue(os.path.exists(victim), "validate must NEVER delete a file")
+        finally:
+            if os.path.exists(victim):
+                os.unlink(victim)
+
+    def test_notify_is_not_sent(self):
+        import niva.utilities as u
+
+        original = u.send_ntfy
+        u.send_ntfy = lambda *a, **k: (_ for _ in ()).throw(
+            AssertionError("send_ntfy called during validate")
+        )
+        try:
+            ok, _ = check('load a.gpkg | notify "done {ops}" to=topic | save b.gpkg')
+            self.assertTrue(ok)  # completed without ever calling send_ntfy
+        finally:
+            u.send_ntfy = original
+
+    def test_email_is_not_sent(self):
+        import niva.utilities as u
+
+        original = u.send_email
+        u.send_email = lambda *a, **k: (_ for _ in ()).throw(
+            AssertionError("send_email called during validate")
+        )
+        try:
+            ok, _ = check(
+                "load a.gpkg | email to=x@example.com subject=hi | save b.gpkg"
+            )
+            self.assertTrue(ok)
+        finally:
+            u.send_email = original
+
+
 if __name__ == "__main__":
     unittest.main()
