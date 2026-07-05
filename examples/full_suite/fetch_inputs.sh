@@ -93,17 +93,22 @@ curl -s --max-time 120 "$WBD_URL" -o "$IN/huc12/wbd_huc12.geojson"
 ogr2ogr -f GPKG "$IN/huc12/huc12.gpkg" "$IN/huc12/wbd_huc12.geojson" 2>/dev/null || echo "  !! ogr2ogr failed — check $IN/huc12/wbd_huc12.geojson"
 log_prov "huc12" "USGS WBD (National Map REST)" "$WBD_URL" "$IN/huc12/huc12.gpkg"
 
-echo "== 5/5  Historical ortho — oldest NAIP over the AOI (Planetary Computer, public) =="
-# NAIP is 4-band (RGB+NIR). Microsoft Planetary Computer serves it publicly (STAC +
-# free SAS signing — no account). Fetch the OLDEST tile over the AOI for the 'past'
-# epoch (NY NAIP starts ~2011, not 2001 — note this in the report). VERIFIED WORKING.
-NAIP_ITEM=$(curl -s --max-time 60 "https://planetarycomputer.microsoft.com/api/stac/v1/search" -H "Content-Type: application/json" -d "{\"collections\":[\"naip\"],\"bbox\":[${AOI_BBOX_4326}],\"limit\":1,\"sortby\":[{\"field\":\"properties.datetime\",\"direction\":\"asc\"}]}")
-NAIP_HREF=$(printf '%s' "$NAIP_ITEM" | python3 -c "import json,sys;print(json.load(sys.stdin)['features'][0]['assets']['image']['href'])")
-NAIP_DATE=$(printf '%s' "$NAIP_ITEM" | python3 -c "import json,sys;print(json.load(sys.stdin)['features'][0]['properties']['datetime'][:10])")
-NAIP_SIGNED=$(curl -s --max-time 40 "https://planetarycomputer.microsoft.com/api/sas/v1/sign?href=${NAIP_HREF}" | python3 -c "import json,sys;print(json.load(sys.stdin)['href'])")
-gdal_translate -projwin -79.067 43.275 -79.005 43.233 -projwin_srs EPSG:4326 "/vsicurl/${NAIP_SIGNED}" "$IN/ortho_hist/porter_hist.tif" >/dev/null 2>&1
-gdalinfo "$IN/ortho_hist/porter_hist.tif" >/dev/null 2>&1 && echo "  NAIP ${NAIP_DATE}: OK (4-band RGB+NIR)" || echo "  !! NAIP fetch failed"
-log_prov "ortho_hist (NAIP ${NAIP_DATE})" "USDA NAIP via Planetary Computer" "$NAIP_HREF" "$IN/ortho_hist/porter_hist.tif"
+echo "== 5/5  Historical ortho — oldest NAIP tiles over the AOI (Planetary Computer) =="
+# NAIP = 4-band RGB+NIR, served publicly by MPC (STAC + free SAS signing, no account).
+# The AOI spans ~4 quarter-quads; download the OLDEST year's tiles RAW (per-tile AOI
+# window; -a_nodata 0 marks the black collars). The MOSAIC + reproject + clip is done
+# in niva (02_prepare.niva) — this step only fetches raw tiles. NY NAIP starts ~2011
+# (not 2001) — note the epoch caveat in the report.
+curl -s --max-time 60 "https://planetarycomputer.microsoft.com/api/stac/v1/search" -H "Content-Type: application/json" -d "{\"collections\":[\"naip\"],\"bbox\":[${AOI_BBOX_4326}],\"limit\":50}" -o "$IN/ortho_hist/_naip_search.json"
+NAIP_YEAR=$(python3 -c "import json,collections;d=json.load(open('$IN/ortho_hist/_naip_search.json'));by=collections.defaultdict(list);[by[f['properties']['datetime'][:4]].append(f) for f in d['features']];print(sorted(by)[0])")
+i=0
+while read -r HREF; do
+  i=$((i+1))
+  SIGNED=$(curl -s --max-time 40 "https://planetarycomputer.microsoft.com/api/sas/v1/sign?href=${HREF}" | python3 -c "import json,sys;print(json.load(sys.stdin)['href'])")
+  gdal_translate -projwin -79.067 43.275 -79.005 43.233 -projwin_srs EPSG:4326 -a_nodata 0 "/vsicurl/${SIGNED}" "$IN/ortho_hist/naip_${i}.tif" >/dev/null 2>&1
+  echo "  NAIP ${NAIP_YEAR} tile ${i}: $([ -s "$IN/ortho_hist/naip_${i}.tif" ] && echo OK || echo FAIL)"
+  log_prov "ortho_hist naip_${i} (${NAIP_YEAR})" "USDA NAIP / Planetary Computer" "$HREF" "$IN/ortho_hist/naip_${i}.tif"
+done < <(python3 -c "import json,collections;d=json.load(open('$IN/ortho_hist/_naip_search.json'));by=collections.defaultdict(list);[by[f['properties']['datetime'][:4]].append(f) for f in d['features']];[print(f['assets']['image']['href']) for f in by[sorted(by)[0]]]")
 
 echo
 echo "Done. Raw inputs under: $IN  (treat as READ-ONLY)"

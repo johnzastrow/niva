@@ -46,8 +46,11 @@ load "../demo/demo.gpkg|layername=parcels" | reproject EPSG:6346 | fixgeom | cli
 # --- 2 · Rasters → EPSG:6346, clipped to the AOI ---------------------------
 # 2024 4-band ortho (R,G,B,NIR) — warp preserves all four bands; nearest keeps DNs.
 load "inputs/ortho_2024/porter_ortho.jp2" | warp EPSG:6346 | clipraster derived/aoi_6346.gpkg | save derived/ortho_2024_6346.tif | figure outputs/figures/02_ortho_2024.png
-# Historical ortho (past epoch).
-load "inputs/ortho_hist/porter_hist.tif" | warp EPSG:6346 | clipraster derived/aoi_6346.gpkg | save derived/ortho_hist_6346.tif | figure outputs/figures/02_ortho_hist.png
+# Historical ortho (past epoch): MOSAIC the raw NAIP tiles (NODATA_INPUT=0 fills the
+# black quarter-quad collars), then reproject + clip. (Mosaic is processing → in niva;
+# fetch_inputs.sh only downloaded the raw tiles.)
+run gdal:merge INPUT="inputs/ortho_hist/naip_1.tif;inputs/ortho_hist/naip_2.tif;inputs/ortho_hist/naip_3.tif;inputs/ortho_hist/naip_4.tif" NODATA_INPUT=0 DATA_TYPE=0 OUTPUT=derived/ortho_hist_mosaic.tif
+load derived/ortho_hist_mosaic.tif | warp EPSG:6346 | clipraster derived/aoi_6346.gpkg | save derived/ortho_hist_6346.tif | figure outputs/figures/02_ortho_hist.png
 # NLCD % impervious 2021 & 2001 (30 m, EPSG:5070) — nearest preserves the % values.
 load "inputs/nlcd/nlcd_impervious_2021.tif" | warp EPSG:6346 | clipraster derived/aoi_6346.gpkg | save derived/nlcd_imperv_2021_6346.tif | figure outputs/figures/02_nlcd_2021.png
 load "inputs/nlcd/nlcd_impervious_2001.tif" | warp EPSG:6346 | clipraster derived/aoi_6346.gpkg | save derived/nlcd_imperv_2001_6346.tif | figure outputs/figures/02_nlcd_2001.png
