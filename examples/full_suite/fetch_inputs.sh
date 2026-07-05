@@ -31,6 +31,8 @@ PROV="$NOTES/provenance_inputs.md"
 # AOI bbox in EPSG:6346 (from examples/demo aoi) — used to subset national data.
 # xmin ymin xmax ymax (meters). Refine from derived/aoi_6346.gpkg once built.
 AOI_BBOX_6346="656891 4788563 661956 4793208"
+# AOI bbox in EPSG:4326 (lon/lat, WGS84) for REST queries — xmin,ymin,xmax,ymax.
+AOI_BBOX_4326="-79.067,43.233,-79.005,43.275"
 
 mkdir -p "$IN"/{lidar,ortho_2024,ortho_hist,nlcd,huc12} "$NOTES"
 [ -f "$PROV" ] || printf '# Input provenance — raw primary sources\n\n| dataset | source | url | fetched (UTC) | sha256 |\n|---|---|---|---|---|\n' > "$PROV"
@@ -53,40 +55,47 @@ else
 fi
 
 echo "== 2/5  LiDAR — USGS 3DEP (fetch ALL coverage for the AOI) =="
-# 3DEP publishes Entwine Point Tiles (EPT) on AWS; PDAL reads EPT directly and
-# clips to the AOI — no per-tile download list needed. Discover the resource(s)
-# covering Youngstown at the 3DEP LidarExplorer, then record each as raw LAZ:
-#   portal: https://apps.nationalmap.gov/lidar-explorer/    <CONFIRM resource id(s)>
-#   EPT root (example): https://s3-us-west-2.amazonaws.com/usgs-lidar-public/<PROJECT>/ept.json
-# Pull an AOI-clipped LAZ per project via PDAL (records ALL points in-AOI):
-#   pdal translate ept://<EPT_URL> "$IN/lidar/<PROJECT>.laz" \
-#     --readers.ept.bounds="([656891,661956],[4788563,4793208])"   # AOI in EPT CRS
-# (Repeat for every project/vintage that intersects the AOI — "fetch all".)
-echo "  -> list 3DEP projects over the AOI, then PDAL-clip each EPT to inputs/lidar/*.laz (see comments)"
+# Two real, reproducible routes (needs PDAL for the EPT route). Discover the NY
+# project(s) covering Youngstown from the entwine index (resolves): usgs.entwine.io
+# ROUTE A — Entwine Point Tiles (AWS), AOI-clipped by PDAL (records ALL in-AOI points):
+#   for P in <NY_PROJECT_1> <NY_PROJECT_2>; do
+#     pdal translate "ept://https://s3-us-west-2.amazonaws.com/usgs-lidar-public/$P/ept.json" \
+#       "$IN/lidar/$P.laz" --readers.ept.bounds="([656891,661956],[4788563,4793208])"
+#     done                                   # AOI bbox in the EPT CRS (EPSG:6346 here)
+# ROUTE B — Staged LPC LAZ tiles direct from rockyweb (resolves; no PDAL needed to fetch):
+#   base: https://rockyweb.usgs.gov/vdelivery/Datasets/Staged/Elevation/LPC/Projects/<PROJECT>/<...>/LAZ/
+#   curl -sO --output-dir "$IN/lidar" "<TILE_URL>.laz"   # per tile intersecting the AOI
+echo "  -> pick the NY 3DEP project(s) over the AOI (usgs.entwine.io), then Route A or B above"
 
-echo "== 3/5  NLCD % Developed Imperviousness — 2001 & 2021 (MRLC) =="
-# MRLC/USGS national COGs; subset to the AOI bbox on download (raw = AOI subset).
-#   portal: https://www.mrlc.gov/data   product: 'NLCD <yr> Developed Imperviousness (CONUS)'
+echo "== 3/5  NLCD % Developed Imperviousness — 2001 & 2021 (MRLC WCS) =="
+# MRLC GeoServer WCS (live service) — clip the national coverage to the AOI on download.
+# NOTE: confirm the exact coverageId + axis labels once via GetCapabilities:
+#   curl "https://www.mrlc.gov/geoserver/mrlc_download/wcs?service=WCS&version=2.0.1&request=GetCapabilities"
+NLCD_WCS="https://www.mrlc.gov/geoserver/mrlc_download/wcs"
 for YR in 2001 2021; do
-  URL="<CONFIRM: MRLC NLCD ${YR} impervious COG URL>"
-  OUT="$IN/nlcd/nlcd_impervious_${YR}.tif"
-  echo "  NLCD ${YR}: gdal_translate -projwin (AOI in the COG CRS) '$URL' '$OUT'"
-  # gdal_translate -projwin <ulx uly lrx lry in EPSG:5070> "/vsicurl/$URL" "$OUT"
-  # log_prov "nlcd_impervious_${YR}" "MRLC NLCD" "$URL" "$OUT"
+  COV="NLCD_${YR}_Impervious_L48"
+  URL="${NLCD_WCS}?service=WCS&version=2.0.1&request=GetCoverage&coverageId=${COV}&subset=Long(-79.067,-79.005)&subset=Lat(43.233,43.275)&format=image/geotiff"
+  curl -s --max-time 180 "$URL" -o "$IN/nlcd/nlcd_impervious_${YR}.tif"
+  log_prov "nlcd_impervious_${YR}" "MRLC NLCD (WCS)" "$URL" "$IN/nlcd/nlcd_impervious_${YR}.tif"
 done
 
-echo "== 4/5  WBD HUC12 — USGS Watershed Boundary Dataset =="
-# HUC12 polygons for the AOI. Pull via the WBD service / TNM, subset to AOI.
-#   portal: https://www.usgs.gov/national-hydrography/watershed-boundary-dataset
-URL_WBD="<CONFIRM: WBD HUC12 service or TNM download for HU 04130001 (Niagara)>"
-echo "  WBD HUC12: ogr2ogr -spat (AOI bbox in WBD CRS) '$IN/huc12/huc12.gpkg' '$URL_WBD'"
-# log_prov "huc12" "USGS WBD" "$URL_WBD" "$IN/huc12/huc12.gpkg"
+echo "== 4/5  WBD HUC12 — USGS Watershed Boundary Dataset (live REST) =="
+# HUC12 polygons intersecting the AOI, from the USGS National Map WBD MapServer
+# (layer 6 = WBDHU12). Returns GeoJSON in EPSG:4326; 02_prepare reprojects + clips it.
+# VERIFIED WORKING for this AOI (returns the Niagara-River-outlet / Fourmile-Creek units).
+WBD_URL="https://hydro.nationalmap.gov/arcgis/rest/services/wbd/MapServer/6/query?geometry=${AOI_BBOX_4326}&geometryType=esriGeometryEnvelope&inSR=4326&spatialRel=esriSpatialRelIntersects&outFields=huc12,name,areasqkm&returnGeometry=true&f=geojson"
+curl -s --max-time 120 "$WBD_URL" -o "$IN/huc12/wbd_huc12.geojson"
+ogr2ogr -f GPKG "$IN/huc12/huc12.gpkg" "$IN/huc12/wbd_huc12.geojson" 2>/dev/null || echo "  !! ogr2ogr failed — check $IN/huc12/wbd_huc12.geojson"
+log_prov "huc12" "USGS WBD (National Map REST)" "$WBD_URL" "$IN/huc12/huc12.gpkg"
 
 echo "== 5/5  Historical ortho — 'past' epoch (~2001) for change =="
-# NAIP (4-band from 2007+) or an older NYS ortho; NAIP is on AWS/EarthExplorer.
-#   portal: https://earthexplorer.usgs.gov  (dataset: NAIP)  <CONFIRM year/tile>
-URL_HIST="<CONFIRM: historical ortho tile(s) covering the AOI, ~2001>"
-echo "  historical ortho: curl -o '$IN/ortho_hist/<tile>.tif' '$URL_HIST'"
+# Real sources (pick the tile(s) covering the AOI for the target year):
+#  - NAIP on AWS (4-band, 2007+; requester-pays): s3://naip-source/ny/<year>/... via
+#      aws s3 cp --request-payer requester "s3://naip-source/ny/<yr>/rgbir/<QQ>/<tile>.tif" "$IN/ortho_hist/"
+#  - NYS Statewide Digital Orthoimagery (incl. ~2000s): NYS GIS Clearinghouse / the
+#      orthos ImageServer: https://orthos.its.ny.gov/arcgis/rest/services  (export tile for the AOI)
+#  - USGS EarthExplorer (DOQ/NAIP): https://earthexplorer.usgs.gov
+echo "  -> select the historical ortho tile(s) for the AOI/year from a source above → $IN/ortho_hist/"
 # log_prov "ortho_hist" "USGS/USDA NAIP or NYS ortho" "$URL_HIST" "$IN/ortho_hist/<tile>.tif"
 
 echo

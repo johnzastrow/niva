@@ -32,7 +32,7 @@ load derived/shoreline_dtm_2024.gpkg | clip derived/aoi_6346.gpkg | save derived
 run gdal:rastercalculator FORMULA="(A-B)/(A+B)" INPUT_A=derived/ortho_2024_6346.tif BAND_A=2 INPUT_B=derived/ortho_2024_6346.tif BAND_B=4 OUTPUT=derived/ndwi_2024.tif
 load derived/ndwi_2024.tif | figure outputs/figures/03_ndwi_2024.png
 run gdal:rastercalculator FORMULA="(A>0.0)*1" INPUT_A=derived/ndwi_2024.tif BAND_A=1 OUTPUT=derived/water_ndwi_2024.tif
-load derived/water_ndwi_2024.tif | run gdal:polygonize | filter "DN = 1" | fixgeom | dissolve | save derived/water_ndwi_2024.gpkg | figure outputs/figures/03_water_ndwi_2024.png
+load derived/water_ndwi_2024.tif | polygonize | filter "DN = 1" | fixgeom | dissolve | save derived/water_ndwi_2024.gpkg | figure outputs/figures/03_water_ndwi_2024.png
 load derived/water_ndwi_2024.gpkg | run native:polygonstolines | clip derived/aoi_6346.gpkg | run native:fieldcalculator FIELD_NAME=epoch FORMULA="2024" | run native:fieldcalculator FIELD_NAME=source FORMULA="'ndwi'" | save derived/shoreline_2024_attr.gpkg | figure outputs/figures/03_shoreline_ndwi_2024.png
 
 # ============================ PAST (2001) ====================================
@@ -41,7 +41,7 @@ load derived/water_ndwi_2024.gpkg | run native:polygonstolines | clip derived/ao
 # flag the limitation in the report (use_case.md § Data).
 run gdal:rastercalculator FORMULA="(A-B)/(A+B)" INPUT_A=derived/ortho_hist_6346.tif BAND_A=2 INPUT_B=derived/ortho_hist_6346.tif BAND_B=4 OUTPUT=derived/ndwi_2001.tif
 run gdal:rastercalculator FORMULA="(A>0.0)*1" INPUT_A=derived/ndwi_2001.tif BAND_A=1 OUTPUT=derived/water_ndwi_2001.tif
-load derived/water_ndwi_2001.tif | run gdal:polygonize | filter "DN = 1" | fixgeom | dissolve | save derived/water_ndwi_2001.gpkg
+load derived/water_ndwi_2001.tif | polygonize | filter "DN = 1" | fixgeom | dissolve | save derived/water_ndwi_2001.gpkg
 load derived/water_ndwi_2001.gpkg | run native:polygonstolines | clip derived/aoi_6346.gpkg | run native:fieldcalculator FIELD_NAME=epoch FORMULA="2001" | run native:fieldcalculator FIELD_NAME=source FORMULA="'ndwi'" | save derived/shoreline_2001_attr.gpkg | figure outputs/figures/03_shoreline_ndwi_2001.png
 
 # ======================== RECONCILE + ATTRIBUTE ==============================
