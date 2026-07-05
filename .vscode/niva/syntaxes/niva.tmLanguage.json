@@ -1,0 +1,96 @@
+{
+  "scopeName": "source.niva",
+  "name": "niva",
+  "fileTypes": ["niva"],
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#pipe" },
+    { "include": "@connection_refs" },
+    { "include": "#crs" },
+    { "include": "#distance" },
+    { "include": "#number" },
+    { "include": "#options" },
+    { "include": "#verbs" },
+    { "include": "#variable" },
+    { "include": "#flag" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [{
+        "name": "comment.line.number-sign.niva",
+        "match": "(?<!\\\\)#.*$",
+        "comment": "Line comment starting with # (not escaped)"
+      }]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.niva",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [{ "name": "constant.character.escape.niva", "match": "\\\\." }]
+        },
+        {
+          "name": "string.quoted.single.niva",
+          "begin": "'",
+          "end": "'",
+          "patterns": [{ "name": "constant.character.escape.niva", "match": "\\\\." }]
+        }
+      ]
+    },
+    "pipe": {
+      "name": "keyword.operator.pipe.niva",
+      "match": "\\|"
+    },
+    "connection_refs": {
+      "name": "variable.other.connection.niva",
+      "match": "@[A-Za-z_][A-Za-z0-9_.-]*"
+    },
+    "crs": {
+      "name": "constant.other.crs.niva",
+      "match": "\\bEPSG:\\d+\\b"
+    },
+    "distance": {
+      "name": "constant.numeric.distance.niva",
+      "match": "\\b\\d+(?:\\.\\d+)?\\s*(m|km|cm|mm|ft|yd|mi|nmi|deg)\\b"
+    },
+    "number": {
+      "name": "constant.numeric.niva",
+      "match": "\\b\\d+(?:\\.\\d+)?\\b"
+    },
+    "options": {
+      "patterns": [{
+        "name": "keyword.other.option.niva",
+        "match": "\\b[A-Za-z_][A-Za-z0-9_-]*=",
+        "comment": "key= part of key=value options"
+      }]
+    },
+    "variable": {
+      "name": "variable.other.template.niva",
+      "match": "\\{[A-Za-z_][A-Za-z0-9_]*\\}",
+      "comment": "Template variables like {name}, {elapsed}"
+    },
+    "verbs": {
+      "patterns": [
+        { "include": "#verbs-builtins" },
+        { "include": "#verbs-alias" }
+      ]
+    },
+    "verbs-builtins": {
+      "name": "keyword.control.builtin.niva",
+      "match": "(?<=\\A|\\||\\n|\\t|\\s|>>)(load|save|run|filter|sql|split|each|call|describe|search|docs|show|info|catalog|assess|metadata|style|project|notify|email|remove|figure)(?=\\s|\\b)",
+      "comment": "Built-in verbs handled directly by the engine"
+    },
+    "verbs-alias": {
+      "name": "support.function.alias.niva",
+      "match": "(?<=\\A|\\||\\n|\\t|\\s)(buffer|clip|intersect|difference|dissolve|reproject|fixgeom|centroid|explode|join|zonalstats|simplify|smooth|convexhull|boundingbox|minrect|pointonsurface|vertices|densify|subdivide|offset|swapxy|forcerhr|promote|collect|renamefield|dropfields|keepfields|countpoints|union|symdifference|spatialjoin|selectloc|snap|sample|voronoi|delaunay|pointsalong|warp|clipraster|hillshade|slope|aspect|polygonize)(?=\\s|\\b)",
+      "comment": "Alias verbs mapped to QGIS algorithms"
+    },
+    "flag": {
+      "name": "variable.parameter.flag.niva",
+      "match": "\\b(deep|percent|dissolve|separate|discard|force|relative|absolute|keep|replace|create|append|apply|save|fail|drop|set|new|info)\\b",
+      "comment": "Common boolean flags and mode values"
+    }
+  }
+}

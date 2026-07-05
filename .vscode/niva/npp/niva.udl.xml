@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+niva User Defined Language for Notepad++ (v0.37)
+
+Import: Language → User Defined Language → Import → pick this file
+Then select: Language → niva
+
+Auto-detects .niva extension. Supports:
+  · Built-in verbs (dark green)    · Alias verbs (burnt orange)
+  · Comments (# to end of line)    · Double/single quoted strings (olive)
+  · Pipe |  and  key=value         · EPSG:NNNN CRS codes
+  · @conn connection refs          · Flags & mode values (slate blue)
+  · Numbers and distances (100m)   · Common option keywords
+-->
+<NotepadPlus>
+    <UserLang name="niva" ext="niva" udlVersion="2.1">
+        <Settings>
+            <Global caseIgnored="no" allowFoldOfComments="no" foldCompact="no" forcePureLC="0" decimalSeparator="0" />
+            <Prefix keywords1="no" keywords2="no" keywords3="no" keywords4="no" keywords5="no" keywords6="no" keywords7="no" keywords8="no" />
+        </Settings>
+        <Delimiters>
+            <Delimiter index="0" open="&quot;" close="&quot;" style="DELIMITERS0" />
+            <Delimiter index="1" open="'" close="'" style="DELIMITERS1" />
+        </Delimiters>
+        <KeywordLists>
+            <Keywords name="Comments">00# 01 02 03 04</Keywords>
+            <Keywords name="Numbers, extras">1</Keywords>
+            <Keywords name="Fold">1 2 3 4 5 6</Keywords>
+            <Keywords name="Operators1">|</Keywords>
+            <Keywords name="Operators2">=</Keywords>
+            <Keywords name="Fold in code1, open"></Keywords>
+            <Keywords name="Fold in code1, middle"></Keywords>
+            <Keywords name="Fold in code2, close"></Keywords>
+            <Keywords name="Keywords1">load save run filter sql split each call describe search docs show info catalog assess metadata style project notify email remove</Keywords>
+            <Keywords name="Keywords2">buffer clip intersect difference symdifference union dissolve reproject fixgeom centroid explode join zonalstats simplify smooth convexhull boundingbox minrect pointonsurface vertices densify subdivide offset swapxy forcerhr promote collect renamefield dropfields keepfields countpoints spatialjoin selectloc snap sample voronoi delaunay pointsalong warp clipraster hillshade slope aspect polygonize</Keywords>
+            <Keywords name="Keywords3">deep percent dissolve separate discard force relative absolute keep replace create append apply save fail drop set new info round flat square near bilinear average cubic intersect within contain overlap touch first sum count area distance radius z_factor azimuth altitude</Keywords>
+        </KeywordLists>
+        <Styles>
+            <WordsStyle name="DEFAULT" styleID="0" fgColor="2C2520" bgColor="FFFFFF" fontName="" fontStyle="0" nesting="0" />
+            <WordsStyle name="COMMENTS" styleID="1" fgColor="9A8C7A" bgColor="FFFFFF" fontName="" fontStyle="2" nesting="0" />
+            <WordsStyle name="LINE COMMENTS" styleID="2" fgColor="9A8C7A" bgColor="FFFFFF" fontName="" fontStyle="2" nesting="0" />
+            <WordsStyle name="NUMBERS" styleID="3" fgColor="7A6E60" bgColor="FFFFFF" fontName="" fontStyle="0" nesting="0" />
+            <WordsStyle name="KEYWORDS1" styleID="4" fgColor="3D7A65" bgColor="FFFFFF" fontName="" fontStyle="1" nesting="0" />
+            <WordsStyle name="KEYWORDS2" styleID="5" fgColor="B86A38" bgColor="FFFFFF" fontName="" fontStyle="1" nesting="0" />
+            <WordsStyle name="KEYWORDS3" styleID="6" fgColor="4F6D8A" bgColor="FFFFFF" fontName="" fontStyle="2" nesting="0" />
+            <WordsStyle name="KEYWORDS4" styleID="7" fgColor="7A6E60" bgColor="FFFFFF" fontName="" fontStyle="0" nesting="0" />
+            <WordsStyle name="KEYWORDS5" styleID="8" fgColor="7A6E60" bgColor="FFFFFF" fontName="" fontStyle="0" nesting="0" />
+            <WordsStyle name="KEYWORDS6" styleID="9" fgColor="7A6E60" bgColor="FFFFFF" fontName="" fontStyle="0" nesting="0" />
+            <WordsStyle name="KEYWORDS7" styleID="10" fgColor="7A6E60" bgColor="FFFFFF" fontName="" fontStyle="0" nesting="0" />
+            <WordsStyle name="KEYWORDS8" styleID="11" fgColor="2C2520" bgColor="FFFFFF" fontName="" fontStyle="0" nesting="0" />
+            <WordsStyle name="OPERATORS" styleID="12" fgColor="B86A38" bgColor="FFFFFF" fontName="" fontStyle="0" nesting="0" />
+            <WordsStyle name="FOLDER IN CODE1" styleID="13" fgColor="" bgColor="" fontName="" fontStyle="0" nesting="0" />
+            <WordsStyle name="FOLDER IN CODE2" styleID="14" fgColor="" bgColor="" fontName="" fontStyle="0" nesting="0" />
+            <WordsStyle name="FOLDER IN CODE3" styleID="15" fgColor="" bgColor="" fontName="" fontStyle="0" nesting="0" />
+            <WordsStyle name="DELIMITERS0" styleID="16" fgColor="5F7A3A" bgColor="FFFFFF" fontName="" fontStyle="0" nesting="0" />
+            <WordsStyle name="DELIMITERS1" styleID="17" fgColor="5F7A3A" bgColor="FFFFFF" fontName="" fontStyle="0" nesting="0" />
+            <WordsStyle name="DELIMITERS2" styleID="18" fgColor="5F7A3A" bgColor="FFFFFF" fontName="" fontStyle="0" nesting="0" />
+        </Styles>
+    </UserLang>
+</NotepadPlus>
