@@ -198,7 +198,9 @@ def _exercise(program: list, file: str | None) -> list[tuple]:
 
     base = os.path.dirname(os.path.abspath(file)) if file else None
     try:
-        Engine(MockBackend()).execute(program, base_dir=base)
+        # inert=True: exercise the flow for validation WITHOUT any outward side effect —
+        # no report/catalog file writes, no `remove` deletions, no notify/email sends.
+        Engine(MockBackend(), inert=True).execute(program, base_dir=base)
     except FlowError as exc:
         sev = (
             "warning" if any(m in str(exc).lower() for m in _DATA_MARKERS) else "error"

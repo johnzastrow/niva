@@ -11,6 +11,18 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.42.3] - 2026-07-05
+
+### Fixed
+- **`niva validate` (and `--dry-run`) are now side-effect-free.** The MockBackend dry-run that
+  "exercises" a flow was running engine-direct actions for real: `assess`/`catalog`/report `to=`
+  writes hit the disk, `remove` **deleted files**, and `notify`/`email` (plus ntfy auto-alerts)
+  **sent over the network**. Added an `inert` mode to the engine (`Engine(..., inert=True)`) that
+  suppresses every outward side effect while still validating each stage's arguments, and wired
+  both `validate` and `--dry-run` to use it. A linter now never touches disk, the network, or
+  existing files. (Backend-delegated I/O was already inert under `MockBackend`; this closes the
+  engine-direct gap.) New `TestExerciseHasNoSideEffects` proves it (assess/catalog/remove/notify/email).
+
 ## [0.42.2] - 2026-07-05
 
 ### Changed

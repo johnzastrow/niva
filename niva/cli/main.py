@@ -394,7 +394,9 @@ def _dry_run(program: list, base_dir=None) -> None:
     from ..engine import Engine, MockBackend
 
     backend = MockBackend()
-    Engine(backend).execute(
+    # inert=True: a dry-run validates order/CRS/units without any outward side effect
+    # (no report/catalog writes, no `remove` deletions, no notify/email sends).
+    Engine(backend, inert=True).execute(
         program, base_dir=base_dir
     )  # raises FlowError on an invalid flow
     print(

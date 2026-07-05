@@ -4,7 +4,7 @@ qgisMinimumVersion=3.22
 qgisMaximumVersion=4.99
 supportsQt6=True
 description=Run niva flows — a concise text pipeline for QGIS geoprocessing — from a dock.
-version=0.42.2
+version=0.42.3
 author=John Zastrow
 email=br8kwall@gmail.com
 about=niva is a concise, readable text-pipeline grammar for QGIS geoprocessing
@@ -26,7 +26,10 @@ deprecated=False
 # one-line summary for the new version here, mirroring the top entry of ../CHANGELOG.md (the
 # repo file stays the full history; this field is just the highlights). Drop the oldest line
 # so it never grows past ~2 entries. Continuation lines MUST stay indented (like `about=`).
-changelog=0.42.2 — Packaging: the plugin zip now bundles the GPL-3.0-or-later LICENSE and ships a
+changelog=0.42.3 — Fixed: `niva validate`/`--dry-run` are now side-effect-free — the dry-run no
+    longer writes report/catalog files, deletes files (`remove`), or sends `notify`/`email`. New
+    engine `inert` mode suppresses outward actions while still validating each stage.
+    0.42.2 — Packaging: the plugin zip now bundles the GPL-3.0-or-later LICENSE and ships a
     PNG icon (icon.png) for the QGIS Plugin Repository listing. Fixed an example that didn't parse
     (multi-line SQL string — niva's grammar is line-based). No functional change to niva itself.
     0.42.1 — Changed: license text corrected to GPL-3.0-or-later (matches the project's
