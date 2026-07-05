@@ -22,8 +22,9 @@ import re
 from niva.engine.pyqgis import ensure_qgis
 from niva.registry.definitions import CORE
 
-OUT_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                       "docs", "algorithms")
+OUT_DIR = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "docs", "algorithms"
+)
 QGIS_VERSION = "4.0.3"
 
 PROVIDER_TITLES = {
@@ -32,8 +33,37 @@ PROVIDER_TITLES = {
     "qgis": "qgis — QGIS (Python) algorithms",
     "grass": "grass — GRASS GIS algorithms",
     "pdal": "pdal — PDAL point-cloud algorithms",
+    "otb": "otb — Orfeo ToolBox algorithms (optional provider plugin; see docs/guide/pdal-lastools-qgis4.md)",
     "3d": "3d — 3D algorithms",
 }
+
+
+def _load_otb():
+    """Best-effort: load + configure the OTB provider so its algorithms are catalogued.
+    OTB is an optional provider plugin (unmaintained for QGIS 4) — silently skip if it
+    isn't installed/configured. Reads $NIVA_OTB_FOLDER, else a conventional location."""
+    otb = os.environ.get("NIVA_OTB_FOLDER") or os.path.expanduser(
+        "~/Downloads/OTB-9.1.1-Linux"
+    )
+    if not os.path.isdir(otb):
+        return
+    try:
+        import qgis.utils
+        from processing.core.ProcessingConfig import ProcessingConfig
+        from qgis.core import QgsApplication
+
+        qgis.utils.loadPlugin("orfeoToolbox_provider")
+        qgis.utils.startPlugin("orfeoToolbox_provider")
+        ProcessingConfig.setSettingValue("OTB_FOLDER", otb)
+        ProcessingConfig.setSettingValue(
+            "OTB_APP_FOLDER", os.path.join(otb, "lib", "otb", "applications")
+        )
+        prov = QgsApplication.processingRegistry().providerById("otb")
+        if prov is not None:
+            prov.refreshAlgorithms()
+    except Exception:  # noqa: BLE001 — cataloguing OTB is optional
+        pass
+
 
 _TAG = re.compile(r"<[^>]+>")
 _WS = re.compile(r"[ \t]*\n[ \t]*")
@@ -65,11 +95,24 @@ def fmt_default(value):
 # --- example usage -----------------------------------------------------------
 
 # Destination ("output") parameter types — passed as `OUTPUT=…` in a run command.
-DEST_TYPES = {"sink", "vectorDestination", "rasterDestination", "fileDestination",
-              "folderDestination", "pointCloudDestination", "vectorTileDestination"}
-DEST_EXT = {"sink": ".gpkg", "vectorDestination": ".gpkg", "rasterDestination": ".tif",
-            "pointCloudDestination": ".laz", "fileDestination": ".txt",
-            "folderDestination": "/", "vectorTileDestination": ".mbtiles"}
+DEST_TYPES = {
+    "sink",
+    "vectorDestination",
+    "rasterDestination",
+    "fileDestination",
+    "folderDestination",
+    "pointCloudDestination",
+    "vectorTileDestination",
+}
+DEST_EXT = {
+    "sink": ".gpkg",
+    "vectorDestination": ".gpkg",
+    "rasterDestination": ".tif",
+    "pointCloudDestination": ".laz",
+    "fileDestination": ".txt",
+    "folderDestination": "/",
+    "vectorTileDestination": ".mbtiles",
+}
 
 
 def _num(v):
@@ -87,10 +130,18 @@ def example_value(p):
     t = p.type()
     dv = p.defaultValue()
     fixed = {
-        "raster": "dem.tif", "mesh": "mesh.nc", "band": "1", "crs": "EPSG:6346",
-        "extent": "0,1000,0,1000", "point": "100,100", "expression": '"value > 0"',
-        "file": "input.dat", "folder": "inputs/", "color": '"#1f78b4"',
-        "datetime": "2024-06-01", "multilayer": '"a.gpkg;b.gpkg"',
+        "raster": "dem.tif",
+        "mesh": "mesh.nc",
+        "band": "1",
+        "crs": "EPSG:6346",
+        "extent": "0,1000,0,1000",
+        "point": "100,100",
+        "expression": '"value > 0"',
+        "file": "input.dat",
+        "folder": "inputs/",
+        "color": '"#1f78b4"',
+        "datetime": "2024-06-01",
+        "multilayer": '"a.gpkg;b.gpkg"',
     }
     if t in ("source", "vector", "layer", "maplayer", "annotationlayer"):
         return "input.gpkg"
@@ -103,7 +154,11 @@ def example_value(p):
     if t == "boolean":
         return "true" if dv in (True, "true", 1) else "false"
     if t in ("number", "distance", "duration", "scale"):
-        return _num(dv) if isinstance(dv, (int, float)) and not isinstance(dv, bool) else "10"
+        return (
+            _num(dv)
+            if isinstance(dv, (int, float)) and not isinstance(dv, bool)
+            else "10"
+        )
     if t in ("string", "execute_sql"):
         return _runval(dv) if isinstance(dv, str) and dv else "value"
     if t in fixed:
@@ -135,15 +190,20 @@ def _enum_label(p, value):
 def example_section(alg, params, optional_flag, advanced_flag):
     """A worked `run` command (required params + a few notable optional ones) plus a
     narrative explaining each parameter passed."""
+
     # Skip GRASS-style dash flags (e.g. `-a`): a `run` KEY must start with a letter/underscore.
     def runnable(p):
         n = p.name()
         return bool(n) and (n[0].isalpha() or n[0] == "_")
+
     inputs = [p for p in params if p.type() not in DEST_TYPES and runnable(p)]
     dests = [p for p in params if p.type() in DEST_TYPES and runnable(p)]
-    required = [p for p in inputs
-                if not (p.flags() & optional_flag)
-                and (p.defaultValue() is None or p.defaultValue() == "")]
+    required = [
+        p
+        for p in inputs
+        if not (p.flags() & optional_flag)
+        and (p.defaultValue() is None or p.defaultValue() == "")
+    ]
     extra = [p for p in inputs if p not in required and not (p.flags() & advanced_flag)]
     selected = (required + extra)[:7]  # complex but readable
 
@@ -168,9 +228,12 @@ def example_section(alg, params, optional_flag, advanced_flag):
 
     cmd = "run " + alg.id() + ((" " + " ".join(args)) if args else "")
     if notes:
-        body = (f"This calls **{esc(alg.displayName())}**: " + "; ".join(notes)
-                + ". Enum values are integer indices; the paths and values here are "
-                "illustrative — substitute your own.")
+        body = (
+            f"This calls **{esc(alg.displayName())}**: "
+            + "; ".join(notes)
+            + ". Enum values are integer indices; the paths and values here are "
+            "illustrative — substitute your own."
+        )
     else:
         body = f"This calls **{esc(alg.displayName())}** (no required parameters)."
     return ["**Example usage**", "", "```", cmd, "```", "", body, ""]
@@ -180,6 +243,7 @@ def main():
     from qgis.core import QgsApplication, QgsProcessingParameterDefinition
 
     ensure_qgis()
+    _load_otb()  # optionally add the OTB provider to the catalog
     reg = QgsApplication.processingRegistry()
     optional_flag = QgsProcessingParameterDefinition.Flag.FlagOptional
     advanced_flag = QgsProcessingParameterDefinition.Flag.FlagAdvanced
@@ -187,10 +251,15 @@ def main():
     # algorithm id -> niva verb
     alias_of = {a.algorithm: a.verb for a in CORE}
 
-    # group algorithms by provider
+    # group algorithms by provider, skipping user/project-specific providers (models,
+    # project models, ad-hoc scripts) — the catalogue documents the stable QGIS surface.
+    skip = {"script", "model", "project"}
     by_provider = {}
     for alg in reg.algorithms():
-        by_provider.setdefault(alg.provider().id(), []).append(alg)
+        pid = alg.provider().id()
+        if pid in skip:
+            continue
+        by_provider.setdefault(pid, []).append(alg)
 
     os.makedirs(OUT_DIR, exist_ok=True)
     counts = {}
@@ -248,12 +317,16 @@ def main():
                         except Exception:
                             ov = None
                         if ov:
-                            enumerated = ", ".join(f"{i}={esc(str(o))}"
-                                                   for i, o in enumerate(ov))
-                            desc_p = (desc_p + " — " if desc_p else "") + f"options: {enumerated}"
+                            enumerated = ", ".join(
+                                f"{i}={esc(str(o))}" for i, o in enumerate(ov)
+                            )
+                            desc_p = (
+                                desc_p + " — " if desc_p else ""
+                            ) + f"options: {enumerated}"
                     lines.append(
                         f"| `{esc(name)}` | {esc(p.type())} | {req} "
-                        f"| {fmt_default(p.defaultValue())} | {desc_p} |")
+                        f"| {fmt_default(p.defaultValue())} | {desc_p} |"
+                    )
                 lines.append("")
             outs = alg.outputDefinitions()
             if outs:
@@ -287,9 +360,20 @@ def main():
         "|---|---|---|---|",
     ]
     for provider in sorted(counts):
-        idx.append(f"| `{provider}:` | {counts[provider]} | {alias_counts[provider]} "
-                   f"| [{provider}.md]({provider}.md) |")
+        idx.append(
+            f"| `{provider}:` | {counts[provider]} | {alias_counts[provider]} "
+            f"| [{provider}.md]({provider}.md) |"
+        )
     idx.append(f"| **Total** | **{total}** | **{total_alias}** | |")
+    idx.extend(
+        [
+            "",
+            "> **Beyond QGIS providers:** niva's native-CLI harness adds `pdalcli:<command>` "
+            "(PDAL on raw LAS/LAZ/COPC) and `saga:<library>:<tool>` (`saga_cmd`). These are not "
+            "QGIS algorithms, so they are not listed above — see "
+            "[the harness reference](../guide/pdal-lastools-qgis4.md#the-native-cli-harness--pdalcli-and-saga).",
+        ]
+    )
     idx.append("")
     with open(os.path.join(OUT_DIR, "README.md"), "w", encoding="utf-8") as fh:
         fh.write("\n".join(idx) + "\n")

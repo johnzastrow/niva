@@ -1,0 +1,59 @@
+# =============================================================================
+# lidar_pdal_grass.niva — LiDAR products from raw LAS, all open-source
+# =============================================================================
+# DTM / DSM / CHM / class extraction from a classified LAS tile, using niva's
+# native-CLI harness. Verified end-to-end on the Youngstown 17TPH*.las tiles
+# (LAS 1.4, point format 6, ~5.3M points; classes 2=ground, 9=water, 7=noise).
+#
+# Two engines, no LAStools, no COPC step:
+#   * `run pdalcli:<command>`  → shells to `pdal_wrench` on the RAW .las directly
+#     (point cloud in, raster/vector/point-cloud out). Classification-aware.
+#   * `run grass:<id>`         → the built-in QGIS 4 GRASS provider (terrain, hydro,
+#     raster algebra) for downstream analysis on the derived rasters.
+#
+# SETUP (once):
+#   * pdal_wrench installed and $QGIS_WRENCH_EXECUTABLE pointing at it
+#     (see docs/guide/pdal-lastools-qgis4.md). The harness reuses that env var.
+#   * GRASS is already a working provider — nothing to install.
+#
+# NOTE on point clouds: raw .las/.laz are NOT niva `load`/`save` layers (this QGIS
+# has no pdal data provider). The harness `load`s a .las as a path handle, and any
+# point-cloud OUTPUT is persisted by giving an explicit `output=…` (not `| save`).
+# Raster outputs pipe normally and end in `| save`.
+# =============================================================================
+
+# --- 1. DTM — bare-earth surface from GROUND points (classification 2) --------
+# to_raster grids the Z of only the ground-classified points at 1 m.
+load "~/Downloads/17TPH585925.las"
+  | run pdalcli:to_raster attribute=Z filter="Classification==2" resolution=1
+  | save "~/lidar_out/dtm.tif"
+
+# --- 2. DSM — top surface from ALL returns ------------------------------------
+load "~/Downloads/17TPH585925.las"
+  | run pdalcli:to_raster attribute=Z resolution=1
+  | save "~/lidar_out/dsm.tif"
+
+# --- 3. CHM — canopy height = DSM − DTM (GRASS aligns differing extents) -------
+run grass:r.mapcalc.simple expression="A-B" a="~/lidar_out/dsm.tif" b="~/lidar_out/dtm.tif" output="~/lidar_out/chm.tif"
+
+# --- 4. Extract a single class to its own LAS (here: ground) ------------------
+# translate + a range filter; give an explicit output= to keep the .laz.
+load "~/Downloads/17TPH585925.las"
+  | run pdalcli:translate filter="Classification==2" output="~/lidar_out/ground.laz"
+
+# --- 5. (Re)classify ground on the UNCLASSIFIED points ------------------------
+# The tile has 2.25M class-1 (unclassified) points; classify_ground labels ground.
+load "~/Downloads/17TPH585925.las"
+  | run pdalcli:classify_ground output="~/lidar_out/classified.laz"
+
+# --- 6. Downstream terrain analysis on the DTM (GRASS) ------------------------
+load "~/lidar_out/dtm.tif"
+  | run grass:r.slope.aspect elevation="~/lidar_out/dtm.tif" slope="~/lidar_out/slope.tif"
+
+# Other one-liners the harness supports on raw LAS:
+#   run pdalcli:height_above_ground output=hag.laz     # normalise heights to ground
+#   run pdalcli:filter_noise output=denoised.laz        # flag outliers
+#   run pdalcli:thin ... output=thinned.laz             # downsample
+#   run pdalcli:boundary                                # → coverage polygon (.gpkg, | save)
+#   run pdalcli:density resolution=1                    # → point-density raster (| save)
+# =============================================================================

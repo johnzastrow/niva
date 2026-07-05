@@ -219,7 +219,8 @@ def _execute(program, base_dir=None, *, source="<inline>", log=None) -> int:
     t0 = time.monotonic()
     try:
         progress = lambda msg: print(msg, file=sys.stderr, flush=True)  # noqa: E731
-        result = Engine(PyqgisBackend(), journal=journal, progress=progress).execute(
+        from ..engine.native import wrap_native
+        result = Engine(wrap_native(PyqgisBackend()), journal=journal, progress=progress).execute(
             program, base_dir=base_dir
         )
         _print_result(result)

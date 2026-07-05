@@ -1,6 +1,13 @@
 # =============================================================================
 # build_demo_lidar.niva — clip the Youngstown LiDAR to AOISM and export a DEM
 # =============================================================================
+# NOTE: this uses the QGIS `pdal:` provider (`run pdal:*`), which needs QGIS built
+# with the PDAL data provider (raw LAS must be COPC-indexed to load). On a build
+# without it (e.g. Ubuntu 26.04 QGIS 4.0.3), use the native-CLI harness instead —
+# `run pdalcli:*` reads raw LAS/LAZ/COPC directly, no COPC step. A verified,
+# equivalent workflow set lives in examples/lidar_pdal_grass.niva. See
+# docs/guide/pdal-lastools-qgis4.md for both paths.
+#
 # Builds examples/demo/lidar.laz (+ lidar_dem.tif) from the seven ~/Downloads
 # 17TPH*.las tiles that overlap AOISM, for the cookbook's PDAL recipes (§K 63-66).
 #

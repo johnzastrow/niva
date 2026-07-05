@@ -11,6 +11,45 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.38.0] - 2026-07-05
+
+### Added
+- **Native-CLI harness (`NativeToolBackend`)** — a delegating backend adapter
+  (`niva/engine/native.py`) that lets niva shell out to LiDAR/terrain CLIs directly,
+  bypassing QGIS Processing where that is friction. Wraps the real backend and intercepts
+  two id families; every other id (`native:*`, `gdal:*`, `grass:*`, `otb:*`, QGIS `pdal:*`)
+  passes straight through, so unrelated flows are unaffected.
+  - **`pdalcli:<command>`** → `pdal_wrench` on **raw LAS/LAZ/COPC** (no COPC conversion
+    step). 12 commands: `to_raster`/`to_raster_tin`/`density` (rasters, incl. DTM/DSM),
+    `to_vector`/`boundary` (vectors), `translate`/`clip`/`thin`/`classify_ground`/
+    `filter_noise`/`height_above_ground`/`merge` (point clouds). Classification-aware via
+    `filter="Classification==2"`. Upstream layer auto-wires to `--input`; `output=` persists
+    a product. `load` now accepts raw `.las`/`.laz`/`.copc.laz` as a path handle. Verified
+    end-to-end on real tiles: DTM, DSM, CHM, class-extract, classify_ground, merge, clip, COPC.
+  - **`saga:<library>:<tool>`** → `saga_cmd` (SAGA's QGIS provider is withdrawn on QGIS 4).
+    Reserved `_in`/`_out`/`_outext` keys wire the pipe onto each tool's own parameters.
+  - **Graceful degradation:** missing tools fail closed with an actionable message (and only
+    that call); `available("saga"|"pdal")` capability check; a failed `saga:*` appends the
+    detected SAGA version (its tool ids drift between releases); a `run otb:*` "not found" is
+    rewritten with OTB-setup guidance.
+  - Security: fixed executable (never from flow input), `shell=False` + explicit argv,
+    allowlist-validated names, scratch-dir outputs. Cross-platform (Windows/macOS/Linux).
+- **`examples/lidar_pdal_grass.niva`** — verified DTM/DSM/CHM/class-extract/merge/clip
+  workflows over raw LAS using `pdalcli:` + `grass:` (all open-source; no LAStools, no COPC).
+
+### Changed
+- **`scripts/gen_algorithms.py`** now catalogs the **OTB** provider when configured and
+  skips user/project-specific providers (`script`/`model`/`project`). Regenerated
+  `docs/algorithms/` → **878 algorithms** across 7 providers (adds `otb.md`, 109 algorithms).
+
+### Docs
+- **`docs/guide/pdal-lastools-qgis4.md`** — rewritten and verified against a live QGIS 4.0.3
+  install: corrected the fabricated PDAL algorithm table (24 real ids), the uppercase-parameter
+  convention, and the install model (PDAL provider is built in; needs `pdal_wrench`, and raw
+  LAS needs a COPC step for the QGIS provider — not `apt install pdal`). Added verified OTB
+  setup (109 algorithms in QGIS 4), the honest SAGA status (CLI works; provider withdrawn),
+  a full `pdalcli:`/`saga:` harness reference, graceful-degradation and cross-platform notes.
+
 ## [0.37.0] - 2026-06-24
 
 ### Added
