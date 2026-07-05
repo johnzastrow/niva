@@ -18,7 +18,7 @@
 #   derived/nlcd_imperv_2021_6346.tif , derived/nlcd_imperv_2001_6346.tif
 #   derived/lidar_2024.laz  (+ derived/lidar_2001.laz if a past vintage exists)
 #
-# PROVIDERS: native → gdal → PDAL (pdalcli:/pdal:). No SAGA, no OTB.
+# PROVIDERS: native → gdal → PDAL (pdal: provider). No SAGA, no OTB.
 # CONVENTION: figure at each step (pass-through PNG → outputs/figures/).
 #
 # ⚠ niva DEFAULTS THAT AFFECT THE DATA (documented per the study's transparency rule;
@@ -59,9 +59,9 @@ load "inputs/nlcd/nlcd_impervious_2001.tif" | warp EPSG:6346 | clipraster derive
 # the AOI polygon (same CRS). NOTE: `pdal:reproject` (QGIS provider) may want a COPC step
 # for raw LAS; the pdalcli: harness reprojects COPC-free — confirm the exact key against
 # the live tools (this is precisely what niva issue #26, offline `run` validation, covers).
-run pdalcli:merge files="inputs/lidar/2024/TILE1.laz;inputs/lidar/2024/TILE2.laz" output=derived/lidar_2024_merged.laz
+run pdal:merge LAYERS="inputs/lidar/2024/TILE1.laz;inputs/lidar/2024/TILE2.laz" OUTPUT=derived/lidar_2024_merged.laz
 load derived/lidar_2024_merged.laz | run pdal:reproject CRS=EPSG:6346 | save derived/lidar_2024_6346.laz
-load derived/lidar_2024_6346.laz | run pdalcli:clip polygon=derived/aoi_6346.gpkg output=derived/lidar_2024.laz
+load derived/lidar_2024_6346.laz | run pdal:clip OVERLAY=derived/aoi_6346.gpkg | save derived/lidar_2024.laz
 # Past-epoch LiDAR (2001) if a vintage exists — same chain (else 05 documents the gap):
 # run pdalcli:merge files="inputs/lidar/2001/TILE1.laz;..." output=derived/lidar_2001_merged.laz
 # load derived/lidar_2001_merged.laz | run pdal:reproject CRS=EPSG:6346 | save derived/lidar_2001_6346.laz
@@ -71,8 +71,8 @@ load derived/lidar_2024_6346.laz | run pdalcli:clip polygon=derived/aoi_6346.gpk
 # DTM (bare earth, class 2), DSM (all returns), nDSM (height above ground), and a
 # hillshade for cartography. SHARED by shoreline (§1 water contour), erosion (§2
 # bluff), impervious (§3/05), and scour (§5) — derived once, here.
-load derived/lidar_2024.laz | run pdalcli:to_raster attribute=Z filter="Classification==2" resolution=1 | save derived/dtm_2024.tif | figure outputs/figures/02_dtm_2024.png
-load derived/lidar_2024.laz | run pdalcli:to_raster attribute=Z resolution=1 | save derived/dsm_2024.tif | figure outputs/figures/02_dsm_2024.png
+load derived/lidar_2024.laz | run pdal:exportraster ATTRIBUTE=Z FILTER_EXPRESSION="Classification==2" RESOLUTION=1 | save derived/dtm_2024.tif | figure outputs/figures/02_dtm_2024.png
+load derived/lidar_2024.laz | run pdal:exportraster ATTRIBUTE=Z RESOLUTION=1 | save derived/dsm_2024.tif | figure outputs/figures/02_dsm_2024.png
 run gdal:rastercalculator FORMULA="A-B" INPUT_A=derived/dsm_2024.tif BAND_A=1 INPUT_B=derived/dtm_2024.tif BAND_B=1 OUTPUT=derived/ndsm_2024.tif
 load derived/ndsm_2024.tif | figure outputs/figures/02_ndsm_2024.png
 load derived/dtm_2024.tif | hillshade | save derived/dtm_hillshade_2024.tif | figure outputs/figures/02_dtm_hillshade.png

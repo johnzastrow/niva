@@ -20,7 +20,7 @@
 #   (past epoch mirrors these: derived/lidar_2001.laz, derived/ortho_hist_6346.tif)
 #   derived/nlcd_imperv_2021_6346.tif , derived/nlcd_imperv_2001_6346.tif  (benchmark)
 #
-# PROVIDERS: gdal + PDAL (pdalcli:) only. No SAGA, no OTB. Thresholds are stated
+# PROVIDERS: gdal + PDAL (pdal: provider) only. No SAGA, no OTB. Thresholds are stated
 # here and are the study's tunable parameters (documented in the report Methods).
 # Figure-at-each-step: every step snapshots a PNG into outputs/figures/.
 # RUN: needs QGIS Python + pdal_wrench.  export QT_QPA_PLATFORM=offscreen ; NIVA_TMPDIR=...
@@ -34,8 +34,7 @@
 # Surface roughness (smooth pavement vs. rough canopy) from the DSM:
 load derived/dsm_2024.tif | run gdal:roughness BAND=1 | save derived/roughness_2024.tif | figure outputs/figures/05_roughness_2024.png
 # Building-class footprints (class 6) — the roof component of impervious:
-load derived/lidar_2024.laz | run pdalcli:translate filter="Classification==6" output=derived/buildings_2024.laz
-load derived/buildings_2024.laz | run pdalcli:boundary | fixgeom | simplify 0.5m | save derived/building_footprints_2024.gpkg | figure outputs/figures/05_buildings_2024.png
+load derived/lidar_2024.laz | run pdal:filter FILTER_EXPRESSION="Classification==6" | run pdal:boundary | fixgeom | simplify 0.5m | save derived/building_footprints_2024.gpkg | figure outputs/figures/05_buildings_2024.png
 
 # --- 2 · Imagery spectral indices from the 4-band ortho (R,G,B,NIR) ----------
 # NDVI = (NIR-Red)/(NIR+Red): high on vegetation → used to REJECT vegetation.
