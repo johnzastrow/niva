@@ -11,6 +11,22 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.42.4] - 2026-07-05
+
+### Changed
+- **Removed the deprecated `supportsQt6` flag from `plugin/metadata.txt`** (per a plugins.qgis.org
+  reviewer note). The flag was removed from QGIS core and is no longer recognised; QGIS 4 readiness
+  is determined **solely** by `qgisMaximumVersion=4.99`, which niva already sets. No code change —
+  the plugin already imports Qt through the `qgis.PyQt` compatibility layer and handles the Qt5→Qt6
+  `QAction` relocation, so it is genuinely Qt6-ready.
+
+### Added
+- **`docs/guide/qgis-plugin-publishing.md`** — a reusable, repo-agnostic playbook for packaging and
+  publishing a QGIS plugin (metadata contract, QGIS-4/Qt6 readiness, licensing, the self-contained
+  zip pattern, plugins.qgis.org submission, and a pre-publish checklist), grounded in the official
+  [Migrate to QGIS 4](https://plugins.qgis.org/docs/migrate-qgis4) guide. Written so other plugins
+  can follow niva as a template.
+
 ## [0.42.3] - 2026-07-05
 
 ### Fixed
