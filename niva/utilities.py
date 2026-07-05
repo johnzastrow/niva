@@ -30,6 +30,7 @@ def send_ntfy(message: str, *, topic: str | None = None, server: str | None = No
     """POST ``message`` to an ntfy topic. Server/topic/token resolve from args then
     the environment (``NIVA_NTFY_SERVER`` default ``https://ntfy.sh``,
     ``NIVA_NTFY_TOPIC``, ``NIVA_NTFY_TOKEN``). Returns the target URL (no token)."""
+    import urllib.parse
     import urllib.request
 
     env = os.environ if env is None else env
@@ -50,14 +51,22 @@ def send_ntfy(message: str, *, topic: str | None = None, server: str | None = No
     if token:  # bearer token from the environment only — never echoed
         headers["Authorization"] = f"Bearer {token}"
 
+    scheme = urllib.parse.urlsplit(url).scheme.lower()
+    if scheme not in ("http", "https"):  # fail closed on file:/ftp:/custom schemes
+        raise FlowError("notify server must be an http(s) URL (NIVA_NTFY_SERVER)")
     req = urllib.request.Request(url, data=message.encode("utf-8"),
                                  headers=headers, method="POST")
     try:
-        kwargs = {"timeout": 15}
-        if url.lower().startswith("https://"):
-            import ssl
-            kwargs["context"] = ssl.create_default_context()
-        with urllib.request.urlopen(req, **kwargs) as resp:
+        import ssl
+
+        # Opener carrying ONLY http/https handlers (no FileHandler/FTPHandler), TLS verified
+        # by the default context — so neither the request nor a redirect can reach file:/ftp:.
+        opener = urllib.request.OpenerDirector()
+        opener.add_handler(urllib.request.HTTPHandler())
+        opener.add_handler(urllib.request.HTTPSHandler(context=ssl.create_default_context()))
+        opener.add_handler(urllib.request.HTTPRedirectHandler())
+        opener.add_handler(urllib.request.HTTPErrorProcessor())
+        with opener.open(req, timeout=15) as resp:
             resp.read()
     except Exception as exc:  # network / HTTP error — no secret in the message
         raise OpError(f"notify failed: {exc}", algorithm="notify",
