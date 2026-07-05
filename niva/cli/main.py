@@ -33,6 +33,7 @@ _USAGE = (
     '       niva "<flow>"        [--dry-run|--explain]\n'
     "       niva validate <file.niva> [more.niva …]   (offline linter)\n"
     "       niva describe <verb-or-algorithm-id>\n"
+    "       niva pdal [check|test|setup]   (set up & test the point-cloud backend)\n"
     "       niva export <file.niva> [-o <file.py>]\n"
     "       niva import <file.py>   [-o <file.niva>]\n"
     "  (default executes via QGIS; --dry-run validates over a mock backend; "
@@ -60,6 +61,10 @@ def main(argv=None) -> int:
         return _describe(argv[1:])
     if argv[0] == "validate":
         return _validate(argv[1:])
+    if argv[0] == "pdal":
+        from ..pdal_doctor import run as _pdal_doctor
+
+        return _pdal_doctor(argv[1:])
     if argv[0] in ("export", "import"):
         return _convert(argv[0], argv[1:])
 

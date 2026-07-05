@@ -123,13 +123,14 @@ export MAMBA_ROOT_PREFIX=$HOME/micromamba
 **3. Point QGIS/niva at it** — add to `~/.bashrc`:
 ```bash
 export QGIS_WRENCH_EXECUTABLE="$HOME/micromamba/envs/pdal/bin/pdal_wrench"
-# Linux only: the conda binary needs its own libs on the loader path
-export LD_LIBRARY_PATH="$HOME/micromamba/envs/pdal/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 ```
 
-> **`LD_LIBRARY_PATH` matters on Linux.** `pdal_wrench` from conda links against libs
-> in the env's `lib/`. Without it on the loader path, QGIS spawns wrench and it dies
-> with a missing-`.so` error. (Not needed on Windows/macOS.)
+> **Do _not_ set `LD_LIBRARY_PATH`.** The conda `pdal_wrench` has an RPATH
+> (`$ORIGIN/../lib`) baked in, so it finds its own libraries — no loader-path help
+> needed. Setting `LD_LIBRARY_PATH=…/envs/pdal/lib` **globally** is actively harmful:
+> it shadows system libraries for QGIS's *own* `gdalwarp`/`gdal_translate`, producing
+> warnings like `libcurl.so.4: no version information available`. Just set the one env
+> var above.
 
 > `conda`/Miniforge works identically to micromamba if you already have it — just
 > `conda create -n pdal -c conda-forge pdal pdal_wrench` and use `~/miniforge3/envs/pdal/...`.
@@ -138,7 +139,21 @@ export LD_LIBRARY_PATH="$HOME/micromamba/envs/pdal/lib${LD_LIBRARY_PATH:+:$LD_LI
 
 ## Verify it works (any platform)
 
-Convert one raw tile to COPC, then grid a DTM through niva:
+**Fastest — the built-in helper.** niva ships a diagnostic that finds `pdal_wrench`
+(env vars, `PATH`, conda envs, QGIS bundles), tells you exactly what to set if it's
+missing, and runs an end-to-end grid test:
+
+```bash
+niva pdal check     # locate the backend + per-OS fix if anything's missing
+niva pdal test      # execute wrench and grid a synthetic cloud to a raster (PASS/FAIL)
+niva pdal setup     # print the install commands for your OS
+niva pdal test my_tile.las   # grid your own tile instead of synthetic data
+```
+
+`niva pdal check` works even when QGIS's Python isn't wired yet (the usual broken
+state) — it probes the binary directly and only *optionally* reports the QGIS provider.
+
+**Manual check** — convert one raw tile to COPC, then grid a DTM through niva:
 
 ```bash
 # 1. index raw LAS -> COPC (the pdal CLI reads .las natively; ~9 s for a 160 MB tile)
