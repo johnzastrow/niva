@@ -239,7 +239,62 @@ def example_section(alg, params, optional_flag, advanced_flag):
     return ["**Example usage**", "", "```", cmd, "```", "", body, ""]
 
 
+def _json_safe(v):
+    """A JSON-serialisable form of a QGIS default value (str/num/bool/None kept as-is;
+    anything else — QgsProperty, QVariant, lists — stringified)."""
+    if v is None or isinstance(v, (str, int, float, bool)):
+        return v
+    return str(v)
+
+
+def _enum_options(p):
+    """The enum option labels for a parameter, or None if it isn't an enum."""
+    opts = getattr(p, "options", None)
+    if not callable(opts):
+        return None
+    try:
+        ov = opts()
+    except Exception:  # noqa: BLE001
+        return None
+    return [str(o) for o in ov] if ov else None
+
+
+def algorithm_json(alg, verb, params, optional_flag, advanced_flag):
+    """A machine-readable record of one algorithm — the same facts the markdown tables
+    show, for offline `describe`/validation (issues #25, #26). Keeps defaults, types, and
+    enum options so a `run <id> KEY=value` can be looked up and checked without QGIS."""
+    jparams = []
+    for p in params:
+        dv = p.defaultValue()
+        has_default = dv is not None and dv != ""
+        jparams.append(
+            {
+                "name": p.name(),
+                "type": p.type(),
+                "optional": bool(p.flags() & optional_flag) or has_default,
+                "advanced": bool(p.flags() & advanced_flag),
+                "default": _json_safe(dv),
+                "enum": _enum_options(p),
+                "description": p.description() or "",
+            }
+        )
+    return {
+        "id": alg.id(),
+        "name": alg.displayName(),
+        "provider": alg.provider().id(),
+        "group": alg.group() or "",
+        "verb": verb,
+        "description": clean(alg.shortHelpString()) or clean(alg.shortDescription()),
+        "params": jparams,
+        "outputs": [
+            {"name": o.name(), "type": o.type()} for o in alg.outputDefinitions()
+        ],
+    }
+
+
 def main():
+    import json
+
     from qgis.core import QgsApplication, QgsProcessingParameterDefinition
 
     ensure_qgis()
@@ -264,6 +319,7 @@ def main():
     os.makedirs(OUT_DIR, exist_ok=True)
     counts = {}
     alias_counts = {}
+    catalog = {}  # id -> machine-readable record, written to the packaged algorithms.json
 
     for provider in sorted(by_provider):
         algs = sorted(by_provider[provider], key=lambda a: a.id())
@@ -335,6 +391,9 @@ def main():
                 lines.append("")
             lines.extend(example_section(alg, params, optional_flag, advanced_flag))
             lines.append("")
+            catalog[aid] = algorithm_json(
+                alg, verb, params, optional_flag, advanced_flag
+            )
         path = os.path.join(OUT_DIR, f"{provider}.md")
         with open(path, "w", encoding="utf-8") as fh:
             fh.write("\n".join(lines).rstrip() + "\n")
@@ -378,6 +437,20 @@ def main():
     with open(os.path.join(OUT_DIR, "README.md"), "w", encoding="utf-8") as fh:
         fh.write("\n".join(idx) + "\n")
     print(f"wrote {os.path.join(OUT_DIR, 'README.md')}")
+
+    # Machine-readable catalog — packaged inside niva so `describe`/validation work OFFLINE
+    # (no QGIS) after a plain pip install. Sorted keys for a stable, diffable file.
+    repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    json_path = os.path.join(repo_root, "niva", "registry", "algorithms.json")
+    payload = {
+        "qgis_version": QGIS_VERSION,
+        "count": len(catalog),
+        "algorithms": {k: catalog[k] for k in sorted(catalog)},
+    }
+    with open(json_path, "w", encoding="utf-8") as fh:
+        json.dump(payload, fh, indent=1, sort_keys=False, ensure_ascii=False)
+        fh.write("\n")
+    print(f"wrote {json_path} ({len(catalog)} algorithms)")
     # emit the summary table for pasting elsewhere
     print("\n--- SUMMARY TABLE ---")
     print("| Provider | Algorithms | niva alias verbs |")

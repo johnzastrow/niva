@@ -21,7 +21,7 @@ from ..registry import bind, core_registry
 _REG = core_registry()
 
 _USAGE = (
-    'usage: niva run <file.niva> [--dry-run|--explain]\n'
+    "usage: niva run <file.niva> [--dry-run|--explain]\n"
     '       niva "<flow>"        [--dry-run|--explain]\n'
     "       niva describe <verb-or-algorithm-id>\n"
     "       niva export <file.niva> [-o <file.py>]\n"
@@ -42,7 +42,7 @@ def main(argv=None) -> int:
     if "--log" in argv:  # --log <base> → write <base>.jsonl + <base>.log
         i = argv.index("--log")
         log = argv[i + 1] if i + 1 < len(argv) else None
-        del argv[i:i + 2]
+        del argv[i : i + 2]
     if not argv or argv[0] in ("-h", "--help"):
         print(_USAGE)
         return 0
@@ -57,7 +57,9 @@ def main(argv=None) -> int:
         if text is None:
             return 2
         program = parse(text, file=None if source == "<inline>" else source)
-        base_dir = None if source == "<inline>" else os.path.dirname(os.path.abspath(source))
+        base_dir = (
+            None if source == "<inline>" else os.path.dirname(os.path.abspath(source))
+        )
 
         if mode == "explain":
             _print_plan(program, source)
@@ -100,7 +102,7 @@ def _convert(kind: str, args) -> int:
     if "-o" in args:
         i = args.index("-o")
         out = args[i + 1] if i + 1 < len(args) else None
-        args = args[:i] + args[i + 2:]
+        args = args[:i] + args[i + 2 :]
     if len(args) != 1 or out is False:
         print(f"usage: niva {kind} <file> [-o <output>]", file=sys.stderr)
         return 2
@@ -116,16 +118,20 @@ def _convert(kind: str, args) -> int:
 
     if kind == "export":
         result = export_script(
-            text, source_name=os.path.basename(args[0]),
-            out_name=os.path.basename(out) if out else "out.py", file=args[0],
+            text,
+            source_name=os.path.basename(args[0]),
+            out_name=os.path.basename(out) if out else "out.py",
+            file=args[0],
         )
     else:  # import
         result, warnings = import_script(text)
         for w in warnings:
             print(f"niva import: {w}", file=sys.stderr)
         if not result.strip():
-            print("niva import: no processing.run(...) calls found — nothing to import",
-                  file=sys.stderr)
+            print(
+                "niva import: no processing.run(...) calls found — nothing to import",
+                file=sys.stderr,
+            )
             return 1
 
     if out:
@@ -145,11 +151,13 @@ def _describe(args) -> int:
     positional = []
     for a in args:
         if a.startswith("to="):
-            out = a[len("to="):]
+            out = a[len("to=") :]
         else:
             positional.append(a)
     if len(positional) != 1:
-        print("usage: niva describe <verb-or-algorithm-id> [to=<file>]", file=sys.stderr)
+        print(
+            "usage: niva describe <verb-or-algorithm-id> [to=<file>]", file=sys.stderr
+        )
         return 2
     from .. import describe as _describe_fn
 
@@ -170,7 +178,10 @@ def _describe(args) -> int:
         print(f"niva: {exc}", file=sys.stderr)
         code = 2
     except ImportError as exc:
-        print(f"niva: describing an algorithm needs QGIS's Python [{exc}]", file=sys.stderr)
+        print(
+            f"niva: describing an algorithm needs QGIS's Python [{exc}]",
+            file=sys.stderr,
+        )
         code = 3
     except BaseException as exc:  # noqa: BLE001 — must still reach the safe teardown
         print(f"niva: unexpected error: {type(exc).__name__}: {exc}", file=sys.stderr)
@@ -194,7 +205,9 @@ def _execute(program, base_dir=None, *, source="<inline>", log=None) -> int:
     from ..engine.pyqgis import PyqgisBackend, ensure_qgis
 
     try:
-        app, owns = ensure_qgis()  # the qgis import happens here (lazy), so catch it here
+        app, owns = (
+            ensure_qgis()
+        )  # the qgis import happens here (lazy), so catch it here
     except ImportError as exc:
         print(
             "niva: could not import QGIS — run niva with QGIS's own Python "
@@ -220,9 +233,10 @@ def _execute(program, base_dir=None, *, source="<inline>", log=None) -> int:
     try:
         progress = lambda msg: print(msg, file=sys.stderr, flush=True)  # noqa: E731
         from ..engine.native import wrap_native
-        result = Engine(wrap_native(PyqgisBackend()), journal=journal, progress=progress).execute(
-            program, base_dir=base_dir
-        )
+
+        result = Engine(
+            wrap_native(PyqgisBackend()), journal=journal, progress=progress
+        ).execute(program, base_dir=base_dir)
         _print_result(result)
         print(f"# done in {_fmt_elapsed(time.monotonic() - t0)}")
     except FlowError as exc:
@@ -277,6 +291,8 @@ def _print_plan(program: list, source: str) -> None:
             if s.verb == "run":  # the escape hatch — passed to QGIS verbatim
                 algo = s.args[0] if s.args else "?"
                 print(f"     run → {algo}  (raw)  {s.options}")
+                for w in _run_warnings(algo, s.options):
+                    print(f"       ⚠ {w}")
                 continue
             alias = _REG.get(s.verb)
             if alias is None:
@@ -290,12 +306,45 @@ def _print_plan(program: list, source: str) -> None:
             print(f"         {op.output_param} ← output dest (engine fills)")
 
 
+def _run_warnings(algo: str, options: dict) -> list:
+    """Offline sanity-check a `run <id> KEY=value` step against the packaged catalog
+    (issue #26): flag an unknown algorithm id, and any `KEY=` that isn't a real parameter.
+    Warnings only — exotic/plugin ids and the CLI harness (`pdalcli:`/`saga:`) still run."""
+    import difflib
+
+    from ..engine.native import PDAL_PREFIX, SAGA_PREFIX
+    from ..registry import catalog
+
+    if algo.startswith((PDAL_PREFIX, SAGA_PREFIX)):
+        return []  # native-CLI harness ids — not QGIS algorithms, not in the catalog
+    valid = catalog.param_names(algo)
+    if valid is None:
+        return [
+            f"`{algo}` is not in niva's algorithm catalog — a third-party plugin id? "
+            "double-check it (this warning is offline-only and never blocks the run)"
+        ]
+    warns = []
+    for key in options:
+        if key in valid:
+            continue
+        near = difflib.get_close_matches(key, valid, n=1)
+        warns.append(
+            f"unknown parameter `{key}` for {algo}"
+            + (f" — did you mean `{near[0]}`?" if near else "")
+        )
+    return warns
+
+
 def _dry_run(program: list, base_dir=None) -> None:
     from ..engine import Engine, MockBackend
 
     backend = MockBackend()
-    Engine(backend).execute(program, base_dir=base_dir)  # raises FlowError on an invalid flow
-    print(f"\n# dry-run OK — {len(backend.calls)} backend operation(s) over MockBackend:")
+    Engine(backend).execute(
+        program, base_dir=base_dir
+    )  # raises FlowError on an invalid flow
+    print(
+        f"\n# dry-run OK — {len(backend.calls)} backend operation(s) over MockBackend:"
+    )
     for call in backend.calls:
         if call[0] == "run":
             print(f"     run {call[1]}  {call[2]}")

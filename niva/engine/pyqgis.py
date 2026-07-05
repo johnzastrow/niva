@@ -127,6 +127,7 @@ _SPATIALITE_SYSTEM_TABLES = frozenset(
         "knn2",
         "data_licenses",
         "sqlite_sequence",
+        "niva_lineage",  # niva's own provenance table (aspatial) — metadata, not user data
     }
 )
 
@@ -1269,7 +1270,12 @@ class PyqgisBackend(Backend):
                 out = QgsRasterLayer(dest, name)
         if not out.isValid():
             return
+        from .. import __version__
+
         target = md if md is not None else out.metadata()
+        # Stamp the niva version: with the flow text below, it pins the exact defaults this
+        # run used (look them up with that version's `describe <id>` / algorithm catalog).
+        target.addHistoryItem(f"niva {__version__}")
         for entry in lineage or []:
             target.addHistoryItem(f"niva: {entry}")
         out.setMetadata(target)
@@ -1297,6 +1303,9 @@ class PyqgisBackend(Backend):
             from .. import __version__
 
             md = QgsLayerMetadata()
+            md.addHistoryItem(
+                f"niva {__version__}"
+            )  # pins this run's parameter defaults
             for entry in lineage:
                 md.addHistoryItem(f"niva: {entry}")
             doc = QDomDocument("qgis")
@@ -1654,8 +1663,8 @@ class PyqgisBackend(Backend):
                 backend="pyqgis",
             )
 
-        # Record lineage best-effort into the table comment — PostgreSQL only (SQLite /
-        # SpatiaLite and most others have no COMMENT ON TABLE). Never fatal, no credentials.
+        # Record lineage best-effort. PostgreSQL gets a table COMMENT; SpatiaLite has none,
+        # so it gets rows in a `niva_lineage` table. Never fatal, never carries credentials.
         if lineage and provider == "postgres":
             ident = (
                 self._quote_ident(table)
@@ -1667,6 +1676,8 @@ class PyqgisBackend(Backend):
                 connection.executeSql(f"COMMENT ON TABLE {ident} IS '{note}'")
             except Exception:
                 pass
+        elif lineage and provider == "spatialite":
+            self._record_spatialite_lineage(connection, table, lineage)
 
         # Reload the written table as a live layer so the result stays pipeable.
         out = QgsVectorLayer(connection.tableUri(eff_schema, table), table, provider)
@@ -1676,6 +1687,36 @@ class PyqgisBackend(Backend):
             facet="vector",
             name=table,
         )
+
+    def _record_spatialite_lineage(self, connection, table, lineage) -> None:
+        """Record lineage into a `niva_lineage` table in a SpatiaLite DB (SpatiaLite has no
+        COMMENT ON TABLE). The table is **aspatial** — it never touches `geometry_columns`,
+        `spatial_ref_sys`, or the spatial index, so it can't break the DB's spatial state —
+        idempotent (`CREATE TABLE IF NOT EXISTS`), and **best-effort**: any error is swallowed
+        so a failed provenance write never fails the save. It's hidden from `show` (see
+        `_SPATIALITE_SYSTEM_TABLES`) but stays queryable with `sql @conn "SELECT … "`. One row
+        per lineage step, with the niva version stamped as its own first row."""
+        from .. import __version__
+
+        def _q(v):
+            return str(v).replace(
+                "'", "''"
+            )  # SQLite single-quote escaping (as PostGIS path)
+
+        try:
+            connection.executeSql(
+                "CREATE TABLE IF NOT EXISTS niva_lineage "
+                "(table_name TEXT, recorded_at TEXT, step TEXT)"
+            )
+            tbl = _q(table)
+            rows = [f"niva {__version__}"] + [str(e) for e in lineage]
+            for step in rows:
+                connection.executeSql(
+                    "INSERT INTO niva_lineage (table_name, recorded_at, step) "
+                    f"VALUES ('{tbl}', datetime('now'), '{_q(step)}')"
+                )
+        except Exception:  # noqa: BLE001 — provenance is best-effort; a save must never fail on it
+            pass
 
     def _append_to_table(
         self,
