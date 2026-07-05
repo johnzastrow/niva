@@ -166,6 +166,7 @@ niva.flow('load "data.gpkg|layername=roads" | buffer 100m dissolve | save out.gp
 - [Template projects](docs/guide/templates.md) — author a QGIS project once (layout + styles),
   reuse it against fresh data with `project from-template=`
 - [About & goals](docs/guide/about.md) · [Plugin](plugin/README.md) ·
+  [Publishing a QGIS plugin](docs/guide/qgis-plugin-publishing.md) — a reusable playbook ·
   [Verb ↔ algorithm map](docs/planning/14-traceability-matrix.md)
 - [Design & risk docs](docs/planning/) — PRD, architecture, grammar, security, the
   `Oscar` failure register
