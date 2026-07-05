@@ -21,6 +21,7 @@ Block format in the .niva file (see validation_suite.niva):
 
 A `# ===== PREAMBLE | … =====` block runs first (environment/data validation).
 """
+
 from __future__ import annotations
 
 import contextlib
@@ -32,17 +33,25 @@ import sys
 import tempfile
 import time
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # find the sibling report module
+sys.path.insert(
+    0, os.path.dirname(os.path.abspath(__file__))
+)  # find the sibling report module
 import _suite_report  # noqa: E402
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # Optional positional arg picks the suite (default = suite 1); --emit writes the pure .niva.
 _ARGS = [a for a in sys.argv[1:] if not a.startswith("--")]
-SUITE = os.path.abspath(_ARGS[0]) if _ARGS else os.path.join(REPO, "examples", "validation_suite.niva")
+SUITE = (
+    os.path.abspath(_ARGS[0])
+    if _ARGS
+    else os.path.join(REPO, "examples", "validation_suite.niva")
+)
 # Keep the exact POSIX path (`/tmp/niva_validation`) on Linux/macOS; on Windows (no /tmp) fall
 # back to the OS temp dir. The suites embed the literal `/tmp/niva_validation`, so `_subst`
 # redirects that prefix to SCRATCH (a no-op on POSIX, where they're identical).
-SCRATCH = os.path.join("/tmp" if os.name != "nt" else tempfile.gettempdir(), "niva_validation")
+SCRATCH = os.path.join(
+    "/tmp" if os.name != "nt" else tempfile.gettempdir(), "niva_validation"
+)
 OUT = os.path.join(SCRATCH, "out")
 # {data}/{testdata}/{examples} path tokens (see _suite_report.data_tokens), so suites run
 # unchanged on any clone. {data} prefers data/ (make_data.py / make_bigdata.py write there).
@@ -51,6 +60,7 @@ _TOKENS = _suite_report.data_tokens(REPO)
 
 def _subst(text: str) -> str:
     return _suite_report.subst(text.replace("/tmp/niva_validation", SCRATCH), _TOKENS)
+
 
 _HDR = re.compile(r"#\s*=+\s*(PREAMBLE|TEST\s+\d+)\s*\|\s*(.*?)\s*\|\s*(.*?)\s*=+\s*$")
 
@@ -61,8 +71,14 @@ def parse(path):
         line = raw.rstrip("\n")
         m = _HDR.match(line)
         if m:
-            cur = {"id": m.group(1).strip(), "cat": m.group(2), "desc": m.group(3),
-                   "flows": [], "outs": [], "cleanups": []}
+            cur = {
+                "id": m.group(1).strip(),
+                "cat": m.group(2),
+                "desc": m.group(3),
+                "flows": [],
+                "outs": [],
+                "cleanups": [],
+            }
             blocks.append(cur)
             continue
         if cur is None:
@@ -71,9 +87,9 @@ def parse(path):
         if not s:
             continue
         if s.startswith("#@out "):
-            cur["outs"].append(s[len("#@out "):].strip())
+            cur["outs"].append(s[len("#@out ") :].strip())
         elif s.startswith("#@cleanup "):
-            cur["cleanups"].append(s[len("#@cleanup "):].strip())
+            cur["cleanups"].append(s[len("#@cleanup ") :].strip())
         elif s.startswith("#"):
             continue
         else:
@@ -84,7 +100,10 @@ def parse(path):
 def niva_flow(text):
     import niva
 
-    with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+    with (
+        contextlib.redirect_stdout(io.StringIO()),
+        contextlib.redirect_stderr(io.StringIO()),
+    ):
         niva.flow(text)
 
 
@@ -95,6 +114,7 @@ def _vector(target):
     """A QgsVectorLayer for a file path or an @conn.table (via niva's own load)."""
     global _assess_seq
     from qgis.core import QgsVectorLayer
+
     if target.startswith("@"):
         # Use a fresh scratch file per @-assessment. Reusing one name fails on Windows, where the
         # previous assessment's still-open QgsVectorLayer locks the .gpkg and os.remove raises
@@ -111,6 +131,7 @@ def _vector(target):
 
 def assess(spec):
     from qgis.core import QgsRasterLayer, QgsWkbTypes
+
     target, _, rest = spec.partition("::")
     target, rest = target.strip(), rest.strip()
     toks = rest.split()
@@ -122,8 +143,12 @@ def assess(spec):
         return ok, (f"{os.path.getsize(target)} bytes" if ok else "missing/empty")
     if kind == "raster":
         rl = QgsRasterLayer(target, "r")
-        return ((rl.isValid() and rl.bandCount() > 0),
-                f"{rl.width()}x{rl.height()} {rl.bandCount()}-band" if rl.isValid() else "invalid")
+        return (
+            (rl.isValid() and rl.bandCount() > 0),
+            f"{rl.width()}x{rl.height()} {rl.bandCount()}-band"
+            if rl.isValid()
+            else "invalid",
+        )
     vl = _vector(target)
     if not vl.isValid():
         return False, "layer invalid"
@@ -135,7 +160,11 @@ def assess(spec):
     gt = QgsWkbTypes.displayString(vl.wkbType())
     if gt == "NoGeometry":
         return False, "loaded as NoGeometry — geometry LOST"
-    nonempty = sum(1 for i, f in enumerate(vl.getFeatures()) if i < 5 and not f.geometry().isEmpty())
+    nonempty = sum(
+        1
+        for i, f in enumerate(vl.getFeatures())
+        if i < 5 and not f.geometry().isEmpty()
+    )
     if nonempty == 0:
         return False, f"{n} features but ALL-EMPTY geometry ({gt})"
     return True, f"{n} {gt}, geometry OK"
@@ -149,9 +178,9 @@ def cleanup(directive):
     if directive.startswith("remove "):
         flow = directive
     elif directive.startswith("flow "):
-        flow = directive[len("flow "):].strip()
+        flow = directive[len("flow ") :].strip()
     elif directive.startswith("rm "):  # back-compat shorthand → niva `remove`
-        flow = "remove " + directive[len("rm "):].strip()
+        flow = "remove " + directive[len("rm ") :].strip()
     else:
         return
     with contextlib.suppress(Exception):
@@ -177,10 +206,11 @@ def emit_pure(blocks, path):
             if c.startswith("remove "):  # already a niva flow — emit verbatim
                 out.append(c + "    # cleanup")
             elif c.startswith("flow "):
-                out.append(c[len("flow "):].strip() + "    # cleanup")
+                out.append(c[len("flow ") :].strip() + "    # cleanup")
             elif c.startswith("rm "):  # back-compat shorthand → niva `remove`
                 from niva import remove_policy as _rp
-                p = c[len("rm "):].strip()
+
+                p = c[len("rm ") :].strip()
                 force = "" if _rp.on_allowlist(p.strip('"')) else " force"
                 out.append(f"remove {p}{force}    # cleanup")
         out.append("")
@@ -217,15 +247,25 @@ def main():
                 try:
                     results.append((*assess(o_s), o_s.split("::")[0].strip()))
                 except Exception as exc:  # noqa: BLE001
-                    results.append((False, f"assess error: {exc}", o_s.split('::')[0].strip()))
+                    results.append(
+                        (False, f"assess error: {exc}", o_s.split("::")[0].strip())
+                    )
         for c in b["cleanups"]:
             cleanup(_subst(c))
         dt = time.monotonic() - t0
         ok = err is None and all(r[0] for r in results)
         npass += ok
         note = err or "; ".join(m for good, m, _ in results if not good) or "ok"
-        rows.append([b["id"], b["cat"], b["desc"][:48], "PASS" if ok else "FAIL",
-                     f"{dt:.2f}", note[:80]])
+        rows.append(
+            [
+                b["id"],
+                b["cat"],
+                b["desc"][:48],
+                "PASS" if ok else "FAIL",
+                f"{dt:.2f}",
+                note[:80],
+            ]
+        )
         print(f"[{'PASS' if ok else 'FAIL'}] {label}  ({dt:.1f}s)")
         if err:
             print(f"         flow error: {err}")
@@ -242,9 +282,14 @@ def _write_report(env, rows, npass, total, elapsed):
     try:
         suite = os.path.splitext(os.path.basename(SUITE))[0]
         path = _suite_report.write_summary(
-            suite, env, ["ID", "category", "description", "status", "time (s)", "notes"], rows,
+            suite,
+            env,
+            ["ID", "category", "description", "status", "time (s)", "notes"],
+            rows,
             [f"{npass}/{total} blocks passed", f"total elapsed {elapsed:.1f}s"],
-            env["timestamp_utc"], elapsed)
+            env["timestamp_utc"],
+            elapsed,
+        )
         print(f"summary report → {path}")
     except Exception as exc:  # noqa: BLE001 — reporting must never fail the run
         print(f"(could not write summary report: {exc})")

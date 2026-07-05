@@ -22,12 +22,26 @@ from .describe import describe
 from .errors import FlowError, NivaError, OpError
 
 __all__ = [
-    "__version__", "NivaError", "FlowError", "OpError", "flow", "run_file", "describe",
+    "__version__",
+    "NivaError",
+    "FlowError",
+    "OpError",
+    "flow",
+    "run_file",
+    "describe",
 ]
 
 
-def flow(text: str, *, backend=None, file: str | None = None, log=None, log_append=False,
-         progress=None, cancel=None):
+def flow(
+    text: str,
+    *,
+    backend=None,
+    file: str | None = None,
+    log=None,
+    log_append=False,
+    progress=None,
+    cancel=None,
+):
     """Parse and execute a niva flow, returning the final layer handle.
 
     ``backend`` defaults to the real :class:`PyqgisBackend` (which requires QGIS);
@@ -59,10 +73,12 @@ def flow(text: str, *, backend=None, file: str | None = None, log=None, log_appe
             flow=file or "<inline>", niva_version=__version__
         )
     try:
-        return Engine(backend or _default_backend(), journal=journal,
-                      progress=progress, cancel=cancel).execute(
-            program, base_dir=base_dir
-        )
+        return Engine(
+            backend or _default_backend(),
+            journal=journal,
+            progress=progress,
+            cancel=cancel,
+        ).execute(program, base_dir=base_dir)
     finally:
         if journal is not None:
             journal.close()

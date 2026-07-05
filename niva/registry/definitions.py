@@ -21,8 +21,12 @@ CORE = [
         args=[Arg("distance", "DISTANCE", "distance")],
         options={
             "segments": Option("SEGMENTS", "int", "5"),
-            "cap": Option("END_CAP_STYLE", "enum", "round", {"round": 0, "flat": 1, "square": 2}),
-            "join": Option("JOIN_STYLE", "enum", "round", {"round": 0, "miter": 1, "bevel": 2}),
+            "cap": Option(
+                "END_CAP_STYLE", "enum", "round", {"round": 0, "flat": 1, "square": 2}
+            ),
+            "join": Option(
+                "JOIN_STYLE", "enum", "round", {"round": 0, "miter": 1, "bevel": 2}
+            ),
             "miter": Option("MITER_LIMIT", "number", "2"),
         },
         flags={"dissolve": Flag("DISSOLVE"), "separate": Flag("SEPARATE_DISJOINT")},
@@ -74,12 +78,16 @@ CORE = [
         "filter",
         "native:extractbyexpression",
         "Keep only the features matching an expression.",
-        example='load landuse.gpkg | filter "zoning = \'R\' AND area_m2 > 500" | save large_residential.gpkg',
+        example="load landuse.gpkg | filter \"zoning = 'R' AND area_m2 > 500\" | save large_residential.gpkg",
         args=[Arg("expression", "EXPRESSION", "expression")],
     ),
     Alias("fixgeom", "native:fixgeometries", "Repair invalid geometries."),
-    Alias("centroid", "native:centroids", "Replace each feature with its centroid point.",
-          example="load buildings.gpkg | centroid | save building_points.gpkg"),
+    Alias(
+        "centroid",
+        "native:centroids",
+        "Replace each feature with its centroid point.",
+        example="load buildings.gpkg | centroid | save building_points.gpkg",
+    ),
     Alias(
         "explode",
         "native:multiparttosingleparts",
@@ -96,7 +104,9 @@ CORE = [
             "field2": Option("FIELD_2", "field", required=True),
             "fields": Option("FIELDS_TO_COPY", "fields"),
             "prefix": Option("PREFIX", "string"),
-            "method": Option("METHOD", "enum", "one-to-one", {"one-to-many": 0, "one-to-one": 1}),
+            "method": Option(
+                "METHOD", "enum", "one-to-one", {"one-to-many": 0, "one-to-one": 1}
+            ),
             # optional: write the input features that found no match to this file
             "unmatched": Option("NON_MATCHING", "string"),
         },
@@ -116,23 +126,34 @@ CORE = [
                 "enumlist",
                 "count,sum,mean",
                 {
-                    "count": 0, "sum": 1, "mean": 2, "median": 3, "stdev": 4, "min": 5,
-                    "max": 6, "range": 7, "minority": 8, "majority": 9, "variety": 10,
+                    "count": 0,
+                    "sum": 1,
+                    "mean": 2,
+                    "median": 3,
+                    "stdev": 4,
+                    "min": 5,
+                    "max": 6,
+                    "range": 7,
+                    "minority": 8,
+                    "majority": 9,
+                    "variety": 10,
                     "variance": 11,
                 },
             ),
             "prefix": Option("COLUMN_PREFIX", "string", "_"),
         },
     ),
-
     # ----------------------------------------------------------------- geometry
     Alias(
         "simplify",
         "native:simplifygeometries",
         "Reduce the number of vertices in geometries.",
         args=[Arg("tolerance", "TOLERANCE", "distance")],
-        options={"method": Option("METHOD", "enum", "douglas",
-                                  {"douglas": 0, "grid": 1, "area": 2})},
+        options={
+            "method": Option(
+                "METHOD", "enum", "douglas", {"douglas": 0, "grid": 1, "area": 2}
+            )
+        },
     ),
     Alias(
         "smooth",
@@ -144,20 +165,32 @@ CORE = [
             "max_angle": Option("MAX_ANGLE", "number", "180"),
         },
     ),
-    Alias("convexhull", "native:convexhull",
-          "Wrap each feature (or the whole layer) in its convex hull."),
-    Alias("boundingbox", "native:boundingboxes",
-          "Replace each feature with its axis-aligned bounding box."),
-    Alias("minrect", "native:orientedminimumboundingbox",
-          "Replace each feature with its oriented minimum bounding rectangle."),
+    Alias(
+        "convexhull",
+        "native:convexhull",
+        "Wrap each feature (or the whole layer) in its convex hull.",
+    ),
+    Alias(
+        "boundingbox",
+        "native:boundingboxes",
+        "Replace each feature with its axis-aligned bounding box.",
+    ),
+    Alias(
+        "minrect",
+        "native:orientedminimumboundingbox",
+        "Replace each feature with its oriented minimum bounding rectangle.",
+    ),
     Alias(
         "pointonsurface",
         "native:pointonsurface",
         "Place a point guaranteed to fall on each feature's surface.",
         flags={"all_parts": Flag("ALL_PARTS")},
     ),
-    Alias("vertices", "native:extractvertices",
-          "Extract every geometry vertex as a point layer."),
+    Alias(
+        "vertices",
+        "native:extractvertices",
+        "Extract every geometry vertex as a point layer.",
+    ),
     Alias(
         "densify",
         "native:densifygeometriesgivenaninterval",
@@ -177,17 +210,22 @@ CORE = [
         args=[Arg("distance", "DISTANCE", "distance")],
         options={
             "segments": Option("SEGMENTS", "int", "8"),
-            "join": Option("JOIN_STYLE", "enum", "round", {"round": 0, "miter": 1, "bevel": 2}),
+            "join": Option(
+                "JOIN_STYLE", "enum", "round", {"round": 0, "miter": 1, "bevel": 2}
+            ),
             "miter": Option("MITER_LIMIT", "number", "2"),
         },
     ),
     Alias("swapxy", "native:swapxy", "Swap the X and Y coordinates of geometries."),
-    Alias("forcerhr", "native:forcerhr",
-          "Reorder polygon rings to follow the right-hand rule."),
-
+    Alias(
+        "forcerhr",
+        "native:forcerhr",
+        "Reorder polygon rings to follow the right-hand rule.",
+    ),
     # -------------------------------------------------------------- attributes
-    Alias("promote", "native:promotetomulti",
-          "Promote singlepart features to multipart."),
+    Alias(
+        "promote", "native:promotetomulti", "Promote singlepart features to multipart."
+    ),
     Alias(
         "collect",
         "native:collect",
@@ -224,7 +262,6 @@ CORE = [
             "classfield": Option("CLASSFIELD", "field"),
         },
     ),
-
     # ------------------------------------------------------------- overlay/relate
     Alias(
         "union",
@@ -245,11 +282,26 @@ CORE = [
         example="load schools.gpkg | spatialjoin with=districts.gpkg predicate=within method=first | save schools_by_district.gpkg",
         options={
             "with": Option("JOIN", "layer", required=True),
-            "predicate": Option("PREDICATE", "enum", "intersect",
-                                {"intersect": 0, "contain": 1, "equal": 2, "touch": 3,
-                                 "overlap": 4, "within": 5, "cross": 6}),
-            "method": Option("METHOD", "enum", "one-to-many",
-                             {"one-to-many": 0, "first": 1, "largest": 2}),
+            "predicate": Option(
+                "PREDICATE",
+                "enum",
+                "intersect",
+                {
+                    "intersect": 0,
+                    "contain": 1,
+                    "equal": 2,
+                    "touch": 3,
+                    "overlap": 4,
+                    "within": 5,
+                    "cross": 6,
+                },
+            ),
+            "method": Option(
+                "METHOD",
+                "enum",
+                "one-to-many",
+                {"one-to-many": 0, "first": 1, "largest": 2},
+            ),
             "fields": Option("JOIN_FIELDS", "fields"),
             "prefix": Option("PREFIX", "string"),
         },
@@ -261,33 +313,60 @@ CORE = [
         "Keep features that match a spatial relationship to another layer.",
         example="load buildings.gpkg | selectloc floodzone.gpkg predicate=intersect | save at_risk_buildings.gpkg",
         args=[Arg("against", "INTERSECT", "layer")],
-        options={"predicate": Option("PREDICATE", "enumlist", "intersect",
-                                     {"intersect": 0, "contain": 1, "disjoint": 2,
-                                      "equal": 3, "touch": 4, "overlap": 5,
-                                      "within": 6, "cross": 7})},
+        options={
+            "predicate": Option(
+                "PREDICATE",
+                "enumlist",
+                "intersect",
+                {
+                    "intersect": 0,
+                    "contain": 1,
+                    "disjoint": 2,
+                    "equal": 3,
+                    "touch": 4,
+                    "overlap": 5,
+                    "within": 6,
+                    "cross": 7,
+                },
+            )
+        },
     ),
-
     # ------------------------------------------------------------------ selection
     Alias(
         "snap",
         "native:snapgeometries",
         "Snap geometries to a reference layer within a tolerance.",
-        args=[Arg("reference", "REFERENCE_LAYER", "layer"),
-              Arg("tolerance", "TOLERANCE", "distance")],
-        options={"behavior": Option("BEHAVIOR", "enum", "align",
-                                    {"align": 0, "closest": 1, "align-keep": 2,
-                                     "closest-keep": 3, "ends-align": 4, "ends-closest": 5,
-                                     "ends-only": 6, "anchor": 7})},
+        args=[
+            Arg("reference", "REFERENCE_LAYER", "layer"),
+            Arg("tolerance", "TOLERANCE", "distance"),
+        ],
+        options={
+            "behavior": Option(
+                "BEHAVIOR",
+                "enum",
+                "align",
+                {
+                    "align": 0,
+                    "closest": 1,
+                    "align-keep": 2,
+                    "closest-keep": 3,
+                    "ends-align": 4,
+                    "ends-closest": 5,
+                    "ends-only": 6,
+                    "anchor": 7,
+                },
+            )
+        },
     ),
     Alias(
         "sample",
         "native:randomextract",
         "Extract a random subset of features.",
         args=[Arg("number", "NUMBER", "int")],
-        options={"method": Option("METHOD", "enum", "count",
-                                  {"count": 0, "percent": 1})},
+        options={
+            "method": Option("METHOD", "enum", "count", {"count": 0, "percent": 1})
+        },
     ),
-
     # ------------------------------------------------------------------- creation
     Alias(
         "voronoi",
@@ -295,17 +374,21 @@ CORE = [
         "Build Voronoi (Thiessen) polygons around input points.",
         options={"buffer": Option("BUFFER", "number", "0")},
     ),
-    Alias("delaunay", "native:delaunaytriangulation",
-          "Build a Delaunay triangulation from input points."),
+    Alias(
+        "delaunay",
+        "native:delaunaytriangulation",
+        "Build a Delaunay triangulation from input points.",
+    ),
     Alias(
         "pointsalong",
         "native:pointsalonglines",
         "Place points along lines at a fixed spacing.",
         args=[Arg("distance", "DISTANCE", "distance")],
-        options={"start": Option("START_OFFSET", "distance"),
-                 "end": Option("END_OFFSET", "distance")},
+        options={
+            "start": Option("START_OFFSET", "distance"),
+            "end": Option("END_OFFSET", "distance"),
+        },
     ),
-
     # --------------------------------------------------------------------- raster
     # NOTE: raster verbs default CREATION_OPTIONS to lossless DEFLATE + tiling so
     # intermediate/written rasters aren't left uncompressed (and far larger than their
@@ -319,10 +402,25 @@ CORE = [
         args=[Arg("target_crs", "TARGET_CRS", "crs")],
         options={
             "source_crs": Option("SOURCE_CRS", "crs"),
-            "resampling": Option("RESAMPLING", "enum", "nearest",
-                                 {"nearest": 0, "bilinear": 1, "cubic": 2, "cubicspline": 3,
-                                  "lanczos": 4, "average": 5, "mode": 6, "max": 7, "min": 8,
-                                  "median": 9, "q1": 10, "q3": 11}),
+            "resampling": Option(
+                "RESAMPLING",
+                "enum",
+                "nearest",
+                {
+                    "nearest": 0,
+                    "bilinear": 1,
+                    "cubic": 2,
+                    "cubicspline": 3,
+                    "lanczos": 4,
+                    "average": 5,
+                    "mode": 6,
+                    "max": 7,
+                    "min": 8,
+                    "median": 9,
+                    "q1": 10,
+                    "q3": 11,
+                },
+            ),
             "nodata": Option("NODATA", "number"),
             "resolution": Option("TARGET_RESOLUTION", "number"),
         },
@@ -354,7 +452,10 @@ CORE = [
         "gdal:slope",
         "Compute a slope raster from a DEM.",
         example="load dem.tif | slope percent | save slope_pct.tif",
-        options={"band": Option("BAND", "int", "1"), "scale": Option("SCALE", "number", "1")},
+        options={
+            "band": Option("BAND", "int", "1"),
+            "scale": Option("SCALE", "number", "1"),
+        },
         flags={"percent": Flag("AS_PERCENT")},
         forced={"CREATION_OPTIONS": "COMPRESS=DEFLATE|TILED=YES"},
     ),
@@ -370,7 +471,10 @@ CORE = [
         "polygonize",
         "gdal:polygonize",
         "Convert a raster into vector polygons (raster → vector).",
-        options={"band": Option("BAND", "int", "1"), "field": Option("FIELD", "string", "DN")},
+        options={
+            "band": Option("BAND", "int", "1"),
+            "field": Option("FIELD", "string", "DN"),
+        },
         flags={"eight": Flag("EIGHT_CONNECTEDNESS")},
     ),
 ]

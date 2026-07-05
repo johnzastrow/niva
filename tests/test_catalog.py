@@ -95,12 +95,16 @@ class TestExplainVerbValidation(unittest.TestCase):
         self.assertIn("did you mean `reproject`?", out)
 
     def test_valid_flow_passes(self):
-        unknown, _ = self._plan('load a.gpkg | filter "x>1" | buffer 100m | save b.gpkg')
+        unknown, _ = self._plan(
+            'load a.gpkg | filter "x>1" | buffer 100m | save b.gpkg'
+        )
         self.assertFalse(unknown)
 
     def test_run_id_not_treated_as_unknown_verb(self):
         # a run <id> is validated separately (soft warning), never an unknown-verb error
-        unknown, _ = self._plan("load a.las | run pdalcli:to_raster attribute=Z | save b.tif")
+        unknown, _ = self._plan(
+            "load a.las | run pdalcli:to_raster attribute=Z | save b.tif"
+        )
         self.assertFalse(unknown)
 
 

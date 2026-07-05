@@ -23,13 +23,23 @@ import tempfile
 # Environment variables niva reads (see docs/guide/reference.md §8). `secret=True` values are
 # never printed — only whether they are set.
 _ENV_VARS = [
-    ("NIVA_TMPDIR", False), ("CPL_TMPDIR", False), ("NIVA_LOG", False),
-    ("NIVA_TEMPLATES", False), ("NIVA_QGIS_PROFILE", False),
-    ("QGIS_PREFIX_PATH", False), ("QT_QPA_PLATFORM", False),
-    ("NIVA_NTFY_TOPIC", False), ("NIVA_NTFY_SERVER", False), ("NIVA_NTFY_TOKEN", True),
-    ("NIVA_NTFY_ON_ERROR", False), ("NIVA_NTFY_ON_WARNING", False),
-    ("NIVA_SMTP_HOST", False), ("NIVA_SMTP_PORT", False), ("NIVA_SMTP_USER", False),
-    ("NIVA_SMTP_PASSWORD", True), ("NIVA_SMTP_FROM", False),
+    ("NIVA_TMPDIR", False),
+    ("CPL_TMPDIR", False),
+    ("NIVA_LOG", False),
+    ("NIVA_TEMPLATES", False),
+    ("NIVA_QGIS_PROFILE", False),
+    ("QGIS_PREFIX_PATH", False),
+    ("QT_QPA_PLATFORM", False),
+    ("NIVA_NTFY_TOPIC", False),
+    ("NIVA_NTFY_SERVER", False),
+    ("NIVA_NTFY_TOKEN", True),
+    ("NIVA_NTFY_ON_ERROR", False),
+    ("NIVA_NTFY_ON_WARNING", False),
+    ("NIVA_SMTP_HOST", False),
+    ("NIVA_SMTP_PORT", False),
+    ("NIVA_SMTP_USER", False),
+    ("NIVA_SMTP_PASSWORD", True),
+    ("NIVA_SMTP_FROM", False),
 ]
 
 # QGIS settings-ini sections that hold *database* connections (the `@conn` kind), mapped to
@@ -38,8 +48,12 @@ _ENV_VARS = [
 # *all* profiles, not just the active one (the live provider API only sees the active one).
 # Each DB provider keeps connections in its OWN ini section as `connections\<name>\…`.
 _DB_SECTIONS = {
-    "PostgreSQL": "postgres", "SpatiaLite": "spatialite", "MSSQL": "mssql",
-    "Oracle": "oracle", "DB2": "db2", "HANA": "hana",
+    "PostgreSQL": "postgres",
+    "SpatiaLite": "spatialite",
+    "MSSQL": "mssql",
+    "Oracle": "oracle",
+    "DB2": "db2",
+    "HANA": "hana",
 }
 _SECTION_RE = re.compile(r"^\[(.+)\]\s*$")
 _CONN_RE = re.compile(r"^connections\\([^\\]+)\\")
@@ -107,8 +121,10 @@ def _gdal_version():
 def _proj_version():
     from osgeo import osr
 
-    return (f"{osr.GetPROJVersionMajor()}.{osr.GetPROJVersionMinor()}"
-            f".{osr.GetPROJVersionMicro()}")
+    return (
+        f"{osr.GetPROJVersionMajor()}.{osr.GetPROJVersionMinor()}"
+        f".{osr.GetPROJVersionMicro()}"
+    )
 
 
 def _geos_version():
@@ -134,7 +150,9 @@ def _log_setting():
 
     default = os.path.join(tempfile.gettempdir(), "niva_logs")
     s = QgsSettings()
-    return s.value("niva/log_enabled", True, type=bool), s.value("niva/log_dir", default, type=str)
+    return s.value("niva/log_enabled", True, type=bool), s.value(
+        "niva/log_dir", default, type=str
+    )
 
 
 def _connections():
@@ -203,7 +221,8 @@ def _profiles():
             pdir = os.path.join(root, name)
             if os.path.isdir(pdir):
                 profiles[name] = _connections_in_ini(
-                    os.path.join(pdir, "QGIS", f"QGIS{major}.ini"))
+                    os.path.join(pdir, "QGIS", f"QGIS{major}.ini")
+                )
     return root, active, profiles
 
 
@@ -234,7 +253,9 @@ def report_markdown() -> str:
         add(f"- Version: **{niva.__version__}**")
         add(f"- Imported from: `{os.path.dirname(niva.__file__)}`")
         vendored = "libs" in niva.__file__.split(os.sep)
-        add(f"- Source: {'bundled with the QGIS plugin' if vendored else 'pip / source'}")
+        add(
+            f"- Source: {'bundled with the QGIS plugin' if vendored else 'pip / source'}"
+        )
     except Exception as exc:  # noqa: BLE001
         add(f"- niva not importable: {exc}")
     setting = _safe(_log_setting, default=None)
@@ -247,8 +268,11 @@ def report_markdown() -> str:
     add("## Verbs & algorithms")
     builtins = _safe(_builtin_verbs, default=None)
     if isinstance(builtins, list):
-        add("- Built-in verbs: " + " ".join(f"`{v}`" for v in builtins)
-            + "  (plus `each`, `call`, `describe`)")
+        add(
+            "- Built-in verbs: "
+            + " ".join(f"`{v}`" for v in builtins)
+            + "  (plus `each`, `call`, `describe`)"
+        )
     try:
         from niva.registry import core_registry
 
@@ -259,7 +283,9 @@ def report_markdown() -> str:
     proc = _safe(_processing, default=None)
     provs, n_alg = proc if isinstance(proc, tuple) else ([], "unavailable")
     add(f"- Reachable via `run <id>`: **{n_alg}** algorithms")
-    add(f"- Processing providers: {', '.join('`' + p + '`' for p in provs) or 'unavailable'}")
+    add(
+        f"- Processing providers: {', '.join('`' + p + '`' for p in provs) or 'unavailable'}"
+    )
     add("")
 
     # database connections — the most useful thing for CLI work. These are the connections
@@ -276,7 +302,9 @@ def report_markdown() -> str:
         for name in sorted(conns):
             add(f"- `@{name}` — {conns[name]}")
     elif isinstance(conns, dict):
-        add("- none configured — add one in QGIS (Data Source Manager), then `load @name.table`")
+        add(
+            "- none configured — add one in QGIS (Data Source Manager), then `load @name.table`"
+        )
     else:
         add(f"- {conns}")
     add("")
@@ -284,32 +312,42 @@ def report_markdown() -> str:
     # how to discover what's loadable — concrete `show` examples, using a real connection
     # name from the active profile when there is one.
     add("## Listing data (`show`)")
-    add("`show` lists what you can `load` at a location — a file, a directory, a database "
-        "connection, or a remote service:")
+    add(
+        "`show` lists what you can `load` at a location — a file, a directory, a database "
+        "connection, or a remote service:"
+    )
     add("")
     add("- File / directory: `show data.gpkg` · `show data/ deep` (recurse)")
     if isinstance(conns, dict) and conns:
         first = sorted(conns)[0]
-        add(f"- Database: `show @{first}` (all tables) · `show @{first}.<schema>` (one schema)")
+        add(
+            f"- Database: `show @{first}` (all tables) · `show @{first}.<schema>` (one schema)"
+        )
     else:
         add("- Database: `show @<conn>` (configure a connection in QGIS first)")
-    add("- Remote: `show \"https://…/wfs?service=WFS\"` — WFS, WMS, ArcGIS REST, or an XYZ "
-        "`{z}/{x}/{y}` template")
+    add(
+        '- Remote: `show "https://…/wfs?service=WFS"` — WFS, WMS, ArcGIS REST, or an XYZ '
+        "`{z}/{x}/{y}` template"
+    )
     add("")
 
     # all profiles + their connections — niva uses ONE profile at a time (the active one,
     # or `$NIVA_QGIS_PROFILE`), so this shows what's reachable if you switch.
     add("## QGIS profiles")
     if isinstance(profiles, dict) and profiles:
-        add(f"niva reads from **one** profile at a time — the active one (**{active}**), or set "
-            "`NIVA_QGIS_PROFILE=<name>` to use another. Connections by profile:")
+        add(
+            f"niva reads from **one** profile at a time — the active one (**{active}**), or set "
+            "`NIVA_QGIS_PROFILE=<name>` to use another. Connections by profile:"
+        )
         add("")
         for name in sorted(profiles):
             mark = " *(active)*" if name == active else ""
             dbconns = profiles[name]
             if dbconns:
-                parts = "; ".join(f"{label}: " + ", ".join(f"`{n}`" for n in names)
-                                  for label, names in sorted(dbconns.items()))
+                parts = "; ".join(
+                    f"{label}: " + ", ".join(f"`{n}`" for n in names)
+                    for label, names in sorted(dbconns.items())
+                )
             else:
                 parts = "_(no database connections)_"
             add(f"- **{name}**{mark} — {parts}")
@@ -317,7 +355,9 @@ def report_markdown() -> str:
             add("")
             add(f"Profiles directory: `{root}`")
     elif active:
-        add(f"- only the active profile (**{active}**) — set `NIVA_QGIS_PROFILE` to target another")
+        add(
+            f"- only the active profile (**{active}**) — set `NIVA_QGIS_PROFILE` to target another"
+        )
     else:
         add(f"- {profiles}")
     add("")
@@ -342,8 +382,10 @@ def report_markdown() -> str:
     add(f"- GDAL: {_safe(_gdal_version)}")
     add(f"- PROJ: {_safe(_proj_version)}")
     add(f"- GEOS: {_safe(_geos_version)}")
-    add(f"- SpatiaLite/SQLite: SpatiaLite {_safe(_spatialite_version)} "
-        f"(SQLite {_safe(_sqlite_version)})")
+    add(
+        f"- SpatiaLite/SQLite: SpatiaLite {_safe(_spatialite_version)} "
+        f"(SQLite {_safe(_sqlite_version)})"
+    )
     add("")
 
     add("## Python & platform")

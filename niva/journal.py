@@ -57,25 +57,42 @@ class Journal:
             os.makedirs(parent, exist_ok=True)
         self._t0 = time.monotonic()
         mode = "a" if self.append else "w"
-        existing = self.append and os.path.exists(self.log_path) and os.path.getsize(self.log_path) > 0
+        existing = (
+            self.append
+            and os.path.exists(self.log_path)
+            and os.path.getsize(self.log_path) > 0
+        )
         self._jsonl = open(self.jsonl_path, mode, encoding="utf-8")
         self._log = open(self.log_path, mode, encoding="utf-8")
         started = _now()
-        self._emit_json({
-            "niva_journal": SCHEMA,
-            "niva_version": niva_version,
-            "run": flow,
-            "started": started,
-        })
+        self._emit_json(
+            {
+                "niva_journal": SCHEMA,
+                "niva_version": niva_version,
+                "run": flow,
+                "started": started,
+            }
+        )
         sep = "\n" if existing else ""  # blank line between runs in a session log
-        self._log.write(f"{sep}# run: {flow}  (niva {niva_version}, started {started})\n")
+        self._log.write(
+            f"{sep}# run: {flow}  (niva {niva_version}, started {started})\n"
+        )
         self._log.flush()
         return self
 
-    def record(self, *, text: str, kind: str, algorithm: str | None = None,
-               ok: bool = True, summary: str = "", error: str | None = None,
-               duration_ms: int | None = None, pyqgis: str | None = None,
-               note: str | None = None) -> None:
+    def record(
+        self,
+        *,
+        text: str,
+        kind: str,
+        algorithm: str | None = None,
+        ok: bool = True,
+        summary: str = "",
+        error: str | None = None,
+        duration_ms: int | None = None,
+        pyqgis: str | None = None,
+        note: str | None = None,
+    ) -> None:
         self._n += 1
         if not ok:
             self._failed += 1
@@ -123,8 +140,14 @@ class Journal:
             self._log.close()
             self._log = None
         if self._jsonl is not None:
-            self._emit_json({"run_finished": _now(), "operations": self._n,
-                             "failed": self._failed, "elapsed_s": round(elapsed, 3)})
+            self._emit_json(
+                {
+                    "run_finished": _now(),
+                    "operations": self._n,
+                    "failed": self._failed,
+                    "elapsed_s": round(elapsed, 3),
+                }
+            )
             self._jsonl.close()
             self._jsonl = None
 

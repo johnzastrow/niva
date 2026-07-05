@@ -19,6 +19,7 @@ size-tiered layers and a `bench_dem.tif` raster:
 For an even harder run on REAL data, see tests/datagen/bigdata_urls.md — public datasets you can
 wget/curl into data/ and point the benchmark at.
 """
+
 from __future__ import annotations
 
 import math
@@ -41,8 +42,12 @@ if "--scale" in sys.argv:
 
 # EPSG:6346 (NAD83(2011) UTM 17N, metres) — same family as the other test data.
 OX, OY = 600000.0, 4800000.0
-FIELDS = [("id", ogr.OFTInteger), ("name", ogr.OFTString),
-          ("category", ogr.OFTString), ("value", ogr.OFTReal)]
+FIELDS = [
+    ("id", ogr.OFTInteger),
+    ("name", ogr.OFTString),
+    ("category", ogr.OFTString),
+    ("value", ogr.OFTReal),
+]
 _CATS = ("alpha", "beta", "gamma", "delta")
 
 
@@ -61,8 +66,9 @@ def _grid_polys(lyr, n, cell=40.0, gap=10.0):
     for i in range(n):
         r, c = divmod(i, cols)
         x, y = OX + c * (cell + gap), OY + r * (cell + gap)
-        ring = (f"{x} {y}, {x + cell} {y}, {x + cell} {y + cell}, "
-                f"{x} {y + cell}, {x} {y}")
+        ring = (
+            f"{x} {y}, {x + cell} {y}, {x + cell} {y + cell}, {x} {y + cell}, {x} {y}"
+        )
         f = ogr.Feature(defn)
         f["id"], f["name"] = i, f"f{i}"
         f["category"], f["value"] = _CATS[i % 4], i * 0.5
@@ -94,7 +100,9 @@ def _lines(lyr, n, span=4000.0):
         f = ogr.Feature(defn)
         f["id"], f["name"] = i, f"l{i}"
         f["category"], f["value"] = _CATS[i % 4], float(i)
-        f.SetGeometry(ogr.CreateGeometryFromWkt(f"LINESTRING({OX} {y}, {OX + span} {y})"))
+        f.SetGeometry(
+            ogr.CreateGeometryFromWkt(f"LINESTRING({OX} {y}, {OX + span} {y})")
+        )
         lyr.CreateFeature(f)
     lyr.CommitTransaction()
 
@@ -119,21 +127,30 @@ def build_vectors(path):
     _grid_points(layer("points_big", ogr.wkbPoint), big)
     _lines(layer("lines_med", ogr.wkbLineString), 5_000)
     ds = None
-    return path, {"polys_small": small, "polys_med": med, "polys_big": big,
-                  "points_big": big, "lines_med": 5_000}
+    return path, {
+        "polys_small": small,
+        "polys_med": med,
+        "polys_big": big,
+        "points_big": big,
+        "lines_med": 5_000,
+    }
 
 
 def build_dem(path):
     size = int(2000 * math.sqrt(SCALE))
     drv = gdal.GetDriverByName("GTiff")
-    ds = drv.Create(path, size, size, 1, gdal.GDT_Float32, ["COMPRESS=DEFLATE", "TILED=YES"])
+    ds = drv.Create(
+        path, size, size, 1, gdal.GDT_Float32, ["COMPRESS=DEFLATE", "TILED=YES"]
+    )
     ext = size * 5.0  # 5 m pixels
     ds.SetGeoTransform([OX, 5.0, 0, OY + ext, 0, -5.0])
     ds.SetProjection(_srs().ExportToWkt())
     band = ds.GetRasterBand(1)
     for row in range(size):
-        vals = [100.0 + 40.0 * math.sin(c / 25.0) + 30.0 * math.cos(row / 30.0)
-                for c in range(size)]
+        vals = [
+            100.0 + 40.0 * math.sin(c / 25.0) + 30.0 * math.cos(row / 30.0)
+            for c in range(size)
+        ]
         band.WriteRaster(0, row, size, 1, struct.pack(f"<{size}f", *vals))
     band.FlushCache()
     ds = None
@@ -145,9 +162,13 @@ def main():
     gpkg, counts = build_vectors(os.path.join(OUT, "bench.gpkg"))
     dem, size = build_dem(os.path.join(OUT, "bench_dem.tif"))
     print(f"wrote big benchmark data to {OUT}  (scale={SCALE})")
-    print(f"  {os.path.basename(gpkg)}  ({os.path.getsize(gpkg):,} bytes)  layers: "
-          + ", ".join(f"{k}={v}" for k, v in counts.items()))
-    print(f"  {os.path.basename(dem)}  ({os.path.getsize(dem):,} bytes)  {size}×{size} Float32")
+    print(
+        f"  {os.path.basename(gpkg)}  ({os.path.getsize(gpkg):,} bytes)  layers: "
+        + ", ".join(f"{k}={v}" for k, v in counts.items())
+    )
+    print(
+        f"  {os.path.basename(dem)}  ({os.path.getsize(dem):,} bytes)  {size}×{size} Float32"
+    )
 
 
 if __name__ == "__main__":

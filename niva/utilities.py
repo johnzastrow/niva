@@ -24,9 +24,17 @@ from .errors import FlowError, OpError
 
 # --- notify (ntfy) -----------------------------------------------------------
 
-def send_ntfy(message: str, *, topic: str | None = None, server: str | None = None,
-              title: str | None = None, priority: str | None = None,
-              tags: str | None = None, env=None) -> str:
+
+def send_ntfy(
+    message: str,
+    *,
+    topic: str | None = None,
+    server: str | None = None,
+    title: str | None = None,
+    priority: str | None = None,
+    tags: str | None = None,
+    env=None,
+) -> str:
     """POST ``message`` to an ntfy topic. Server/topic/token resolve from args then
     the environment (``NIVA_NTFY_SERVER`` default ``https://ntfy.sh``,
     ``NIVA_NTFY_TOPIC``, ``NIVA_NTFY_TOKEN``). Returns the target URL (no token)."""
@@ -37,8 +45,9 @@ def send_ntfy(message: str, *, topic: str | None = None, server: str | None = No
     server = (server or env.get("NIVA_NTFY_SERVER") or "https://ntfy.sh").rstrip("/")
     topic = topic or env.get("NIVA_NTFY_TOPIC")
     if not topic:
-        raise FlowError('notify needs a topic: `notify "message" to=<topic>` '
-                        "or set NIVA_NTFY_TOPIC")
+        raise FlowError(
+            'notify needs a topic: `notify "message" to=<topic>` or set NIVA_NTFY_TOPIC'
+        )
     url = f"{server}/{topic}"
     headers = {"Content-Type": "text/plain; charset=utf-8"}
     if title:
@@ -54,8 +63,9 @@ def send_ntfy(message: str, *, topic: str | None = None, server: str | None = No
     scheme = urllib.parse.urlsplit(url).scheme.lower()
     if scheme not in ("http", "https"):  # fail closed on file:/ftp:/custom schemes
         raise FlowError("notify server must be an http(s) URL (NIVA_NTFY_SERVER)")
-    req = urllib.request.Request(url, data=message.encode("utf-8"),
-                                 headers=headers, method="POST")
+    req = urllib.request.Request(
+        url, data=message.encode("utf-8"), headers=headers, method="POST"
+    )
     try:
         import ssl
 
@@ -63,21 +73,29 @@ def send_ntfy(message: str, *, topic: str | None = None, server: str | None = No
         # by the default context — so neither the request nor a redirect can reach file:/ftp:.
         opener = urllib.request.OpenerDirector()
         opener.add_handler(urllib.request.HTTPHandler())
-        opener.add_handler(urllib.request.HTTPSHandler(context=ssl.create_default_context()))
+        opener.add_handler(
+            urllib.request.HTTPSHandler(context=ssl.create_default_context())
+        )
         opener.add_handler(urllib.request.HTTPRedirectHandler())
         opener.add_handler(urllib.request.HTTPErrorProcessor())
         with opener.open(req, timeout=15) as resp:
             resp.read()
     except Exception as exc:  # network / HTTP error — no secret in the message
-        raise OpError(f"notify failed: {exc}", algorithm="notify",
-                      params={"server": server, "topic": topic}, backend="ntfy")
+        raise OpError(
+            f"notify failed: {exc}",
+            algorithm="notify",
+            params={"server": server, "topic": topic},
+            backend="ntfy",
+        )
     return url
 
 
 # --- email (SMTP) ------------------------------------------------------------
 
-def send_email(*, to: str, subject: str = "", body: str = "",
-               attach: str | None = None, env=None) -> str:
+
+def send_email(
+    *, to: str, subject: str = "", body: str = "", attach: str | None = None, env=None
+) -> str:
     """Send an email via SMTP. Connection + credentials come **only** from the
     environment: ``NIVA_SMTP_HOST`` (required), ``NIVA_SMTP_PORT`` (default 587),
     ``NIVA_SMTP_USER``, ``NIVA_SMTP_PASSWORD``, ``NIVA_SMTP_FROM`` (default = user).
@@ -103,11 +121,13 @@ def send_email(*, to: str, subject: str = "", body: str = "",
         host = "smtp.gmail.com"
         port_str = port_str or "587"
     if not host:
-        raise FlowError("email needs SMTP config in the environment: set "
-                        "NIVA_SMTP_HOST (and NIVA_SMTP_USER / NIVA_SMTP_PASSWORD / "
-                        "NIVA_SMTP_FROM). For Gmail, set NIVA_SMTP_USER/FROM to your "
-                        "@gmail.com address and NIVA_SMTP_PASSWORD to a Gmail App "
-                        "Password. Credentials never come from the flow text.")
+        raise FlowError(
+            "email needs SMTP config in the environment: set "
+            "NIVA_SMTP_HOST (and NIVA_SMTP_USER / NIVA_SMTP_PASSWORD / "
+            "NIVA_SMTP_FROM). For Gmail, set NIVA_SMTP_USER/FROM to your "
+            "@gmail.com address and NIVA_SMTP_PASSWORD to a Gmail App "
+            "Password. Credentials never come from the flow text."
+        )
     if not sender:
         raise FlowError("email needs a sender: set NIVA_SMTP_FROM or NIVA_SMTP_USER")
     try:
@@ -129,8 +149,12 @@ def send_email(*, to: str, subject: str = "", body: str = "",
         ctype, _ = mimetypes.guess_type(attach)
         maintype, _, subtype = (ctype or "application/octet-stream").partition("/")
         with open(attach, "rb") as fh:
-            msg.add_attachment(fh.read(), maintype=maintype, subtype=subtype or "octet-stream",
-                               filename=os.path.basename(attach))
+            msg.add_attachment(
+                fh.read(),
+                maintype=maintype,
+                subtype=subtype or "octet-stream",
+                filename=os.path.basename(attach),
+            )
 
     ctx = ssl.create_default_context()
     try:
@@ -146,8 +170,12 @@ def send_email(*, to: str, subject: str = "", body: str = "",
                     smtp.login(user, password)
                 smtp.send_message(msg)
     except Exception as exc:  # never include the password in the error
-        raise OpError(f"email failed: {exc}", algorithm="email",
-                      params={"to": to, "host": host, "port": port}, backend="smtp")
+        raise OpError(
+            f"email failed: {exc}",
+            algorithm="email",
+            params={"to": to, "host": host, "port": port},
+            backend="smtp",
+        )
     return to
 
 
@@ -155,10 +183,31 @@ def send_email(*, to: str, subject: str = "", body: str = "",
 
 # Extensions that mark a file as geospatial data worth cataloguing. (Plain `.json`
 # is deliberately excluded — too broad; GeoJSON uses `.geojson`.)
-CATALOG_VECTOR_EXTS = {".gpkg", ".shp", ".geojson", ".gml", ".kml", ".gpx",
-                       ".fgb", ".parquet", ".tab", ".mif"}
-CATALOG_RASTER_EXTS = {".tif", ".tiff", ".jp2", ".img", ".vrt", ".asc", ".dem",
-                       ".hgt", ".bil", ".grd", ".nc"}
+CATALOG_VECTOR_EXTS = {
+    ".gpkg",
+    ".shp",
+    ".geojson",
+    ".gml",
+    ".kml",
+    ".gpx",
+    ".fgb",
+    ".parquet",
+    ".tab",
+    ".mif",
+}
+CATALOG_RASTER_EXTS = {
+    ".tif",
+    ".tiff",
+    ".jp2",
+    ".img",
+    ".vrt",
+    ".asc",
+    ".dem",
+    ".hgt",
+    ".bil",
+    ".grd",
+    ".nc",
+}
 # Containers that can hold many layers — catalog enumerates each layer.
 CATALOG_MULTILAYER_EXTS = {".gpkg", ".sqlite", ".db"}
 
@@ -181,7 +230,8 @@ def format_catalog(root: str, entries: list) -> str:
         f"# Geospatial data catalog — `{root}`",
         "",
         f"{len(ok)} dataset(s) catalogued"
-        + (f", {len(bad)} could not be read" if bad else "") + ".",
+        + (f", {len(bad)} could not be read" if bad else "")
+        + ".",
         "",
     ]
     for relpath, facet, prof, _err in ok:
@@ -218,8 +268,9 @@ def format_catalog(root: str, entries: list) -> str:
     return "\n".join(lines)
 
 
-def format_show(location: str, entries: list, *, is_db: bool = False,
-                is_service: bool = False) -> str:
+def format_show(
+    location: str, entries: list, *, is_db: bool = False, is_service: bool = False
+) -> str:
     """Render the `show` listing as a Markdown table. ``entries`` is a list of dicts
     ``{name, kind, type, format, ref}`` (see ``Backend.list_layers``). Keeps it to a
     quick name-and-type glance — the ``ref`` column is copy-pasteable into ``load`` (or,
@@ -242,33 +293,45 @@ def format_show(location: str, entries: list, *, is_db: bool = False,
             )
         lines.append("")
         if is_db:
-            lines.append("Load a row with `load <source>`; inspect one with "
-                         "`sql @conn \"SELECT … LIMIT 0\"` (credentials stay in QGIS).")
+            lines.append(
+                "Load a row with `load <source>`; inspect one with "
+                '`sql @conn "SELECT … LIMIT 0"` (credentials stay in QGIS).'
+            )
         elif is_service:
-            lines.append("WFS / ArcGIS feature layers: `ogrinfo \"<source>\" <layer>`. "
-                         "WMS / XYZ are map services — add the endpoint in QGIS.")
+            lines.append(
+                'WFS / ArcGIS feature layers: `ogrinfo "<source>" <layer>`. '
+                "WMS / XYZ are map services — add the endpoint in QGIS."
+            )
         else:
-            lines.append("Load a row with `load \"<source>\"`; for more detail run "
-                         "`ogrinfo <file> <layer>` or `load \"<source>\" | assess`.")
+            lines.append(
+                'Load a row with `load "<source>"`; for more detail run '
+                '`ogrinfo <file> <layer>` or `load "<source>" | assess`.'
+            )
         # The Source cells are shown in Markdown `backticks` — copy the value *inside* them.
         # The `|` is niva's pipe, so the source must stay quoted; in a shell, quote the whole
         # flow so your shell doesn't eat the quotes or split on `|`:
-        lines.append("Tip: copy a Source **without** its surrounding backticks, and quote the "
-                     "whole flow for your shell — `niva 'load \"<source>\"'`.")
+        lines.append(
+            "Tip: copy a Source **without** its surrounding backticks, and quote the "
+            "whole flow for your shell — `niva 'load \"<source>\"'`."
+        )
         examples = _show_examples(entries) if not is_service else []
         if examples:
             lines.append("")
-            lines.append("Examples — copy one and run it **in your shell** (in the QGIS dock, "
-                         "use just the flow inside the quotes):")
+            lines.append(
+                "Examples — copy one and run it **in your shell** (in the QGIS dock, "
+                "use just the flow inside the quotes):"
+            )
             lines.append("")
             # Wrap each flow as `niva '…'`: the single quotes keep your shell from eating the
             # double quotes or splitting on `|` (niva's pipe), so it pastes and runs as-is.
             lines.extend(f"    niva '{flow}'" for flow in examples)
             writes = _show_write_examples(entries)
             lines.append("")
-            lines.append("Write into an **existing** container — add a layer to a GeoPackage, or "
-                         "append to a database table (the table must already exist; "
-                         "`mode=create` makes a new one):")
+            lines.append(
+                "Write into an **existing** container — add a layer to a GeoPackage, or "
+                "append to a database table (the table must already exist; "
+                "`mode=create` makes a new one):"
+            )
             lines.append("")
             lines.extend(f"    niva '{flow}'" for flow in writes)
     else:
@@ -307,29 +370,39 @@ def _show_examples(entries: list) -> list:
     if kind == "raster":
         # ~/  prefix keeps examples writable from the QGIS plugin (relative paths resolve
         # against the app bundle's working directory, which is not writable on macOS/Linux).
-        return [f"load {src} | warp EPSG:3857 | save ~/reprojected.tif",
-                f"load {src} | hillshade | save ~/hillshade.tif"]
+        return [
+            f"load {src} | warp EPSG:3857 | save ~/reprojected.tif",
+            f"load {src} | hillshade | save ~/hillshade.tif",
+        ]
     if kind == "table":
         # `assess` always writes to a file — it has no stdout form — so the example must
         # name one, or copying it yields a flow that errors (`assess needs an output`).
-        return [f"load {src} | assess to ~/assessment.md",
-                f"load {src} | save ~/extract.gpkg"]
+        return [
+            f"load {src} | assess to ~/assessment.md",
+            f"load {src} | save ~/extract.gpkg",
+        ]
     # Both examples must run on ANY vector source, whatever its CRS or geometry. `reproject`
     # first makes `100m` valid even on a geographic (degrees) layer; `buffer` then accepts any
     # geometry. `fixgeom` is geometry-agnostic (and exactly what niva recommends for the mixed /
     # GeometryCollection layers that break a typed-output op like `centroid`). We can't tell a
     # layer's *actual* (vs declared) geometry from the listing, so we avoid type-constrained ops.
     # ~/  prefix keeps examples writable from the QGIS plugin (see raster note above).
-    return [f"load {src} | reproject EPSG:3857 | buffer 100m | save ~/buffered.gpkg",
-            f"load {src} | fixgeom | save ~/fixed.gpkg"]
+    return [
+        f"load {src} | reproject EPSG:3857 | buffer 100m | save ~/buffered.gpkg",
+        f"load {src} | fixgeom | save ~/fixed.gpkg",
+    ]
 
 
 def _show_write_examples(entries: list) -> list:
     """Two `save`-target patterns: add a layer to a GeoPackage (multi-layer write), and append
     into a database table — the common 'write into something that already exists' cases."""
-    pick = next((e for e in entries if e.get("kind") in ("vector", "table")), entries[0])
+    pick = next(
+        (e for e in entries if e.get("kind") in ("vector", "table")), entries[0]
+    )
     src, name = _show_src(pick), _safe_name(pick)
     # ~/  prefix keeps examples writable from the QGIS plugin (relative paths resolve against
     # the app bundle's working directory, which is not writable on macOS/Linux).
-    return [f"load {src} | save ~/analysis.gpkg as {name}",
-            f"load {src} | save @conn.public.{name} mode=append"]
+    return [
+        f"load {src} | save ~/analysis.gpkg as {name}",
+        f"load {src} | save @conn.public.{name} mode=append",
+    ]

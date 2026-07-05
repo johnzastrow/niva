@@ -65,7 +65,9 @@ def _entry_score(query: str, *fields: str) -> float:
     return max(_score(w, *fields) for w in words)
 
 
-def search(query: str, *, algorithms=(), limit: int = 20, threshold: float = 0.45) -> list:
+def search(
+    query: str, *, algorithms=(), limit: int = 20, threshold: float = 0.45
+) -> list:
     """Rank the corpus against ``query``, returning :class:`Hit` objects sorted by score
     (desc), then verbs before algorithms, then name. ``algorithms`` is the live catalog
     (``[{id, display_name, group, description}, …]`` from ``backend.algorithm_catalog()``);
@@ -78,8 +80,14 @@ def search(query: str, *, algorithms=(), limit: int = 20, threshold: float = 0.4
 
     for verb in reg.verbs():
         alias = reg.get(verb)
-        s = _entry_score(query, verb, alias.summary, alias.algorithm,
-                         " ".join(alias.options), " ".join(alias.flags))
+        s = _entry_score(
+            query,
+            verb,
+            alias.summary,
+            alias.algorithm,
+            " ".join(alias.options),
+            " ".join(alias.flags),
+        )
         if s >= threshold:
             hits.append(Hit(verb, "verb", alias.summary, s))
 
@@ -89,8 +97,13 @@ def search(query: str, *, algorithms=(), limit: int = 20, threshold: float = 0.4
             hits.append(Hit(verb, "builtin", summary, s))
 
     for alg in algorithms:
-        s = _entry_score(query, alg.get("id", ""), alg.get("display_name", ""),
-                         alg.get("group", ""), alg.get("description", ""))
+        s = _entry_score(
+            query,
+            alg.get("id", ""),
+            alg.get("display_name", ""),
+            alg.get("group", ""),
+            alg.get("description", ""),
+        )
         if s >= threshold:
             hits.append(Hit(alg["id"], "algorithm", alg.get("display_name", ""), s))
 
@@ -104,16 +117,24 @@ def search(query: str, *, algorithms=(), limit: int = 20, threshold: float = 0.4
 def format_results(query: str, hits: list) -> str:
     """A compact Markdown listing of `search` hits — name, kind, summary, score."""
     if not hits:
-        return (f"# No matches for `{query}`\n\n"
-                "Try a shorter or more general keyword (search is fuzzy).")
-    lines = [f"# {len(hits)} match(es) for `{query}`", "",
-             "| Match | Kind | Score | Summary |", "|---|---|---:|---|"]
+        return (
+            f"# No matches for `{query}`\n\n"
+            "Try a shorter or more general keyword (search is fuzzy)."
+        )
+    lines = [
+        f"# {len(hits)} match(es) for `{query}`",
+        "",
+        "| Match | Kind | Score | Summary |",
+        "|---|---|---:|---|",
+    ]
     for h in hits:
         summary = h.summary.replace("|", "\\|") if h.summary else ""
         lines.append(f"| `{h.name}` | {h.kind} | {h.score:.2f} | {summary} |")
     lines.append("")
-    lines.append(f"Run `describe <name>` for any of these, or `docs {query}` for the full "
-                 "reference of every match.")
+    lines.append(
+        f"Run `describe <name>` for any of these, or `docs {query}` for the full "
+        "reference of every match."
+    )
     return "\n".join(lines)
 
 
@@ -123,8 +144,10 @@ def format_docs(query: str, hits: list, describe_fn) -> str:
     failing to introspect (e.g. an algorithm needing QGIS) degrades to a note, never sinks
     the whole guide."""
     if not hits:
-        return (f"# No matches for `{query}`\n\n"
-                "Try a shorter or more general keyword (search is fuzzy).")
+        return (
+            f"# No matches for `{query}`\n\n"
+            "Try a shorter or more general keyword (search is fuzzy)."
+        )
     blocks = [f"# Reference for `{query}` — {len(hits)} match(es)", ""]
     for h in hits:
         blocks.append(f"## `{h.name}`  ({h.kind})")

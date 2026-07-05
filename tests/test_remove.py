@@ -2,6 +2,7 @@
 
 Pure Python (MockBackend + real temp files; no QGIS). See docs/planning/18-remove-verb-design.md.
 """
+
 import os
 import tempfile
 import unittest
@@ -81,10 +82,14 @@ class TestRemoveGate(unittest.TestCase):
 
     def test_force_deletes_non_allowlisted_exact_path_only(self):
         py = self._touch("keep.py")
-        aux = self._touch("keep.py.aux.xml")  # would be a sidecar — but force is exact-only
+        aux = self._touch(
+            "keep.py.aux.xml"
+        )  # would be a sidecar — but force is exact-only
         run(f'remove "{py}" force')
         self.assertFalse(os.path.exists(py))
-        self.assertTrue(os.path.exists(aux), "force deletes only the named file, no family")
+        self.assertTrue(
+            os.path.exists(aux), "force deletes only the named file, no family"
+        )
 
     def test_refuse_non_allowlisted_without_force(self):
         md = self._touch("report.md")
@@ -95,7 +100,7 @@ class TestRemoveGate(unittest.TestCase):
 
     def test_refuse_conn_ref(self):
         with self.assertRaises(FlowError) as cm:
-            run('remove @pg.public.roads')
+            run("remove @pg.public.roads")
         self.assertIn("DROP TABLE", str(cm.exception))
 
     def test_refuse_glob(self):

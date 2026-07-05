@@ -61,18 +61,22 @@ def bind(stage, alias: Alias) -> BoundOp:
     # 2. Bind positionals in order; enforce required / arity.
     for i, spec in enumerate(alias.args):
         if i < len(positionals):
-            params[spec.param] = _coerce(positionals[i], spec.type, None, stage, spec.name)
+            params[spec.param] = _coerce(
+                positionals[i], spec.type, None, stage, spec.name
+            )
         elif spec.required:
             raise FlowError(
                 f"`{stage.verb}` needs a `{spec.name}` value",
-                line=stage.line, stage=stage.raw,
+                line=stage.line,
+                stage=stage.raw,
             )
-    extra = positionals[len(alias.args):]
+    extra = positionals[len(alias.args) :]
     if extra:
         joined = ", ".join(repr(x) for x in extra)
         raise FlowError(
             f"`{stage.verb}` got unexpected value(s): {joined}",
-            line=stage.line, stage=stage.raw,
+            line=stage.line,
+            stage=stage.raw,
         )
 
     # 3. Bind options.
@@ -83,7 +87,8 @@ def bind(stage, alias: Alias) -> BoundOp:
             hint = ", ".join(valid) if valid else "(none)"
             raise FlowError(
                 f"`{stage.verb}` has no option `{key}` — valid: {hint}",
-                line=stage.line, stage=stage.raw,
+                line=stage.line,
+                stage=stage.raw,
             )
         params[spec.param] = _coerce(value, spec.type, spec.values, stage, key)
 
@@ -92,13 +97,16 @@ def bind(stage, alias: Alias) -> BoundOp:
         if spec.required and spec.param not in params:
             raise FlowError(
                 f"`{stage.verb}` needs option `{key}=…`",
-                line=stage.line, stage=stage.raw,
+                line=stage.line,
+                stage=stage.raw,
             )
 
     # 5. Defaults for omitted options.
     for spec in alias.options.values():
         if spec.param not in params and spec.default is not None:
-            params[spec.param] = _coerce(spec.default, spec.type, spec.values, stage, "")
+            params[spec.param] = _coerce(
+                spec.default, spec.type, spec.values, stage, ""
+            )
 
     # 6. Flags default to False.
     for spec in alias.flags.values():
@@ -107,14 +115,26 @@ def bind(stage, alias: Alias) -> BoundOp:
     # 7. Forced values are literal (never coerced) and always win.
     params.update(alias.forced)
 
-    layer_params = {s.param for s in alias.args if s.type == "layer" and s.param in params}
-    layer_params |= {s.param for s in alias.options.values()
-                     if s.type == "layer" and s.param in params}
+    layer_params = {
+        s.param for s in alias.args if s.type == "layer" and s.param in params
+    }
+    layer_params |= {
+        s.param
+        for s in alias.options.values()
+        if s.type == "layer" and s.param in params
+    }
     crs_params = {s.param for s in alias.args if s.type == "crs" and s.param in params}
-    crs_params |= {s.param for s in alias.options.values()
-                   if s.type == "crs" and s.param in params}
-    return BoundOp(alias.algorithm, params, alias.primary_input, alias.primary_output,
-                   frozenset(layer_params), frozenset(crs_params))
+    crs_params |= {
+        s.param for s in alias.options.values() if s.type == "crs" and s.param in params
+    }
+    return BoundOp(
+        alias.algorithm,
+        params,
+        alias.primary_input,
+        alias.primary_output,
+        frozenset(layer_params),
+        frozenset(crs_params),
+    )
 
 
 # --- coercion --------------------------------------------------------------
@@ -145,14 +165,16 @@ def _distance(value: str, stage, what: str) -> Distance:
     if not m:
         raise FlowError(
             f"`{stage.verb}`: expected a distance for `{what}`, got `{value}`",
-            line=stage.line, stage=stage.raw,
+            line=stage.line,
+            stage=stage.raw,
         )
     unit = m.group(2) or None
     if unit is not None and unit not in _UNITS:
         raise FlowError(
             f"`{stage.verb}`: unknown unit `{unit}` in `{value}` — use one of: "
             + ", ".join(sorted(_UNITS)),
-            line=stage.line, stage=stage.raw,
+            line=stage.line,
+            stage=stage.raw,
         )
     return Distance(float(m.group(1)), unit)
 
@@ -161,7 +183,8 @@ def _number(value: str, type_: str, stage, what: str):
     if not _NUMBER.match(value):
         raise FlowError(
             f"`{stage.verb}`: expected a number for `{what}`, got `{value}`",
-            line=stage.line, stage=stage.raw,
+            line=stage.line,
+            stage=stage.raw,
         )
     return int(value) if type_ == "int" else float(value)
 
@@ -171,7 +194,8 @@ def _enum(word: str, values, stage, what: str) -> int:
         valid = ", ".join(values) if values else "(none)"
         raise FlowError(
             f"`{stage.verb}`: `{word}` is not a valid value for `{what}` — use one of: {valid}",
-            line=stage.line, stage=stage.raw,
+            line=stage.line,
+            stage=stage.raw,
         )
     return values[word]
 

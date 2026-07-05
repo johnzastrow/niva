@@ -42,8 +42,9 @@ def _points(layername, coords):
     """A tiny in-memory point layer named ``layername`` in the projected test CRS."""
     from qgis.core import QgsFeature, QgsGeometry, QgsPointXY, QgsVectorLayer
 
-    vl = QgsVectorLayer(f"Point?crs={CRS}&field=id:integer&field=name:string",
-                        layername, "memory")
+    vl = QgsVectorLayer(
+        f"Point?crs={CRS}&field=id:integer&field=name:string", layername, "memory"
+    )
     pr = vl.dataProvider()
     for i, (x, y) in enumerate(coords, start=1):
         f = QgsFeature()
@@ -61,10 +62,12 @@ def _write(vl, path, driver, layername, first):
     opts = QgsVectorFileWriter.SaveVectorOptions()
     opts.driverName = driver
     opts.layerName = layername
-    opts.actionOnExistingFile = (action.CreateOrOverwriteFile if first
-                                 else action.CreateOrOverwriteLayer)
+    opts.actionOnExistingFile = (
+        action.CreateOrOverwriteFile if first else action.CreateOrOverwriteLayer
+    )
     QgsVectorFileWriter.writeAsVectorFormatV3(
-        vl, path, QgsProject.instance().transformContext(), opts)
+        vl, path, QgsProject.instance().transformContext(), opts
+    )
 
 
 def _aspatial(layername):
@@ -103,7 +106,9 @@ _COORDS = [(400000, 4500000), (400100, 4500100), (400200, 4500200)]
 
 
 class TestDiscoveryCascade(unittest.TestCase):
-    CONN = "niva_cascade.sqlite"  # a *dotted* connection name — the round-trip under test
+    CONN = (
+        "niva_cascade.sqlite"  # a *dotted* connection name — the round-trip under test
+    )
 
     def setUp(self):
         from qgis.core import QgsProviderRegistry
@@ -115,7 +120,9 @@ class TestDiscoveryCascade(unittest.TestCase):
         _write(_points("homes", _COORDS), self.db, "SpatiaLite", "homes", first=True)
         _write(_points("parks", _COORDS), self.db, "SpatiaLite", "parks", first=False)
         self.md = QgsProviderRegistry.instance().providerMetadata("spatialite")
-        self.md.saveConnection(self.md.createConnection(f"dbname='{self.db}'", {}), self.CONN)
+        self.md.saveConnection(
+            self.md.createConnection(f"dbname='{self.db}'", {}), self.CONN
+        )
 
         # A multi-layer GeoPackage file (the file-path `show` branch).
         self.gpkg = os.path.join(self.tmp, "places.gpkg")
@@ -151,8 +158,10 @@ class TestDiscoveryCascade(unittest.TestCase):
     # A `show` data row: 4 pipe-free leading cells then the backticked Source, which may
     # itself contain `|` (a file Source like `<path>|layername=<layer>`). So the Source cell
     # is captured non-greedily up to the row's trailing pipe, not by a naive `|` split.
-    _ROW = re.compile(r"\|\s*([^|]*?)\s*\|\s*([^|]*?)\s*\|\s*([^|]*?)\s*\|"
-                      r"\s*([^|]*?)\s*\|\s*(.*?)\s*\|\s*$")
+    _ROW = re.compile(
+        r"\|\s*([^|]*?)\s*\|\s*([^|]*?)\s*\|\s*([^|]*?)\s*\|"
+        r"\s*([^|]*?)\s*\|\s*(.*?)\s*\|\s*$"
+    )
 
     @classmethod
     def _sources(cls, report):
@@ -194,14 +203,20 @@ class TestDiscoveryCascade(unittest.TestCase):
         niva.flow(f'load "{source}" | save {out}')
         if kind == "raster":
             layer = QgsRasterLayer(out, "o")
-            self.assertTrue(layer.isValid(), f"`load \"{source}\"` produced no valid raster")
+            self.assertTrue(
+                layer.isValid(), f'`load "{source}"` produced no valid raster'
+            )
         else:
             layer = QgsVectorLayer(out, "o", "ogr")
-            self.assertTrue(layer.isValid(), f"`load \"{source}\"` produced no valid layer")
+            self.assertTrue(
+                layer.isValid(), f'`load "{source}"` produced no valid layer'
+            )
             # An aspatial table legitimately may hold rows but no geometry; only require
             # features for a spatial vector layer.
             if kind == "vector":
-                self.assertGreater(layer.featureCount(), 0, f"`{source}` loaded 0 features")
+                self.assertGreater(
+                    layer.featureCount(), 0, f"`{source}` loaded 0 features"
+                )
 
     def _run_example(self, flow):
         """Run an example flow verbatim in a scratch cwd; assert its `save` target lands and
@@ -227,9 +242,12 @@ class TestDiscoveryCascade(unittest.TestCase):
             os.chdir(cwd)
         if not target:
             return None
-        produced = target if os.path.isabs(target) else os.path.join(self.scratch, target)
-        self.assertTrue(os.path.exists(produced),
-                        f"example did not produce `{target}`: {flow}")
+        produced = (
+            target if os.path.isabs(target) else os.path.join(self.scratch, target)
+        )
+        self.assertTrue(
+            os.path.exists(produced), f"example did not produce `{target}`: {flow}"
+        )
         return produced
 
     def _cascade_into(self, produced):
@@ -252,8 +270,11 @@ class TestDiscoveryCascade(unittest.TestCase):
 
         self.assertIn(self.CONN, PyqgisBackend().connection_names())
         report = self._report("info")
-        self.assertIn(self.CONN, report,
-                      "info must list the registered connection a user would then `show`")
+        self.assertIn(
+            self.CONN,
+            report,
+            "info must list the registered connection a user would then `show`",
+        )
 
     def test_cascade_from_connection(self):
         # Step 2: `show @conn` → Sources + examples. Step 3: every one of them runs.
@@ -269,7 +290,9 @@ class TestDiscoveryCascade(unittest.TestCase):
                 self._assert_loads(kind, ref)  # the round-trip the fix restores
 
         examples = self._examples(report)
-        self.assertTrue(examples, "show printed no runnable examples for the connection")
+        self.assertTrue(
+            examples, "show printed no runnable examples for the connection"
+        )
         for flow in examples:
             produced = self._run_example(flow)
             # …and keep going past the example: re-`show` and re-`load` its output.
@@ -280,8 +303,10 @@ class TestDiscoveryCascade(unittest.TestCase):
         # The file-path branch: Source is `<path>|layername=<layer>` from list_layers.
         report = self._report(f"show {self.gpkg}")
         sources = self._sources(report)
-        self.assertTrue(any("layername=" in ref for _k, ref in sources),
-                        "a multi-layer GeoPackage Source must name its layer")
+        self.assertTrue(
+            any("layername=" in ref for _k, ref in sources),
+            "a multi-layer GeoPackage Source must name its layer",
+        )
         for kind, ref in sources:
             if kind == "vector":
                 self._assert_loads(kind, ref)
@@ -296,14 +321,18 @@ class TestDiscoveryCascade(unittest.TestCase):
         # carry their outputs onward — every raster example output must be a loadable raster.
         report = self._report(f'show "{self.tif}"')
         sources = self._sources(report)
-        self.assertTrue(any(k == "raster" for k, _ in sources), "show found no raster layer")
+        self.assertTrue(
+            any(k == "raster" for k, _ in sources), "show found no raster layer"
+        )
         for kind, ref in sources:
             if kind == "raster":
                 self._assert_loads(kind, ref)
 
         examples = self._examples(report)
-        self.assertTrue(any("hillshade" in e or "warp" in e for e in examples),
-                        "show did not emit raster examples for a raster source")
+        self.assertTrue(
+            any("hillshade" in e or "warp" in e for e in examples),
+            "show did not emit raster examples for a raster source",
+        )
         for flow in examples:
             produced = self._run_example(flow)
             if produced:
@@ -314,14 +343,18 @@ class TestDiscoveryCascade(unittest.TestCase):
         # run; the `save` output must round-trip back through `show` + `load`.
         report = self._report(f'show "{self.aspatial}"')
         sources = self._sources(report)
-        self.assertTrue(any(k == "table" for k, _ in sources),
-                        "an aspatial layer must list as kind `table`")
+        self.assertTrue(
+            any(k == "table" for k, _ in sources),
+            "an aspatial layer must list as kind `table`",
+        )
         for kind, ref in sources:
             if kind == "table":
                 self._assert_loads(kind, ref)
 
         for flow in self._examples(report):
-            produced = self._run_example(flow)  # `assess` has no save → None, still runs
+            produced = self._run_example(
+                flow
+            )  # `assess` has no save → None, still runs
             if produced:
                 self._cascade_into(produced)
 
@@ -338,13 +371,19 @@ class TestDiscoveryCascade(unittest.TestCase):
         hop1 = os.path.join(self.scratch, "hop1.gpkg")
         niva.flow(f'load "{first}" | buffer 50m | save {hop1}')
         # show the hop-1 output, take its Source, and carry it onward.
-        src1 = next(ref for kind, ref in self._sources(self._report(f'show "{hop1}"'))
-                    if kind == "vector")
+        src1 = next(
+            ref
+            for kind, ref in self._sources(self._report(f'show "{hop1}"'))
+            if kind == "vector"
+        )
 
         hop2 = os.path.join(self.scratch, "hop2.gpkg")
         niva.flow(f'load "{src1}" | reproject EPSG:3857 | save {hop2}')
-        src2 = next(ref for kind, ref in self._sources(self._report(f'show "{hop2}"'))
-                    if kind == "vector")
+        src2 = next(
+            ref
+            for kind, ref in self._sources(self._report(f'show "{hop2}"'))
+            if kind == "vector"
+        )
 
         final = QgsVectorLayer(src2, "final", "ogr")
         self.assertTrue(final.isValid())

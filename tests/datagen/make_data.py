@@ -19,6 +19,7 @@ Run under QGIS's Python:
     PYTHONPATH=/path/to/niva:/Applications/.../Resources/qgis/python:... \\
     /Applications/QGIS-final-4_0_3.app/Contents/MacOS/python3.12 tests/datagen/make_data.py
 """
+
 from __future__ import annotations
 
 import csv
@@ -26,24 +27,28 @@ import os
 import shutil
 from pathlib import Path
 
-REPO     = Path(__file__).parent.parent.parent
+REPO = Path(__file__).parent.parent.parent
 TESTDATA = REPO / "tests" / "datagen" / "testdata"
-EX_GPKG  = REPO / "examples" / "data" / "example.gpkg"  # the seed dataset stays with the examples
-DATA     = REPO / "data"
+EX_GPKG = (
+    REPO / "examples" / "data" / "example.gpkg"
+)  # the seed dataset stays with the examples
+DATA = REPO / "data"
 
 # The PostGIS instance is DESIGNATED BY THE USER via environment variables, so the fixtures can
 # be pushed into whatever database you point at (a local PostGIS, a CI service, a remote dev DB).
 # Defaults target a local `niva_test` database. The password comes only from the environment.
 PG_HOST = os.environ.get("NIVA_PG_HOST", "localhost")
 PG_PORT = os.environ.get("NIVA_PG_PORT", "5432")
-PG_DB   = os.environ.get("NIVA_PG_DB", "niva_test")
-PG_USER = os.environ.get("NIVA_PG_USER",
-                         os.environ.get("USER", os.environ.get("USERNAME", "postgres")))
+PG_DB = os.environ.get("NIVA_PG_DB", "niva_test")
+PG_USER = os.environ.get(
+    "NIVA_PG_USER", os.environ.get("USER", os.environ.get("USERNAME", "postgres"))
+)
 PG_PASSWORD = os.environ.get("NIVA_PG_PASSWORD", "")
 
 
 def main() -> None:
     from niva.engine.pyqgis import ensure_qgis
+
     ensure_qgis()
 
     import niva
@@ -61,15 +66,15 @@ def main() -> None:
     DATA.mkdir(exist_ok=True)
 
     gpkg = str(TESTDATA / "niva_testdata.gpkg")
-    dem  = str(TESTDATA / "niva_testdata_dem.tif")
-    sl   = str(TESTDATA / "niva_testdata.sqlite")
-    ex   = str(EX_GPKG)
+    dem = str(TESTDATA / "niva_testdata_dem.tif")
+    sl = str(TESTDATA / "niva_testdata.sqlite")
+    ex = str(EX_GPKG)
 
-    poly_src  = f"{gpkg}|layername=polygons"
+    poly_src = f"{gpkg}|layername=polygons"
     multi_src = f"{gpkg}|layername=multipolys"
-    pt_src    = f"{gpkg}|layername=points"
-    line_src  = f"{gpkg}|layername=lines"
-    aoi_src   = f"{gpkg}|layername=aoi"
+    pt_src = f"{gpkg}|layername=points"
+    line_src = f"{gpkg}|layername=lines"
+    aoi_src = f"{gpkg}|layername=aoi"
 
     # ── basemap.gpkg ──────────────────────────────────────────────────────────
     # boundary-polygon needs NAME / NAME_EN / ADMIN_LVL fields for the round-trip
@@ -86,7 +91,7 @@ def main() -> None:
 
     # Build a memory layer with the renamed / added fields.
     src_fields = poly_lyr.fields()
-    crs_id     = poly_lyr.crs().authid()
+    crs_id = poly_lyr.crs().authid()
     mem_lyr = QgsVectorLayer(f"MultiPolygon?crs={crs_id}", "boundary-polygon", "memory")
     pr = mem_lyr.dataProvider()
     new_fields = []
@@ -95,7 +100,7 @@ def main() -> None:
             new_fields.append(QgsField("NAME", QVariant.String))
         else:
             new_fields.append(QgsField(f.name(), f.type()))
-    new_fields.append(QgsField("NAME_EN",   QVariant.String))
+    new_fields.append(QgsField("NAME_EN", QVariant.String))
     new_fields.append(QgsField("ADMIN_LVL", QVariant.Int))
     pr.addAttributes(new_fields)
     mem_lyr.updateFields()
@@ -110,33 +115,41 @@ def main() -> None:
             idx = mem_lyr.fields().indexOf(field_name)
             if idx >= 0:
                 out.setAttribute(idx, feat.attribute(j))
-        out.setAttribute(mem_lyr.fields().indexOf("NAME_EN"),
-                         None if i % 4 == 0 else f"Name_EN_{i:03d}")
+        out.setAttribute(
+            mem_lyr.fields().indexOf("NAME_EN"),
+            None if i % 4 == 0 else f"Name_EN_{i:03d}",
+        )
         out.setAttribute(mem_lyr.fields().indexOf("ADMIN_LVL"), (i % 4) + 2)
         mem_feats.append(out)
     pr.addFeatures(mem_feats)
 
     opts = QgsVectorFileWriter.SaveVectorOptions()
     opts.driverName = "GPKG"
-    opts.layerName  = "boundary-polygon"
+    opts.layerName = "boundary-polygon"
     opts.actionOnExistingFile = QgsVectorFileWriter.CreateOrOverwriteFile
     err, msg, _, _ = QgsVectorFileWriter.writeAsVectorFormatV3(
-        mem_lyr, basemap, QgsProject.instance().transformContext(), opts)
+        mem_lyr, basemap, QgsProject.instance().transformContext(), opts
+    )
     assert err == QgsVectorFileWriter.NoError, msg
 
     # Remaining basemap layers added to the existing file via niva.
     # railway-line and poi-point are used by suite_2/3 (pointsalong, sample, spatialjoin, etc.)
     for src, lname in [
         (multi_src, "boundary-polygon-lvl2"),
-        (poly_src,  "landuse-polygon"),
-        (poly_src,  "nature_reserve-polygon"),  # poly_src ≠ multi_src so symdifference(nature_reserve, park_polygons[multi]) is non-empty
-        (pt_src,    "settlement-point"),
-        (poly_src,  "water-polygon"),
-        (line_src,  "railway-line"),
-        (pt_src,    "poi-point"),
+        (poly_src, "landuse-polygon"),
+        (
+            poly_src,
+            "nature_reserve-polygon",
+        ),  # poly_src ≠ multi_src so symdifference(nature_reserve, park_polygons[multi]) is non-empty
+        (pt_src, "settlement-point"),
+        (poly_src, "water-polygon"),
+        (line_src, "railway-line"),
+        (pt_src, "poi-point"),
     ]:
         niva.flow(f'load "{src}" | save "{basemap}" as {lname}')
-    print(f"  basemap.gpkg  ({n_base} boundary-polygon features + railway-line + poi-point)")
+    print(
+        f"  basemap.gpkg  ({n_base} boundary-polygon features + railway-line + poi-point)"
+    )
 
     # ── study_area_bbox.gpkg ──────────────────────────────────────────────────
     study = str(DATA / "study_area_bbox.gpkg")
@@ -169,18 +182,26 @@ def main() -> None:
     niva.flow(f'load "{sl}|layername=points"   | save "{actual_sl}" as park_points')
     niva.flow(f'load "{multi_src}"             | save "{actual_sl}" as park_polygons')
     niva.flow(f'load "{sl}|layername=lines"    | save "{actual_sl}" as park_lines')
-    print("  actual_spatialite.sqlite  (park_points + park_polygons[multipolys] + park_lines)")
+    print(
+        "  actual_spatialite.sqlite  (park_points + park_polygons[multipolys] + park_lines)"
+    )
 
     # ── aoism.shp + aoism.gpkg (was ~/Downloads/NiagaraBasemap/aoism.shp) ─────
     # Use the AOISM (area-of-interest) layer from example.gpkg reprojected to
     # EPSG:6346 — same Youngstown study-area polygon the Linux machine used.
     aoism_src = f"{ex}|layername=AOISM"
-    niva.flow(f'load "{aoism_src}" | reproject EPSG:6346 | save "{str(DATA / "aoism.gpkg")}"')
-    niva.flow(f'load "{aoism_src}" | reproject EPSG:6346 | save "{str(DATA / "aoism.shp")}"')
+    niva.flow(
+        f'load "{aoism_src}" | reproject EPSG:6346 | save "{str(DATA / "aoism.gpkg")}"'
+    )
+    niva.flow(
+        f'load "{aoism_src}" | reproject EPSG:6346 | save "{str(DATA / "aoism.shp")}"'
+    )
     print("  aoism.shp, aoism.gpkg")
 
     # ── order_boundary.geojson (was ~/Downloads/NiagaraOverture/…) ────────────
-    niva.flow(f'load "{aoi_src}" | reproject EPSG:4326 | save "{str(DATA / "order_boundary.geojson")}"')
+    niva.flow(
+        f'load "{aoi_src}" | reproject EPSG:4326 | save "{str(DATA / "order_boundary.geojson")}"'
+    )
     print("  order_boundary.geojson")
 
     # ── performance.csv (was ~/Downloads/OLD/…PerformanceResults….csv) ────────
@@ -195,15 +216,21 @@ def main() -> None:
 
     # ── QGIS connections ──────────────────────────────────────────────────────
     s = QgsSettings()
-    for k, v in [("host", PG_HOST), ("port", PG_PORT), ("database", PG_DB),
-                  ("username", PG_USER), ("password", PG_PASSWORD),
-                  ("saveUsername", "true"), ("savePassword", "true"),
-                  ("allowGeometrylessTables", "true")]:
+    for k, v in [
+        ("host", PG_HOST),
+        ("port", PG_PORT),
+        ("database", PG_DB),
+        ("username", PG_USER),
+        ("password", PG_PASSWORD),
+        ("saveUsername", "true"),
+        ("savePassword", "true"),
+        ("allowGeometrylessTables", "true"),
+    ]:
         s.setValue(f"PostgreSQL/connections/localpg/{k}", v)
     s.sync()
     print(f"  registered @localpg → {PG_HOST}:{PG_PORT}/{PG_DB} as {PG_USER}")
 
-    sl_md   = QgsProviderRegistry.instance().providerMetadata("spatialite")
+    sl_md = QgsProviderRegistry.instance().providerMetadata("spatialite")
     sl_conn = sl_md.createConnection(f"dbname='{actual_sl}'", {})
     sl_md.saveConnection(sl_conn, "actual_spatialite.sqlite")
     print(f"  registered @actual_spatialite.sqlite → {actual_sl}")
@@ -218,27 +245,30 @@ def main() -> None:
         print(f'  @localpg.public."{final}"')
 
     _pg_load_rename(line_src, "niva_tmp_roads", "My Roads")
-    _pg_load_rename(pt_src,   "niva_tmp_cafe",  "café points")
+    _pg_load_rename(pt_src, "niva_tmp_cafe", "café points")
     _pg_load_rename(poly_src, "niva_tmp_mixed", "Mixed.Case.Dots")
-    _pg_load_rename(pt_src,   "niva_tmp_sel",   "select")
-    _pg_load_rename(pt_src,   "niva_tmp_123",   "123_leading")
-    _pg_load_rename(pt_src,   "niva_tmp_hash",  "name-with-dash#hash")
+    _pg_load_rename(pt_src, "niva_tmp_sel", "select")
+    _pg_load_rename(pt_src, "niva_tmp_123", "123_leading")
+    _pg_load_rename(pt_src, "niva_tmp_hash", "name-with-dash#hash")
 
     # name-with-dash#hash: rename the geom column so niva must detect it by type
-    niva.flow('sql @localpg "ALTER TABLE public.\\"name-with-dash#hash\\" '
-              'RENAME COLUMN geom TO wkt_geometry"')
+    niva.flow(
+        'sql @localpg "ALTER TABLE public.\\"name-with-dash#hash\\" '
+        'RENAME COLUMN geom TO wkt_geometry"'
+    )
 
     # two_geoms: a table with two geometry columns (niva must pick the right one)
     niva.flow(f'load "{pt_src}" | save @localpg.public.two_geoms mode=replace')
-    niva.flow('sql @localpg "ALTER TABLE public.two_geoms '
-              'ADD COLUMN IF NOT EXISTS extra_geom geometry(Point,6346)"')
+    niva.flow(
+        'sql @localpg "ALTER TABLE public.two_geoms '
+        'ADD COLUMN IF NOT EXISTS extra_geom geometry(Point,6346)"'
+    )
     niva.flow('sql @localpg "UPDATE public.two_geoms SET extra_geom = geom"')
-    print( '  @localpg.public.two_geoms (two geometry columns)')
+    print("  @localpg.public.two_geoms (two geometry columns)")
 
     print(f"\ndata/ ready at {DATA}")
     print(f"Boundary-polygon has {n_base} features.")
-    print("round_trip_suite.niva PREAMBLE should check: "
-          f"count(src.gpkg) == {n_base}")
+    print(f"round_trip_suite.niva PREAMBLE should check: count(src.gpkg) == {n_base}")
 
 
 if __name__ == "__main__":

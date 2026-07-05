@@ -28,10 +28,24 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 GUIDE = os.path.join(ROOT, "docs", "guide")
 APPENDIX = os.path.join(ROOT, "docs", "algorithms")
 # Reading order; any other docs/guide/*.md is appended after these.
-GUIDE_ORDER = ["about.md", "user-guide.md", "reference.md", "cookbook.md", "templates.md",
-               "faq.md"]
+GUIDE_ORDER = [
+    "about.md",
+    "user-guide.md",
+    "reference.md",
+    "cookbook.md",
+    "templates.md",
+    "faq.md",
+]
 # Appendix order (the index first, then providers; grass is huge, so last).
-APPENDIX_ORDER = ["README.md", "native.md", "gdal.md", "qgis.md", "pdal.md", "3d.md", "grass.md"]
+APPENDIX_ORDER = [
+    "README.md",
+    "native.md",
+    "gdal.md",
+    "qgis.md",
+    "pdal.md",
+    "3d.md",
+    "grass.md",
+]
 DEFAULT_OUT = os.path.join(GUIDE, "niva-guide.pdf")
 ENGINES = ("xelatex", "lualatex", "pdflatex", "wkhtmltopdf")
 
@@ -195,14 +209,18 @@ def _has_font(name: str) -> bool:
     if not shutil.which("fc-list"):
         return False
     try:
-        return name in subprocess.run(["fc-list"], capture_output=True, text=True).stdout
+        return (
+            name in subprocess.run(["fc-list"], capture_output=True, text=True).stdout
+        )
     except Exception:  # noqa: BLE001
         return False
 
 
 def _ordered(directory: str, order: list[str]) -> list[str]:
     present = [f for f in order if os.path.isfile(os.path.join(directory, f))]
-    extra = sorted(f for f in os.listdir(directory) if f.endswith(".md") and f not in order)
+    extra = sorted(
+        f for f in os.listdir(directory) if f.endswith(".md") and f not in order
+    )
     return [os.path.join(directory, f) for f in present + extra]
 
 
@@ -218,17 +236,25 @@ def _stage(path: str, tmpdir: str, tag: str, i: int) -> str:
 
 
 def main() -> None:
-    ap = argparse.ArgumentParser(description="Build a unified PDF of docs/guide/ + algorithm appendices.")
+    ap = argparse.ArgumentParser(
+        description="Build a unified PDF of docs/guide/ + algorithm appendices."
+    )
     ap.add_argument("-o", "--output", default=DEFAULT_OUT, help="output PDF path")
-    ap.add_argument("--no-appendix", action="store_true", help="skip the docs/algorithms/ appendices")
+    ap.add_argument(
+        "--no-appendix",
+        action="store_true",
+        help="skip the docs/algorithms/ appendices",
+    )
     args = ap.parse_args()
 
     if not shutil.which("pandoc"):
         sys.exit("error: pandoc not found — install pandoc (https://pandoc.org).")
     engine = next((e for e in ENGINES if shutil.which(e)), None)
     if not engine:
-        sys.exit("error: no PDF engine found — install a LaTeX engine "
-                 "(e.g. texlive-xetex) or wkhtmltopdf.")
+        sys.exit(
+            "error: no PDF engine found — install a LaTeX engine "
+            "(e.g. texlive-xetex) or wkhtmltopdf."
+        )
 
     guide = _ordered(GUIDE, GUIDE_ORDER)
     if not guide:
@@ -257,34 +283,62 @@ def main() -> None:
         inputs += [_stage(f, tmpdir, "a", i) for i, f in enumerate(appendix)]
 
     cmd = [
-        "pandoc", *inputs,
-        "--from", "gfm+raw_attribute",
-        "--output", out,
+        "pandoc",
+        *inputs,
+        "--from",
+        "gfm+raw_attribute",
+        "--output",
+        out,
         f"--pdf-engine={engine}",
-        "--include-in-header", header,
-        "--lua-filter", lua,
-        "--toc", "--toc-depth=2",
+        "--include-in-header",
+        header,
+        "--lua-filter",
+        lua,
+        "--toc",
+        "--toc-depth=2",
         "--top-level-division=chapter",
-        "--metadata", "title=niva",
-        "--metadata", f"subtitle=User Guide · Reference · Cookbook · Algorithm Appendix (v{_version()})",
-        "--metadata", f"date={date.today().isoformat()}",
-        "--metadata", "author=",
-        "-V", "documentclass=report",
-        "-V", "geometry:margin=2.2cm",
-        "-V", "fontsize=10pt",
-        "-V", "colorlinks=true",
-        "-V", "linkcolor=blue",
-        "-V", "urlcolor=blue",
-        "-V", "toccolor=black",
+        "--metadata",
+        "title=niva",
+        "--metadata",
+        f"subtitle=User Guide · Reference · Cookbook · Algorithm Appendix (v{_version()})",
+        "--metadata",
+        f"date={date.today().isoformat()}",
+        "--metadata",
+        "author=",
+        "-V",
+        "documentclass=report",
+        "-V",
+        "geometry:margin=2.2cm",
+        "-V",
+        "fontsize=10pt",
+        "-V",
+        "colorlinks=true",
+        "-V",
+        "linkcolor=blue",
+        "-V",
+        "urlcolor=blue",
+        "-V",
+        "toccolor=black",
     ]
     if engine in ("xelatex", "lualatex") and _has_font("DejaVu Sans"):
-        cmd += ["-V", "mainfont=DejaVu Sans",
-                "-V", "sansfont=DejaVu Sans",
-                "-V", "monofont=DejaVu Sans Mono"]
+        cmd += [
+            "-V",
+            "mainfont=DejaVu Sans",
+            "-V",
+            "sansfont=DejaVu Sans",
+            "-V",
+            "monofont=DejaVu Sans Mono",
+        ]
 
-    print(f"building {out}\n  engine: {engine}\n  guide: "
-          + ", ".join(os.path.basename(f) for f in guide)
-          + ("\n  appendix: " + ", ".join(os.path.basename(f) for f in appendix) if appendix else ""))
+    print(
+        f"building {out}\n  engine: {engine}\n  guide: "
+        + ", ".join(os.path.basename(f) for f in guide)
+        + (
+            "\n  appendix: " + ", ".join(os.path.basename(f) for f in appendix)
+            if appendix
+            else ""
+        )
+    )
     try:
         subprocess.run(cmd, check=True)
     except subprocess.CalledProcessError as exc:

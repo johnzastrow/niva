@@ -19,8 +19,8 @@ class TestDescribeVerb(unittest.TestCase):
         out = describe("buffer")
         self.assertIn("verb `buffer` → native:buffer", out)
         self.assertIn("distance (distance, required) → DISTANCE", out)
-        self.assertIn("cap=<round|flat|square", out)   # enum vocab
-        self.assertIn("dissolve → DISSOLVE", out)       # flag
+        self.assertIn("cap=<round|flat|square", out)  # enum vocab
+        self.assertIn("dissolve → DISSOLVE", out)  # flag
 
     def test_describe_join_required_option(self):
         out = describe("join")
@@ -77,23 +77,43 @@ class TestExamplesActuallyRun(unittest.TestCase):
             "display_name": "Buffer",
             "provider": "native",
             "params": [
-                {"name": "INPUT", "type": "source", "optional": False, "default": None,
-                 "description": ""},
-                {"name": "DISTANCE", "type": "distance", "optional": False, "default": None,
-                 "description": ""},
-                {"name": "SEGMENTS", "type": "number", "optional": True, "default": 5,
-                 "description": ""},
-                {"name": "OUTPUT", "type": "sink", "optional": False, "default": None,
-                 "description": ""},
+                {
+                    "name": "INPUT",
+                    "type": "source",
+                    "optional": False,
+                    "default": None,
+                    "description": "",
+                },
+                {
+                    "name": "DISTANCE",
+                    "type": "distance",
+                    "optional": False,
+                    "default": None,
+                    "description": "",
+                },
+                {
+                    "name": "SEGMENTS",
+                    "type": "number",
+                    "optional": True,
+                    "default": 5,
+                    "description": "",
+                },
+                {
+                    "name": "OUTPUT",
+                    "type": "sink",
+                    "optional": False,
+                    "default": None,
+                    "description": "",
+                },
             ],
             "outputs": [],
         }
         ex = _example_for_algorithm(info)
         self.assertIn("run native:buffer", ex)
-        self.assertIn("DISTANCE=", ex)       # required param surfaced
-        self.assertNotIn("INPUT=", ex)       # comes from the pipe
-        self.assertNotIn("OUTPUT=", ex)      # temp sink
-        self.assertNotIn("SEGMENTS=", ex)    # optional → omitted
+        self.assertIn("DISTANCE=", ex)  # required param surfaced
+        self.assertNotIn("INPUT=", ex)  # comes from the pipe
+        self.assertNotIn("OUTPUT=", ex)  # temp sink
+        self.assertNotIn("SEGMENTS=", ex)  # optional → omitted
         Engine(MockBackend()).execute(parse(ex))  # runnable
 
 

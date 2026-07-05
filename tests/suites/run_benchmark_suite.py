@@ -24,6 +24,7 @@ Run under QGIS's Python:
 Writes <out>/benchmark_<host>_<UTCstamp>.json and .md (and refreshes benchmark_latest.json/.md).
 Default <out> is ~/niva-test-results (cross-machine). JSON is the canonical comparison record.
 """
+
 from __future__ import annotations
 
 import contextlib
@@ -43,12 +44,18 @@ try:
 except ImportError:  # Windows
     resource = None
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # find the sibling report module
+sys.path.insert(
+    0, os.path.dirname(os.path.abspath(__file__))
+)  # find the sibling report module
 import _suite_report  # noqa: E402
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 _ARGS = [a for a in sys.argv[1:] if not a.startswith("--")]
-SUITE = os.path.abspath(_ARGS[0]) if _ARGS else os.path.join(REPO, "examples", "benchmark_suite.niva")
+SUITE = (
+    os.path.abspath(_ARGS[0])
+    if _ARGS
+    else os.path.join(REPO, "examples", "benchmark_suite.niva")
+)
 # Reports land in the user's home (~/niva-test-results) by default so they compare across
 # machines; override with --out <dir>.
 OUTDIR = str(_suite_report.results_dir())
@@ -59,11 +66,15 @@ if "--out" in sys.argv:
 _TOKENS = _suite_report.data_tokens(REPO)
 # Keep the exact POSIX scratch path (`/tmp/niva_benchmark`) on Linux/macOS; on Windows (no /tmp)
 # redirect it to the OS temp dir. The suite embeds the literal prefix, so rewrite it in _subst.
-_BENCH_SCRATCH = os.path.join("/tmp" if os.name != "nt" else tempfile.gettempdir(), "niva_benchmark")
+_BENCH_SCRATCH = os.path.join(
+    "/tmp" if os.name != "nt" else tempfile.gettempdir(), "niva_benchmark"
+)
 
 
 def _subst(text):
-    return _suite_report.subst(text.replace("/tmp/niva_benchmark", _BENCH_SCRATCH), _TOKENS)
+    return _suite_report.subst(
+        text.replace("/tmp/niva_benchmark", _BENCH_SCRATCH), _TOKENS
+    )
 
 
 _HDR = re.compile(r"#\s*=+\s*(PREAMBLE|TEST\s+\d+)\s*\|\s*(.*?)\s*\|\s*(.*?)\s*=+\s*$")
@@ -79,8 +90,14 @@ def parse(path):
         line = raw.rstrip("\n")
         m = _HDR.match(line)
         if m:
-            cur = {"id": m.group(1).strip(), "cat": m.group(2), "desc": m.group(3),
-                   "flows": [], "outs": [], "cleanups": []}
+            cur = {
+                "id": m.group(1).strip(),
+                "cat": m.group(2),
+                "desc": m.group(3),
+                "flows": [],
+                "outs": [],
+                "cleanups": [],
+            }
             blocks.append(cur)
             continue
         if cur is None:
@@ -89,9 +106,9 @@ def parse(path):
         if not s:
             continue
         if s.startswith("#@out "):
-            cur["outs"].append(s[len("#@out "):].strip())
+            cur["outs"].append(s[len("#@out ") :].strip())
         elif s.startswith("#@cleanup "):
-            cur["cleanups"].append(s[len("#@cleanup "):].strip())
+            cur["cleanups"].append(s[len("#@cleanup ") :].strip())
         elif not s.startswith("#"):
             cur["flows"].append(line)
     return blocks
@@ -99,7 +116,11 @@ def parse(path):
 
 def niva_flow(text):
     import niva
-    with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+
+    with (
+        contextlib.redirect_stdout(io.StringIO()),
+        contextlib.redirect_stderr(io.StringIO()),
+    ):
         niva.flow(text)
 
 
@@ -117,27 +138,35 @@ def _rss_kb():
             from ctypes import wintypes
 
             class _PMC(ctypes.Structure):
-                _fields_ = [("cb", wintypes.DWORD), ("PageFaultCount", wintypes.DWORD),
-                            ("PeakWorkingSetSize", ctypes.c_size_t),
-                            ("WorkingSetSize", ctypes.c_size_t),
-                            ("QuotaPeakPagedPoolUsage", ctypes.c_size_t),
-                            ("QuotaPagedPoolUsage", ctypes.c_size_t),
-                            ("QuotaPeakNonPagedPoolUsage", ctypes.c_size_t),
-                            ("QuotaNonPagedPoolUsage", ctypes.c_size_t),
-                            ("PagefileUsage", ctypes.c_size_t),
-                            ("PeakPagefileUsage", ctypes.c_size_t)]
+                _fields_ = [
+                    ("cb", wintypes.DWORD),
+                    ("PageFaultCount", wintypes.DWORD),
+                    ("PeakWorkingSetSize", ctypes.c_size_t),
+                    ("WorkingSetSize", ctypes.c_size_t),
+                    ("QuotaPeakPagedPoolUsage", ctypes.c_size_t),
+                    ("QuotaPagedPoolUsage", ctypes.c_size_t),
+                    ("QuotaPeakNonPagedPoolUsage", ctypes.c_size_t),
+                    ("QuotaNonPagedPoolUsage", ctypes.c_size_t),
+                    ("PagefileUsage", ctypes.c_size_t),
+                    ("PeakPagefileUsage", ctypes.c_size_t),
+                ]
 
             # Set restype/argtypes: GetCurrentProcess() returns the pseudo-handle -1, which ctypes
             # truncates to 32 bits without an explicit HANDLE restype — passing the truncated value
             # makes GetProcessMemoryInfo fail (returns 0) on 64-bit Python.
             k32, psapi = ctypes.windll.kernel32, ctypes.windll.psapi
             k32.GetCurrentProcess.restype = wintypes.HANDLE
-            psapi.GetProcessMemoryInfo.argtypes = [wintypes.HANDLE, ctypes.POINTER(_PMC),
-                                                   wintypes.DWORD]
+            psapi.GetProcessMemoryInfo.argtypes = [
+                wintypes.HANDLE,
+                ctypes.POINTER(_PMC),
+                wintypes.DWORD,
+            ]
             psapi.GetProcessMemoryInfo.restype = wintypes.BOOL
             pmc = _PMC()
             pmc.cb = ctypes.sizeof(_PMC)
-            if psapi.GetProcessMemoryInfo(k32.GetCurrentProcess(), ctypes.byref(pmc), pmc.cb):
+            if psapi.GetProcessMemoryInfo(
+                k32.GetCurrentProcess(), ctypes.byref(pmc), pmc.cb
+            ):
                 return pmc.WorkingSetSize // 1024
         except Exception:  # noqa: BLE001
             pass
@@ -161,6 +190,7 @@ def _io_counters():
 class _RSSSampler(threading.Thread):
     """Polls resident memory in the background so we get a real per-test peak, not just the
     process-wide high-water mark."""
+
     def __init__(self, interval=0.05):
         super().__init__(daemon=True)
         self.interval, self.peak, self._done = interval, _rss_kb(), threading.Event()
@@ -211,6 +241,7 @@ def measure_output(spec):
 def _safe_feature_count(target):
     try:
         from qgis.core import QgsRasterLayer, QgsVectorLayer
+
         if target.lower().endswith((".tif", ".tiff", ".jp2", ".img", ".vrt", ".asc")):
             rl = QgsRasterLayer(target, "r")
             return rl.width() * rl.height() if rl.isValid() else 0
@@ -224,7 +255,13 @@ def cleanup(directive):
     d = directive.strip()
     if d.startswith("rm "):
         d = "remove " + d[3:].strip()
-    flow = d if d.startswith("remove ") else d[5:].strip() if d.startswith("flow ") else None
+    flow = (
+        d
+        if d.startswith("remove ")
+        else d[5:].strip()
+        if d.startswith("flow ")
+        else None
+    )
     if flow:
         with contextlib.suppress(Exception):
             niva_flow(flow)
@@ -260,14 +297,19 @@ def _markdown(env, results):
     lines = ["# niva benchmark", "", "## Environment", ""]
     for k, v in env.items():
         lines.append(f"- **{k}**: {v}")
-    lines += ["", "## Results", "",
-              "_io-rd/io-wr = bytes through read()/write() syscalls (true throughput); the kernel "
-              "buffers block-device writes in page cache, so they're a better disk signal than "
-              "flushed `disk_write_mb` (kept in the JSON)._", "",
-              "| ID | dim | description | ok | wall s | cpu s | peak RSS MB | ΔRSS MB | "
-              "io-rd MB | io-wr MB | out MB | features |",
-              "|----|-----|-------------|----|-------:|------:|------------:|--------:|"
-              "--------:|--------:|-------:|---------:|"]
+    lines += [
+        "",
+        "## Results",
+        "",
+        "_io-rd/io-wr = bytes through read()/write() syscalls (true throughput); the kernel "
+        "buffers block-device writes in page cache, so they're a better disk signal than "
+        "flushed `disk_write_mb` (kept in the JSON)._",
+        "",
+        "| ID | dim | description | ok | wall s | cpu s | peak RSS MB | ΔRSS MB | "
+        "io-rd MB | io-wr MB | out MB | features |",
+        "|----|-----|-------------|----|-------:|------:|------------:|--------:|"
+        "--------:|--------:|-------:|---------:|",
+    ]
     by_dim = {}
     for r in results:
         by_dim.setdefault(r["cat"], []).append(r)
@@ -275,22 +317,27 @@ def _markdown(env, results):
             f"| {r['id']} | {r['cat']} | {r['desc'][:46]} | {'✓' if r['ok'] else '✗'} | "
             f"{r['wall_s']:.2f} | {r['cpu_total_s']:.2f} | {r['rss_peak_mb']:.0f} | "
             f"{r['rss_delta_mb']:+.0f} | {r['io_read_mb']:.1f} | {r['io_write_mb']:.1f} | "
-            f"{r['out_mb']:.1f} | {r['features']} |")
+            f"{r['out_mb']:.1f} | {r['features']} |"
+        )
     lines += ["", "## Totals by dimension", ""]
     for dim, rs in sorted(by_dim.items()):
-        lines.append(f"- **{dim}**: {len(rs)} test(s), "
-                     f"wall {sum(r['wall_s'] for r in rs):.1f}s, "
-                     f"cpu {sum(r['cpu_total_s'] for r in rs):.1f}s, "
-                     f"peak RSS {max(r['rss_peak_mb'] for r in rs):.0f}MB")
+        lines.append(
+            f"- **{dim}**: {len(rs)} test(s), "
+            f"wall {sum(r['wall_s'] for r in rs):.1f}s, "
+            f"cpu {sum(r['cpu_total_s'] for r in rs):.1f}s, "
+            f"peak RSS {max(r['rss_peak_mb'] for r in rs):.0f}MB"
+        )
     return "\n".join(lines) + "\n"
 
 
 def main():
     blocks = parse(SUITE)
     env = environment()
-    print(f"niva benchmark — {len(blocks)} block(s)  |  {env.get('host')}  "
-          f"niva {env.get('niva_version')}  {env.get('cpu_count')} CPU  "
-          f"{env.get('ram_total_mb')}MB RAM\n" + "=" * 92)
+    print(
+        f"niva benchmark — {len(blocks)} block(s)  |  {env.get('host')}  "
+        f"niva {env.get('niva_version')}  {env.get('cpu_count')} CPU  "
+        f"{env.get('ram_total_mb')}MB RAM\n" + "=" * 92
+    )
     results = []
     for b in blocks:
         sampler = _RSSSampler()
@@ -318,7 +365,10 @@ def main():
         for c in b["cleanups"]:
             cleanup(_subst(c))
         rec = {
-            "id": b["id"], "cat": b["cat"], "desc": b["desc"], "ok": err is None,
+            "id": b["id"],
+            "cat": b["cat"],
+            "desc": b["desc"],
+            "ok": err is None,
             "error": err,
             "wall_s": round(wall, 3),
             "cpu_user_s": round(cpu1_u - cpu0_u, 3),
@@ -329,13 +379,16 @@ def main():
             "io_read_mb": _mb(io1.get("rchar", 0) - io0.get("rchar", 0)),
             "io_write_mb": _mb(io1.get("wchar", 0) - io0.get("wchar", 0)),
             "disk_write_mb": _mb(io1.get("write_bytes", 0) - io0.get("write_bytes", 0)),
-            "out_mb": _mb(out_bytes), "features": feats,
+            "out_mb": _mb(out_bytes),
+            "features": feats,
         }
         results.append(rec)
         flag = "ok " if rec["ok"] else "ERR"
-        print(f"[{flag}] {b['id']:8} [{b['cat']:7}] {b['desc'][:40]:40} "
-              f"wall {rec['wall_s']:6.2f}s  cpu {rec['cpu_total_s']:6.2f}s  "
-              f"peakRSS {rec['rss_peak_mb']:6.0f}MB  out {rec['out_mb']:6.1f}MB  n={rec['features']}")
+        print(
+            f"[{flag}] {b['id']:8} [{b['cat']:7}] {b['desc'][:40]:40} "
+            f"wall {rec['wall_s']:6.2f}s  cpu {rec['cpu_total_s']:6.2f}s  "
+            f"peakRSS {rec['rss_peak_mb']:6.0f}MB  out {rec['out_mb']:6.1f}MB  n={rec['features']}"
+        )
         if err:
             print(f"         {err}")
     path = write_reports(env, results, OUTDIR)

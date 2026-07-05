@@ -66,8 +66,8 @@ class TestPurgeScratch(unittest.TestCase):
 
             self.assertFalse(os.path.exists(inter))
             self.assertFalse(os.path.exists(inter + ".aux.xml"))
-            self.assertTrue(os.path.exists(final))         # the kept final survives
-            self.assertEqual(be._scratch, [final])         # tracking trimmed to survivors
+            self.assertTrue(os.path.exists(final))  # the kept final survives
+            self.assertEqual(be._scratch, [final])  # tracking trimmed to survivors
 
     def test_keep_none_purges_everything(self):
         with tempfile.TemporaryDirectory() as d:
@@ -117,15 +117,17 @@ class TestPurgeScratch(unittest.TestCase):
                 be.purge_scratch(keep=None, remove_dir=True)
             finally:
                 os.environ.pop("NIVA_TMPDIR", None)
-            self.assertTrue(os.path.isdir(scratch))      # not removed — still has user-file
-            self.assertTrue(os.path.exists(other))       # the unrelated file is untouched
+            self.assertTrue(os.path.isdir(scratch))  # not removed — still has user-file
+            self.assertTrue(os.path.exists(other))  # the unrelated file is untouched
 
     def test_remove_dir_no_op_without_niva_tmpdir(self):
         # NIVA_TMPDIR unset → scratch is the shared system temp; must never be rmdir'd.
         os.environ.pop("NIVA_TMPDIR", None)
         be = PyqgisBackend()
         be._scratch = []
-        be.purge_scratch(keep=None, remove_dir=True)  # must not raise / must be harmless
+        be.purge_scratch(
+            keep=None, remove_dir=True
+        )  # must not raise / must be harmless
         self.assertTrue(os.path.isdir(tempfile.gettempdir()))
 
     def test_temp_path_is_tracked_so_it_gets_purged(self):
@@ -169,13 +171,19 @@ class TestCommandFailureDetection(unittest.TestCase):
     def test_raise_on_command_failure_raises_for_nonzero(self):
         with self.assertRaises(OpError) as ctx:
             PyqgisBackend._raise_on_command_failure(
-                "gdal:warpreproject", {"x": 1},
-                _FakeFeedback("Process returned error code 1"))
+                "gdal:warpreproject",
+                {"x": 1},
+                _FakeFeedback("Process returned error code 1"),
+            )
         self.assertIn("did not complete", str(ctx.exception))
 
     def test_raise_on_command_failure_is_quiet_when_clean(self):
-        PyqgisBackend._raise_on_command_failure("gdal:warpreproject", {}, _FakeFeedback(None))
-        PyqgisBackend._raise_on_command_failure("gdal:warpreproject", {}, None)  # no feedback
+        PyqgisBackend._raise_on_command_failure(
+            "gdal:warpreproject", {}, _FakeFeedback(None)
+        )
+        PyqgisBackend._raise_on_command_failure(
+            "gdal:warpreproject", {}, None
+        )  # no feedback
 
 
 if __name__ == "__main__":

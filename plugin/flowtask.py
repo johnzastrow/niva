@@ -36,8 +36,10 @@ class NivaFlowTask(QgsTask):
         from . import runner
 
         self.result = runner.run_flow(
-            self._text, file=self._file, log_base=self._log_base,
-            progress=self.message.emit,   # niva calls this; the signal hops to the GUI thread
-            cancel=self.isCanceled,       # QgsTask.cancel() (from the dock) flips this
+            self._text,
+            file=self._file,
+            log_base=self._log_base,
+            progress=self.message.emit,  # niva calls this; the signal hops to the GUI thread
+            cancel=self.isCanceled,  # QgsTask.cancel() (from the dock) flips this
         )
         return bool(self.result and self.result.get("ok"))

@@ -19,7 +19,7 @@ def strip_comment(line: str) -> str:
         c = line[i]
         if quote:
             out.append(c)
-            if c == "\\" and i + 1 < n:        # keep an escaped char verbatim
+            if c == "\\" and i + 1 < n:  # keep an escaped char verbatim
                 out.append(line[i + 1])
                 i += 2
                 continue

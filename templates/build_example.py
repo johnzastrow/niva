@@ -25,8 +25,9 @@ import os
 
 from niva.engine.pyqgis import ensure_qgis
 
-OUT_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                       "niva", "templates")
+OUT_DIR = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "niva", "templates"
+)
 CRS = "EPSG:4326"
 # A small AOI near Niagara (matches the project's worked example), in lon/lat.
 _BOUNDARY = [(-79.10, 43.06), (-79.02, 43.06), (-79.02, 43.12), (-79.10, 43.12)]
@@ -36,8 +37,14 @@ _PLACES = [(-79.08, 43.08), (-79.05, 43.10), (-79.06, 43.07)]
 
 def _write(path, geom_type, name, features):
     """Write a one-layer GeoPackage ``name`` of ``geom_type`` with the given geometries."""
-    from qgis.core import (QgsFeature, QgsField, QgsPointXY, QgsProject,
-                           QgsVectorFileWriter, QgsVectorLayer)
+    from qgis.core import (
+        QgsFeature,
+        QgsField,
+        QgsPointXY,
+        QgsProject,
+        QgsVectorFileWriter,
+        QgsVectorLayer,
+    )
     from qgis.PyQt.QtCore import QVariant
 
     vl = QgsVectorLayer(f"{geom_type}?crs={CRS}", name, "memory")
@@ -56,19 +63,35 @@ def _write(path, geom_type, name, features):
     if os.path.exists(path):
         os.remove(path)
     QgsVectorFileWriter.writeAsVectorFormatV3(
-        vl, path, QgsProject.instance().transformContext(), opts)
+        vl, path, QgsProject.instance().transformContext(), opts
+    )
     _ = QgsPointXY  # referenced by callers building geometries
 
 
 def _placeholders():
     from qgis.core import QgsGeometry, QgsPointXY
 
-    _write(os.path.join(OUT_DIR, "boundary.gpkg"), "Polygon", "boundary",
-           [QgsGeometry.fromPolygonXY([[QgsPointXY(x, y) for x, y in _BOUNDARY]])])
-    _write(os.path.join(OUT_DIR, "roads.gpkg"), "LineString", "roads",
-           [QgsGeometry.fromPolylineXY([QgsPointXY(x, y) for x, y in line]) for line in _ROADS])
-    _write(os.path.join(OUT_DIR, "places.gpkg"), "Point", "places",
-           [QgsGeometry.fromPointXY(QgsPointXY(x, y)) for x, y in _PLACES])
+    _write(
+        os.path.join(OUT_DIR, "boundary.gpkg"),
+        "Polygon",
+        "boundary",
+        [QgsGeometry.fromPolygonXY([[QgsPointXY(x, y) for x, y in _BOUNDARY]])],
+    )
+    _write(
+        os.path.join(OUT_DIR, "roads.gpkg"),
+        "LineString",
+        "roads",
+        [
+            QgsGeometry.fromPolylineXY([QgsPointXY(x, y) for x, y in line])
+            for line in _ROADS
+        ],
+    )
+    _write(
+        os.path.join(OUT_DIR, "places.gpkg"),
+        "Point",
+        "places",
+        [QgsGeometry.fromPointXY(QgsPointXY(x, y)) for x, y in _PLACES],
+    )
 
 
 def _slot(proj, name, *, symbol):
@@ -84,11 +107,25 @@ def _slot(proj, name, *, symbol):
 
 
 def build_example():
-    from qgis.core import (Qgis, QgsBookmark, QgsCoordinateReferenceSystem, QgsFillSymbol,
-                           QgsLayoutItemLabel, QgsLayoutItemLegend, QgsLayoutItemMap,
-                           QgsLayoutItemScaleBar, QgsLayoutPoint, QgsLayoutSize,
-                           QgsLineSymbol, QgsMarkerSymbol, QgsPrintLayout, QgsProject,
-                           QgsRectangle, QgsReferencedRectangle, QgsUnitTypes)
+    from qgis.core import (
+        Qgis,
+        QgsBookmark,
+        QgsCoordinateReferenceSystem,
+        QgsFillSymbol,
+        QgsLayoutItemLabel,
+        QgsLayoutItemLegend,
+        QgsLayoutItemMap,
+        QgsLayoutItemScaleBar,
+        QgsLayoutPoint,
+        QgsLayoutSize,
+        QgsLineSymbol,
+        QgsMarkerSymbol,
+        QgsPrintLayout,
+        QgsProject,
+        QgsRectangle,
+        QgsReferencedRectangle,
+        QgsUnitTypes,
+    )
 
     os.makedirs(OUT_DIR, exist_ok=True)
     _placeholders()
@@ -98,12 +135,25 @@ def build_example():
     crs = QgsCoordinateReferenceSystem(CRS)
     proj.setCrs(crs)
 
-    boundary = _slot(proj, "boundary", symbol=QgsFillSymbol.createSimple(
-        {"color": "0,0,0,0", "outline_color": "#33a02c", "outline_width": "0.8"}))
-    _slot(proj, "roads", symbol=QgsLineSymbol.createSimple(
-        {"color": "#e31a1c", "width": "0.6"}))
-    _slot(proj, "places", symbol=QgsMarkerSymbol.createSimple(
-        {"name": "circle", "color": "#1f78b4", "size": "3"}))
+    boundary = _slot(
+        proj,
+        "boundary",
+        symbol=QgsFillSymbol.createSimple(
+            {"color": "0,0,0,0", "outline_color": "#33a02c", "outline_width": "0.8"}
+        ),
+    )
+    _slot(
+        proj,
+        "roads",
+        symbol=QgsLineSymbol.createSimple({"color": "#e31a1c", "width": "0.6"}),
+    )
+    _slot(
+        proj,
+        "places",
+        symbol=QgsMarkerSymbol.createSimple(
+            {"name": "circle", "color": "#1f78b4", "size": "3"}
+        ),
+    )
 
     # A print layout: title, map (framed to the AOI), legend, scale bar.
     lay = QgsPrintLayout(proj)

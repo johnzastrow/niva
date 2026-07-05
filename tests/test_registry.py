@@ -38,22 +38,57 @@ class TestRegistry(unittest.TestCase):
         # The v0.8 breadth pass: geometry, attributes, overlay, selection, creation,
         # and raster verbs. (Param names are validated against live QGIS by the
         # registry linter; here we just assert the verbs are registered.)
-        for verb in ("simplify", "smooth", "convexhull", "boundingbox", "minrect",
-                     "pointonsurface", "vertices", "densify", "subdivide", "offset",
-                     "swapxy", "forcerhr", "promote", "collect", "renamefield",
-                     "dropfields", "keepfields", "countpoints", "union",
-                     "symdifference", "spatialjoin", "selectloc", "snap", "sample",
-                     "voronoi", "delaunay", "pointsalong", "warp", "clipraster",
-                     "hillshade", "slope", "aspect", "polygonize"):
+        for verb in (
+            "simplify",
+            "smooth",
+            "convexhull",
+            "boundingbox",
+            "minrect",
+            "pointonsurface",
+            "vertices",
+            "densify",
+            "subdivide",
+            "offset",
+            "swapxy",
+            "forcerhr",
+            "promote",
+            "collect",
+            "renamefield",
+            "dropfields",
+            "keepfields",
+            "countpoints",
+            "union",
+            "symdifference",
+            "spatialjoin",
+            "selectloc",
+            "snap",
+            "sample",
+            "voronoi",
+            "delaunay",
+            "pointsalong",
+            "warp",
+            "clipraster",
+            "hillshade",
+            "slope",
+            "aspect",
+            "polygonize",
+        ):
             self.assertIn(verb, REG, f"{verb!r} should be a registered verb")
 
     def test_new_verbs_bind_to_expected_algorithms(self):
         cases = {
             "simplify 5m method=area": ("native:simplifygeometries", "METHOD", 2),
-            "warp EPSG:3857 resampling=bilinear": ("gdal:warpreproject", "RESAMPLING", 1),
+            "warp EPSG:3857 resampling=bilinear": (
+                "gdal:warpreproject",
+                "RESAMPLING",
+                1,
+            ),
             "slope percent": ("gdal:slope", "AS_PERCENT", True),
-            "selectloc r.gpkg predicate=within,touch": ("native:extractbylocation",
-                                                        "PREDICATE", [6, 4]),
+            "selectloc r.gpkg predicate=within,touch": (
+                "native:extractbylocation",
+                "PREDICATE",
+                [6, 4],
+            ),
             "dropfields a,b,c": ("native:deletecolumn", "COLUMN", ["a", "b", "c"]),
         }
         for text, (alg, key, val) in cases.items():
@@ -73,10 +108,10 @@ class TestBinder(unittest.TestCase):
         self.assertEqual(op.params["DISTANCE"], Distance(100.0, "m"))
         self.assertEqual(op.params["DISSOLVE"], True)
         self.assertEqual(op.params["SEPARATE_DISJOINT"], False)  # flag defaults False
-        self.assertEqual(op.params["END_CAP_STYLE"], 1)          # flat -> 1
-        self.assertEqual(op.params["JOIN_STYLE"], 0)             # default round -> 0
+        self.assertEqual(op.params["END_CAP_STYLE"], 1)  # flat -> 1
+        self.assertEqual(op.params["JOIN_STYLE"], 0)  # default round -> 0
         self.assertEqual(op.params["SEGMENTS"], 12)
-        self.assertEqual(op.params["MITER_LIMIT"], 2.0)          # default
+        self.assertEqual(op.params["MITER_LIMIT"], 2.0)  # default
 
     def test_buffer_defaults_only(self):
         op = bound("buffer 100")
@@ -87,7 +122,9 @@ class TestBinder(unittest.TestCase):
 
     def test_distance_units(self):
         self.assertEqual(bound("buffer 2.5km").params["DISTANCE"], Distance(2.5, "km"))
-        self.assertEqual(bound("buffer -10ft").params["DISTANCE"], Distance(-10.0, "ft"))
+        self.assertEqual(
+            bound("buffer -10ft").params["DISTANCE"], Distance(-10.0, "ft")
+        )
 
     def test_clip_positional_layer(self):
         op = bound("clip city.gpkg")
@@ -103,7 +140,9 @@ class TestBinder(unittest.TestCase):
     def test_crs_params_are_flagged(self):
         # `crs`-typed args/options are marked so the engine can validate them and fail closed on
         # an unknown CRS instead of silently producing a layer with an empty CRS.
-        self.assertEqual(bound("reproject EPSG:6346").crs_params, frozenset({"TARGET_CRS"}))
+        self.assertEqual(
+            bound("reproject EPSG:6346").crs_params, frozenset({"TARGET_CRS"})
+        )
         self.assertIn("TARGET_CRS", bound("warp EPSG:3857").crs_params)
 
     def test_layer_arg_expands_tilde(self):
@@ -114,18 +153,25 @@ class TestBinder(unittest.TestCase):
         # which QGIS/GDAL accept fine — the separator mix is not a meaningful difference.
         def _norm(p):
             return p.replace("\\", "/")
+
         home = os.path.expanduser("~")
-        self.assertEqual(_norm(bound('clip "~/aoi.gpkg"').params["OVERLAY"]),
-                         _norm(os.path.join(home, "aoi.gpkg")))
-        self.assertEqual(_norm(bound("clipraster ~/dem/mask.gpkg").params["MASK"]),
-                         _norm(os.path.join(home, "dem/mask.gpkg")))
-        self.assertEqual(bound("clip /abs/city.gpkg").params["OVERLAY"], "/abs/city.gpkg")
+        self.assertEqual(
+            _norm(bound('clip "~/aoi.gpkg"').params["OVERLAY"]),
+            _norm(os.path.join(home, "aoi.gpkg")),
+        )
+        self.assertEqual(
+            _norm(bound("clipraster ~/dem/mask.gpkg").params["MASK"]),
+            _norm(os.path.join(home, "dem/mask.gpkg")),
+        )
+        self.assertEqual(
+            bound("clip /abs/city.gpkg").params["OVERLAY"], "/abs/city.gpkg"
+        )
 
     def test_reproject_crs_and_flag_defaults(self):
         op = bound("reproject EPSG:2262")
         self.assertEqual(op.params["TARGET_CRS"], "EPSG:2262")
         self.assertEqual(op.params["CONVERT_CURVED_GEOMETRIES"], False)  # flag default
-        self.assertEqual(op.params["TRANSFORM_Z"], False)               # flag default
+        self.assertEqual(op.params["TRANSFORM_Z"], False)  # flag default
 
     def test_reproject_flags_settable(self):
         op = bound("reproject EPSG:2262 convert_curved transform_z")
@@ -134,12 +180,14 @@ class TestBinder(unittest.TestCase):
 
     def test_dissolve_optional_positional_omitted(self):
         op = bound("dissolve")
-        self.assertNotIn("FIELD", op.params)        # optional positional, absent
+        self.assertNotIn("FIELD", op.params)  # optional positional, absent
         self.assertEqual(op.params["SEPARATE_DISJOINT"], False)
         self.assertEqual(bound("dissolve landuse").params["FIELD"], "landuse")
 
     def test_join_options_and_listvalue(self):
-        op = bound("join with=census.csv field=tract field2=GEOID fields=pop,income prefix=cen_ discard")
+        op = bound(
+            "join with=census.csv field=tract field2=GEOID fields=pop,income prefix=cen_ discard"
+        )
         self.assertEqual(op.algorithm, "native:joinattributestable")
         self.assertEqual(op.params["INPUT_2"], "census.csv")
         self.assertEqual(op.params["FIELD"], "tract")
@@ -147,7 +195,7 @@ class TestBinder(unittest.TestCase):
         self.assertEqual(op.params["FIELDS_TO_COPY"], ["pop", "income"])
         self.assertEqual(op.params["PREFIX"], "cen_")
         self.assertEqual(op.params["DISCARD_NONMATCHING"], True)
-        self.assertEqual(op.params["METHOD"], 1)    # default one-to-one
+        self.assertEqual(op.params["METHOD"], 1)  # default one-to-one
         self.assertNotIn("NON_MATCHING", op.params)  # unmatched omitted by default
 
     def test_join_unmatched_sink(self):
@@ -158,18 +206,18 @@ class TestBinder(unittest.TestCase):
         op = bound("zonalstats raster=dem.tif band=2 stats=mean,min,max prefix=elev_")
         self.assertEqual(op.params["INPUT_RASTER"], "dem.tif")
         self.assertEqual(op.params["RASTER_BAND"], 2)
-        self.assertEqual(op.params["STATISTICS"], [2, 5, 6])   # mean,min,max
+        self.assertEqual(op.params["STATISTICS"], [2, 5, 6])  # mean,min,max
         self.assertEqual(op.params["COLUMN_PREFIX"], "elev_")
 
     def test_zonalstats_enumlist_default(self):
         op = bound("zonalstats raster=dem.tif")
-        self.assertEqual(op.params["STATISTICS"], [0, 1, 2])   # count,sum,mean default
+        self.assertEqual(op.params["STATISTICS"], [0, 1, 2])  # count,sum,mean default
 
     # --- errors --------------------------------------------------------------
 
     def test_missing_required_positional(self):
         with self.assertRaises(FlowError):
-            bound("buffer")            # no distance
+            bound("buffer")  # no distance
 
     def test_too_many_positionals(self):
         with self.assertRaises(FlowError):

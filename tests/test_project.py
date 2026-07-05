@@ -38,7 +38,9 @@ class TestProjectVerb(unittest.TestCase):
 
     def test_missing_policies_parse(self):
         for pol in ("fail", "keep", "drop"):
-            backend = _run(self._flow(f'to="{self.out}" repoint="t.gpkg" missing={pol}'))
+            backend = _run(
+                self._flow(f'to="{self.out}" repoint="t.gpkg" missing={pol}')
+            )
             self.assertEqual(backend.calls[-1][4], pol)
 
     def test_connection_target_passes_through(self):
@@ -47,8 +49,12 @@ class TestProjectVerb(unittest.TestCase):
         self.assertEqual(backend.calls[-1][3], "@pg.niagara")
 
     def test_rasters_option_recorded(self):
-        backend = _run(self._flow(f'to="{self.out}" repoint="t.gpkg" rasters="{self.tmp}"'))
-        self.assertEqual(backend.calls[-1][5], self.tmp)  # rasters dir is the 6th element
+        backend = _run(
+            self._flow(f'to="{self.out}" repoint="t.gpkg" rasters="{self.tmp}"')
+        )
+        self.assertEqual(
+            backend.calls[-1][5], self.tmp
+        )  # rasters dir is the 6th element
 
     def test_rasters_defaults_to_none(self):
         backend = _run(self._flow(f'to="{self.out}" repoint="t.gpkg"'))
@@ -56,7 +62,11 @@ class TestProjectVerb(unittest.TestCase):
 
     def test_rasters_must_be_a_directory(self):
         with self.assertRaises(FlowError):
-            _run(self._flow(f'to="{self.out}" repoint="t.gpkg" rasters="{self.tmp}/nope"'))
+            _run(
+                self._flow(
+                    f'to="{self.out}" repoint="t.gpkg" rasters="{self.tmp}/nope"'
+                )
+            )
 
     def _outputs_dir(self, *names):
         d = os.path.join(self.tmp, "outs")
@@ -68,13 +78,17 @@ class TestProjectVerb(unittest.TestCase):
     def test_new_records_create_project(self):
         d = self._outputs_dir("a.gpkg", "b.gpkg")
         out = os.path.join(self.tmp, "new.qgs")
-        backend = _run(f'project new from="{d}" to="{out}" crs=EPSG:4326 title="Region"')
+        backend = _run(
+            f'project new from="{d}" to="{out}" crs=EPSG:4326 title="Region"'
+        )
         call = backend.calls[-1]
         self.assertEqual(call[0], "create_project")
-        self.assertEqual(sorted(os.path.basename(u) for u in call[1]), ["a.gpkg", "b.gpkg"])
+        self.assertEqual(
+            sorted(os.path.basename(u) for u in call[1]), ["a.gpkg", "b.gpkg"]
+        )
         self.assertEqual(call[2], out)
         self.assertEqual(call[3], "EPSG:4326")  # crs
-        self.assertEqual(call[4], "Region")     # title
+        self.assertEqual(call[4], "Region")  # title
 
     def test_new_needs_from(self):
         with self.assertRaises(FlowError):
@@ -146,14 +160,22 @@ class TestProjectVerb(unittest.TestCase):
 
     def test_bookmark_union(self):
         backend = _run(self._flow(f'to="{self.out}" bookmark="AOI"'))
-        self.assertEqual(backend.calls[-1][7], {"name": "AOI", "at": None, "width": None})
+        self.assertEqual(
+            backend.calls[-1][7], {"name": "AOI", "at": None, "width": None}
+        )
 
     def test_bookmark_at_width(self):
-        backend = _run(self._flow(f'to="{self.out}" bookmark="AOI" at="10,20" width=400'))
-        self.assertEqual(backend.calls[-1][7], {"name": "AOI", "at": (10.0, 20.0), "width": 400.0})
+        backend = _run(
+            self._flow(f'to="{self.out}" bookmark="AOI" at="10,20" width=400')
+        )
+        self.assertEqual(
+            backend.calls[-1][7], {"name": "AOI", "at": (10.0, 20.0), "width": 400.0}
+        )
 
     def test_bookmark_at_scale_converts_to_width(self):
-        backend = _run(self._flow(f'to="{self.out}" bookmark="AOI" at="10,20" scale=1000'))
+        backend = _run(
+            self._flow(f'to="{self.out}" bookmark="AOI" at="10,20" scale=1000')
+        )
         self.assertEqual(backend.calls[-1][7]["width"], 500.0)  # scale * 0.5 m ref
 
     def test_bookmark_at_needs_scale_or_width(self):
@@ -195,7 +217,8 @@ class TestProjectVerb(unittest.TestCase):
         open(src, "w").close()
         backend = MockBackend()
         Engine(backend).execute(
-            parse(f'project "{src}" to="{self.tmp}/o.qgz" repoint="t.gpkg"'))
+            parse(f'project "{src}" to="{self.tmp}/o.qgz" repoint="t.gpkg"')
+        )
         self.assertEqual(backend.calls[-1][0], "repoint_project")
 
 
@@ -219,7 +242,9 @@ class TestProjectFromTemplate(unittest.TestCase):
         return backend
 
     def test_path_template_builds_slot_map(self):
-        backend = self._run(f'from-template="{self.template}" to="{self.out}" data="{self.data}"')
+        backend = self._run(
+            f'from-template="{self.template}" to="{self.out}" data="{self.data}"'
+        )
         call = backend.calls[-1]
         self.assertEqual(call[0], "repoint_project")
         self.assertEqual(call[1], self.template)  # src is the template
@@ -231,17 +256,21 @@ class TestProjectFromTemplate(unittest.TestCase):
 
     def test_default_missing_is_keep(self):
         # Templates default to keep so unmatched slots preserve layout structure.
-        backend = self._run(f'from-template="{self.template}" to="{self.out}" data="{self.data}"')
+        backend = self._run(
+            f'from-template="{self.template}" to="{self.out}" data="{self.data}"'
+        )
         self.assertEqual(backend.calls[-1][4], "keep")
 
     def test_missing_override(self):
         backend = self._run(
-            f'from-template="{self.template}" to="{self.out}" data="{self.data}" missing=drop')
+            f'from-template="{self.template}" to="{self.out}" data="{self.data}" missing=drop'
+        )
         self.assertEqual(backend.calls[-1][4], "drop")
 
     def test_glob_data_source(self):
         backend = self._run(
-            f'from-template="{self.template}" to="{self.out}" data="{self.data}/*.gpkg"')
+            f'from-template="{self.template}" to="{self.out}" data="{self.data}/*.gpkg"'
+        )
         self.assertEqual(set(backend.calls[-1][3]), {"roads", "parcels"})
 
     def test_named_template_resolves_from_env(self):
@@ -250,7 +279,9 @@ class TestProjectFromTemplate(unittest.TestCase):
         open(os.path.join(lib, "atlas.qgz"), "w").close()
         os.environ["NIVA_TEMPLATES"] = lib
         try:
-            backend = self._run(f'from-template=atlas to="{self.out}" data="{self.data}"')
+            backend = self._run(
+                f'from-template=atlas to="{self.out}" data="{self.data}"'
+            )
         finally:
             del os.environ["NIVA_TEMPLATES"]
         self.assertTrue(backend.calls[-1][1].endswith("atlas.qgz"))
@@ -267,7 +298,9 @@ class TestProjectFromTemplate(unittest.TestCase):
         # The `example` template ships in the package and resolves with no env/user library.
         backend = self._run(f'from-template=example to="{self.out}" data="{self.data}"')
         src = backend.calls[-1][1]
-        self.assertTrue(src.endswith(os.path.join("niva", "templates", "example.qgz")), src)
+        self.assertTrue(
+            src.endswith(os.path.join("niva", "templates", "example.qgz")), src
+        )
         self.assertTrue(os.path.isfile(src))
 
     def test_unknown_name_lists_bundled_in_hint(self):
@@ -289,7 +322,8 @@ class TestProjectFromTemplate(unittest.TestCase):
     def test_to_must_be_a_project(self):
         with self.assertRaises(FlowError):
             self._run(
-                f'from-template="{self.template}" to="{self.tmp}/o.gpkg" data="{self.data}"')
+                f'from-template="{self.template}" to="{self.tmp}/o.gpkg" data="{self.data}"'
+            )
 
     def test_template_path_must_be_a_project(self):
         notproj = os.path.join(self.tmp, "x.gpkg")
@@ -300,7 +334,8 @@ class TestProjectFromTemplate(unittest.TestCase):
     def test_unexpected_option_is_error(self):
         with self.assertRaises(FlowError):
             self._run(
-                f'from-template="{self.template}" to="{self.out}" data="{self.data}" repoint=x')
+                f'from-template="{self.template}" to="{self.out}" data="{self.data}" repoint=x'
+            )
 
 
 class TestProjectToTemplate(unittest.TestCase):
@@ -326,9 +361,11 @@ class TestProjectToTemplate(unittest.TestCase):
             del os.environ["NIVA_TEMPLATES"]
         call = backend.calls[-1]
         self.assertEqual(call[0], "repoint_project")
-        self.assertEqual(call[1], self.src)               # copy FROM the existing project
-        self.assertEqual(call[2], os.path.join(self.lib, "report.qgz"))  # INTO the library
-        self.assertIsNone(call[3])                        # target=None → copy, no repoint
+        self.assertEqual(call[1], self.src)  # copy FROM the existing project
+        self.assertEqual(
+            call[2], os.path.join(self.lib, "report.qgz")
+        )  # INTO the library
+        self.assertIsNone(call[3])  # target=None → copy, no repoint
 
     def test_path_destination(self):
         dest = os.path.join(self.tmp, "out", "tmpl.qgz")
@@ -336,7 +373,9 @@ class TestProjectToTemplate(unittest.TestCase):
         self.assertEqual(backend.calls[-1][2], dest)
 
     def test_paths_relative_passed_through(self):
-        backend = self._run(f'to-template="{self.tmp}/t.qgz" from="{self.src}" paths=relative')
+        backend = self._run(
+            f'to-template="{self.tmp}/t.qgz" from="{self.src}" paths=relative'
+        )
         self.assertEqual(backend.calls[-1][6], "relative")  # paths is the 7th element
 
     def test_missing_from_is_error(self):
@@ -353,7 +392,9 @@ class TestProjectToTemplate(unittest.TestCase):
 
     def test_bad_paths_is_error(self):
         with self.assertRaises(FlowError):
-            self._run(f'to-template="{self.tmp}/t.qgz" from="{self.src}" paths=sideways')
+            self._run(
+                f'to-template="{self.tmp}/t.qgz" from="{self.src}" paths=sideways'
+            )
 
     def test_unexpected_option_is_error(self):
         with self.assertRaises(FlowError):

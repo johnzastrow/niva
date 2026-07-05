@@ -8,21 +8,47 @@ filesystem-dependent ones (is-it-a-directory, does-it-exist) and does the actual
 ``docs/planning/18-remove-verb-design.md``. Scope this round: **files + their sidecars only**
 (not ``@conn`` tables, not GeoPackage sub-layers).
 """
+
 from __future__ import annotations
 
 import os
 
 # Recognised geodata outputs + the style/project/sidecar files niva itself writes. A `remove`
 # of anything *not* here is refused unless the caller passes `force` (one path at a time).
-ALLOWLIST = frozenset({
-    # vector
-    ".gpkg", ".shp", ".geojson", ".gml", ".kml", ".kmz", ".fgb",
-    ".sqlite", ".spatialite", ".db", ".tab", ".mif", ".dxf",
-    # raster
-    ".tif", ".tiff", ".jp2", ".img", ".vrt", ".asc", ".nc", ".grd",
-    # niva-written styles / projects / layer defs
-    ".qml", ".qmd", ".sld", ".qlr", ".qgs", ".qgz",
-})
+ALLOWLIST = frozenset(
+    {
+        # vector
+        ".gpkg",
+        ".shp",
+        ".geojson",
+        ".gml",
+        ".kml",
+        ".kmz",
+        ".fgb",
+        ".sqlite",
+        ".spatialite",
+        ".db",
+        ".tab",
+        ".mif",
+        ".dxf",
+        # raster
+        ".tif",
+        ".tiff",
+        ".jp2",
+        ".img",
+        ".vrt",
+        ".asc",
+        ".nc",
+        ".grd",
+        # niva-written styles / projects / layer defs
+        ".qml",
+        ".qmd",
+        ".sld",
+        ".qlr",
+        ".qgs",
+        ".qgz",
+    }
+)
 
 # A short, human-readable rendering for error messages (grouped, not the raw set order).
 ALLOWLIST_STR = (
@@ -68,8 +94,9 @@ def family(primary: str) -> list[str]:
     out: list[str] = []
 
     if e == ".shp":
-        out += [stem + s for s in (".shx", ".dbf", ".prj", ".cpg", ".qpj",
-                                   ".sbn", ".sbx")]
+        out += [
+            stem + s for s in (".shx", ".dbf", ".prj", ".cpg", ".qpj", ".sbn", ".sbx")
+        ]
         out.append(primary + ".xml")  # roads.shp.xml
     elif e == ".gpkg":
         out += [primary + s for s in ("-wal", "-shm", "-journal")]
