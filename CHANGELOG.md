@@ -49,6 +49,14 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   LAS needs a COPC step for the QGIS provider — not `apt install pdal`). Added verified OTB
   setup (109 algorithms in QGIS 4), the honest SAGA status (CLI works; provider withdrawn),
   a full `pdalcli:`/`saga:` harness reference, graceful-degradation and cross-platform notes.
+- **Cookbook** (`docs/guide/cookbook.md`) — new **§L** (LiDAR from raw LAS via `pdalcli:`) and
+  **§M** (complex value-added pipelines: bare-earth terrain set, canopy-height→zonal-stats,
+  hydrology, geomorphons, building footprints) — recipes 72–82, each verified end to end.
+- Updated stale algorithm counts (769 → **878**) across `reference.md`, `faq.md`, `README.md`,
+  and the algorithm appendix; added the `otb:` provider row and the harness id families.
+- VS Code extension (local, gitignored `.vscode/niva/`): added `pdalcli`/`pdalcli-dtm`/
+  `pdalcli-dsm`/`pdalcli-class`/`chm`/`saga` snippets; documented the completion scope
+  (snippet- and word-based; no context-aware IntelliSense yet).
 
 ## [0.37.0] - 2026-06-24
 

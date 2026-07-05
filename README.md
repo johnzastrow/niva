@@ -23,14 +23,14 @@ load roads.gpkg | buffer 100m dissolve | clip city.gpkg | save roads_local.gpkg
 Niva turns QGIS automation from PyQGIS code into a readable single lines of text. 
 
 * **Runs in QGIS's own Python**
-* Reaches **any** of its ~769 algorithms
+* Reaches **any** of its ~878 algorithms
 * **Near-zero dependencies**
 * **~45 friendly verbs → real QGIS algorithms**, across vector geometry (`buffer`,
   `simplify`, `smooth`, `convexhull`, `centroid`, `densify`, `offset`, …), overlay
   (`clip`, `intersect`, `union`, `difference`, `dissolve`, `spatialjoin`,
   `selectloc`, …), attributes (`renamefield`, `dropfields`, `keepfields`,
   `countpoints`, …), and **raster** (`warp`, `clipraster`, `hillshade`, `slope`,
-  `aspect`, `polygonize`, …). `run <id>` reaches any of the ~769 with no alias;
+  `aspect`, `polygonize`, …). `run <id>` reaches any of the ~878 with no alias;
   `describe` shows their parameters. Every alias is validated against the installed
   QGIS by `scripts/lint_registry.py`.
 * **Discoverable** — `describe <verb>` ends with a runnable **example** (curated, or
@@ -146,7 +146,7 @@ niva.flow('load "data.gpkg|layername=roads" | buffer 100m dissolve | save out.gp
 - **[User Guide](docs/guide/user-guide.md)** — install & run niva inside QGIS and standalone,
   configuration, scratch space, troubleshooting
 - **[Reference](docs/guide/reference.md)** — every verb, alias, option, type, env var, CLI command,
-  and Python entry point · **[Algorithm appendix](docs/algorithms/README.md)** — all 769 QGIS
+  and Python entry point · **[Algorithm appendix](docs/algorithms/README.md)** — all 878 QGIS
   algorithms with parameters & descriptions
 - **[Cookbook](docs/guide/cookbook.md)** — 50 worked recipes, including spatial SQL for SpatiaLite
   and PostGIS
@@ -160,7 +160,7 @@ niva.flow('load "data.gpkg|layername=roads" | buffer 100m dissolve | save out.gp
 - [CHANGELOG](CHANGELOG.md)
 
 📘 **The whole guide ([User Guide](docs/guide/) + Reference + Cookbook + FAQ + the
-769-algorithm appendix) is also one PDF: [`niva-guide.pdf`](https://github.com/johnzastrow/niva/blob/9206e42d0c55ef96238c514e9bbf3a038bc69c7c/docs/guide/niva-guide.pdf)** (also
+878-algorithm appendix) is also one PDF: [`niva-guide.pdf`](https://github.com/johnzastrow/niva/blob/9206e42d0c55ef96238c514e9bbf3a038bc69c7c/docs/guide/niva-guide.pdf)** (also
 attached to the [latest release](https://github.com/johnzastrow/niva/releases/latest); rebuild
 with `python3 scripts/build_guide_pdf.py`, which needs `pandoc` + a LaTeX engine).
 

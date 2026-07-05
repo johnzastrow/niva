@@ -6,7 +6,7 @@ variable, CLI command, and Python entry point. For a task-oriented tour see the
 
 ### Algorithm coverage at a glance
 
-niva gives **45 alias verbs** friendly names; **every** QGIS Processing algorithm — **769**
+niva gives **45 alias verbs** friendly names; **every** QGIS Processing algorithm — **878**
 in QGIS 4.0.3 — is reachable through the [`run`](#6-the-run-escape-hatch--describe) escape
 hatch. The complete, per-algorithm appendix (parameters, defaults, enum options, descriptions,
 and which verb aliases each) is in [`docs/algorithms/`](../algorithms/README.md).
@@ -18,8 +18,12 @@ and which verb aliases each) is in [`docs/algorithms/`](../algorithms/README.md)
 | `grass:` | 307 | 0 |
 | `qgis:` | 39 | 0 |
 | `pdal:` | 24 | 0 |
+| `otb:` | 109 | 0 |
 | `3d:` | 1 | 0 |
-| **Total** | **769** | **45** |
+| **Total** | **878** | **45** |
+
+Plus niva's native-CLI harness (not QGIS providers): `pdalcli:` (12 PDAL commands on raw
+LAS/LAZ/COPC) and `saga:` (`saga_cmd`). See the [PDAL/LAStools guide](pdal-lastools-qgis4.md).
 
 - [1. The flow model](#1-the-flow-model)
 - [2. Syntax](#2-syntax)
@@ -451,7 +455,7 @@ search <keyword> [to=<report.md>]
 
 Fuzzy-searches everything niva knows about every function — niva verb names, summaries, options
 and flags; the built-in verbs; and the **live QGIS algorithm catalog** (id, display name, group,
-description; 769 in QGIS 4.0.3) — and lists the ranked matches (name · kind · score · summary). The
+description; 878 in QGIS 4.0.3) — and lists the ranked matches (name · kind · score · summary). The
 match is tolerant: substrings, token prefixes, and `difflib` similarity all count, so a typo or a
 partial word still finds things. A multi-word keyword is OR-matched (`search "raster reproject"`
 finds anything about rasters *or* reprojection). Needs QGIS (it reads the live catalog).
@@ -685,7 +689,7 @@ intermediates aren't left huge; the final product's compression is governed by `
 | `polygonize` | `gdal:polygonize` | — | `band=`(1) · `field=`(DN) | `eight` |
 
 Anything not aliased is still reachable with `run <algorithm-id> …` (§6). For the full
-catalogue of all 769 algorithms — parameters, defaults, enum options, and descriptions — see
+catalogue of all 878 algorithms — parameters, defaults, enum options, and descriptions — see
 the [algorithm appendix](../algorithms/README.md).
 
 ---
@@ -693,9 +697,11 @@ the [algorithm appendix](../algorithms/README.md).
 ## 6. The `run` escape hatch & `describe`
 
 `run <id> KEY=value …` calls any installed QGIS Processing algorithm with its native
-parameter names — the full catalogue (769 in QGIS 4.0.3: `native:`, `gdal:`, `qgis:`, `grass:`, `pdal:`,
-`saga:` algorithms), not just the aliased verbs. Use it for anything without an alias, or
-when you need a parameter an alias doesn't expose.
+parameter names — the full catalogue (878 in QGIS 4.0.3: `native:`, `gdal:`, `qgis:`, `grass:`,
+`pdal:`, `otb:`, `3d:` algorithms), not just the aliased verbs. Beyond the QGIS providers,
+niva's native-CLI harness adds `pdalcli:<command>` (PDAL on raw LAS/LAZ/COPC) and
+`saga:<library>:<tool>` (`saga_cmd`) — see the [PDAL/LAStools guide](pdal-lastools-qgis4.md).
+Use `run` for anything without an alias, or when you need a parameter an alias doesn't expose.
 
 - `INPUT` is filled from the piped layer; `OUTPUT` from a temp file — supply either to
   override.
@@ -719,7 +725,7 @@ niva describe gdal:warpreproject
 niva "describe buffer to=buffer.md"  # the same thing as a flow, captured to a file
 ```
 
-The **[algorithm appendix](../algorithms/README.md)** lists all 769 algorithms by provider —
+The **[algorithm appendix](../algorithms/README.md)** lists all 878 algorithms by provider —
 each with its parameters (type, required, default, enum options), description, outputs, and
 niva alias (⭐) — so you can find and copy a `run <id> …` for anything without an alias.
 

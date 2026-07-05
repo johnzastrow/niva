@@ -185,7 +185,7 @@ NIVA_QGIS_PROFILE=staging niva load @prod_db.public.roads | save roads.gpkg
 ## Can I use an algorithm that doesn't have a niva verb?
 
 Yes. The ~45 [alias verbs](reference.md#5-alias-verbs-the-registry) are conveniences; **every**
-QGIS algorithm (769 in QGIS 4.0.3) is reachable with `run <id> KEY=value …`. Discover one with
+QGIS algorithm (878 in QGIS 4.0.3) is reachable with `run <id> KEY=value …`. Discover one with
 `niva describe <id>`, or browse the [algorithm appendix](../algorithms/README.md) — each entry
 has a worked example.
 
