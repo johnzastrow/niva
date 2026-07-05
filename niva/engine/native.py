@@ -459,6 +459,9 @@ class NativeToolBackend:
     def _temp_path(self, ext: str) -> str:
         if not ext.startswith("."):
             ext = "." + ext
+        # The scratch dir may be a bespoke NIVA_TMPDIR that doesn't exist yet (unlike the
+        # QGIS path, which makes its own temp). Create it so mkstemp doesn't FileNotFound.
+        os.makedirs(self._scratch, exist_ok=True)
         fd, path = tempfile.mkstemp(
             prefix="niva-native-", suffix=ext, dir=self._scratch
         )

@@ -207,6 +207,38 @@ class TestPdalRouting(unittest.TestCase):
         self.assertIsNotNone(out)
         os.unlink(outs[0])
 
+    def test_scratch_dir_is_created_when_missing(self):
+        # A bespoke NIVA_TMPDIR that doesn't exist must be created (the QGIS path makes
+        # its own temp; the native harness has to, too) — else mkstemp FileNotFounds.
+        import tempfile as _tf
+
+        missing = os.path.join(_tf.mkdtemp(), "does", "not", "exist", "yet")
+        self.assertFalse(os.path.exists(missing))
+        be = NativeToolBackend(
+            MockBackend(), pdal_wrench="pdal_wrench", scratch_dir=missing
+        )
+
+        def _capture(argv, **kwargs):
+            for tok in argv:
+                if tok.startswith("--output="):
+                    with open(tok.split("=", 1)[1], "w") as fh:
+                        fh.write("x")
+            return mock.Mock(returncode=0, stdout="", stderr="")
+
+        with (
+            mock.patch("niva.engine.native.subprocess.run", _capture),
+            mock.patch(
+                "niva.engine.native.shutil.which", return_value="/opt/pdal_wrench"
+            ),
+        ):
+            out = be.run_raw(
+                "pdalcli:to_raster",
+                {"attribute": "Z", "resolution": 1},
+                input_layer=Layer(SOURCE, "/data/tile.las"),
+            )
+        self.assertTrue(os.path.isdir(missing))  # created on demand
+        self.assertIsNotNone(out)
+
     def test_explicit_output_is_honored_for_pointcloud(self):
         dest = os.path.join(os.path.dirname(__file__), "_probe_ground.laz")
         try:
