@@ -286,6 +286,11 @@ class Backend(abc.ABC):
         """Reclaim free pages in a GeoPackage/SpatiaLite container (SQLite ``VACUUM``)
         after multi-layer writes. No-op by default; the real backend implements it."""
 
+    def write_metadata_sidecar(self, dest: str, lineage: list | None) -> None:
+        """Write a `.qmd` provenance sidecar for a file output that bypasses :meth:`save`'s
+        metadata path (point clouds the harness writes with ``output=``). No-op by default;
+        the real backend implements it."""
+
     def algorithm_catalog(self) -> list:
         """Every QGIS Processing algorithm available, for `search`/`docs`: one dict per
         algorithm — ``{id, display_name, group, description}``. ``[]`` by default (no
@@ -369,6 +374,9 @@ class MockBackend(Backend):
 
     def compact(self, path: str) -> None:
         self.calls.append(("compact", path))
+
+    def write_metadata_sidecar(self, dest: str, lineage: list | None) -> None:
+        self.calls.append(("sidecar", dest, list(lineage or [])))
 
     def load(self, source: str, *, facet: str = "vector") -> Layer:
         self.calls.append(("load", source))

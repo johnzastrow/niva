@@ -189,6 +189,16 @@ class Engine:
         self._emit(f"  ✓ {_fmt_elapsed(self._last_elapsed)}")
         # history lineage entries are timestamped too (planning 08-§3)
         lineage.append(f"{_now()} {text}")
+        # Point-cloud outputs (pdalcli harness, written with output=) never pass through
+        # save()'s metadata path, so persist their provenance here — a .qmd sidecar next to
+        # the file, carrying the lineage up to and including this step.
+        if (
+            current is not None
+            and getattr(current, "facet", None) == "pointcloud"
+            and isinstance(current.ref, str)
+            and os.path.isfile(current.ref)
+        ):
+            self.backend.write_metadata_sidecar(current.ref, lineage)
         return current
 
     def _run_batch(self, stages) -> Layer | None:
