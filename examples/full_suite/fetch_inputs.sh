@@ -54,18 +54,25 @@ else
   echo "  !! $SRC_ORTHO not found — set SRC_ORTHO or place the 2024 ortho manually."
 fi
 
-echo "== 2/5  LiDAR — USGS 3DEP (fetch ALL coverage for the AOI) =="
-# Two real, reproducible routes (needs PDAL for the EPT route). Discover the NY
-# project(s) covering Youngstown from the entwine index (resolves): usgs.entwine.io
-# ROUTE A — Entwine Point Tiles (AWS), AOI-clipped by PDAL (records ALL in-AOI points):
-#   for P in <NY_PROJECT_1> <NY_PROJECT_2>; do
-#     pdal translate "ept://https://s3-us-west-2.amazonaws.com/usgs-lidar-public/$P/ept.json" \
-#       "$IN/lidar/$P.laz" --readers.ept.bounds="([656891,661956],[4788563,4793208])"
-#     done                                   # AOI bbox in the EPT CRS (EPSG:6346 here)
-# ROUTE B — Staged LPC LAZ tiles direct from rockyweb (resolves; no PDAL needed to fetch):
-#   base: https://rockyweb.usgs.gov/vdelivery/Datasets/Staged/Elevation/LPC/Projects/<PROJECT>/<...>/LAZ/
-#   curl -sO --output-dir "$IN/lidar" "<TILE_URL>.laz"   # per tile intersecting the AOI
-echo "  -> pick the NY 3DEP project(s) over the AOI (usgs.entwine.io), then Route A or B above"
+echo "== 2/5  LiDAR — USGS 3DEP point-cloud tiles over the AOI =="
+# The AOI is covered by 8 USGS 3DEP LPC tiles (MGRS names 17TPH*.las) already in
+# NAD83(2011)/UTM 17N = EPSG:6346 (the study CRS) — no reprojection needed. They are
+# staged locally (fetched from USGS, see below); copy them RAW into inputs/lidar/2024/.
+# Reproducible fetch of the same tiles (staged LPC LAZ, no PDAL needed to download):
+#   base: https://rockyweb.usgs.gov/vdelivery/Datasets/Staged/Elevation/LPC/Projects/<NY_PROJECT>/.../LAZ/
+#   (discover the covering NY project via the 3DEP/entwine index: usgs.entwine.io)
+# The MOSAIC/merge + AOI clip + DTM/DSM rasterization all happen INSIDE niva
+# (02_prepare.niva, `run pdalcli:*`) — this step only stages raw tiles.
+SRC_LIDAR="${SRC_LIDAR:-$HOME/Downloads}"
+mkdir -p "$IN/lidar/2024"
+n=0
+for T in "$SRC_LIDAR"/17TPH*.las; do
+  [ -e "$T" ] || continue
+  cp -n "$T" "$IN/lidar/2024/" 2>/dev/null || true
+  log_prov "lidar_2024 $(basename "$T")" "USGS 3DEP LPC (UTM 17N / EPSG:6346)" "file://$T" "$IN/lidar/2024/$(basename "$T")"
+  n=$((n+1))
+done
+echo "  staged ${n} raw 3DEP .las tile(s) -> $IN/lidar/2024/  (past-epoch LiDAR: none available — 05 documents the gap)"
 
 echo "== 3/5  NLCD % Developed Imperviousness — 2001 & 2021 (MRLC WCS) =="
 # MRLC GeoServer WCS (live service) — clip the national coverage to the AOI on download.

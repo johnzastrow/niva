@@ -33,8 +33,12 @@
 # add only the impervious-specific LiDAR metrics.
 # Surface roughness (smooth pavement vs. rough canopy) from the DSM:
 load derived/dsm_2024.tif | run gdal:roughness BAND=1 | save derived/roughness_2024.tif | figure outputs/figures/05_roughness_2024.png
-# Building-class footprints (class 6) — the roof component of impervious:
-load derived/lidar_2024.laz | run pdal:filter FILTER_EXPRESSION="Classification==6" | run pdal:boundary | fixgeom | simplify 0.5m | save derived/building_footprints_2024.gpkg | figure outputs/figures/05_buildings_2024.png
+# Building-class footprints (class 6) — the roof component of impervious. Use the
+# pdalcli: harness (raw-LAS, native filter): extract class-6 points, then boundary.
+# (`pdal:` here would need a COPC index and mangles `==` in FILTER_EXPRESSION — see
+# docs/guide/pdal-setup.md; pdalcli: takes filter="Classification==6" directly.)
+run pdalcli:translate input=derived/lidar_2024.laz filter="Classification==6" output=derived/buildings_pts_2024.laz
+load derived/buildings_pts_2024.laz | run pdalcli:boundary | fixgeom | simplify 0.5m | save derived/building_footprints_2024.gpkg | figure outputs/figures/05_buildings_2024.png
 
 # --- 2 · Imagery spectral indices from the 4-band ortho (R,G,B,NIR) ----------
 # NDVI = (NIR-Red)/(NIR+Red): high on vegetation → used to REJECT vegetation.
