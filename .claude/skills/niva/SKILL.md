@@ -17,20 +17,27 @@ Quick visual reference: [`docs/niva-cheatsheet.html`](../../../docs/niva-cheatsh
 
 ## Golden rules — apply on EVERY flow
 
-1. **Never invent a verb.** Verbs are a **closed set**. Built-ins are in `AGENTS.md`
-   ("Built-in verbs vs aliases"); alias verbs are in `docs/guide/reference.md §5`. If a verb
-   isn't in one of those, it does not exist — `stats`, `contour`, `index`, `dtm`, `flowaccum`,
-   `transects` are **not** verbs. Do the operation with `run <provider:id> KEY=value`.
+1. **Never invent a verb — ground the verb set in the code.** Verbs are a **closed set**: the 22
+   built-ins (`Engine._BUILTIN_VERBS` in `niva/engine/engine.py`, + `each`/`call`) and the 45
+   aliases (`core_registry().verbs()` / `docs/guide/reference.md §5`). Regenerate either with
+   `python -c "from niva.registry.registry import core_registry; print(sorted(core_registry().verbs()))"`.
+   If a verb isn't in one of those it does not exist — `stats`, `contour`, `index`, `dtm`,
+   `flowaccum`, `transects`, `compute`, `add`, `find` are **not** verbs. Do the operation with
+   `run <provider:id> KEY=value`. (Same rule for parameters and defaults: verify against
+   `describe <id>` / `docs/algorithms/`, never memory.)
    **Learn any verb with `niva describe <verb>`** — it works **offline** and prints the
    verb→algorithm mapping, each option with its default and the QGIS param it sets, and an example.
-2. **Validate offline before you claim it works:** run
-   `niva run <flow> --explain` (no QGIS needed) — it parses and binds every stage and flags
-   bad verbs/options/grammar. Use `--dry-run` to also walk the MockBackend. **Do not present a
-   flow you have not `--explain`-ed.**
-3. **Look up params offline.** For a **verb**: `niva describe <verb>` (offline). For a **`run`
-   algorithm id**: `docs/algorithms/<provider>.md` (gdal/native/qgis/grass/pdal/otb) — names,
-   types, defaults, worked example for all 878 ids (`describe <provider:id>` itself needs QGIS).
-   `pdalcli:`/`saga:` harness params are in `docs/guide/pdal-lastools-qgis4.md`.
+2. **Validate offline before you claim it works:** run **`niva validate <flow.niva>`** (no QGIS
+   needed) — the linter runs grammar + closed-set verb check (did-you-mean on a typo) + alias
+   arg/option/enum binding + `run <id>` param check against the catalog, **then** a MockBackend
+   dry-run, so a clean pass means the flow actually runs, not just parses. It also flags style
+   smells (a distance with no unit, a `run <id>` with a friendly verb, SAGA/OTB, a missing `save`).
+   Exit `0` clean, `1` on any error. **Do not present a flow that does not pass `niva validate`.**
+   (`--explain` / `--dry-run` stay as lighter one-off checks on inline `"<flow>"` strings.)
+3. **Look up params offline** — `niva describe <verb-or-id>` works **without QGIS** for both verbs
+   and the 878 algorithm ids (it reads the packaged catalog), as does `docs/algorithms/<provider>.md`
+   (gdal/native/qgis/grass/pdal/otb) — names, types, defaults, worked example. `pdalcli:`/`saga:`
+   harness params are in `docs/guide/pdal-lastools-qgis4.md`.
 4. **One line per stage.** Continue a flow *between stages* with a trailing `|`; a single
    stage's verb + options stay on one line. `\` is **not** continuation.
 5. **Provider preference:** native → gdal → QGIS → PDAL → GRASS (last). **No SAGA/OTB** unless
@@ -44,7 +51,7 @@ Quick visual reference: [`docs/niva-cheatsheet.html`](../../../docs/niva-cheatsh
    `docs/algorithms/<provider>.md` (copy exact KEY names — do not guess).
 3. **Write it**, one stage per line, `#` comments for narration (match the style of
    `examples/analyst_plan.niva`).
-4. **Validate:** `niva run <flow> --explain`. Fix every reported error. Only then present it.
+4. **Validate:** `niva validate <flow.niva>`. Fix every reported error. Only then present it.
 5. **Note the caveats you couldn't verify offline** (e.g. a `run` step whose exact params need
    a live QGIS check, or data that must exist to run) — honestly, as the examples do.
 
@@ -52,7 +59,7 @@ Quick visual reference: [`docs/niva-cheatsheet.html`](../../../docs/niva-cheatsh
 
 - Report verbs: `assess to out.md`, `describe buffer to=out.md` (`describe` uses `=`),
   `catalog <dir> to=<path>`.
-- `compute <field>="<QGIS expression>"` — string literals single-quoted: `compute src="'ndwi'"`.
+- String literals inside a QGIS expression are single-quoted: `filter "landuse = 'R'"`.
 - `zonalstats raster=<r> stats=count,sum,mean,median,stdev,min,max prefix=<p>`.
 - `figure out.png` — quick image (pass-through, chains after `save`);
   `map out.pdf title="…" layers="a;b" dpi=200` — composed layout (legend/scale/N-arrow → PDF/PNG).

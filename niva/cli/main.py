@@ -20,9 +20,18 @@ from ..registry import bind, core_registry
 
 _REG = core_registry()
 
+# The closed set of valid verbs, for offline validation in --explain (issue #29). Built-ins
+# come straight from the engine's dispatch table (+ each/call, handled specially there);
+# aliases from the registry. Importing Engine is QGIS-free (its qgis imports are lazy).
+from ..engine.engine import Engine as _Engine  # noqa: E402
+
+_BUILTIN_VERB_NAMES = set(_Engine._BUILTIN_VERBS) | {"each", "call"}
+_ALL_VERB_NAMES = _BUILTIN_VERB_NAMES | set(_REG.verbs())
+
 _USAGE = (
     "usage: niva run <file.niva> [--dry-run|--explain]\n"
     '       niva "<flow>"        [--dry-run|--explain]\n'
+    "       niva validate <file.niva> [more.niva …]   (offline linter)\n"
     "       niva describe <verb-or-algorithm-id>\n"
     "       niva export <file.niva> [-o <file.py>]\n"
     "       niva import <file.py>   [-o <file.niva>]\n"
@@ -49,6 +58,8 @@ def main(argv=None) -> int:
 
     if argv[0] == "describe":
         return _describe(argv[1:])
+    if argv[0] == "validate":
+        return _validate(argv[1:])
     if argv[0] in ("export", "import"):
         return _convert(argv[0], argv[1:])
 
@@ -62,7 +73,11 @@ def main(argv=None) -> int:
         )
 
         if mode == "explain":
-            _print_plan(program, source)
+            # An unknown verb is a definitive error (the verb set is closed), so --explain
+            # exits non-zero — a real offline gate for CI/agents (issue #29).
+            if _print_plan(program, source):
+                print("niva: flow has unknown verb(s) — see ⚠ above", file=sys.stderr)
+                return 2
         elif mode == "dry-run":
             _print_plan(program, source)
             _dry_run(program, base_dir)
@@ -280,7 +295,10 @@ def _print_result(result) -> None:
     print(f"# done — {result.kind}: {result.name or result.ref}{count}")
 
 
-def _print_plan(program: list, source: str) -> None:
+def _print_plan(program: list, source: str) -> bool:
+    """Print the parse+bind plan. Returns True if any stage uses an **unknown verb**
+    (not a built-in, alias, or `run` id) — the caller turns that into a non-zero exit."""
+    unknown = False
     print(f"# parsed {source}: {len(program)} statement(s)")
     for i, st in enumerate(program, start=1):
         if isinstance(st, Call):
@@ -296,7 +314,21 @@ def _print_plan(program: list, source: str) -> None:
                 continue
             alias = _REG.get(s.verb)
             if alias is None:
-                print(f"     {s.verb}  (built-in: handled by the engine)")
+                # A non-alias verb is only valid if it is a real BUILT-IN. Do not assume —
+                # an invented/misspelled verb ("compute", "stats", "reproj") lands here and
+                # must be flagged, or --explain silently blesses it (issue #29).
+                if s.verb in _BUILTIN_VERB_NAMES:
+                    print(f"     {s.verb}  (built-in: handled by the engine)")
+                else:
+                    import difflib
+
+                    unknown = True
+                    near = difflib.get_close_matches(s.verb, _ALL_VERB_NAMES, n=1)
+                    hint = f" — did you mean `{near[0]}`?" if near else ""
+                    print(
+                        f"     {s.verb}  ⚠ UNKNOWN VERB — not a built-in or alias{hint} "
+                        "(use `run <provider:id> KEY=value` for a raw algorithm)"
+                    )
                 continue
             op = bind(s, alias)
             print(f"     {s.verb} → {op.algorithm}")
@@ -304,35 +336,58 @@ def _print_plan(program: list, source: str) -> None:
             for key, value in op.params.items():
                 print(f"         {key} = {value!r}")
             print(f"         {op.output_param} ← output dest (engine fills)")
+    return unknown
 
 
 def _run_warnings(algo: str, options: dict) -> list:
-    """Offline sanity-check a `run <id> KEY=value` step against the packaged catalog
-    (issue #26): flag an unknown algorithm id, and any `KEY=` that isn't a real parameter.
-    Warnings only — exotic/plugin ids and the CLI harness (`pdalcli:`/`saga:`) still run."""
-    import difflib
+    """`run <id>` id/param warnings for --explain — the shared offline check (issue #26)."""
+    from ..validate import run_param_issues
 
-    from ..engine.native import PDAL_PREFIX, SAGA_PREFIX
-    from ..registry import catalog
+    return run_param_issues(algo, options)
 
-    if algo.startswith((PDAL_PREFIX, SAGA_PREFIX)):
-        return []  # native-CLI harness ids — not QGIS algorithms, not in the catalog
-    valid = catalog.param_names(algo)
-    if valid is None:
-        return [
-            f"`{algo}` is not in niva's algorithm catalog — a third-party plugin id? "
-            "double-check it (this warning is offline-only and never blocks the run)"
-        ]
-    warns = []
-    for key in options:
-        if key in valid:
+
+def _validate(paths) -> int:
+    """`niva validate <file.niva> [more.niva …]` — a proper offline linter: grammar +
+    closed-set verbs + alias arg/option/enum binding + `run <id>` params + best-practice lint,
+    then a MockBackend dry-run so a passing flow is genuinely runnable. No QGIS. Exits non-zero
+    if any file has an error (use it in CI / pre-commit)."""
+    import glob
+
+    from ..validate import validate_text
+
+    if not paths:
+        print("usage: niva validate <file.niva> [more.niva …]", file=sys.stderr)
+        return 2
+    files = []
+    for p in paths:
+        matches = sorted(glob.glob(p))
+        files.extend(
+            matches or [p]
+        )  # keep a non-glob path so its "not found" is reported
+    had_error = False
+    n_err = n_warn = 0
+    for f in files:
+        try:
+            with open(f, encoding="utf-8") as fh:
+                text = fh.read()
+        except OSError as exc:
+            print(f"✗ {f}: {exc}", file=sys.stderr)
+            had_error = True
             continue
-        near = difflib.get_close_matches(key, valid, n=1)
-        warns.append(
-            f"unknown parameter `{key}` for {algo}"
-            + (f" — did you mean `{near[0]}`?" if near else "")
-        )
-    return warns
+        ok, issues = validate_text(text, file=f)
+        errs = [i for i in issues if i[1] == "error"]
+        warns = [i for i in issues if i[1] == "warning"]
+        n_err += len(errs)
+        n_warn += len(warns)
+        mark = "✓" if ok and not warns else ("✗" if errs else "⚠")
+        print(f"{mark} {f}")
+        for line, sev, msg in sorted(issues, key=lambda i: (i[0], i[1])):
+            loc = f"line {line}" if line else "flow"
+            print(f"    {'error' if sev == 'error' else 'warn '}  {loc}: {msg}")
+        if not ok:
+            had_error = True
+    print(f"# {len(files)} file(s): {n_err} error(s), {n_warn} warning(s)")
+    return 1 if had_error else 0
 
 
 def _dry_run(program: list, base_dir=None) -> None:

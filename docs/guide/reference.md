@@ -841,6 +841,7 @@ The package installs a `niva` console script (`niva.cli.main`).
 ```
 niva run <file.niva> [--dry-run | --explain] [--log <base>]
 niva "<flow>"        [--dry-run | --explain] [--log <base>]
+niva validate <file.niva> [more.niva …]
 niva describe <verb-or-algorithm-id> [to=<file>]
 niva export <file.niva> [-o <file.py>]
 niva import <file.py>   [-o <file.niva>]
@@ -853,6 +854,7 @@ niva import <file.py>   [-o <file.niva>]
 | `--dry-run` | print the plan and validate it over the mock backend (no QGIS, no data touched) |
 | `--explain` | parse + bind only; print the resolved algorithm + parameters per stage |
 | `--log <base>` | also write the journal `<base>.jsonl` + `<base>.log` |
+| `niva validate flow.niva …` | **offline linter** — grammar + closed-set verbs + alias args/options/enums + `run <id>` params, then a mock-backend dry-run; reports errors and style warnings with line numbers and did-you-mean hints (no QGIS) |
 | `niva describe <name> [to=<file>]` | introspect a verb or algorithm id (with a runnable example) |
 | `niva "search <kw>"` / `niva "docs <kw>"` | fuzzy-find functions / build a mini-guide (flow verbs; need QGIS) |
 | `niva export flow.niva [-o out.py]` | transpile a flow to a standalone PyQGIS script |

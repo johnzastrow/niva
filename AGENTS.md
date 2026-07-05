@@ -1,6 +1,6 @@
 # AGENTS.md — niva codebase guide
 
-A concise, readable text-pipeline grammar for QGIS geoprocessing. niva provides ~45 friendly verbs that map to QGIS's ~769 Processing algorithms, plus built-in verbs for loading/saving/running SQL/exporting.
+A concise, readable text-pipeline grammar for QGIS geoprocessing. niva provides **45 alias verbs** that map to QGIS Processing algorithms, **22 built-in verbs** handled directly by the engine, and the `run <provider:id> KEY=value` escape hatch reaching any of the **878** installed QGIS algorithms.
 
 ## Quick reference
 
@@ -31,7 +31,11 @@ python scripts/build_guide_pdf.py
 niva run myflow.niva
 niva "load a.gpkg | buffer 100m | save b.gpkg"
 
-# Validate without QGIS
+# Lint a flow offline (grammar + verbs + params + dry-run) — the recommended check
+niva validate myflow.niva
+niva validate flows/*.niva          # many files at once
+
+# Validate without QGIS (plan + MockBackend walk)
 niva "<flow>" --dry-run
 
 # Show only the parse + bind plan
@@ -47,21 +51,32 @@ niva describe buffer
 Follow these when writing or editing a flow; they prevent the most common (and *silent*) mistakes.
 A one-page summary lives in [`docs/niva-cheatsheet.html`](docs/niva-cheatsheet.html).
 
-1. **Verbs are a closed set — never invent one.** Built-in verbs are listed under "Built-in verbs
-   vs aliases" below; the ~45 alias verbs are in [`docs/guide/reference.md` §5](docs/guide/reference.md).
-   If a verb isn't in one of those, **it does not exist** — e.g. `stats`, `contour`, `index`,
-   `dtm`, `flowaccum`, `transects` are *not* verbs. Do the operation with `run <provider:id>
-   KEY=value` instead. **Learn any verb with `niva describe <verb>`** — it works **offline** and
-   prints the verb→algorithm mapping, every option with its default and the QGIS param it sets,
-   flags, and a worked example. (Running `describe` on an unknown token prints the full alias list.)
+0. **Ground every claim in the source, not memory or this doc.** Before you assert a verb,
+   parameter, default, or behavior exists, verify it against its authoritative source — this doc
+   and the cheatsheet can drift. The sources of truth:
+   - **Built-in verbs** → `Engine._BUILTIN_VERBS` in `niva/engine/engine.py` (+ `each`/`call`).
+   - **Alias verbs (45)** → `core_registry().verbs()` / `niva/registry/definitions.py` / `reference.md §5`.
+   - **Algorithm params & defaults (878)** → `docs/algorithms/<provider>.md`, `niva/registry/algorithms.json`, or `niva describe <id>`.
+   - **Grammar** → `niva/grammar/`.
+   Then **`--explain`** the flow. If a fact isn't in one of these, treat it as false.
+1. **Verbs are a closed set — never invent one.** The 22 built-ins are under "Built-in verbs
+   vs aliases" below; the 45 alias verbs are in [`docs/guide/reference.md` §5](docs/guide/reference.md)
+   (both regenerable — see rule 0). If a verb isn't in one of those, **it does not exist** — e.g.
+   `stats`, `contour`, `index`, `dtm`, `flowaccum`, `transects`, `compute`, `add` are *not* verbs.
+   Do the operation with `run <provider:id> KEY=value` instead. **Learn any verb or algorithm with
+   `niva describe <verb-or-id>`** — it works **offline** (verbs from the registry; algorithm ids from
+   the packaged catalog) and prints every option with its default and the QGIS param it sets.
 2. **Look up `run <id>` params offline** in [`docs/algorithms/<provider>.md`](docs/algorithms/)
-   (gdal / native / qgis / grass / pdal / otb) — parameter names, types, defaults, and a worked
-   example for all 878 algorithms. `describe <provider:id>` (an *algorithm*) needs a live QGIS —
-   unlike `describe <verb>`, which is offline; the appendix covers the algorithms offline.
-   `pdalcli:` / `saga:` harness params live in `docs/guide/pdal-lastools-qgis4.md`.
-3. **Validate before claiming a flow works:** `niva run <flow> --explain` (or `niva "<inline>"
-   --explain`) parses + binds every stage with **no QGIS required** — it catches bad verbs,
-   options, and grammar. `--dry-run` also walks the MockBackend. Do this on every flow you author.
+   (gdal / native / qgis / grass / pdal / otb) or `niva describe <id>` — parameter names, types,
+   defaults, and a worked example for all 878 algorithms, **no QGIS needed** (both read the packaged
+   catalog). `pdalcli:` / `saga:` harness params live in `docs/guide/pdal-lastools-qgis4.md`.
+3. **Validate before claiming a flow works:** run **`niva validate <flow.niva>`** — the offline
+   linter (no QGIS). It runs grammar + closed-set verb check (with did-you-mean) + alias
+   arg/option/enum binding + `run <id>` param check against the catalog, **then** a MockBackend
+   dry-run, so a clean pass means the flow is genuinely runnable, not just well-formed. It also
+   emits style warnings (a distance with no unit, a `run <id>` that has a friendly verb, SAGA/OTB
+   use, a flow with no `save`). Exit `0` clean, `1` on any error. Do this on every flow you author.
+   (`--explain` / `--dry-run` remain as lighter one-off checks on inline flows.)
 4. **One line per stage.** Continue a flow *between stages* by ending a line with a trailing `|`;
    a single stage's verb + options must stay on one line. `\` is **not** a continuation character.
 5. **Provider preference:** native → gdal → QGIS → PDAL → GRASS (last). **Do not use SAGA or OTB**
@@ -69,9 +84,9 @@ A one-page summary lives in [`docs/niva-cheatsheet.html`](docs/niva-cheatsheet.h
 6. **Aliases inject backend defaults that change the data** — e.g. `warp` → `RESAMPLING=nearest` +
    `CREATION_OPTIONS=COMPRESS=DEFLATE|TILED=YES`; `reproject` → `CONVERT_CURVED_GEOMETRIES=False`.
    See them with `--explain`; surface them when reproducibility matters.
-7. **Micro-syntax:** report verbs take `to` without `=` (`assess to out.md`, `describe buffer
-   to=out.md` — note `describe` uses `=`); `catalog <dir> to=<path>` uses `=`; `compute
-   <field>="<QGIS expr>"` (string literals single-quoted); distances need a unit in a geographic
+7. **Micro-syntax:** report verbs take `to` without `=` (`assess to out.md`); `describe`/`catalog`
+   use `to=` (`describe buffer to=out.md`, `catalog <dir> to=<path>`); string literals inside an
+   expression are single-quoted (`filter "landuse = 'R'"`); distances need a unit in a geographic
    CRS (`buffer 100m`, not `100`).
 
 
@@ -116,10 +131,18 @@ niva/
 
 ### Built-in verbs vs aliases
 
-Built-in verbs are handled directly in `Engine.execute()` and are **not** in the registry:
-`load`, `save`, `add`, `sql`, `filter`, `compute`, `run`, `find`, `describe`, `call`, `show`, `info`, `notify`, `email`, `catalog`, `project`, `style`, `docs`, `assess`, `metadata`, `each`
+Built-in verbs are handled directly by the engine (dispatch in `Engine._BUILTIN_VERBS`, plus
+`each`/`call`) and are **not** in the registry — **22** of them:
+`assess`, `call`, `catalog`, `describe`, `docs`, `each`, `email`, `figure`, `info`, `load`, `map`, `metadata`, `notify`, `project`, `remove`, `run`, `save`, `search`, `show`, `split`, `sql`, `style`
 
-Aliases (~45 verbs like `buffer`, `clip`, `dissolve`, `intersect`, `reproject`, `warp`, `hillshade`) are in `niva/registry/definitions.py` and map to QGIS `native:*` algorithms. The `run <algorithm-id> KEY=value` escape hatch reaches any of the ~769 QGIS algorithms with no alias.
+> Verify this list against the code (it is authoritative, this prose is not):
+> `python -c "from niva.engine.engine import Engine; print(sorted(Engine._BUILTIN_VERBS))"`
+> (add `each`, `call`). There is **no** `add`, `compute`, `find`, or `filter` built-in
+> (`filter` is an *alias*).
+
+Aliases (**45** verbs like `buffer`, `clip`, `dissolve`, `intersect`, `reproject`, `warp`, `hillshade`, `filter`) live in `niva/registry/definitions.py` and map to QGIS algorithms (mostly `native:*`/`gdal:*`). List them authoritatively with
+`python -c "from niva.registry.registry import core_registry; print(sorted(core_registry().verbs()))"`.
+The `run <algorithm-id> KEY=value` escape hatch reaches any of the **878** installed QGIS algorithms with no alias.
 
 ### Layer handle
 

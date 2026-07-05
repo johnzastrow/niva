@@ -245,7 +245,7 @@ hr { border: none; border-top: 1px solid var(--border); margin: 1.2rem 0; }
     <h1>niva</h1>
     <div class="subtitle">text-pipeline grammar for QGIS geoprocessing</div>
   </div>
-  <div class="version">v0.40</div>
+  <div class="version">v0.42.0</div>
 </div>
 
 <!-- FLOW MODEL -->
@@ -293,7 +293,6 @@ hr { border: none; border-top: 1px solid var(--border); margin: 1.2rem 0; }
     <tr><td class="v b">project</td><td class="d">create/convert/repoint QGIS projects</td></tr>
     <tr><td class="v b">style</td><td class="d">apply/save .qml|.qmd sidecars (pass-through)</td></tr>
     <tr><td class="v b">remove</td><td class="d">delete output + sidecars (safety gate)</td></tr>
-    <tr><td class="v b">compute</td><td class="d">add/update a field = QGIS expression</td></tr>
     <tr><td class="v b">figure</td><td class="d">quick map image (PNG/JPG) of a layer (pass-through)</td></tr>
     <tr><td class="v b">map</td><td class="d">composed layout → PDF/PNG (legend, scale, N-arrow)</td></tr>
   </table>
@@ -528,7 +527,7 @@ hr { border: none; border-top: 1px solid var(--border); margin: 1.2rem 0; }
 
   <h3 style="margin-top:0.6rem">Quick tips</h3>
   <div style="font-size:0.7rem;color:var(--text-muted);line-height:1.55">
-    <div>• <strong>Validate offline (no QGIS):</strong> <code>niva "&lt;flow&gt;" --explain</code> — checks grammar + bindings; run before trusting a flow. <code>--dry-run</code> walks the MockBackend.</div>
+    <div>• <strong>Lint offline (no QGIS):</strong> <code>niva validate &lt;flow.niva&gt;</code> — grammar + closed-set verbs (did-you-mean) + alias args/options/enums + <code>run &lt;id&gt;</code> params, then a MockBackend dry-run; errors + style warnings with line numbers. Exit 0 clean / 1 on error. (<code>niva "&lt;flow&gt;" --explain</code> / <code>--dry-run</code> are lighter inline checks.)</div>
     <div>• <code>run &lt;id&gt;</code> params: look up offline in <code>docs/algorithms/&lt;provider&gt;.md</code></div>
     <div>• Cartography: <code>map</code> → PDF layout (legend/scale/N-arrow), <code>figure</code> → quick PNG (pass-through, chains after <code>save</code>)</div>
     <div>• Learn a verb <strong>offline</strong>: <code>niva describe &lt;verb&gt;</code> — options, defaults, QGIS-param mapping, example</div>
@@ -547,7 +546,7 @@ hr { border: none; border-top: 1px solid var(--border); margin: 1.2rem 0; }
 
 <!-- FOOTER -->
 <div style="display:flex;justify-content:space-between;font-size:0.65rem;color:var(--text-muted);padding:0 0.2rem">
-  <span>niva cheat sheet — v0.40 · github.com/johnzastrow/niva</span>
+  <span>niva cheat sheet — v0.42.0 · github.com/johnzastrow/niva</span>
   <span>Full docs: <code>docs/guide/reference.md</code> · <code>docs/guide/cookbook.md</code> (90 recipes) · <code>docs/algorithms/</code> (878 run ids)</span>
 </div>
 

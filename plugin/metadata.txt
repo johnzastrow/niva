@@ -4,7 +4,7 @@ qgisMinimumVersion=3.22
 qgisMaximumVersion=4.99
 supportsQt6=True
 description=Run niva flows — a concise text pipeline for QGIS geoprocessing — from a dock.
-version=0.41.0
+version=0.42.0
 author=John Zastrow
 email=br8kwall@gmail.com
 about=niva is a concise, readable text-pipeline grammar for QGIS geoprocessing
@@ -25,7 +25,11 @@ deprecated=False
 # one-line summary for the new version here, mirroring the top entry of ../CHANGELOG.md (the
 # repo file stays the full history; this field is just the highlights). Drop the oldest line
 # so it never grows past ~2 entries. Continuation lines MUST stay indented (like `about=`).
-changelog=0.41.0 — Added: OFFLINE algorithm catalog (packaged algorithms.json, 878 algos w/ every
+changelog=0.42.0 — Added: `niva validate <file.niva>` — an OFFLINE linter (no QGIS). Grammar +
+    closed-set verb check (did-you-mean) + alias arg/option/enum binding + `run <id>` params, then a
+    MockBackend dry-run so a clean pass means the flow actually runs. Errors + style warnings with
+    line numbers; exit 0 clean / 1 on error. `--explain` now rejects an invented built-in verb too.
+    0.41.0 — Added: OFFLINE algorithm catalog (packaged algorithms.json, 878 algos w/ every
     parameter default + enum) → `describe <id>` and `run <id>` parameter validation now work with NO
     QGIS. Provenance now records the niva version (pins the exact defaults). SpatiaLite saves record
     lineage in an aspatial `niva_lineage` table (PostGIS unchanged; best-effort, hidden from `show`).
