@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE language SYSTEM "language.dtd">
+<!--
+  niva syntax for Kate / KWrite / KDevelop (KSyntaxHighlighting).
+  Install (per-user): copy to ~/.local/share/org.kde.syntax-highlighting/syntax/niva.xml
+  then restart Kate (it indexes the folder on start).
+  Source: https://github.com/johnzastrow/niva
+-->
+<language name="niva" section="Scripts" version="1" kateversion="5.0"
+          extensions="*.niva" mimetype="text/x-niva" author="niva" license="GPL-3.0-or-later">
+  <highlighting>
+    <list name="builtins">
+      <item>load</item><item>save</item><item>run</item><item>filter</item>
+      <item>sql</item><item>split</item><item>each</item><item>call</item>
+      <item>describe</item><item>search</item><item>docs</item><item>show</item>
+      <item>info</item><item>catalog</item><item>assess</item><item>metadata</item>
+      <item>style</item><item>project</item><item>notify</item><item>email</item>
+      <item>remove</item><item>figure</item>
+    </list>
+    <list name="aliases">
+      <item>buffer</item><item>clip</item><item>intersect</item><item>difference</item>
+      <item>symdifference</item><item>union</item><item>dissolve</item><item>reproject</item>
+      <item>fixgeom</item><item>centroid</item><item>explode</item><item>join</item>
+      <item>zonalstats</item><item>simplify</item><item>smooth</item><item>convexhull</item>
+      <item>boundingbox</item><item>minrect</item><item>pointonsurface</item><item>vertices</item>
+      <item>densify</item><item>subdivide</item><item>offset</item><item>swapxy</item>
+      <item>forcerhr</item><item>promote</item><item>collect</item><item>renamefield</item>
+      <item>dropfields</item><item>keepfields</item><item>countpoints</item><item>spatialjoin</item>
+      <item>selectloc</item><item>snap</item><item>sample</item><item>voronoi</item>
+      <item>delaunay</item><item>pointsalong</item><item>warp</item><item>clipraster</item>
+      <item>hillshade</item><item>slope</item><item>aspect</item><item>polygonize</item>
+    </list>
+    <contexts>
+      <context name="Normal" attribute="Normal Text" lineEndContext="#stay">
+        <DetectChar attribute="Comment" context="Comment" char="#"/>
+        <DetectChar attribute="String" context="StringDouble" char="&quot;"/>
+        <DetectChar attribute="String" context="StringSingle" char="'"/>
+        <keyword attribute="Builtin" context="#stay" String="builtins"/>
+        <keyword attribute="Alias" context="#stay" String="aliases"/>
+        <RegExpr attribute="Option" context="#stay" String="\b[A-Za-z_][A-Za-z0-9_-]*="/>
+        <RegExpr attribute="Connection" context="#stay" String="@[A-Za-z_][A-Za-z0-9_.-]*"/>
+        <RegExpr attribute="Number" context="#stay" String="\bEPSG:[0-9]+\b"/>
+        <RegExpr attribute="Number" context="#stay" String="\b[0-9]+(\.[0-9]+)?(m|km|cm|mm|ft|yd|mi|nmi|deg)?\b"/>
+        <RegExpr attribute="Template" context="#stay" String="\{[A-Za-z_][A-Za-z0-9_]*\}"/>
+        <DetectChar attribute="Operator" context="#stay" char="|"/>
+      </context>
+      <context name="Comment" attribute="Comment" lineEndContext="#pop"/>
+      <context name="StringDouble" attribute="String" lineEndContext="#pop">
+        <DetectChar attribute="String" context="#pop" char="&quot;"/>
+      </context>
+      <context name="StringSingle" attribute="String" lineEndContext="#pop">
+        <DetectChar attribute="String" context="#pop" char="'"/>
+      </context>
+    </contexts>
+    <itemDatas>
+      <itemData name="Normal Text" defStyleNum="dsNormal"/>
+      <itemData name="Comment"     defStyleNum="dsComment"/>
+      <itemData name="String"      defStyleNum="dsString"/>
+      <itemData name="Builtin"     defStyleNum="dsKeyword"/>
+      <itemData name="Alias"       defStyleNum="dsFunction"/>
+      <itemData name="Option"      defStyleNum="dsAttribute"/>
+      <itemData name="Connection"  defStyleNum="dsVariable"/>
+      <itemData name="Number"      defStyleNum="dsDecVal"/>
+      <itemData name="Template"    defStyleNum="dsPreprocessor"/>
+      <itemData name="Operator"    defStyleNum="dsOperator"/>
+    </itemDatas>
+  </highlighting>
+  <general>
+    <keywords casesensitive="1"/>
+    <comments>
+      <comment name="singleLine" start="#"/>
+    </comments>
+  </general>
+</language>

@@ -28,17 +28,28 @@ Completion is **snippet- and word-based**, not full IntelliSense:
 
 ## Support for other editors
 
+**One command (Linux/macOS)** installs into every editor found on your machine:
+
+```bash
+bash install.sh
+```
+
+Or set them up by hand — niva ships syntax in five formats:
+
 | Editor | How to enable highlighting | File |
 |--------|--------------------------|------|
-| **Vim/Neovim** | Copy `vim/niva.vim` → `~/.vim/syntax/niva.vim` | source |
-| **Notepad++** | Language → User Defined Language → Import → `npp/niva.udl.xml` | XML |
+| **Vim/Neovim** | Copy `vim/niva.vim` → `~/.vim/syntax/` + an `ftdetect` line | source |
+| **nano** | Copy `nano/niva.nanorc` → `~/.nano/`, `include` it in `~/.nanorc` | nanorc |
+| **Mousepad / gedit / GNOME Builder / Pluma / xed** | Copy `gtksourceview/niva.lang` → `~/.local/share/gtksourceview-4/language-specs/` | GtkSourceView |
+| **Kate / KWrite / KDevelop** | Copy `kate/niva.xml` → `~/.local/share/org.kde.syntax-highlighting/syntax/` | KSyntaxHighlighting |
+| **Notepad++** (Windows) | Language → User Defined Language → Import → `npp/niva.udl.xml` | UDL XML |
 | **Sublime Text** | Copy `syntaxes/niva.tmLanguage.json` to Packages/User | TextMate |
 | **JetBrains** (PyCharm/IDEA) | Settings → Editor → TextMate Bundles → add `syntaxes/` | TextMate |
 | **Zed** | `extensions/` — or use TextMate grammar in settings | TextMate |
 | **bat** (Rust pager) | Add `syntaxes/` to `~/.config/bat/syntaxes/` then `bat cache --build` | TextMate |
 | **GitHub** | `.gitattributes` maps `*.niva` → Niva via Linguist | attribs |
-| **Emacs** | Not yet — would need a major mode | — |
-| **Helix** | Not yet — would need Tree-sitter grammar | — |
-| **Geany** | Could use UDL file via Geany's UDL system | — |
+| **Emacs / Helix** | Not yet — Emacs needs a major mode, Helix a Tree-sitter grammar | — |
 
-The core `syntaxes/niva.tmLanguage.json` is a standard TextMate grammar — most modern editors can import it directly. Want another editor supported? Open an issue or contribute!
+Full per-editor instructions, cross-platform paths, and how to cover any other editor are in
+**[docs/guide/editor-integration.md](../../docs/guide/editor-integration.md)**. Want another
+editor supported? Open an issue or contribute — the verb lists in these files are the source of truth.

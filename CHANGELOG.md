@@ -54,9 +54,15 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   hydrology, geomorphons, building footprints) — recipes 72–82, each verified end to end.
 - Updated stale algorithm counts (769 → **878**) across `reference.md`, `faq.md`, `README.md`,
   and the algorithm appendix; added the `otb:` provider row and the harness id families.
-- VS Code extension (local, gitignored `.vscode/niva/`): added `pdalcli`/`pdalcli-dtm`/
+- VS Code extension (now tracked under `.vscode/niva/`): added `pdalcli`/`pdalcli-dtm`/
   `pdalcli-dsm`/`pdalcli-class`/`chm`/`saga` snippets; documented the completion scope
   (snippet- and word-based; no context-aware IntelliSense yet).
+- **Editor integration expanded to five formats** — added syntax definitions for **nano**
+  (`.nanorc`), **Mousepad/gedit/GtkSourceView** (`.lang`), and **Kate/KSyntaxHighlighting**
+  (`.xml`), alongside the existing VS Code/TextMate, Vim, and Notepad++ files. New
+  `.vscode/niva/install.sh` auto-installs into every editor present, and
+  `docs/guide/editor-integration.md` documents every editor (incl. cross-platform paths and
+  how to cover any other editor).
 
 ## [0.37.0] - 2026-06-24
 

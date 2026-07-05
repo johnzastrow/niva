@@ -1,0 +1,40 @@
+# niva syntax highlighting for GNU nano
+# Install (per-user, no root):
+#   mkdir -p ~/.nano && cp niva.nanorc ~/.nano/niva.nanorc
+#   echo 'include "~/.nano/niva.nanorc"' >> ~/.nanorc
+# Or system-wide: copy to /usr/share/nano/ (nano auto-includes it via the stock ~/.nanorc).
+#
+# Source: https://github.com/johnzastrow/niva  ·  Reference: docs/guide/reference.md
+
+syntax niva "\.niva$"
+comment "#"
+
+# alias verbs (mapped to QGIS algorithms) — colour first so built-ins/keywords override where they overlap
+color green "\<(buffer|clip|intersect|difference|symdifference|union|dissolve|reproject|fixgeom|centroid|explode|join|zonalstats|simplify|smooth|convexhull|boundingbox|minrect|pointonsurface|vertices|densify|subdivide|offset|swapxy|forcerhr|promote|collect|renamefield|dropfields|keepfields|countpoints|spatialjoin|selectloc|snap|sample|voronoi|delaunay|pointsalong|warp|clipraster|hillshade|slope|aspect|polygonize)\>"
+
+# built-in verbs (handled by the engine)
+color brightblue "\<(load|save|run|filter|sql|split|each|call|describe|search|docs|show|info|catalog|assess|metadata|style|project|notify|email|remove|figure)\>"
+
+# key=value option keys
+color brightmagenta "\<[A-Za-z_][A-Za-z0-9_-]*="
+
+# @connection references
+color brightgreen "@[A-Za-z_][A-Za-z0-9_.-]*"
+
+# CRS codes, distances, and numbers
+color cyan "\<EPSG:[0-9]+\>"
+color cyan "\<[0-9]+(\.[0-9]+)?(m|km|cm|mm|ft|yd|mi|nmi|deg)\>"
+color cyan "\<[0-9]+(\.[0-9]+)?\>"
+
+# the pipe operator
+color brightyellow "\|"
+
+# {name} template placeholders
+color brightred "\{[A-Za-z_][A-Za-z0-9_]*\}"
+
+# strings (last, so they win inside quotes)
+color yellow "\"[^\"]*\""
+color yellow "'[^']*'"
+
+# comments (highest priority)
+color brightblack "#.*$"
