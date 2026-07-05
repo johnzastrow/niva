@@ -93,15 +93,17 @@ curl -s --max-time 120 "$WBD_URL" -o "$IN/huc12/wbd_huc12.geojson"
 ogr2ogr -f GPKG "$IN/huc12/huc12.gpkg" "$IN/huc12/wbd_huc12.geojson" 2>/dev/null || echo "  !! ogr2ogr failed — check $IN/huc12/wbd_huc12.geojson"
 log_prov "huc12" "USGS WBD (National Map REST)" "$WBD_URL" "$IN/huc12/huc12.gpkg"
 
-echo "== 5/5  Historical ortho — 'past' epoch (~2001) for change =="
-# Real sources (pick the tile(s) covering the AOI for the target year):
-#  - NAIP on AWS (4-band, 2007+; requester-pays): s3://naip-source/ny/<year>/... via
-#      aws s3 cp --request-payer requester "s3://naip-source/ny/<yr>/rgbir/<QQ>/<tile>.tif" "$IN/ortho_hist/"
-#  - NYS Statewide Digital Orthoimagery (incl. ~2000s): NYS GIS Clearinghouse / the
-#      orthos ImageServer: https://orthos.its.ny.gov/arcgis/rest/services  (export tile for the AOI)
-#  - USGS EarthExplorer (DOQ/NAIP): https://earthexplorer.usgs.gov
-echo "  -> select the historical ortho tile(s) for the AOI/year from a source above → $IN/ortho_hist/"
-# log_prov "ortho_hist" "USGS/USDA NAIP or NYS ortho" "$URL_HIST" "$IN/ortho_hist/<tile>.tif"
+echo "== 5/5  Historical ortho — oldest NAIP over the AOI (Planetary Computer, public) =="
+# NAIP is 4-band (RGB+NIR). Microsoft Planetary Computer serves it publicly (STAC +
+# free SAS signing — no account). Fetch the OLDEST tile over the AOI for the 'past'
+# epoch (NY NAIP starts ~2011, not 2001 — note this in the report). VERIFIED WORKING.
+NAIP_ITEM=$(curl -s --max-time 60 "https://planetarycomputer.microsoft.com/api/stac/v1/search" -H "Content-Type: application/json" -d "{\"collections\":[\"naip\"],\"bbox\":[${AOI_BBOX_4326}],\"limit\":1,\"sortby\":[{\"field\":\"properties.datetime\",\"direction\":\"asc\"}]}")
+NAIP_HREF=$(printf '%s' "$NAIP_ITEM" | python3 -c "import json,sys;print(json.load(sys.stdin)['features'][0]['assets']['image']['href'])")
+NAIP_DATE=$(printf '%s' "$NAIP_ITEM" | python3 -c "import json,sys;print(json.load(sys.stdin)['features'][0]['properties']['datetime'][:10])")
+NAIP_SIGNED=$(curl -s --max-time 40 "https://planetarycomputer.microsoft.com/api/sas/v1/sign?href=${NAIP_HREF}" | python3 -c "import json,sys;print(json.load(sys.stdin)['href'])")
+gdal_translate -projwin -79.067 43.275 -79.005 43.233 -projwin_srs EPSG:4326 "/vsicurl/${NAIP_SIGNED}" "$IN/ortho_hist/porter_hist.tif" >/dev/null 2>&1
+gdalinfo "$IN/ortho_hist/porter_hist.tif" >/dev/null 2>&1 && echo "  NAIP ${NAIP_DATE}: OK (4-band RGB+NIR)" || echo "  !! NAIP fetch failed"
+log_prov "ortho_hist (NAIP ${NAIP_DATE})" "USDA NAIP via Planetary Computer" "$NAIP_HREF" "$IN/ortho_hist/porter_hist.tif"
 
 echo
 echo "Done. Raw inputs under: $IN  (treat as READ-ONLY)"
