@@ -17,6 +17,12 @@ import difflib
 from dataclasses import dataclass
 
 from .registry import core_registry
+from .registry.synonyms import matches as _synonym_matches
+
+# A curated synonym hit (`mosaic` → `gdal:merge`) is intentional, so it ranks above
+# fuzzy-name/description matches but below an exact/substring name match (docs/planning/20 §7:
+# exact verb → synonym → fuzzy → description).
+_SYNONYM_SCORE = 0.8
 
 
 @dataclass
@@ -77,6 +83,8 @@ def search(
 
     reg = core_registry()
     hits: list[Hit] = []
+    # Verbs / algorithm ids surfaced by a curated synonym of the query (issue #44).
+    syn_targets = set(_synonym_matches(query))
 
     for verb in reg.verbs():
         alias = reg.get(verb)
@@ -88,11 +96,15 @@ def search(
             " ".join(alias.options),
             " ".join(alias.flags),
         )
+        if verb in syn_targets:
+            s = max(s, _SYNONYM_SCORE)
         if s >= threshold:
             hits.append(Hit(verb, "verb", alias.summary, s))
 
     for verb, (summary, _example) in BUILTINS.items():
         s = _entry_score(query, verb, summary)
+        if verb in syn_targets:
+            s = max(s, _SYNONYM_SCORE)
         if s >= threshold:
             hits.append(Hit(verb, "builtin", summary, s))
 
@@ -104,6 +116,8 @@ def search(
             alg.get("group", ""),
             alg.get("description", ""),
         )
+        if alg.get("id", "") in syn_targets:
+            s = max(s, _SYNONYM_SCORE)
         if s >= threshold:
             hits.append(Hit(alg["id"], "algorithm", alg.get("display_name", ""), s))
 
