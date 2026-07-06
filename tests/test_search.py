@@ -83,8 +83,12 @@ class TestSynonymSearch(unittest.TestCase):
     def test_synonym_surfaces_algorithm_id(self):
         # "mosaic" reaches gdal:merge purely via the synonym map, not name/description.
         cat = [
-            {"id": "gdal:merge", "display_name": "Merge", "group": "Raster",
-             "description": "Merge rasters into one."},
+            {
+                "id": "gdal:merge",
+                "display_name": "Merge",
+                "group": "Raster",
+                "description": "Merge rasters into one.",
+            },
         ]
         scores = {h.name: h.score for h in search("mosaic", algorithms=cat)}
         self.assertIn("gdal:merge", scores)
