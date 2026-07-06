@@ -11,6 +11,22 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.45.0] - 2026-07-06
+
+### Added
+- **The plan IR — `niva plan` (CLI-epic Phase 0; issues #41/#44/#43/#36).** `niva.plan.build_plan`
+  compiles a parsed flow into a **versioned, QGIS-free intermediate representation** (`plan.json`):
+  an ordered list of resolved steps — each stage's `provider:algorithm`, parameters, **injected
+  defaults** (the params you didn't type, e.g. `SEGMENTS=5`), data-flow `inputs`, and the same
+  diagnostics `validate` produces. This dict is the *contract* every downstream consumer reads (the
+  executor, `explain`, `export`, and LSP/LLM tools), so the front-end's language and packaging can
+  change without touching them. New `niva plan <file.niva> | "<flow>"` prints it. See
+  [`docs/planning/20-cli-and-tui-architecture.md`](docs/planning/20-cli-and-tui-architecture.md).
+- **`niva manifest` — a machine-readable verb catalog.** One JSON describing every verb: its
+  algorithm, parameters (type/default/enum/required), example, and **curated synonyms** (mosaic ≈
+  merge ≈ append, from `niva/registry/synonyms.json`). For IDEs, an LSP, and LLM agents to consume
+  niva's surface as structured data instead of scraping `describe` text (issue #44).
+
 ## [0.44.0] - 2026-07-06
 
 ### Added
