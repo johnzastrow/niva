@@ -25,6 +25,13 @@ coherent system:
 - Reimplementing geoprocessing. Execution is and stays QGIS/GDAL (C++). We orchestrate; we don't compute.
 - A GUI. This is a *terminal* experience (works over SSH, in CI, on a headless box).
 
+**Guiding principle — keep it easy until we need to make it hard.** Build the simplest thing that
+works and defer complexity — optimisations, native code, indexes, extra machinery — behind *measured*
+need, never a hypothetical one. This doc deliberately describes a large end state, but nothing here is
+a commitment to build it all now: the phased roadmap (§14) ships one small, useful increment at a time,
+and the `plan.json` IR (§3) exists precisely so every heavier option stays a cheap, drop-in choice for
+*later* (see §12). Prefer boring, reversible steps; add power only when a real use case demands it.
+
 ---
 
 ## 2. The core insight — niva is a *compiler* and a *runtime*
@@ -364,7 +371,64 @@ flowchart LR
 
 ---
 
-## 12. Source of truth & drift avoidance
+## 12. Performance & cold-start
+
+Interrogating Python's performance is the right instinct, but the workload points the concern at one
+narrow place — and the governing rule is **keep it easy until a measurement forces us to make it hard.**
+
+### What actually costs (it isn't the lookups)
+
+| Cost | Python | Rust/Go | When it matters |
+|---|---|---|---|
+| the lookup (verb hit; fuzzy over 878 algos) | µs–few ms | ns–µs | ~never — 900 items is tiny |
+| per-invocation setup (interpreter + import + parse the 2 MB catalog) | ~80–180 ms | ~1–5 ms | **the only real one** |
+
+A dict hit or a fuzzy scan over ~900 items is microsecond work in either language. The real cost is
+**cold-start** — interpreter startup + parsing the catalog on every *one-shot* invocation. This is a
+launch-latency question, not a compute-throughput one.
+
+### The one win that's free (architecture, not optimization)
+
+Split by usage mode:
+- **Long-running processes** (`repl`, `studio`, `lsp`, `mcp`) load the catalog **once**, then every
+  keystroke's validate/complete is an in-memory hit (µs). The ~100 ms startup is paid once and
+  amortised over thousands of ops. **This is exactly why the latency-sensitive consumers are servers,
+  not per-invocation shell-outs** — and it needs no optimisation work, just the design as drawn.
+- **One-shot commands** (`search`, `validate x.niva`) pay cold-start each time (~150 ms) — imperceptible
+  to a human; only bites under high-frequency automation (an LLM loop, a per-keystroke shell-out, CI
+  running one process per file).
+
+### The rule: start easy, measure, escalate only on proven need
+
+**Do not pre-optimise.** Ship the simplest thing — the plain JSON catalog already in the wheel, loaded
+once in servers — and *measure* a real one-shot path before adding any machinery. The escalation ladder,
+climbed **only when a measurement demands it**:
+
+```mermaid
+flowchart TD
+    R0["Rung 0 — DEFAULT, ship this<br/>plain JSON catalog + load-once servers"] -->|"a real one-shot path measured too slow?"| R1
+    R1["Rung 1 — lazy-load<br/>read only the verbs/algos a command needs"] -->|"still too slow?"| R2
+    R2["Rung 2 — precompiled index<br/>(SQLite / msgpack) for O(1) point lookups"] -->|"still, on a measured hot path?"| R3
+    R3["Rung 3 — native front-end<br/>Rust/Go compiler + LSP from the shared spec"]
+    style R0 fill:#3f9142,color:#fff
+```
+
+Each rung is more work and more moving parts than the last; you climb only as far as a *measured*
+bottleneck forces you, and no further. **Rung 0 is almost certainly enough** for humans and for
+warm-server consumers. The higher rungs (including the SQLite index) exist for a *proven* high-frequency
+one-shot need — not a hypothetical one, and not by default.
+
+### Why deferring every optimisation is safe here
+
+The architecture is what earns the right to stay on Rung 0: because the **`plan.json` IR is the
+contract** and the **catalog/grammar are generated data**, every rung above is a **drop-in behind the
+same interface** — swap JSON for an index, or Python for a Rust front-end, with **no logic fork and no
+rewrite**. We get to keep it easy *precisely because* the hard options stay cheap to reach later.
+Optimise when it hurts; not before.
+
+---
+
+## 13. Source of truth & drift avoidance
 
 Everything above is safe **only** if one rule holds: **the catalog and grammar are *data*, and every surface is generated from that data — never hand-copied.**
 
@@ -382,7 +446,7 @@ If we later reimplement the compiler in Rust/Go for a static binary + fast LSP, 
 
 ---
 
-## 13. Phased roadmap
+## 14. Phased roadmap
 
 | Phase | Deliverable | Deps | Unlocks |
 |---|---|---|---|
@@ -398,7 +462,7 @@ Each phase is independently valuable and shippable; the order is dependency-driv
 
 ---
 
-## 14. Risks & open questions
+## 15. Risks & open questions
 
 - **Runtime discovery UX** — finding QGIS's Python cleanly across OSGeo4W/macOS/Linux is the fiddliest bit. Mitigate: `niva setup doctor`, explicit override, and honest messages ("valid plan; no runtime found; here's how").
 - **`qgis_process` vs `-m niva.exec` fidelity** — decide per-provider; keep both.
@@ -409,7 +473,7 @@ Each phase is independently valuable and shippable; the order is dependency-driv
 
 ---
 
-## 15. Cross-platform notes
+## 16. Cross-platform notes
 
 - Pure-Python core + `textual`/`prompt_toolkit` are first-class on Windows, macOS, Linux (Windows Terminal handles ANSI/Unicode; legacy `cmd.exe` degrades to Tier 0).
 - Config paths follow platform conventions (XDG on Linux, `%APPDATA%` on Windows, `~/Library` on macOS).
