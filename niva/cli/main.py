@@ -33,6 +33,7 @@ _USAGE = (
     '       niva "<flow>"        [--dry-run|--explain]\n'
     "       niva validate <file.niva> [more.niva …]   (offline linter)\n"
     '       niva plan <file.niva> | "<flow>"          (emit the resolved plan IR, JSON)\n'
+    '       niva explain <file.niva> | "<flow>"       (human view of the resolved plan)\n'
     "       niva manifest [to=<file>]                 (machine-readable verb catalog, JSON)\n"
     "       niva describe <verb-or-algorithm-id>\n"
     "       niva pdal [check|test|setup]   (set up & test the point-cloud backend)\n"
@@ -65,6 +66,8 @@ def main(argv=None) -> int:
         return _validate(argv[1:])
     if argv[0] == "plan":
         return _plan(argv[1:])
+    if argv[0] == "explain":
+        return _explain(argv[1:])
     if argv[0] == "manifest":
         return _manifest(argv[1:])
     if argv[0] == "pdal":
@@ -424,6 +427,41 @@ def _plan(args) -> int:
         print(f"niva: {exc}", file=sys.stderr)
         return 2
     print(json.dumps(build_plan(program, file=file), indent=2, ensure_ascii=False))
+    return 0
+
+
+def _explain(args) -> int:
+    """`niva explain <file.niva> | "<flow>"` — a human-readable view of the resolved plan
+    IR (no QGIS): each step's op → algorithm, params, injected defaults, and diagnostics.
+    ``--json`` emits the raw IR (same as ``niva plan``). Always exits 0; read the
+    diagnostics (or use ``niva validate``) to gate on errors."""
+    from ..plan import build_plan, format_plan
+
+    as_json = "--json" in args
+    args = [a for a in args if a != "--json"]
+    if not args:
+        print(
+            'usage: niva explain <file.niva> | niva explain "<flow>" [--json]',
+            file=sys.stderr,
+        )
+        return 2
+    if len(args) == 1 and os.path.isfile(args[0]):
+        with open(args[0], encoding="utf-8") as fh:
+            text, file = fh.read(), args[0]
+    else:
+        text, file = " ".join(args), None
+    try:
+        program = parse(text, file=file)
+    except FlowError as exc:
+        print(f"niva: {exc}", file=sys.stderr)
+        return 2
+    plan = build_plan(program, file=file)
+    if as_json:
+        import json
+
+        print(json.dumps(plan, indent=2, ensure_ascii=False))
+    else:
+        print(format_plan(plan))
     return 0
 
 

@@ -52,3 +52,23 @@ load a.gpkg | buffer 100m | save b.gpkg
 
 # test_requires_qgis_false_for_pure_offline
 #   (pure Python — no niva flow)
+
+# ── TestFormatPlan ──────────────────────────────────────────────
+
+# test_renders_op_and_algorithm
+load a.gpkg | buffer 100m dissolve | save b.gpkg
+
+# test_distance_is_human_not_dict
+load a.gpkg | buffer 100m | save b.gpkg
+
+# test_injected_defaults_are_labeled
+load a.gpkg | buffer 100m | save b.gpkg
+
+# test_diagnostics_surface_errors
+load a.gpkg | compute x=1 | save b.gpkg
+
+# test_clean_plan_reports_no_diagnostics
+load a.gpkg | buffer 100m | save b.gpkg
+
+# test_header_shows_requires_qgis
+load a.gpkg | buffer 100m | save b.gpkg
