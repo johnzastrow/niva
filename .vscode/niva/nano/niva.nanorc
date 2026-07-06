@@ -36,5 +36,6 @@ color brightred "\{[A-Za-z_][A-Za-z0-9_]*\}"
 color yellow "\"[^\"]*\""
 color yellow "'[^']*'"
 
-# comments (highest priority)
-color brightblack "#.*$"
+# comments (highest priority) — brightcyan, not brightblack: many terminals render
+# brightblack as near-black (invisible on a dark background). See docs/guide/editor-integration.md.
+color brightcyan "#.*$"
