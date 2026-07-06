@@ -2062,7 +2062,9 @@ class PyqgisBackend(Backend):
     def list_layers(self, source: str) -> list:
         """List the layers inside a file/container via the provider registry's
         ``querySublayers`` — one pass handles GeoPackage (vector + raster), SpatiaLite,
-        shapefiles, GeoTIFFs, etc. No feature counts (that's `catalog`)."""
+        shapefiles, GeoTIFFs, etc. Vectors carry a **feature count** and rasters their
+        **cell dimensions**, so an empty or oversized dataset is obvious at a glance
+        (issue #21); both are best-effort and never break the listing."""
         from osgeo import gdal
         from qgis.core import Qgis, QgsProviderRegistry, QgsWkbTypes
 
@@ -2082,7 +2084,10 @@ class PyqgisBackend(Backend):
                     if geom == "NoGeometry":
                         kind, typ = "table", "(aspatial)"
                     else:
-                        kind, typ = "vector", geom
+                        kind, typ = (
+                            "vector",
+                            self._vector_summary(d.uri(), d.providerKey(), geom),
+                        )
                 else:
                     kind, typ = "raster", self._raster_summary(d.uri(), d.providerKey())
                 rows.append(
@@ -2098,8 +2103,26 @@ class PyqgisBackend(Backend):
                 continue
         return rows
 
+    def _vector_summary(self, uri: str, provider: str, geom: str) -> str:
+        """`<geom> · <n> feature(s)` for a vector sublayer; best effort (issue #21).
+        Surfaces empty (0) and huge layers; falls back to just the geometry type if the
+        layer can't be opened or the provider won't count."""
+        try:
+            from qgis.core import QgsVectorLayer
+
+            vl = QgsVectorLayer(uri, "v", provider or "ogr")
+            if not vl.isValid():
+                return geom
+            n = vl.featureCount()
+            if n < 0:  # provider couldn't count without a full scan — don't force one
+                return geom
+            return f"{geom} · {n:,} feature" + ("s" if n != 1 else "")
+        except Exception:  # noqa: BLE001
+            return geom
+
     def _raster_summary(self, uri: str, provider: str) -> str:
-        """`<n> band(s) · <dtype>` for a raster sublayer; best effort."""
+        """`<n> band(s) · <W>×<H> · <dtype>` for a raster sublayer; best effort. The
+        `<W>×<H>` cell dimensions (issue #21) make an oversized grid obvious."""
         try:
             from qgis.core import Qgis, QgsRasterLayer
 
@@ -2113,8 +2136,13 @@ class PyqgisBackend(Backend):
                     dtype = Qgis.DataType(rl.dataProvider().dataType(1)).name
                 except Exception:  # noqa: BLE001
                     dtype = ""
-            label = f"{n} band" + ("s" if n != 1 else "")
-            return label + (f" · {dtype}" if dtype else "")
+            parts = [f"{n} band" + ("s" if n != 1 else "")]
+            w, h = rl.width(), rl.height()
+            if w > 0 and h > 0:
+                parts.append(f"{w:,}×{h:,}")
+            if dtype:
+                parts.append(dtype)
+            return " · ".join(parts)
         except Exception:  # noqa: BLE001
             return "raster"
 

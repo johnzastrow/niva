@@ -6,7 +6,7 @@ name=niva
 qgisMinimumVersion=3.22
 qgisMaximumVersion=4.99
 description=Run niva flows — a concise text pipeline for QGIS geoprocessing — from a dock.
-version=0.43.0
+version=0.43.1
 author=John Zastrow
 email=br8kwall@gmail.com
 about=niva is a concise, readable text-pipeline grammar for QGIS geoprocessing
@@ -28,7 +28,10 @@ deprecated=False
 # one-line summary for the new version here, mirroring the top entry of ../CHANGELOG.md (the
 # repo file stays the full history; this field is just the highlights). Drop the oldest line
 # so it never grows past ~2 entries. Continuation lines MUST stay indented (like `about=`).
-changelog=0.43.0 — Added: `niva pdal [check|test|setup]` sets up & tests the point-cloud (PDAL)
+changelog=0.43.1 — Changed: `show` now reports a feature count for vectors and cell dimensions for
+    rasters (empty/oversized datasets obvious at a glance); the plugin's starter text opens with
+    runnable orientation commands (info / show / describe) for new users.
+    0.43.0 — Added: `niva pdal [check|test|setup]` sets up & tests the point-cloud (PDAL)
     backend (finds pdal_wrench, OS-tailored fixes); a cross-platform install self-test
     (platform_selftest) + pdal-setup guide. Fixed: `run` no longer glob-expands compact formula
     values; pdalcli:/saga: no longer crash on a missing NIVA_TMPDIR. CI now enforces ruff + the

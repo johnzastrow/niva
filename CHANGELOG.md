@@ -11,6 +11,17 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.43.1] - 2026-07-06
+
+### Changed
+- **`show` now reports a feature count for vectors and cell dimensions for rasters** (issue #21) —
+  each listed layer shows `… · <n> feature(s)` or `… · <W>×<H> · <dtype>`, so an empty or oversized
+  dataset is obvious at a glance. Best-effort: falls back to the geometry type / band summary if a
+  sublayer can't be opened or the provider won't count without a full scan.
+- **Better plugin starter text** (issue #19) — the dock opens with runnable orientation commands
+  (`info` active, plus `show` / `show deep` / `describe` as one-uncomment examples) instead of a lone
+  buffer line, so a new user's first **Run** immediately shows their install.
+
 ## [0.43.0] - 2026-07-05
 
 ### Added
