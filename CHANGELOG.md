@@ -11,6 +11,22 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.44.0] - 2026-07-06
+
+### Added
+- **Plugin dock: editor syntax colouring + configurable font size (issue #35).** The Flow editor now
+  highlights verbs, `KEY=` options, `"strings"`, numbers/units, and `#` comments (a `QSyntaxHighlighter`,
+  theme-aware mid-tones, purely cosmetic). A **font-size** control on the Setup tab (persisted in
+  `QgsSettings`) scales the editor + output panel for readability on high-DPI / large monitors.
+- **Plugin dock: a "Show log" button on the Flow tab (issue #22).** Opens the current session's `.log`
+  in the OS default viewer; tells you if logging is off or the file doesn't exist yet.
+
+### Changed
+- Confirmed **all verb output routes to the dock output panel (issue #20)** — a real run wires the
+  engine's progress callback to the panel (`Engine(progress=…)` in `flowtask`), so report verbs
+  (`show`/`info`/`describe`/…), status lines, and per-stage progress all stream there. No code change
+  needed; documented here for closure.
+
 ## [0.43.1] - 2026-07-06
 
 ### Changed

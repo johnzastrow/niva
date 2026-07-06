@@ -9,10 +9,19 @@ serial within a process anyway).
 from __future__ import annotations
 
 import os
+import re
 import tempfile
 from datetime import datetime
 
-from qgis.PyQt.QtGui import QFont, QPalette
+from qgis.PyQt.QtCore import QUrl
+from qgis.PyQt.QtGui import (
+    QColor,
+    QDesktopServices,
+    QFont,
+    QPalette,
+    QSyntaxHighlighter,
+    QTextCharFormat,
+)
 from qgis.PyQt.QtWidgets import (
     QCheckBox,
     QDockWidget,
@@ -22,6 +31,7 @@ from qgis.PyQt.QtWidgets import (
     QLineEdit,
     QPlainTextEdit,
     QPushButton,
+    QSpinBox,
     QTabWidget,
     QTextBrowser,
     QVBoxLayout,
@@ -36,6 +46,7 @@ _LOG_DIR_KEY = "niva/log_dir"
 _SCRATCH_DIR_KEY = (
     "niva/scratch_dir"  # sets NIVA_TMPDIR — where big raster scratch goes
 )
+_FONT_PT_KEY = "niva/font_pt"  # editor/output font size; 0 = Qt default (issue #35)
 
 # Mask password/token fields. Qt6 scopes the enum; Qt5 exposes it flat.
 try:
@@ -158,6 +169,58 @@ info                                 # verbs, providers, and @connections availa
 """
 
 
+def _fmt(color: str, *, bold: bool = False) -> QTextCharFormat:
+    f = QTextCharFormat()
+    f.setForeground(QColor(color))
+    if bold:
+        try:
+            f.setFontWeight(QFont.Weight.Bold)  # Qt6 (QGIS 4)
+        except AttributeError:  # pragma: no cover — Qt5 (QGIS 3)
+            f.setFontWeight(QFont.Bold)
+    return f
+
+
+class NivaHighlighter(QSyntaxHighlighter):
+    """Lightweight syntax colouring for the .niva editor (issue #35). Colours are
+    mid-tones chosen to read on both light and dark QGIS themes. Cosmetic only — it
+    never changes what runs; a mis-colour is harmless. Order matters: strings then the
+    trailing comment are applied last so they win over verb/option colouring."""
+
+    # (verb after start or a pipe), (KEY= option), (pipe), (bare number+unit)
+    _VERB = re.compile(r"(?:^|\|)\s*([A-Za-z_][\w]*)")
+    _OPT = re.compile(r"\b([A-Za-z_][\w-]*)=")
+    _PIPE = re.compile(r"\|")
+    _NUM = re.compile(r"\b\d+(?:\.\d+)?[a-zA-Z]*\b")
+    _STR = re.compile(r"\"[^\"]*\"|'[^']*'")
+
+    def __init__(self, document):
+        super().__init__(document)
+        self._verb_f = _fmt("#2f7fd1", bold=True)  # blue — the stage verb
+        self._opt_f = _fmt("#9a6f00")  # amber — KEY= option names
+        self._pipe_f = _fmt("#8a8a8a", bold=True)  # grey — the | pipe
+        self._num_f = _fmt("#b26b00")  # orange — 100m, 0.5, EPSG codes
+        self._str_f = _fmt("#3f9142")  # green — "quoted" values
+        self._cmt_f = _fmt("#8a8a8a")  # grey — # comments
+
+    def highlightBlock(self, text: str) -> None:
+        for m in self._VERB.finditer(text):
+            self.setFormat(m.start(1), m.end(1) - m.start(1), self._verb_f)
+        for m in self._OPT.finditer(text):
+            self.setFormat(m.start(1), m.end(1) - m.start(1), self._opt_f)
+        for m in self._PIPE.finditer(text):
+            self.setFormat(m.start(), 1, self._pipe_f)
+        for m in self._NUM.finditer(text):
+            self.setFormat(m.start(), m.end() - m.start(), self._num_f)
+        for m in self._STR.finditer(text):  # strings win over verb/option/number
+            self.setFormat(m.start(), m.end() - m.start(), self._str_f)
+        # A `#` at line start or after whitespace begins a comment (to end of line);
+        # it wins over everything after it. `#` glued to a token (e.g. a URL) is not one.
+        c = re.search(r"(?:^|\s)#", text)
+        if c is not None:
+            start = c.start() + (0 if c.group().startswith("#") else 1)
+            self.setFormat(start, len(text) - start, self._cmt_f)
+
+
 class NivaDock(QDockWidget):
     def __init__(self, iface):
         super().__init__("niva", iface.mainWindow())
@@ -174,6 +237,10 @@ class NivaDock(QDockWidget):
         self.tabs.addTab(self._build_convert_tab(), "Convert")
         self.tabs.addTab(self._build_setup_tab(), "Setup")
         self.setWidget(self.tabs)
+
+        # Syntax colouring for the editor + the saved font size (issue #35).
+        self._highlighter = NivaHighlighter(self.editor.document())
+        self._apply_font_size()
 
     def _build_flow_tab(self) -> QWidget:
         tab = QWidget(self)
@@ -236,7 +303,21 @@ class NivaDock(QDockWidget):
             "run log."
         )
         clear_btn.clicked.connect(self._clear)
-        for b in (open_btn, self.run_btn, self.dry_btn, self.cancel_btn, clear_btn):
+        log_btn = QPushButton("Show log", tab)
+        log_btn.setToolTip(
+            "Open this session's run-log file (the .log the Setup tab points at) in "
+            "your system's default text viewer. Enable logging on the Setup tab; the "
+            "file appears after the first run."
+        )
+        log_btn.clicked.connect(self._show_log)
+        for b in (
+            open_btn,
+            self.run_btn,
+            self.dry_btn,
+            self.cancel_btn,
+            clear_btn,
+            log_btn,
+        ):
             buttons.addWidget(b)
         buttons.addStretch(1)
         self.path_label = QLabel("(unsaved flow)", tab)
@@ -390,6 +471,23 @@ class NivaDock(QDockWidget):
         srow.addWidget(reset)
         layout.addLayout(srow)
         self._update_session_label()
+
+        # --- Display: font size + syntax colouring (issue #35) ---------------
+        drow = QHBoxLayout()
+        drow.addWidget(QLabel("Editor font size:", tab))
+        self.font_pt = QSpinBox(tab)
+        self.font_pt.setRange(0, 32)
+        self.font_pt.setSpecialValueText("default")  # 0 → "default" (Qt's mono size)
+        self.font_pt.setValue(settings.value(_FONT_PT_KEY, 0, type=int))
+        self.font_pt.setToolTip(
+            "Point size for the flow editor and output panel — raise it for readability "
+            "on high-DPI or large monitors ('default' = Qt's monospace size). The editor "
+            'also syntax-colours verbs, KEY= options, "strings", numbers, and # comments.'
+        )
+        self.font_pt.valueChanged.connect(self._on_font_pt)
+        drow.addWidget(self.font_pt)
+        drow.addStretch(1)
+        layout.addLayout(drow)
 
         # --- Scratch folder for big raster steps (sets NIVA_TMPDIR) ----------
         # Prefer a NIVA_TMPDIR already set in the environment (a shell override), then
@@ -919,6 +1017,38 @@ class NivaDock(QDockWidget):
 
     def _clear(self):
         self.output.clear()
+
+    def _show_log(self):
+        """Open this session's `.log` in the OS default viewer (issue #22)."""
+        base = self._session_log_base()
+        if not base:
+            self._log("  logging is off — enable it on the Setup tab")
+            return
+        path = base + ".log"
+        if not os.path.isfile(path):
+            self._log(f"  no log yet — run a flow first ({path})")
+            return
+        QDesktopServices.openUrl(QUrl.fromLocalFile(path))
+        self._log(f"  opened log → {path}")
+
+    def _apply_font_size(self, pt: int | None = None):
+        """Apply the saved editor/output font size (issue #35). ``pt=None`` reads the
+        setting; ``0`` restores Qt's default monospace size."""
+        if pt is None:
+            from qgis.core import QgsSettings
+
+            pt = QgsSettings().value(_FONT_PT_KEY, 0, type=int)
+        for w in (self.editor, self.output):
+            f = _mono()
+            if pt and pt > 0:
+                f.setPointSize(pt)
+            w.setFont(f)
+
+    def _on_font_pt(self, pt: int):
+        from qgis.core import QgsSettings
+
+        QgsSettings().setValue(_FONT_PT_KEY, int(pt))
+        self._apply_font_size(int(pt))
 
     def _cancel(self):
         task = getattr(self, "_task", None)
