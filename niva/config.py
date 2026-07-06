@@ -42,8 +42,9 @@ KNOWN_KEYS: dict[str, tuple[str, str]] = {
 
 # Secret settings — refused by `set`; they belong in the environment / OS keyring.
 SECRET_KEYS: dict[str, str] = {
-    "ntfy_token": "NIVA_NTFY_TOKEN",
-    "smtp_password": "NIVA_SMTP_PASSWORD",
+    # Values are env-var NAMES, not secrets — allowlist the scanner's false positives.
+    "ntfy_token": "NIVA_NTFY_TOKEN",  # pragma: allowlist secret
+    "smtp_password": "NIVA_SMTP_PASSWORD",  # pragma: allowlist secret
 }
 
 
