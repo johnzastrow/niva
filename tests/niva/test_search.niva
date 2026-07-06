@@ -31,6 +31,17 @@
 # test_limit_caps_results
 #   (pure Python — no niva flow)
 
+# ── TestSynonymSearch ───────────────────────────────────────────
+
+# test_synonym_surfaces_verbs_offline
+#   (pure Python — no niva flow)
+
+# test_synonym_surfaces_algorithm_id
+#   (pure Python — no niva flow)
+
+# test_non_synonym_gibberish_still_empty
+#   (pure Python — no niva flow)
+
 # ── TestFormatResults ───────────────────────────────────────────
 
 # test_table_lists_hits

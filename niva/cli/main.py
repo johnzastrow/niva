@@ -456,7 +456,8 @@ def _search(args) -> int:
     query = " ".join(words).strip()
     if not query:
         print(
-            "usage: niva search <keyword> [limit=N] [to=<file>] [--json]", file=sys.stderr
+            "usage: niva search <keyword> [limit=N] [to=<file>] [--json]",
+            file=sys.stderr,
         )
         return 2
 
@@ -477,7 +478,12 @@ def _search(args) -> int:
 
         text = json.dumps(
             [
-                {"name": h.name, "kind": h.kind, "summary": h.summary, "score": round(h.score, 3)}
+                {
+                    "name": h.name,
+                    "kind": h.kind,
+                    "summary": h.summary,
+                    "score": round(h.score, 3),
+                }
                 for h in hits
             ],
             indent=2,
