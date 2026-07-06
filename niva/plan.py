@@ -166,3 +166,62 @@ def _jsonable(value):
     if isinstance(value, dict):
         return {k: _jsonable(v) for k, v in value.items()}
     return str(value)
+
+
+def _fmt_val(value) -> str:
+    """One param value, human form: a ``{value, unit}`` Distance → ``100 m``."""
+    if isinstance(value, dict) and set(value) == {"value", "unit"}:
+        v = value["value"]
+        if isinstance(v, float) and v.is_integer():
+            v = int(v)
+        return f"{v} {value['unit']}"
+    return str(value)
+
+
+def _fmt_params(params: dict) -> str:
+    return " · ".join(f"{k}={_fmt_val(v)}" for k, v in params.items())
+
+
+def format_plan(plan: dict) -> str:
+    """Render a plan IR (``build_plan`` output) as a human-readable view — the
+    ``niva explain`` surface (docs/planning/20 §3.2: explain is *a read of the IR*).
+
+    Reads only the IR dict, never the source text or internal objects, so it stays a
+    thin consumer of the stable contract.
+    """
+    src = (plan.get("source") or {}).get("file") or "<inline>"
+    requires = "yes" if plan.get("requires_qgis") else "no"
+    lines = [
+        f"# plan for {src}  (niva {plan.get('niva_version', '?')}, "
+        f"IR v{plan.get('niva_plan', '?')})  — requires QGIS: {requires}",
+        "",
+    ]
+    for step in plan.get("steps", []):
+        lines.append(f"  {step['id']:>2}  {step.get('stage', '')}")
+        head = f"        op        {step.get('op', '?')}"
+        if step.get("algorithm"):
+            head += f" → {step['algorithm']}"
+        head += f"  ({step.get('kind', '?')})"
+        lines.append(head)
+        if step.get("params"):
+            lines.append(f"        params    {_fmt_params(step['params'])}")
+        if step.get("injected_defaults"):
+            lines.append(
+                f"        defaults  {_fmt_params(step['injected_defaults'])}   (injected)"
+            )
+        if step.get("inputs"):
+            joined = ", ".join(str(i) for i in step["inputs"])
+            lines.append(f"        inputs    ← step {joined}")
+        lines.append(f"        produces  {step.get('produces', '?')}")
+        lines.append("")
+
+    diags = plan.get("diagnostics") or []
+    if diags:
+        lines.append("diagnostics:")
+        for d in diags:
+            loc = f"line {d['line']}" if d.get("line") else "flow"
+            mark = "✗" if d.get("severity") == "error" else "⚠"
+            lines.append(f"  {mark} {loc}  {d.get('severity')}: {d.get('message')}")
+    else:
+        lines.append("diagnostics: none")
+    return "\n".join(lines)
