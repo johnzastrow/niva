@@ -93,5 +93,46 @@ class TestDataFlowAndDiagnostics(unittest.TestCase):
         self.assertFalse(plan("describe buffer")["requires_qgis"])
 
 
+class TestFormatPlan(unittest.TestCase):
+    """`format_plan` — the human `niva explain` view; a pure read of the IR."""
+
+    def _fmt(self, flow):
+        from niva.plan import format_plan
+
+        return format_plan(plan(flow))
+
+    def test_renders_op_and_algorithm(self):
+        out = self._fmt("load a.gpkg | buffer 100m dissolve | save b.gpkg")
+        self.assertIn("buffer", out)
+        self.assertIn("native:buffer", out)
+        self.assertIn("DISSOLVE=True", out)
+
+    def test_distance_is_human_not_dict(self):
+        out = self._fmt("load a.gpkg | buffer 100m | save b.gpkg")
+        self.assertIn("DISTANCE=100 m", out)
+        self.assertNotIn("'value'", out)  # not the raw {value, unit} dict
+
+    def test_injected_defaults_are_labeled(self):
+        out = self._fmt("load a.gpkg | buffer 100m | save b.gpkg")
+        self.assertIn("(injected)", out)
+        self.assertIn("SEGMENTS=5", out)
+
+    def test_diagnostics_surface_errors(self):
+        out = self._fmt("load a.gpkg | compute x=1 | save b.gpkg")  # invalid verb
+        self.assertIn("diagnostics:", out)
+        self.assertIn("error", out)
+
+    def test_clean_plan_reports_no_diagnostics(self):
+        out = self._fmt("load a.gpkg | buffer 100m | save b.gpkg")
+        self.assertIn("diagnostics: none", out)
+
+    def test_header_shows_requires_qgis(self):
+        self.assertIn("requires QGIS: no", self._fmt("describe buffer"))
+        self.assertIn(
+            "requires QGIS: yes",
+            self._fmt("load a.gpkg | buffer 100m | save b.gpkg"),
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -14,6 +14,12 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ## [0.46.0] - 2026-07-06
 
 ### Added
+- **`niva explain` — a human view of the resolved plan IR (CLI-epic Phase 1; issue #41).**
+  Renders `build_plan`'s `plan.json` as readable text: each step's `op → provider:algorithm`,
+  parameters, **injected defaults** (marked — the reproducibility payload), data-flow inputs, and
+  diagnostics. It is a pure *read of the IR* (`docs/planning/20-cli-and-tui-architecture.md` §3.2),
+  needs no QGIS, and complements the machine-readable `niva plan`. Usage:
+  `niva explain <file.niva> | "<flow>"`; `--json` emits the raw IR.
 - **`niva search` — offline, synonym-aware discovery (CLI-epic Phase 1; issue #44).** A top-level
   `niva search <keyword> [limit=N] [to=<file>] [--json]` fuzzy-finds niva verbs and the packaged
   878-algorithm catalog with **no QGIS**. Search is now **synonym-aware**: a curated map
