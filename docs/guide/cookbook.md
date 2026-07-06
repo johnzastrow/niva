@@ -563,9 +563,8 @@ load dem.tif | figure dem.png
 **84. Push it — a full thematic map using every knob** — themed primary layer, a raster hillshade
 plus two vector overlays, an OSM basemap, field labels, a borrowed extent, and print-scale output
 ```
-load flood_zones.gpkg | style apply=flood.qml \
-  | figure flood_map.png layers="hillshade.tif;roads.gpkg;places.gpkg" \
-      basemap=osm labels=zone_name extent=study_area.gpkg size=2400x1600 dpi=200 bg="#eef3f7"
+load flood_zones.gpkg | style apply=flood.qml
+  | figure flood_map.png layers="hillshade.tif;roads.gpkg;places.gpkg" basemap=osm labels=zone_name extent=study_area.gpkg size=2400x1600 dpi=200 bg="#eef3f7"
 ```
 Draw order is top-down: `flood_zones` (styled) over the overlays over the basemap. `extent=` borrows
 another layer's bounds; `labels=` labels by an attribute; `dpi=200` sizes symbols/text for print.
@@ -594,15 +593,12 @@ load zones.gpkg | map zones.png title="Zoning" labels=zone_type page=Letter dpi=
 
 **88. Themed, with an overlay and a basemap** — styled primary layer over roads over OSM tiles
 ```
-load flood.gpkg | style apply=flood.qml | map flood.pdf title="Flood Risk" \
-  layers="roads.gpkg" basemap=osm labels=risk portrait
+load flood.gpkg | style apply=flood.qml | map flood.pdf title="Flood Risk" layers="roads.gpkg" basemap=osm labels=risk portrait
 ```
 
 **89. Many layers, many types** — line, two rasters, polygon, and point layers on one A3 plate
 ```
-load contours.gpkg | map terrain.pdf title="Terrain — Multi-Layer" \
-  layers="dtm.tif;dsm.tif;building_footprints.gpkg;control_points.gpkg" \
-  labels=elev extent=dsm.tif page=A3 landscape dpi=300
+load contours.gpkg | map terrain.pdf title="Terrain — Multi-Layer" layers="dtm.tif;dsm.tif;building_footprints.gpkg;control_points.gpkg" labels=elev extent=dsm.tif page=A3 landscape dpi=300
 ```
 
 **90. Extreme** — build every derivative from raw LiDAR, then compose one rich A3 plate that stacks
@@ -614,11 +610,8 @@ load dtm.tif  | hillshade z_factor=2 | save hillshade.tif
 load dtm.tif  | run gdal:contour BAND=1 INTERVAL=5 FIELD_NAME=elev OUTPUT=contours.gpkg
 load tile.las | run pdalcli:translate filter="Classification==6" output=buildings.laz
 load buildings.laz | run pdalcli:boundary | fixgeom | simplify 0.5m | save footprints.gpkg
-load contours.gpkg | style apply=contours.qml \
-  | map plate.pdf title="Bare-Earth Terrain & Structures" \
-      layers="hillshade.tif;dsm.tif;footprints.gpkg;control_points.gpkg" \
-      basemap=osm labels=elev extent=study_area.gpkg page=A3 landscape dpi=300 \
-      legend scalebar northarrow
+load contours.gpkg | style apply=contours.qml
+  | map plate.pdf title="Bare-Earth Terrain & Structures" layers="hillshade.tif;dsm.tif;footprints.gpkg;control_points.gpkg" basemap=osm labels=elev extent=study_area.gpkg page=A3 landscape dpi=300 legend scalebar northarrow
 ```
 For a fully hand-designed plate (custom frames, insets, an atlas of per-feature pages), design it
 once in QGIS and export it verbatim: `load aoi.gpkg | map out.pdf from=study.qgz layout="Overview"`.
