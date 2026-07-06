@@ -36,6 +36,7 @@ _USAGE = (
     '       niva explain <file.niva> | "<flow>"       (human view of the resolved plan)\n'
     "       niva manifest [to=<file>]                 (machine-readable verb catalog, JSON)\n"
     "       niva search <keyword> [limit=N] [--json]  (fuzzy + synonym-aware discovery, offline)\n"
+    "       niva setup [show|path|get <k>|set <k> <v>|unset <k>]   (portable config, no QGIS)\n"
     "       niva describe <verb-or-algorithm-id>\n"
     "       niva pdal [check|test|setup]   (set up & test the point-cloud backend)\n"
     "       niva export <file.niva> [-o <file.py>]\n"
@@ -73,6 +74,8 @@ def main(argv=None) -> int:
         return _explain(argv[1:])
     if argv[0] == "manifest":
         return _manifest(argv[1:])
+    if argv[0] == "setup":
+        return _setup(argv[1:])
     if argv[0] == "pdal":
         from ..pdal_doctor import run as _pdal_doctor
 
@@ -540,6 +543,75 @@ def _explain(args) -> int:
     else:
         print(format_plan(plan))
     return 0
+
+
+def _setup(args) -> int:
+    """`niva setup [show|path|get <key>|set <key> <value>|unset <key>]` — view/edit niva's
+    portable config file **without QGIS** (issue #36). Secrets stay in the environment."""
+    from .. import config as cfg
+
+    action = args[0] if args else "show"
+    rest = args[1:]
+
+    if action in ("show", "list"):
+        data = cfg.load()
+        print(f"# niva config: {cfg.config_path()}")
+        for key, (env, _comment) in cfg.KNOWN_KEYS.items():
+            if key in data:
+                shown = data[key]
+            elif os.environ.get(env):
+                shown = f"{os.environ[env]}  (from ${env})"
+            else:
+                shown = "(unset)"
+            print(f"  {key:<14} = {shown}")
+        for key in (k for k in data if k not in cfg.KNOWN_KEYS):
+            print(f"  {key:<14} = {data[key]}  (custom)")
+        print(
+            "  secrets — set NIVA_NTFY_TOKEN / NIVA_SMTP_PASSWORD in the environment, "
+            "never here"
+        )
+        return 0
+
+    if action == "path":
+        print(cfg.config_path())
+        return 0
+
+    if action == "get":
+        if len(rest) != 1:
+            print("usage: niva setup get <key>", file=sys.stderr)
+            return 2
+        value = cfg.get(rest[0])
+        if value is None:
+            return 1
+        print(value)
+        return 0
+
+    if action == "set":
+        if len(rest) < 2:
+            print("usage: niva setup set <key> <value>", file=sys.stderr)
+            return 2
+        key, value = rest[0], " ".join(rest[1:])
+        try:
+            path = cfg.set_key(key, value)
+        except ValueError as exc:
+            print(f"niva: {exc}", file=sys.stderr)
+            return 2
+        print(f"niva: set {key} = {value}  →  {path}", file=sys.stderr)
+        return 0
+
+    if action == "unset":
+        if len(rest) != 1:
+            print("usage: niva setup unset <key>", file=sys.stderr)
+            return 2
+        cfg.unset_key(rest[0])
+        print(f"niva: unset {rest[0]}", file=sys.stderr)
+        return 0
+
+    print(
+        "usage: niva setup [show | path | get <key> | set <key> <value> | unset <key>]",
+        file=sys.stderr,
+    )
+    return 2
 
 
 def _manifest(args) -> int:

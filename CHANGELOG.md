@@ -11,6 +11,18 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.47.0] - 2026-07-06
+
+### Added
+- **`niva setup` — a portable, QGIS-free config file (CLI-epic Phase 1; issue #36).** niva now
+  keeps its **non-secret** settings in a single TOML file (`$XDG_CONFIG_HOME/niva/config.toml` on
+  Linux; the platform equivalent on macOS/Windows) that you can view and edit without opening QGIS
+  and copy between machines. New subcommands: `niva setup show` (all keys + values, falling back to
+  the mirrored env var), `path`, `get <key>`, `set <key> <value>`, `unset <key>`. Secrets
+  (`ntfy_token`, `smtp_password`) are **refused** by `set` — they belong in the environment (later:
+  the OS keyring). Zero-dependency (`tomllib` read; hand-written TOML). Runtime consumption (env
+  fallback, plugin Setup-tab parity, `setup doctor`/`wizard`) is a follow-up.
+
 ## [0.46.0] - 2026-07-06
 
 ### Added
