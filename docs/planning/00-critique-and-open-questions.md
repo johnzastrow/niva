@@ -157,6 +157,102 @@ whitespace/newlines around `|` are insignificant; only `save` writes to disk. Ex
 `load roads.gpkg | buffer 100 dissolve | clip city.gpkg | save out.gpkg`.
 
 ```mermaid
+---
+config:
+  theme: base
+  themeVariables:
+    background: "#ffffff"
+    primaryColor: "#ebf5ff"
+    primaryTextColor: "#000000"
+    primaryBorderColor: "#8c939b"
+    lineColor: "#7c96bb"
+    secondaryColor: "#d7e1ee"
+    tertiaryColor: "#c3d2e5"
+    fontFamily: "\"Inter\", \"Noto Sans SC\", sans-serif"
+    fontSize: "16"
+  themeCSS: |
+    /* Flowchart Node Styling */
+            .node rect, .node polygon { 
+                rx: 6px !important; 
+                ry: 6px !important; 
+            }
+            .node polygon {
+                stroke-width: 3px;
+            }
+            .node .label {
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", sans-serif;
+            }
+            /* Keep edge labels simple - don't override too much */
+            .edgeLabel { 
+                color: #64748b; 
+                font-size: 13px;
+            }
+            
+            /* Sequence Diagram Styling */
+            /* Actor boxes - match flowchart style */
+            .actor {
+                fill: #f1f5f9 !important;
+                stroke: #cbd5e1 !important;
+                stroke-width: 1px !important;
+                rx: 4px !important;
+                ry: 4px !important;
+            }
+            .actor-line {
+                stroke: #94a3b8 !important;
+                stroke-width: 2px !important;
+            }
+            .activation0, .activation1, .activation2 {
+                fill: #e2e8f0 !important;
+                stroke: #94a3b8 !important;
+                stroke-width: 2px !important;
+            }
+            /* Note boxes */
+            .note {
+                fill: #fef3c7 !important;
+                stroke: #fbbf24 !important;
+                stroke-width: 1px !important;
+                rx: 4px !important;
+                ry: 4px !important;
+            }
+            .noteText {
+                fill: #78350f !important;
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", sans-serif;
+            }
+            /* Loop/Alt/Opt boxes */
+            .labelBox {
+                fill: #e2e8f0 !important;
+                stroke: #cbd5e1 !important;
+                stroke-width: 1px !important;
+                rx: 4px !important;
+                ry: 4px !important;
+            }
+            .labelText, .loopText {
+                fill: #334155 !important;
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", sans-serif;
+                font-weight: 500;
+            }
+            .loopLine {
+                stroke: #cbd5e1 !important;
+                stroke-width: 1px !important;
+            }
+            
+            /* XYChart styles - Notion soft professional palette */
+            .line-plot-0 path { stroke: #6B8CAE !important; stroke-width: 3px !important; }
+            .line-plot-1 path { stroke: #73A78D !important; stroke-width: 3px !important; }
+            .line-plot-2 path { stroke: #CB9B7A !important; stroke-width: 3px !important; }
+            .bar-plot-0 rect { fill: #D4E1EE !important; stroke: #6B8CAE !important; stroke-width: 1.5px !important; rx: 4px !important; }
+            .bar-plot-1 rect { fill: #D5E8DC !important; stroke: #73A78D !important; stroke-width: 1.5px !important; rx: 4px !important; }
+            .bar-plot-2 rect { fill: #F0E0D6 !important; stroke: #CB9B7A !important; stroke-width: 1.5px !important; rx: 4px !important; }
+            .ticks path { stroke: #e2e8f0 !important; }
+            .left-axis .label text, .bottom-axis .label text { fill: #475569 !important; font-size: 14px !important; }
+            .chart-title text { fill: #334155 !important; font-weight: 600 !important; font-size: 20px !important; }
+            .left-axis .title text, .bottom-axis .title text { fill: #64748b !important; font-size: 16px !important; }
+            .legend text { fill: #475569 !important; font-size: 14px !important; }
+
+    /* mm:radius:start */
+    .node rect, .node polygon, .cluster rect { rx: 9px !important; ry: 9px !important; }
+    /* mm:radius:end */
+---
 flowchart TD
     NP["Non-programmer writes a text pipeline"] --> GR["niva grammar (pipe-chained)"]
     GR --> ENG["niva engine + verb registry"]
