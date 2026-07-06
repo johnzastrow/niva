@@ -144,9 +144,16 @@ def default_scratch_dir() -> str:
 
 
 _SAMPLE = """\
-# Edit this flow, then click Run — it executes in this QGIS session.
-# A GeoPackage holds many layers, so name one with |layername=.
-# Example:
+# niva — type a flow, then click Run. It executes in this QGIS session; stages run
+# left→right and each stage's output feeds the next.
+#
+# New here? Click Run now to see your install, then uncomment a line (delete the #):
+info                                 # verbs, providers, and @connections available to you
+# show "/path/to/data.gpkg"          # list the layers/tables in a file or database
+# show deep "/path/to/folder"        # ...recurse into subfolders too
+# describe buffer                    # what a verb does — options, defaults, an example
+#
+# A real flow — friendly verbs running on QGIS Processing (name a layer with |layername=):
 #   load "/path/to/data.gpkg|layername=roads" | buffer 100m dissolve | save /tmp/out.gpkg
 """
 
