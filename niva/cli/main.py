@@ -34,6 +34,7 @@ _USAGE = (
     "       niva validate <file.niva> [more.niva …]   (offline linter)\n"
     '       niva plan <file.niva> | "<flow>"          (emit the resolved plan IR, JSON)\n'
     "       niva manifest [to=<file>]                 (machine-readable verb catalog, JSON)\n"
+    "       niva search <keyword> [limit=N] [--json]  (fuzzy + synonym-aware discovery, offline)\n"
     "       niva describe <verb-or-algorithm-id>\n"
     "       niva pdal [check|test|setup]   (set up & test the point-cloud backend)\n"
     "       niva export <file.niva> [-o <file.py>]\n"
@@ -65,6 +66,8 @@ def main(argv=None) -> int:
         return _validate(argv[1:])
     if argv[0] == "plan":
         return _plan(argv[1:])
+    if argv[0] == "search":
+        return _search(argv[1:])
     if argv[0] == "manifest":
         return _manifest(argv[1:])
     if argv[0] == "pdal":
@@ -424,6 +427,74 @@ def _plan(args) -> int:
         print(f"niva: {exc}", file=sys.stderr)
         return 2
     print(json.dumps(build_plan(program, file=file), indent=2, ensure_ascii=False))
+    return 0
+
+
+def _search(args) -> int:
+    """`niva search <keyword> [limit=N] [to=<file>] [--json]` — fuzzy + **synonym-aware**
+    discovery (issue #44) over niva's verbs and the packaged QGIS algorithm catalog. Offline
+    — no QGIS. `--json` emits machine-readable results; `to=<file>` writes the report."""
+    from ..registry.catalog import catalog
+    from ..search import format_results
+    from ..search import search as run_search
+
+    as_json = "--json" in args
+    args = [a for a in args if a != "--json"]
+    out = None
+    limit = 20
+    words: list = []
+    for a in args:
+        if a.startswith("to="):
+            out = os.path.expanduser(a[len("to=") :])
+        elif a.startswith("limit="):
+            try:
+                limit = int(a[len("limit=") :])
+            except ValueError:
+                pass
+        else:
+            words.append(a)
+    query = " ".join(words).strip()
+    if not query:
+        print(
+            "usage: niva search <keyword> [limit=N] [to=<file>] [--json]", file=sys.stderr
+        )
+        return 2
+
+    # Offline algorithm corpus straight from the packaged catalog (no QGIS).
+    algs = [
+        {
+            "id": e.get("id", aid),
+            "display_name": e.get("name", ""),
+            "group": e.get("group", ""),
+            "description": e.get("short_help", e.get("description", "")),
+        }
+        for aid, e in catalog().items()
+    ]
+    hits = run_search(query, algorithms=algs, limit=limit)
+
+    if as_json:
+        import json
+
+        text = json.dumps(
+            [
+                {"name": h.name, "kind": h.kind, "summary": h.summary, "score": round(h.score, 3)}
+                for h in hits
+            ],
+            indent=2,
+            ensure_ascii=False,
+        )
+    else:
+        text = format_results(query, hits)
+
+    if out:
+        parent = os.path.dirname(out)
+        if parent:
+            os.makedirs(parent, exist_ok=True)
+        with open(out, "w", encoding="utf-8") as fh:
+            fh.write(text + "\n")
+        print(f"niva: wrote {out}", file=sys.stderr)
+    else:
+        print(text)
     return 0
 
 

@@ -11,6 +11,16 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.46.0] - 2026-07-06
+
+### Added
+- **`niva search` — offline, synonym-aware discovery (CLI-epic Phase 1; issue #44).** A top-level
+  `niva search <keyword> [limit=N] [to=<file>] [--json]` fuzzy-finds niva verbs and the packaged
+  878-algorithm catalog with **no QGIS**. Search is now **synonym-aware**: a curated map
+  (`niva/registry/synonyms.json`) surfaces the right tool when the word differs — `mosaic` →
+  `gdal:merge`, `generalize` → `simplify`/`smooth`, `crop` → `clip` — ranked above fuzzy matches.
+  `--json` output is machine-consumable (IDEs/LLMs).
+
 ## [0.45.0] - 2026-07-06
 
 ### Added

@@ -67,6 +67,33 @@ class TestSearchRanking(unittest.TestCase):
         )
 
 
+class TestSynonymSearch(unittest.TestCase):
+    """Synonym-aware ranking (issue #44): a curated keyword surfaces the right tool even
+    when the word isn't in its name/description."""
+
+    def _names(self, query, **kw):
+        return [h.name for h in search(query, **kw)]
+
+    def test_synonym_surfaces_verbs_offline(self):
+        # "generalize" is not a verb name, but a curated synonym for simplify + smooth.
+        names = self._names("generalize")  # no catalog → verbs/builtins only
+        self.assertIn("simplify", names)
+        self.assertIn("smooth", names)
+
+    def test_synonym_surfaces_algorithm_id(self):
+        # "mosaic" reaches gdal:merge purely via the synonym map, not name/description.
+        cat = [
+            {"id": "gdal:merge", "display_name": "Merge", "group": "Raster",
+             "description": "Merge rasters into one."},
+        ]
+        scores = {h.name: h.score for h in search("mosaic", algorithms=cat)}
+        self.assertIn("gdal:merge", scores)
+        self.assertGreaterEqual(scores["gdal:merge"], 0.8)
+
+    def test_non_synonym_gibberish_still_empty(self):
+        self.assertEqual(search("zzzznope", algorithms=CATALOG, threshold=0.6), [])
+
+
 class TestFormatResults(unittest.TestCase):
     def test_table_lists_hits(self):
         out = format_results("buffer", search("buffer", algorithms=CATALOG))
