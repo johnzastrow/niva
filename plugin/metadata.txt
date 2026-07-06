@@ -6,7 +6,7 @@ name=niva
 qgisMinimumVersion=3.22
 qgisMaximumVersion=4.99
 description=Run niva flows — a concise text pipeline for QGIS geoprocessing — from a dock.
-version=0.44.0
+version=0.45.0
 author=John Zastrow
 email=br8kwall@gmail.com
 about=niva is a concise, readable text-pipeline grammar for QGIS geoprocessing
@@ -28,7 +28,11 @@ deprecated=False
 # one-line summary for the new version here, mirroring the top entry of ../CHANGELOG.md (the
 # repo file stays the full history; this field is just the highlights). Drop the oldest line
 # so it never grows past ~2 entries. Continuation lines MUST stay indented (like `about=`).
-changelog=0.44.0 — Added (plugin dock): syntax colouring in the flow editor + a configurable font
+changelog=0.45.0 — Added: CLI-epic Phase 0 — `niva plan` emits the resolved plan as a versioned,
+    QGIS-free intermediate representation (JSON: each stage's algorithm, params, injected defaults,
+    diagnostics) — the contract downstream tools read; `niva manifest` emits a machine-readable verb
+    catalog (params/defaults/enums/synonyms/example) for IDEs, LSP, and LLM agents.
+    0.44.0 — Added (plugin dock): syntax colouring in the flow editor + a configurable font
     size on the Setup tab for readability on any monitor; a "Show log" button on the Flow tab opens
     the session log. All verb output already streams to the dock panel. Works on QGIS 3.x (Qt5) and 4.
     0.43.1 — Changed: `show` now reports a feature count for vectors and cell dimensions for

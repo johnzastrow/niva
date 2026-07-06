@@ -27,5 +27,5 @@ code (`niva/`), the [CHANGELOG](../../CHANGELOG.md), and the
 | [`17-show-verb-design.md`](17-show-verb-design.md) | the **`show` verb** — probing files/dirs/connections for loadable layers |
 | [`18-remove-verb-design.md`](18-remove-verb-design.md) | the **`remove` verb** — safe deletion behind an allowlist gate |
 | [`19-search-docs-and-examples-design.md`](19-search-docs-and-examples-design.md) | **discovery** — `search`, `docs`, and a runnable example on every `describe` (v0.37.0) |
-| [`20-cli-and-tui-architecture.md`](20-cli-and-tui-architecture.md) | **the CLI & TUI epic** — the compiler/runtime split, the `plan.json` IR contract, packaging (zero-dep core + `niva[cli]` + a standalone binary), a terminal-IDE TUI, and `search`/`find`/`setup`/LSP/MCP (issues #41/#44/#43/#36) |
+| [`20-cli-and-tui-architecture.md`](20-cli-and-tui-architecture.md) | **the CLI & TUI epic** — the compiler/runtime split, the `plan.json` **intermediate-representation (IR)** contract, packaging (zero-dep core + `niva[cli]` + a standalone binary), a terminal-IDE TUI, and `search`/`find`/`setup`/LSP/MCP (issues #41/#44/#43/#36) |
 | [`Oscar_the_Grouch.md`](Oscar_the_Grouch.md) | the **failure register** — an adversarial catalogue of every way niva could fail, with severities and mitigations |

@@ -32,6 +32,8 @@ _USAGE = (
     "usage: niva run <file.niva> [--dry-run|--explain]\n"
     '       niva "<flow>"        [--dry-run|--explain]\n'
     "       niva validate <file.niva> [more.niva …]   (offline linter)\n"
+    '       niva plan <file.niva> | "<flow>"          (emit the resolved plan IR, JSON)\n'
+    "       niva manifest [to=<file>]                 (machine-readable verb catalog, JSON)\n"
     "       niva describe <verb-or-algorithm-id>\n"
     "       niva pdal [check|test|setup]   (set up & test the point-cloud backend)\n"
     "       niva export <file.niva> [-o <file.py>]\n"
@@ -61,6 +63,10 @@ def main(argv=None) -> int:
         return _describe(argv[1:])
     if argv[0] == "validate":
         return _validate(argv[1:])
+    if argv[0] == "plan":
+        return _plan(argv[1:])
+    if argv[0] == "manifest":
+        return _manifest(argv[1:])
     if argv[0] == "pdal":
         from ..pdal_doctor import run as _pdal_doctor
 
@@ -393,6 +399,56 @@ def _validate(paths) -> int:
             had_error = True
     print(f"# {len(files)} file(s): {n_err} error(s), {n_warn} warning(s)")
     return 1 if had_error else 0
+
+
+def _plan(args) -> int:
+    """`niva plan <file.niva> | "<flow>"` — emit the resolved plan IR as JSON (no QGIS).
+    A `.niva` path is read; anything else is treated as an inline flow. Always exits 0
+    (the plan is emitted even when invalid — read `diagnostics` for errors)."""
+    import json
+
+    from ..grammar import parse
+    from ..plan import build_plan
+
+    if not args:
+        print('usage: niva plan <file.niva> | niva plan "<flow>"', file=sys.stderr)
+        return 2
+    if len(args) == 1 and os.path.isfile(args[0]):
+        with open(args[0], encoding="utf-8") as fh:
+            text, file = fh.read(), args[0]
+    else:
+        text, file = " ".join(args), None
+    try:
+        program = parse(text, file=file)
+    except FlowError as exc:
+        print(f"niva: {exc}", file=sys.stderr)
+        return 2
+    print(json.dumps(build_plan(program, file=file), indent=2, ensure_ascii=False))
+    return 0
+
+
+def _manifest(args) -> int:
+    """`niva manifest [to=<file>]` — emit the machine-readable verb catalog as JSON
+    (every verb: algorithm, params, defaults, synonyms, example). No QGIS."""
+    import json
+
+    from ..manifest import build_manifest
+
+    out = None
+    for a in args:
+        if a.startswith("to="):
+            out = os.path.expanduser(a[len("to=") :])
+    text = json.dumps(build_manifest(), indent=2, ensure_ascii=False)
+    if out:
+        parent = os.path.dirname(out)
+        if parent:
+            os.makedirs(parent, exist_ok=True)
+        with open(out, "w", encoding="utf-8") as fh:
+            fh.write(text + "\n")
+        print(f"niva: wrote {out}", file=sys.stderr)
+    else:
+        print(text)
+    return 0
 
 
 def _dry_run(program: list, base_dir=None) -> None:

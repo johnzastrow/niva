@@ -72,7 +72,14 @@ The payoff line: **~80% of what a person, IDE, or LLM does with niva is authorin
 
 ## 3. The plan IR — the contract that unlocks everything
 
-The single most important artifact is a **versioned, language-agnostic "resolved plan"**. Specify it once and language + packaging become swappable implementation details.
+> **IR = intermediate representation.** A stable, structured, machine-readable form that sits
+> *between* the source (`.niva` text) and execution — the way a compiler's bytecode sits between
+> source code and the CPU. Consumers work against the IR, never the raw text or the internal
+> objects, so the front-end (parser/binder/language) and the back-end (executor/packaging) can each
+> change independently as long as the IR stays stable.
+
+The single most important artifact is exactly that: a **versioned, language-agnostic "resolved plan"**
+(`plan.json`). Specify it once and language + packaging become swappable implementation details.
 
 ```mermaid
 flowchart LR
