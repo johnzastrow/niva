@@ -1,10 +1,20 @@
 """Tests for the repl's manifest-driven tab completion (`niva.cli.repl.completions`). Pure
 Python, no QGIS, no prompt_toolkit — the completion logic is a plain, testable function."""
 
+import contextlib
+import io
 import unittest
 
-from niva.cli.repl import completions
+from niva.cli.repl import _handle, completions
 from niva.manifest import build_manifest
+
+
+def _run(line, state=None):
+    """Drive one repl line; return (rc, printed-text)."""
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        rc = _handle(line, state if state is not None else {"last": None})
+    return rc, buf.getvalue()
 
 
 def _verb(name):
@@ -50,6 +60,28 @@ class TestReplCompletion(unittest.TestCase):
 
     def test_unknown_verb_offers_nothing(self):
         self.assertEqual(completions("definitelynotaverb "), [])
+
+
+class TestReplCommands(unittest.TestCase):
+    def test_quit_variants_all_quit(self):
+        for q in (".quit", ".exit", ".q", "quit", "exit", "q", r"\q", ":q"):
+            self.assertEqual(_run(q)[0], "quit", q)
+
+    def test_help_variants_print_help(self):
+        for h in (".help", ".?", ".h", "?", "help", r"\?", ":h", ":help"):
+            rc, out = _run(h)
+            self.assertEqual(rc, "", h)
+            self.assertIn("commands:", out, h)
+
+    def test_mistyped_dot_command_is_flagged_not_parsed(self):
+        rc, out = _run(".quti")
+        self.assertEqual(rc, "")
+        self.assertIn("unknown command", out)
+
+    def test_flow_line_is_validated_and_remembered(self):
+        state = {"last": None}
+        _run("load a.gpkg | save b.gpkg", state)
+        self.assertEqual(state["last"], "load a.gpkg | save b.gpkg")
 
 
 if __name__ == "__main__":

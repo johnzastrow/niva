@@ -30,3 +30,17 @@ load a.gpkg | buf
 
 # test_unknown_verb_offers_nothing
 #   (pure Python — no niva flow)
+
+# ── TestReplCommands ────────────────────────────────────────────
+
+# test_quit_variants_all_quit
+#   (pure Python — no niva flow)
+
+# test_help_variants_print_help
+#   (pure Python — no niva flow)
+
+# test_mistyped_dot_command_is_flagged_not_parsed
+#   (pure Python — no niva flow)
+
+# test_flow_line_is_validated_and_remembered
+load a.gpkg | save b.gpkg
