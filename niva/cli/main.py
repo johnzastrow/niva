@@ -37,7 +37,7 @@ _USAGE = (
     "       niva manifest [to=<file>]                 (machine-readable verb catalog, JSON)\n"
     "       niva search <keyword> [limit=N] [--json]  (fuzzy + synonym-aware discovery, offline)\n"
     "       niva find [glob] [in <dir>…] [--geom …] [--crs …] [--json|--as-flow|--paths|-0]  (discover data)\n"
-    "       niva setup [doctor|show|init|path|get <k>|set <k> <v>|unset <k>]  (doctor: env health check; portable config)\n"
+    "       niva setup [doctor|wizard|show|init|path|get <k>|set <k> <v>|unset <k>]  (doctor: health check; wizard: guided config)\n"
     "       niva describe <verb-or-algorithm-id>\n"
     "       niva repl                                  (interactive authoring; Tab completion with the [cli] extra)\n"
     "       niva pdal [check|test|setup]   (set up & test the point-cloud backend)\n"
@@ -747,6 +747,9 @@ def _setup(args) -> int:
 
         return _doctor(rest)
 
+    if action == "wizard":
+        return _setup_wizard()
+
     if action == "init":
         path, written = cfg.write_template(force="--force" in rest)
         if not written:
@@ -822,10 +825,91 @@ def _setup(args) -> int:
         return 0
 
     print(
-        "usage: niva setup [doctor | show | init | path | get <key> | set <key> <value> | unset <key>]",
+        "usage: niva setup [doctor | wizard | show | init | path | get <key> | set <key> <value> | unset <key>]",
         file=sys.stderr,
     )
     return 2
+
+
+def _setup_wizard() -> int:
+    """`niva setup wizard` — an interactive walk-through of niva's portable settings. For each
+    known key: shows the current value (config, else the mirrored env var, else an example),
+    then Enter keeps it, a typed value sets it, and `-` clears it. Secrets are never prompted —
+    they belong in the environment; the wizard only reminds you which env vars to set. Writes
+    through the same `config.set_key`/`unset_key` as `niva setup set`, so it's fully portable."""
+    from .. import color
+    from .. import config as cfg
+
+    data = cfg.load()
+    path = cfg.config_path()
+    print(
+        color.paint("niva setup wizard", "bold")
+        + " — configure niva's portable settings"
+    )
+    print(color.paint(f"config file: {path}", "dim"))
+    print(
+        "For each setting: press "
+        + color.paint("Enter", "bold")
+        + " to keep it, type a value to set it, or "
+        + color.paint("-", "bold")
+        + " to clear it. Ctrl-D to stop.\n"
+    )
+
+    keys = list(cfg.KNOWN_KEYS.items())
+    changes = 0
+    for i, (key, (env, comment)) in enumerate(keys, 1):
+        cur, src = data.get(key), ""
+        if cur is None and os.environ.get(env):
+            cur, src = os.environ[env], f" (from ${env})"
+        if cur:
+            shown = color.paint(str(cur), "green") + color.paint(src, "dim")
+        else:
+            example = cfg._EXAMPLES.get(key, "")
+            shown = color.paint("not set", "dim") + (
+                color.paint(f"   e.g. {example}", "dim") if example else ""
+            )
+        print(
+            f"{color.paint(f'[{i}/{len(keys)}]', 'dim')} {color.paint(key, 'cyan')} — {comment}"
+        )
+        print(f"   current: {shown}")
+        try:
+            resp = input(color.paint("   › ", "yellow")).strip()
+        except EOFError:
+            print()
+            break
+        if resp == "-":
+            if key in data:
+                cfg.unset_key(key)
+                data.pop(key, None)
+                changes += 1
+                print(color.paint("   cleared", "dim"))
+        elif resp:
+            cfg.set_key(key, resp)
+            data[key] = resp
+            changes += 1
+            print(color.paint("   set", "green"))
+        print()
+
+    print(
+        color.paint(
+            "Secrets — set these in your environment (never the config file):", "bold"
+        )
+    )
+    for skey, senv in cfg.SECRET_KEYS.items():
+        state = (
+            color.paint("set", "green")
+            if os.environ.get(senv)
+            else color.paint("unset", "yellow")
+        )
+        print(f"  {color.paint(senv, 'cyan')}  ({skey}) — {state}")
+    print()
+
+    if changes:
+        print(color.paint(f"saved {changes} change(s) → {path}", "green"))
+    else:
+        print(color.paint("no changes", "dim"))
+    print(color.paint("verify with `niva setup doctor`.", "dim"))
+    return 0
 
 
 def _manifest(args) -> int:
