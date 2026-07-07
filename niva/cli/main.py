@@ -36,7 +36,7 @@ _USAGE = (
     '       niva explain <file.niva> | "<flow>"       (human view of the resolved plan)\n'
     "       niva manifest [to=<file>]                 (machine-readable verb catalog, JSON)\n"
     "       niva search <keyword> [limit=N] [--json]  (fuzzy + synonym-aware discovery, offline)\n"
-    "       niva find [glob] [in <dir>…] [--geom …] [--crs …] [--json|--as-flow]  (discover data)\n"
+    "       niva find [glob] [in <dir>…] [--geom …] [--crs …] [--json|--as-flow|--paths|-0]  (discover data)\n"
     "       niva setup [show|init|path|get <k>|set <k> <v>|unset <k>]  (portable config; init writes a sample)\n"
     "       niva describe <verb-or-algorithm-id>\n"
     "       niva repl                                  (interactive authoring; Tab completion with the [cli] extra)\n"
@@ -586,7 +586,7 @@ def _find(args) -> int:
     crit: dict = {}
     roots: list = []
     pattern = None
-    as_json = as_flow = all_files = shallow = no_meta = False
+    as_json = as_flow = as_paths = nul = all_files = shallow = no_meta = False
     limit, max_depth = 500, None
     in_mode = False
     i = 0
@@ -600,6 +600,10 @@ def _find(args) -> int:
                 as_json = True
             elif a == "--as-flow":
                 as_flow = True
+            elif a in ("--paths", "-l"):
+                as_paths = True
+            elif a in ("--print0", "-0"):
+                as_paths = nul = True
             elif a == "--all-files":
                 all_files = True
             elif a == "--shallow":
@@ -672,7 +676,15 @@ def _find(args) -> int:
         limit=limit,
         do_enrich=not no_meta,
     )
-    if as_json:
+    if as_paths:
+        out = F.format_paths(records, nul=nul)
+        # NUL-separated output must not get a trailing newline (xargs -0 would see an
+        # empty final arg); write raw. The newline form gets the usual trailing newline.
+        if nul:
+            sys.stdout.write(out)
+        elif out:
+            print(out)
+    elif as_json:
         print(F.format_json(records))
     elif as_flow:
         print(F.format_as_flow(records))

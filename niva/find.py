@@ -381,6 +381,15 @@ def format_json(records) -> str:
     return json.dumps(records, indent=2, ensure_ascii=False, default=str)
 
 
+def format_paths(records, *, nul: bool = False) -> str:
+    """Just the absolute paths, one per line — the script-friendly output. Nothing else:
+    no header, count, or colour, so it pipes cleanly into other tools
+    (``… | xargs``, ``… | wc -l``, ``… > list.txt``). With ``nul=True`` the paths are
+    NUL-separated (for ``xargs -0`` and paths containing spaces or newlines)."""
+    paths = [r["path"] for r in records]
+    return "\0".join(paths) if nul else "\n".join(paths)
+
+
 def format_as_flow(records) -> str:
     """A runnable batch skeleton: one ``each "<path>" | <stages> | save …`` line per match, so
     *find becomes the source of a flow*. Fill in the middle stages and the output, then run."""

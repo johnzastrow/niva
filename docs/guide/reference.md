@@ -647,6 +647,17 @@ per-item output behaviour.
 each "in/*.shp" | reproject EPSG:6346 | save out.gpkg
 ```
 
+**Filters** — narrow the batch with flat `option=value` filters, the same vocabulary as
+`niva find` (so a filtered `each` selects exactly what `find` would show). Offline filters —
+`ext`, `minsize`, `maxsize`, `newerthan`, `format` — need nothing; the GDAL-enriched filters
+— `geom`, `crs`, `minfeatures`, `maxfeatures`, `hasfield` — need QGIS's Python (`each` loads
+via QGIS anyway). Sizes take `k`/`M`/`G` (e.g. `minsize=1M`); `newerthan` takes `30s`/`24h`/`7d`.
+
+```
+each "data/**/*.gpkg" geom=polygon minfeatures=1 | dissolve | save out.gpkg
+each "tiles/*.tif" newerthan=7d | hillshade | save "out/{name}.tif"
+```
+
 ### `call` — run another `.niva` file inline *(statement)*
 
 ```
@@ -863,6 +874,7 @@ niva import <file.py>   [-o <file.niva>]
 | `niva plan flow.niva` / `niva plan "<flow>"` | emit the **resolved plan** as JSON — the compiled flow as an *intermediate representation* (IR): each stage's resolved `provider:algorithm`, parameters, injected defaults, and diagnostics. The machine-readable contract downstream tools read (no QGIS) |
 | `niva manifest [to=<file>]` | emit the **machine-readable verb catalog** as JSON — every verb's algorithm, parameters, defaults, enums, synonyms, and example, for IDEs / LSP / LLM agents (no QGIS) |
 | `niva describe <name> [to=<file>]` | introspect a verb or algorithm id (with a runnable example) |
+| `niva find [glob] [in <dir>…] [filters]` | discover spatial data on the filesystem (offline; GDAL filters when on QGIS's Python). Output: aligned table (default), `--json`, `--as-flow` (an `each …` skeleton), or **`--paths`** / **`-0`** — bare absolute paths for piping into other tools (`… --paths \| xargs …`, `… -0 \| xargs -0 …`, `… --paths > list.txt`) |
 | `niva "search <kw>"` / `niva "docs <kw>"` | fuzzy-find functions / build a mini-guide (flow verbs; need QGIS) |
 | `niva export flow.niva [-o out.py]` | transpile a flow to a standalone PyQGIS script |
 | `niva import script.py [-o out.niva]` | recover a flow from a niva-shaped PyQGIS script |

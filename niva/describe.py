@@ -139,8 +139,10 @@ BUILTINS = {
         "remove old_output.gpkg",
     ),
     "each": (
-        "Run the rest of the flow once per dataset in a directory/glob (flow prefix).",
-        'each "tiles/*.tif" | warp EPSG:3857 | save "out/{name}.tif"',
+        "Run the rest of the flow once per dataset in a directory/glob (flow prefix). "
+        "Optional filters (flat options, same vocabulary as `find`): ext, minsize, maxsize, "
+        "newerthan, format, geom, crs, minfeatures, maxfeatures, hasfield.",
+        'each "tiles/*.tif" geom=polygon minfeatures=1 | warp EPSG:3857 | save "out/{name}.tif"',
     ),
     "call": (
         "Run another .niva file inline (procedural reuse).",

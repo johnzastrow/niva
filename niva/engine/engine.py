@@ -311,57 +311,160 @@ class Engine:
                 line=stage.line,
                 stage=stage.raw,
             )
+        crit = self._each_crit(stage)
         items = self._resolve_sources(
-            stage.args[0], verb="each", line=stage.line, raw=stage.raw
+            stage.args[0], verb="each", line=stage.line, raw=stage.raw, crit=crit
         )
         if not items:
+            suffix = " matching the filters" if crit else ""
             raise FlowError(
-                f"`each`: no geospatial datasets found in `{stage.args[0]}`",
+                f"`each`: no geospatial datasets found in `{stage.args[0]}`{suffix}",
                 line=stage.line,
                 stage=stage.raw,
             )
         return items
 
-    def _resolve_sources(self, source: str, *, verb: str, line: int, raw: str) -> list:
+    # each's filter options → niva.find's `crit` dict. Reusing find's predicates means a
+    # filtered `each` selects exactly what `niva find` would show (and what `find --as-flow`
+    # emits), so the two commands never disagree. Keys are flat `option=value` (no grammar
+    # change); meta filters (geom/crs/features/hasfield) need GDAL, which `each` has anyway.
+    def _each_crit(self, stage) -> dict | None:
+        """Build a find `crit` dict from ``each``'s flat filter options, or None if the stage
+        has no filters. Bad values (non-numeric count, unparseable size/age) become located
+        `FlowError`s rather than bare tracebacks."""
+        if not stage.options:
+            return None
+        from .. import find as _find
+
+        def _num(key, val, conv, what):
+            try:
+                return conv(val)
+            except (ValueError, TypeError) as exc:
+                raise FlowError(
+                    f"`each {key}={val}` — {what}",
+                    line=stage.line,
+                    stage=stage.raw,
+                ) from exc
+
+        crit: dict = {}
+        for key, val in stage.options.items():
+            if key == "ext":
+                crit["exts"] = {
+                    e.strip().lower().lstrip(".") for e in val.split(",") if e.strip()
+                }
+            elif key == "minsize":
+                crit["min_size"] = _num(
+                    key, val, _find.parse_size, "not a size (e.g. 10k, 2.5M)"
+                )
+            elif key == "maxsize":
+                crit["max_size"] = _num(
+                    key, val, _find.parse_size, "not a size (e.g. 10k, 2.5M)"
+                )
+            elif key == "newerthan":
+                age = _num(
+                    key, val, _find.parse_age, "not a duration (e.g. 30s, 24h, 7d)"
+                )
+                crit["newer_than"] = time.time() - age
+            elif key == "format":
+                crit["format"] = val
+            elif key == "geom":
+                crit["geom"] = val
+            elif key == "crs":
+                crit["crs"] = val
+            elif key == "minfeatures":
+                crit["min_features"] = _num(key, val, int, "not a whole number")
+            elif key == "maxfeatures":
+                crit["max_features"] = _num(key, val, int, "not a whole number")
+            elif key == "hasfield":
+                crit["has_field"] = val
+            else:
+                raise FlowError(
+                    f"`each`: unknown option `{key}=` — filters are ext, minsize, "
+                    "maxsize, newerthan, format, geom, crs, minfeatures, maxfeatures, "
+                    "hasfield",
+                    line=stage.line,
+                    stage=stage.raw,
+                )
+        return crit or None
+
+    def _resolve_sources(
+        self, source: str, *, verb: str, line: int, raw: str, crit: dict | None = None
+    ) -> list:
         """Resolve a directory / glob / file ``source`` to ordered (name, load-uri) items,
         expanding a multi-layer container (GeoPackage) to one item per layer. Shared by
-        `each` and `project new` (``verb`` only labels the errors)."""
+        `each` and `project new` (``verb`` only labels the errors). When ``crit`` is given
+        (``each``'s filters only), candidate *files* are filtered with niva.find's predicates
+        before expansion, so filtering matches `niva find` exactly."""
         from ..utilities import CATALOG_MULTILAYER_EXTS, facet_for_ext
 
         src = os.path.expanduser(source)
-        items: list = []
 
-        def add(path):
-            ext = os.path.splitext(path)[1]
-            if facet_for_ext(ext) is None:
-                return
-            if ext.lower() in CATALOG_MULTILAYER_EXTS:
-                names = self.backend.sublayers(path)
-                if names:
-                    items.extend((n, f"{path}|layername={n}") for n in names)
-                    return
-            items.append((os.path.splitext(os.path.basename(path))[0], path))
-
+        # Gather candidate file paths first, so a file-level filter (crit) can run before we
+        # expand a multi-layer container to per-layer items.
+        paths: list[str] = []
         if any(c in src for c in "*?["):  # glob pattern
             matches = sorted(glob.glob(src))
             if not matches:
                 raise FlowError(
                     f"`{verb}`: no files match `{source}`", line=line, stage=raw
                 )
-            for m in matches:
-                if os.path.isfile(m):
-                    add(m)
+            paths = [m for m in matches if os.path.isfile(m)]
         elif os.path.isdir(src):  # recurse a directory
             for dirpath, _dirs, files in os.walk(src):
-                for fn in sorted(files):
-                    add(os.path.join(dirpath, fn))
+                paths.extend(os.path.join(dirpath, fn) for fn in sorted(files))
         elif os.path.isfile(src):  # a single file (maybe multi-layer)
-            add(src)
+            paths = [src]
         else:
             raise FlowError(
                 f"`{verb}`: no such file or directory: {src}", line=line, stage=raw
             )
+
+        if crit:
+            paths = self._filter_paths(paths, crit, verb=verb, line=line, raw=raw)
+
+        items: list = []
+        for path in paths:
+            ext = os.path.splitext(path)[1]
+            if facet_for_ext(ext) is None:  # not a geospatial file — skip
+                continue
+            if ext.lower() in CATALOG_MULTILAYER_EXTS:
+                names = self.backend.sublayers(path)
+                if names:
+                    items.extend((n, f"{path}|layername={n}") for n in names)
+                    continue
+            items.append((os.path.splitext(os.path.basename(path))[0], path))
         return items
+
+    def _filter_paths(
+        self, paths: list, crit: dict, *, verb: str, line: int, raw: str
+    ) -> list:
+        """Keep only the file paths passing ``crit`` (find's criteria). Offline filters run
+        first (cheap); the GDAL-enriched filters (geom/crs/features/hasfield) probe only the
+        survivors — and, since they need OGR, raise a clear error if GDAL isn't importable."""
+        from .. import find as _find
+
+        wants_meta = any(
+            crit.get(k) is not None
+            for k in ("geom", "crs", "min_features", "max_features", "has_field")
+        )
+        if wants_meta and not _find.have_gdal():
+            raise FlowError(
+                f"`{verb}`: the geom/crs/features/hasfield filters need GDAL/OGR — "
+                "run this flow on QGIS's Python",
+                line=line,
+                stage=raw,
+            )
+        out: list = []
+        for path in paths:
+            rec = _find.base_record(path)
+            if not _find.match_base(rec, crit):
+                continue
+            if wants_meta:
+                _find.enrich(rec)
+                if not _find.match_meta(rec, crit):
+                    continue
+            out.append(path)
+        return out
 
     def _record(self, stage, text, *, ok, t0, error=None) -> None:
         note = getattr(self.backend, "_note", None)

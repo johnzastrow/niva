@@ -1,8 +1,9 @@
 # niva Cookbook
 
-Fifty worked recipes, from a single transform to full pipelines — including a large block of
-spatial **SQL** for both **SpatiaLite** and **PostGIS** — plus a closing tour that reaches
-**every QGIS provider** (GDAL, GRASS, QGIS, PDAL, native, 3D) through the `run` escape hatch.
+Over a hundred worked recipes, from a single transform to full pipelines — including a large
+block of spatial **SQL** for both **SpatiaLite** and **PostGIS**, data **discovery** with
+`find` and `catalog`, plus a closing tour that reaches **every QGIS provider** (GDAL, GRASS,
+QGIS, PDAL, native, 3D) through the `run` escape hatch.
 Pair this with the [Reference](reference.md) for exact signatures and the
 [User Guide](user-guide.md) for setup.
 
@@ -179,38 +180,56 @@ each "deliverables/" | reproject EPSG:6346 | save @pg.staging
 A trailing qualifier on a batch DB save is the **schema** (`staging`); each layer becomes a
 table there.
 
+**28. Filter the batch — only the datasets that match**
+```
+each "data/**/*.gpkg" geom=polygon minfeatures=1 | dissolve | save merged.gpkg
+each "tiles/*.tif" newerthan=7d | hillshade | save "out/{name}.tif"
+```
+`each` takes the same filters as `niva find` (flat `option=value`): offline `ext` / `minsize`
+/ `maxsize` / `newerthan` / `format`, and — on QGIS's Python — `geom` / `crs` / `minfeatures`
+/ `maxfeatures` / `hasfield`.
+
+**29. Pipe `find` into other tools (non-niva)**
+```
+niva find "*.gpkg" in ~/data --paths > inventory.txt      # a plain file list
+niva find "*.tif" in ~/data --paths | wc -l               # count them
+niva find "*.shp" in ~/data -0 | xargs -0 -n1 ogrinfo -so # feed any CLI, spaces-safe
+```
+`--paths` prints just the absolute paths (one per line, nothing else); `-0` NUL-separates
+them for `xargs -0`. Use `--as-flow` instead when you want a runnable `each …` skeleton.
+
 ---
 
 ## F. Raster & terrain
 
-**28. Reproject (warp) a raster**
+**30. Reproject (warp) a raster**
 ```
 load dem.tif | warp EPSG:6346 | save dem_utm.tif
 ```
 
-**29. Warp and resample to a target pixel size**
+**31. Warp and resample to a target pixel size**
 ```
 load ortho.tif | warp EPSG:6346 resolution=5 resampling=average | save ortho_5m.tif
 ```
 `average` is the right resampler when down-sampling imagery.
 
-**30. Clip a raster to a mask layer**
+**32. Clip a raster to a mask layer**
 ```
 load dem.tif | clipraster aoi.gpkg | save dem_aoi.tif
 ```
 
-**31. Hillshade from a DEM**
+**33. Hillshade from a DEM**
 ```
 load dem.tif | hillshade z_factor=2 azimuth=315 altitude=45 | save hillshade.tif
 ```
 
-**32. Slope (in percent) and aspect**
+**34. Slope (in percent) and aspect**
 ```
 load dem.tif | slope percent | save slope_pct.tif
 load dem.tif | aspect | save aspect.tif
 ```
 
-**33. Vectorise a classified raster**
+**35. Vectorise a classified raster**
 ```
 load landcover.tif | polygonize field=class | save landcover_zones.gpkg
 ```
@@ -223,37 +242,37 @@ These use a saved **SpatiaLite** connection `@sl`. A `SELECT`/`WITH` returns a l
 pipe; anything else runs in the database. Adjust table/column/geometry names to your schema
 (SpatiaLite geometry columns are often `geometry` or `geom`).
 
-**34. Read a filtered subset as a layer**
+**36. Read a filtered subset as a layer**
 ```
 sql @sl "SELECT * FROM parcels WHERE zoning = 'R1'" | save residential.gpkg
 ```
 
-**35. Filter by a spatial measure**
+**37. Filter by a spatial measure**
 ```
 sql @sl "SELECT id, zoning, geometry FROM parcels WHERE ST_Area(geometry) > 2000" | save big_parcels.gpkg
 ```
 
-**36. Compute geometry server-side, then keep processing in niva**
+**38. Compute geometry server-side, then keep processing in niva**
 ```
 sql @sl "SELECT id, ST_Buffer(geometry, 50) AS geometry FROM wells" | reproject EPSG:6346 | save well_buffers.gpkg
 ```
 
-**37. Spatial join — points within polygons**
+**39. Spatial join — points within polygons**
 ```
 sql @sl "SELECT p.id, z.zone, p.geometry FROM points p JOIN zones z ON ST_Within(p.geometry, z.geometry)" | save points_zoned.gpkg
 ```
 
-**38. Aggregate to an attribute table**
+**40. Aggregate to an attribute table**
 ```
 sql @sl "SELECT zoning, COUNT(*) AS n, SUM(ST_Area(geometry)) AS total_area FROM parcels GROUP BY zoning" | save zoning_summary.gpkg
 ```
 
-**39. Dissolve by attribute with `ST_Union`**
+**41. Dissolve by attribute with `ST_Union`**
 ```
 sql @sl "SELECT zoning, ST_Union(geometry) AS geometry FROM parcels GROUP BY zoning" | save zoning_dissolved.gpkg
 ```
 
-**40. CTE, then hand off to a niva verb**
+**42. CTE, then hand off to a niva verb**
 ```
 sql @sl "WITH big AS (SELECT * FROM parcels WHERE ST_Area(geometry) > 5000) SELECT * FROM big" | centroid | save big_centroids.gpkg
 ```
@@ -265,40 +284,40 @@ sql @sl "WITH big AS (SELECT * FROM parcels WHERE ST_Area(geometry) > 5000) SELE
 These use a saved **PostGIS** connection `@pg`. Reads (`SELECT`/`WITH`) return a pipeable
 layer; writes (`CREATE`/`UPDATE`/`INSERT`/`CREATE INDEX`/…) run server-side and end the flow.
 
-**41. Read a table (schema-qualified)**
+**43. Read a table (schema-qualified)**
 ```
 load @pg.public.roads | save roads_local.gpkg
 ```
 Equivalent read via SQL: `sql @pg "SELECT * FROM public.roads" | save roads_local.gpkg`.
 
-**42. Filter in the database, finish in niva**
+**44. Filter in the database, finish in niva**
 ```
 sql @pg "SELECT * FROM roads WHERE class = 'primary'" | buffer 50m dissolve | save primary_corridors.gpkg
 ```
 
-**43. Do the spatial work in SQL (the server-side lever)**
+**45. Do the spatial work in SQL (the server-side lever)**
 ```
 sql @pg "SELECT id, ST_Buffer(geom, 100) AS geom FROM homes WHERE has_cat AND NOT has_dog" | save targets.gpkg
 ```
 
-**44. Cross-table spatial join**
+**46. Cross-table spatial join**
 ```
 sql @pg "SELECT a.id, a.geom FROM parcels a JOIN flood b ON ST_Intersects(a.geom, b.geom)" | save parcels_at_risk.gpkg
 ```
 
-**45. Write a niva result back into PostGIS**
+**47. Write a niva result back into PostGIS**
 ```
 load parcels.gpkg | clip aoi.gpkg | save @pg.public.parcels_clip mode=replace
 ```
 `mode=create` (default) refuses to overwrite; `replace` drops + recreates; `append` inserts.
 
-**46. Analyse-in-place: materialise a derived table**
+**48. Analyse-in-place: materialise a derived table**
 ```
 sql @pg "CREATE TABLE roads_buf AS SELECT id, ST_Buffer(geom, 100) AS geom FROM roads"
 ```
 A leading `CREATE` routes server-side (terminal) — even `CREATE TABLE … AS SELECT …`.
 
-**47. Maintenance — update a column and add a spatial index**
+**49. Maintenance — update a column and add a spatial index**
 ```
 sql @pg "UPDATE parcels SET area_m2 = ST_Area(geom)"
 sql @pg "CREATE INDEX ON roads_buf USING GIST (geom)"
@@ -308,18 +327,18 @@ sql @pg "CREATE INDEX ON roads_buf USING GIST (geom)"
 
 ## I. Projects & templates
 
-**48. Repoint a QGIS project to clipped data**
+**50. Repoint a QGIS project to clipped data**
 ```
 project "city.qgs" to="out/city_aoi.qgs" repoint="out/clipped.gpkg" missing=keep
 ```
 Copies the project and points each layer at the same-named layer in `clipped.gpkg`.
 
-**49. Build a fresh project from a folder of outputs**
+**51. Build a fresh project from a folder of outputs**
 ```
 project new from="out/" to="deliverable.qgz" crs=EPSG:6346 title="Deliverable"
 ```
 
-**50. Instantiate a styled, laid-out template against your data**
+**52. Instantiate a styled, laid-out template against your data**
 ```
 project from-template=example to="report.qgz" data="mydata/"
 ```
@@ -350,67 +369,67 @@ Two things to know when using `run` directly:
 
 ### GDAL (`gdal:`) — raster/vector via GDAL/OGR
 
-**51. Contour lines from a DEM**
+**53. Contour lines from a DEM**
 ```
 load dem.tif | run gdal:contour INTERVAL=10 FIELD_NAME=ELEV | save contours.gpkg
 ```
 
-**52. Rasterize a vector field (10-unit pixels)**
+**54. Rasterize a vector field (10-unit pixels)**
 ```
 load parcels.gpkg | run gdal:rasterize FIELD=value UNITS=1 WIDTH=10 HEIGHT=10 | save parcels_value.tif
 ```
 
-**53. Proximity (distance-to-target) raster**
+**55. Proximity (distance-to-target) raster**
 ```
 load targets.tif | run gdal:proximity UNITS=0 MAX_DISTANCE=500 | save distance.tif
 ```
 
-**54. Fill small NoData gaps by interpolation**
+**56. Fill small NoData gaps by interpolation**
 ```
 load gappy.tif | run gdal:fillnodata DISTANCE=20 | save filled.tif
 ```
 
 ### GRASS (`grass:`) — named outputs (terminal), enums as integers
 
-**55. Slope and aspect from a DEM**
+**57. Slope and aspect from a DEM**
 ```
 run grass:r.slope.aspect elevation=dem.tif format=0 slope=slope.tif aspect=aspect.tif
 ```
 
-**56. Watershed flow accumulation and basins**
+**58. Watershed flow accumulation and basins**
 ```
 run grass:r.watershed elevation=dem.tif threshold=1000 accumulation=flowacc.tif basin=basins.tif
 ```
 
-**57. Least-cost surface from a start point**
+**59. Least-cost surface from a start point**
 ```
 run grass:r.cost input=cost_surface.tif start_coordinates=600100,4800100 output=cumulative_cost.tif
 ```
 
-**58. Viewshed from an observer**
+**60. Viewshed from an observer**
 ```
 run grass:r.viewshed input=dem.tif coordinates=600100,4800100 observer_elevation=1.75 max_distance=5000 output=visible.tif
 ```
 
 ### QGIS (`qgis:`) — the QGIS-Python toolbox
 
-**59. Virtual-layer SQL across files (`input1`, `input2`, …)**
+**61. Virtual-layer SQL across files (`input1`, `input2`, …)**
 ```
 run qgis:executesql INPUT_DATASOURCES="roads.gpkg;parcels.gpkg" INPUT_QUERY="SELECT * FROM input1 WHERE class = 'primary'" | save primary.gpkg
 ```
 This is the file-backed SQL form (the `sql` verb itself only queries `@conn` databases).
 
-**60. Concave hull (k-nearest neighbour)**
+**62. Concave hull (k-nearest neighbour)**
 ```
 load points.gpkg | run qgis:knearestconcavehull KNEIGHBORS=5 | save hull.gpkg
 ```
 
-**61. Random sample points inside polygons**
+**63. Random sample points inside polygons**
 ```
 load tracts.gpkg | run qgis:randompointsinsidepolygons STRATEGY=0 VALUE=100 MIN_DISTANCE=50 | save sample.gpkg
 ```
 
-**62. Spread overlapping (stacked) points apart**
+**64. Spread overlapping (stacked) points apart**
 ```
 load stacked.gpkg | run qgis:pointsdisplacement PROXIMITY=5 DISTANCE=10 HORIZONTAL=false | save displaced.gpkg
 ```
@@ -421,52 +440,52 @@ load stacked.gpkg | run qgis:pointsdisplacement PROXIMITY=5 DISTANCE=10 HORIZONT
 > COPC index first). For **raw LAS/LAZ with no COPC step** — and classification-aware LiDAR
 > workflows — use niva's `pdalcli:` harness in **§L** below.
 
-**63. Export a DEM from a LiDAR cloud, then hillshade it**
+**65. Export a DEM from a LiDAR cloud, then hillshade it**
 ```
 run pdal:exportraster INPUT=lidar.copc.laz ATTRIBUTE=Z RESOLUTION=1 | hillshade z_factor=2 | save lidar_hillshade.tif
 ```
 `exportraster` outputs a raster (`OUTPUT`), so it pipes into niva's raster verbs.
 
-**64. Classify ground returns**
+**66. Classify ground returns**
 ```
 run pdal:classifyground INPUT=lidar.laz OUTPUT=ground_classified.laz
 ```
 
-**65. Extract the cloud's data-boundary polygon**
+**67. Extract the cloud's data-boundary polygon**
 ```
 run pdal:boundary INPUT=lidar.laz RESOLUTION=10 THRESHOLD=10 OUTPUT=cloud_extent.gpkg
 ```
 
-**66. Thin a dense cloud by sampling radius**
+**68. Thin a dense cloud by sampling radius**
 ```
 run pdal:thinbyradius INPUT=lidar.laz SAMPLING_RADIUS=2 OUTPUT=thinned.laz
 ```
 
 ### Native (`native:`) — beyond the alias verbs
 
-**67. Join the nearest feature from another layer**
+**69. Join the nearest feature from another layer**
 ```
 load schools.gpkg | run native:joinbynearest INPUT_2=parcels.gpkg NEIGHBORS=1 MAX_DISTANCE=500 | save schools_parcel.gpkg
 ```
 
-**68. DBSCAN point clustering**
+**70. DBSCAN point clustering**
 ```
 load incidents.gpkg | run native:dbscanclustering MIN_SIZE=5 EPS=250 | save incident_clusters.gpkg
 ```
 
-**69. Shortest path over a road network**
+**71. Shortest path over a road network**
 ```
 load roads.gpkg | run native:shortestpathpointtopoint STRATEGY=0 START_POINT="600100,4800100" END_POINT="601000,4801000" | save route.gpkg
 ```
 
-**70. Hub-and-spoke (spider) lines**
+**72. Hub-and-spoke (spider) lines**
 ```
 run native:hublines HUBS=depots.gpkg HUB_FIELD=id SPOKES=stops.gpkg SPOKE_FIELD=depot_id | save spider.gpkg
 ```
 
 ### 3D (`3d:`)
 
-**71. Tessellate polygons into 3D geometry**
+**73. Tessellate polygons into 3D geometry**
 ```
 load buildings.gpkg | run 3d:tessellate | save buildings_3d.gpkg
 ```
@@ -483,33 +502,33 @@ directly** (no COPC step) — the natural home for classification-aware LiDAR. T
 outputs are kept with an explicit `output=`. Needs `pdal_wrench` (see the
 [PDAL/LAStools guide](pdal-lastools-qgis4.md)). Filter by ASPRS class with a PDAL expression.
 
-**72. DTM — bare earth from GROUND returns (class 2)**
+**74. DTM — bare earth from GROUND returns (class 2)**
 ```
 load tile.las | run pdalcli:to_raster attribute=Z filter="Classification==2" resolution=1 | save dtm.tif
 ```
 
-**73. DSM — top surface from all returns**
+**75. DSM — top surface from all returns**
 ```
 load tile.las | run pdalcli:to_raster attribute=Z resolution=1 | save dsm.tif
 ```
 
-**74. CHM — canopy height = DSM − DTM (GRASS aligns the two grids)**
+**76. CHM — canopy height = DSM − DTM (GRASS aligns the two grids)**
 ```
 run grass:r.mapcalc.simple expression="A-B" a=dsm.tif b=dtm.tif output=chm.tif
 ```
 
-**75. Extract one class to its own cloud** (buildings = class 6; ground = 2, water = 9)
+**77. Extract one class to its own cloud** (buildings = class 6; ground = 2, water = 9)
 ```
 load tile.las | run pdalcli:translate filter="Classification==6" output=buildings.laz
 ```
 
-**76. Merge tiles, then clip to an area of interest**
+**78. Merge tiles, then clip to an area of interest**
 ```
 run pdalcli:merge files="a.las;b.las;c.las" output=merged.laz
 load merged.laz | run pdalcli:clip polygon=aoi.gpkg output=study.laz
 ```
 
-**77. Classify ground on unclassified points; density raster for coverage QA**
+**79. Classify ground on unclassified points; density raster for coverage QA**
 ```
 load tile.las | run pdalcli:classify_ground output=classified.laz
 load tile.las | run pdalcli:density resolution=1 | save point_density.tif
@@ -521,7 +540,7 @@ load tile.las | run pdalcli:density resolution=1 | save point_density.tif
 
 Multi-provider chains that turn raw data into finished products. Each is verified end to end.
 
-**78. LiDAR → a full bare-earth terrain set** (DTM once, then three derivatives)
+**80. LiDAR → a full bare-earth terrain set** (DTM once, then three derivatives)
 ```
 load tile.las | run pdalcli:to_raster attribute=Z filter="Classification==2" resolution=1 | save dtm.tif
 load dtm.tif | hillshade z_factor=2 | save dtm_hillshade.tif
@@ -529,7 +548,7 @@ load dtm.tif | slope | save dtm_slope.tif
 load dtm.tif | run gdal:contour BAND=1 INTERVAL=5 FIELD_NAME=elev OUTPUT=contours_5m.gpkg
 ```
 
-**79. Canopy height model → mean tree height per parcel** (PDAL → GRASS → zonal stats)
+**81. Canopy height model → mean tree height per parcel** (PDAL → GRASS → zonal stats)
 ```
 load tile.las | run pdalcli:to_raster attribute=Z filter="Classification==2" resolution=1 | save dtm.tif
 load tile.las | run pdalcli:to_raster attribute=Z resolution=1 | save dsm.tif
@@ -537,30 +556,30 @@ run grass:r.mapcalc.simple expression="A-B" a=dsm.tif b=dtm.tif output=chm.tif
 load parcels.gpkg | zonalstats raster=chm.tif prefix="canopy_" stats=mean | save parcels_canopy.gpkg
 ```
 
-**80. Hydrology from LiDAR** — bare-earth DTM → GRASS flow accumulation + drainage direction
+**82. Hydrology from LiDAR** — bare-earth DTM → GRASS flow accumulation + drainage direction
 ```
 load tile.las | run pdalcli:to_raster attribute=Z filter="Classification==2" resolution=1 | save dtm.tif
 load dtm.tif | run grass:r.watershed elevation=dtm.tif accumulation=flow_accum.tif drainage=flow_dir.tif
 ```
 
-**81. Landform classification** — geomorphons (valleys, ridges, slopes, pits, peaks) from the DTM
+**83. Landform classification** — geomorphons (valleys, ridges, slopes, pits, peaks) from the DTM
 ```
 load dtm.tif | run grass:r.geomorphon elevation=dtm.tif forms=landforms.tif search=15
 ```
 
-**82. Building footprint candidates** — extract the building class, then its coverage polygons
+**84. Building footprint candidates** — extract the building class, then its coverage polygons
 ```
 load tile.las | run pdalcli:translate filter="Classification==6" output=buildings.laz
 load buildings.laz | run pdalcli:boundary | fixgeom | simplify 0.5m | save building_footprints.gpkg
 ```
 
-**83. The simplest possible map** — one layer, one line, no options; `figure` picks a sensible
+**85. The simplest possible map** — one layer, one line, no options; `figure` picks a sensible
 extent, size, and stretch so it just works for vector *or* raster
 ```
 load dem.tif | figure dem.png
 ```
 
-**84. Push it — a full thematic map using every knob** — themed primary layer, a raster hillshade
+**86. Push it — a full thematic map using every knob** — themed primary layer, a raster hillshade
 plus two vector overlays, an OSM basemap, field labels, a borrowed extent, and print-scale output
 ```
 load flood_zones.gpkg | style apply=flood.qml
@@ -576,32 +595,32 @@ Where `figure` is a bare image, **`map`** builds a page **layout** (→ PDF/PNG/
 scale bar, and north arrow **on by default** — a proper map with no template required. These six
 climb from one line to a full multi-layer plate.
 
-**85. Tiny** — one layer, one line; a complete A4 map (legend + scale bar + north arrow)
+**87. Tiny** — one layer, one line; a complete A4 map (legend + scale bar + north arrow)
 ```
 load dem.tif | map dem.pdf
 ```
 
-**86. Add a title**
+**88. Add a title**
 ```
 load parcels.gpkg | map parcels.pdf title="Parcels — 2026"
 ```
 
-**87. Label it, pick a page and format** — PNG on US Letter, features labelled by a field
+**89. Label it, pick a page and format** — PNG on US Letter, features labelled by a field
 ```
 load zones.gpkg | map zones.png title="Zoning" labels=zone_type page=Letter dpi=200
 ```
 
-**88. Themed, with an overlay and a basemap** — styled primary layer over roads over OSM tiles
+**90. Themed, with an overlay and a basemap** — styled primary layer over roads over OSM tiles
 ```
 load flood.gpkg | style apply=flood.qml | map flood.pdf title="Flood Risk" layers="roads.gpkg" basemap=osm labels=risk portrait
 ```
 
-**89. Many layers, many types** — line, two rasters, polygon, and point layers on one A3 plate
+**91. Many layers, many types** — line, two rasters, polygon, and point layers on one A3 plate
 ```
 load contours.gpkg | map terrain.pdf title="Terrain — Multi-Layer" layers="dtm.tif;dsm.tif;building_footprints.gpkg;control_points.gpkg" labels=elev extent=dsm.tif page=A3 landscape dpi=300
 ```
 
-**90. Extreme** — build every derivative from raw LiDAR, then compose one rich A3 plate that stacks
+**92. Extreme** — build every derivative from raw LiDAR, then compose one rich A3 plate that stacks
 a hillshade, contours, footprints and markers over a basemap, framed to a study area at print DPI
 ```
 load tile.las | run pdalcli:to_raster attribute=Z filter="Classification==2" resolution=1 | save dtm.tif
@@ -615,6 +634,77 @@ load contours.gpkg | style apply=contours.qml
 ```
 For a fully hand-designed plate (custom frames, insets, an atlas of per-feature pages), design it
 once in QGIS and export it verbatim: `load aoi.gpkg | map out.pdf from=study.qgz layout="Overview"`.
+
+---
+
+## N. Data discovery & inventory — `find` and `catalog`
+
+`find` locates data on the filesystem; `catalog` profiles it into a Markdown report. Both are
+terminal (they report, they don't transform), and every recipe here is runnable as shown.
+
+### `find` — produce output for various uses
+
+**93. A plain file list (redirect to a file)**
+```
+niva find "*.gpkg" in ~/data --paths > inventory.txt
+```
+`--paths` prints just absolute paths, one per line, nothing else — ideal for a manifest.
+
+**94. Count matches**
+```
+niva find "*.tif" in ~/data --paths | wc -l
+```
+
+**95. Feed any external tool, spaces-safe**
+```
+niva find "*.shp" in ~/data -0 | xargs -0 -n1 ogrinfo -so
+```
+`-0` (alias `--print0`) NUL-separates paths so `xargs -0` handles names with spaces/newlines.
+
+**96. Machine-readable records for scripts / LLMs (`--json` + `jq`)**
+```
+niva find "*.gpkg" in ~/data --json | jq -r '.[] | select(.features > 1000) | .path'
+```
+Each record carries `path`, `format`, `kind`, `size`, and — on QGIS's Python — `geometry`,
+`crs`, `features`, `fields`, `fid_column`.
+
+**97. Only polygon layers with data (GDAL filters), as paths**
+```
+niva find "*.gpkg" in ~/data --geom Polygon --min-features 1 --paths
+```
+
+**98. Turn a search into a runnable batch (`--as-flow`)**
+```
+niva find "*.tif" in ~/rasters --as-flow > batch.txt
+```
+Emits one `each "<path>" | <stages> | save …` line per match — fill in the stages and run.
+
+### `catalog` — inventory to a report
+
+**99. Inventory a directory tree**
+```
+niva catalog "data/" to=reports/inventory.md
+```
+Recurses `data/`, profiling every dataset (type, CRS, geometry/bands, feature count, extent);
+multi-layer containers expand per layer. Omit `to=` to write `data/catalog.md`.
+
+**100. Deep profile — add data-quality checks**
+```
+niva catalog "data/" deep to=reports/inventory_deep.md
+```
+`deep` adds per-layer invalid/empty/duplicate-geometry counts and per-field null counts.
+
+**101. Catalog one container**
+```
+niva catalog "basemap.gpkg" to=reports/basemap.md
+```
+
+**102. Catalog a database connection**
+```
+niva catalog @gisdb3 to=reports/db.md
+```
+`catalog` accepts any source `show` does — a file/container, a directory, an `@conn`
+database (optionally `@conn.schema`), or a remote OWS service.
 
 ---
 
