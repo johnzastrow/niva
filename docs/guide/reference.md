@@ -831,6 +831,7 @@ identically; the only difference is which engine's spatial SQL functions you wri
 | `NIVA_TEMPLATES` | `~/.niva/templates` | Extra directory for named project templates; shadows the user library and bundled templates. Also where `project to-template=<name>` writes. |
 | `NIVA_QGIS_PROFILE` | active desktop profile | **Which QGIS user profile to read** for database connections (the `@conn` names) and other settings, when running standalone. By default niva uses the profile your QGIS desktop last used; set this to another profile's name to target its connections. Run `info` to see all profiles and their connections. |
 | `QGIS_PREFIX_PATH` | `/usr` | QGIS install prefix for standalone bootstrap. |
+| `NIVA_QGIS_PYTHONPATH` | unset | **Where QGIS's Python bindings live**, if niva can't find them. When a standalone `niva` can't `import qgis`, it auto-discovers the bindings by probing this variable first, then `QGIS_PREFIX_PATH`, an inferred macOS `.app` bundle, and the OS defaults (`/usr/share/qgis/python`, `/Applications/QGIS.app/…`). Set it (the dir containing the `qgis/` package, `os.pathsep`-joined for several) only when your QGIS is in a non-standard location. |
 | `QT_QPA_PLATFORM` | `offscreen` (set if unset) | Headless Qt platform for standalone runs. |
 | `NIVA_NTFY_TOPIC` | unset | Default ntfy topic for `notify`. |
 | `NIVA_NTFY_SERVER` | `https://ntfy.sh` | ntfy server URL. |

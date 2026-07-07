@@ -14,9 +14,24 @@ turns off automatically off-TTY / under ``NO_COLOR``.
 
 from __future__ import annotations
 
+import os
 import re
 import sys
 from functools import lru_cache
+
+
+def _history_path() -> str:
+    """Path to the persistent repl command-history file, in niva's config dir (XDG on Linux).
+    The parent dir is created; on any failure we fall back to ``~/.niva_repl_history`` so a
+    read-only config dir never breaks the repl."""
+    try:
+        from ..config import config_dir
+
+        d = config_dir()
+        os.makedirs(d, exist_ok=True)
+        return os.path.join(d, "repl_history")
+    except Exception:  # noqa: BLE001 — history is a nicety; never let it break startup
+        return os.path.expanduser("~/.niva_repl_history")
 
 
 @lru_cache(maxsize=1)
@@ -187,6 +202,7 @@ def _help_text() -> str:
                 "<flow>",
                 "validate a flow (e.g. load a.gpkg | buffer 100m | save b.gpkg)",
             ),
+            row(".run", "execute the last flow against real QGIS (also: .run <flow>)"),
             row(".explain", "show the resolved plan for the last flow"),
             row("?<verb>", "describe a verb (e.g. ?buffer)"),
             row("/<keyword>", "search verbs & the algorithm catalog"),
@@ -228,6 +244,13 @@ def _handle(line: str, state: dict) -> str:
         except Exception as exc:  # noqa: BLE001 — a bad draft must not crash the repl
             print(color.paint(f"✗ {exc}", "red"))
         return ""
+    if line == ".run" or line.startswith(".run "):  # execute against real QGIS
+        flow = line[5:].strip() if line.startswith(".run ") else state.get("last")
+        if not flow:
+            print(color.paint("no flow yet — type one first, then .run", "dim"))
+            return ""
+        _run_flow(flow, state)
+        return ""
     if line.startswith("?"):  # ?verb → describe
         from .. import describe as _describe
 
@@ -259,16 +282,87 @@ def _handle(line: str, state: dict) -> str:
     print(f"{color.paint(sym, sty)} {highlight_flow(line)}")
     if sym != "✓":
         print(f"  {color.paint('→ ' + msg, sty)}")
+    elif not state.get("_run_hinted"):
+        state["_run_hinted"] = (
+            True  # nudge once, so a valid flow's next step is obvious
+        )
+        print(color.paint("  → .run to execute this against QGIS", "dim"))
     return ""
+
+
+def _run_flow(flow: str, state: dict) -> None:
+    """Execute ``flow`` against **real QGIS**, streaming per-stage progress. QGIS is initialised
+    once per session (cached in ``state`` — the first ``.run`` pays the startup cost, later ones
+    are instant) and kept alive; the repl's exit path tears it down safely. Every error is caught
+    and shown, so a bad flow — or a missing QGIS — never ends the session."""
+    import sys
+    import time
+
+    from .. import color
+    from ..engine import Engine
+    from ..engine.native import wrap_native
+    from ..errors import FlowError, OpError
+
+    try:
+        from ..engine.pyqgis import PyqgisBackend, ensure_qgis
+    except ImportError as exc:  # niva installed without the engine? shouldn't happen
+        print(color.paint(f"✗ QGIS backend unavailable: {exc}", "red"))
+        return
+
+    if "qgis_app" not in state:
+        print(color.paint("· starting QGIS (first run)…", "dim"), flush=True)
+        try:
+            app, owns = ensure_qgis()
+        except ImportError as exc:
+            print(
+                color.paint(
+                    "✗ could not import QGIS — run the repl on QGIS's Python, or set "
+                    f"NIVA_QGIS_PYTHONPATH to its bindings. [{exc}]",
+                    "red",
+                )
+            )
+            return
+        except Exception as exc:  # noqa: BLE001 — init can fail many ways; keep the repl alive
+            print(color.paint(f"✗ QGIS failed to start: {exc}", "red"))
+            return
+        state["qgis_app"], state["qgis_owns"] = app, owns
+
+    t0 = time.monotonic()
+
+    def progress(msg):
+        print(msg, file=sys.stderr, flush=True)
+
+    try:
+        from ..grammar import parse
+
+        program = parse(flow)  # Engine.execute wants parsed statements, not raw text
+        result = Engine(wrap_native(PyqgisBackend()), progress=progress).execute(
+            program
+        )
+        from .main import _print_result
+
+        _print_result(result)
+        from ..engine.engine import _fmt_elapsed
+
+        print(color.paint(f"# done in {_fmt_elapsed(time.monotonic() - t0)}", "dim"))
+    except FlowError as exc:
+        print(color.paint(f"✗ {exc}", "red"))
+    except OpError as exc:
+        print(color.paint(f"✗ {exc}", "red"))
+    except Exception as exc:  # noqa: BLE001 — never let a run crash the repl
+        print(color.paint(f"✗ unexpected: {type(exc).__name__}: {exc}", "red"))
 
 
 def _banner() -> str:
     from .. import __version__, color
 
     head = color.paint(f"niva repl {__version__} — type a flow, Tab to complete", "dim")
+    run_ln = (
+        f"- {color.paint('Run', 'bold')}: .run  (execute the last flow against QGIS)"
+    )
     quit_ln = f"- {color.paint('Quit', 'bold')}: .quit (or Ctrl-D)"
     help_ln = f"- {color.paint('Help', 'bold')}: .help"
-    return f"{head}\n{quit_ln}\n{help_ln}"
+    return f"{head}\n{run_ln}\n{quit_ln}\n{help_ln}"
 
 
 def _readline_prompt() -> str:
@@ -288,6 +382,23 @@ def run(argv=None) -> int:
     state: dict = {"last": None}
     session = _make_session()
     prompt = _readline_prompt()
+    rl = None
+    if session is None:
+        # Plain fallback: importing readline makes input() a real line editor (arrow keys,
+        # backspace, history) AND honours the \001/\002 zero-width markers in the prompt, so a
+        # coloured prompt no longer throws off the cursor and garbles what you type. Load past
+        # history so ↑ recalls commands from previous sessions too (prompt_toolkit does this via
+        # FileHistory); persisted back on exit.
+        try:
+            import readline as rl
+
+            rl.set_history_length(1000)
+            try:
+                rl.read_history_file(_history_path())
+            except OSError:
+                pass  # no history yet
+        except ImportError:
+            rl = None
     while True:
         try:
             line = (session.prompt() if session else input(prompt)).strip()
@@ -298,6 +409,21 @@ def run(argv=None) -> int:
         if _handle(line, state) == "quit":
             break
     print("bye")
+    if rl is not None:  # persist plain-mode history so ↑ works across sessions
+        try:
+            rl.write_history_file(_history_path())
+        except OSError:
+            pass
+    # If a `.run` started QGIS in this session, tear it down the same way the one-shot CLI does:
+    # exit QGIS and hard-exit before Python's GC races QGIS's C++ teardown (which segfaults and
+    # would clobber the exit code). Only when we own the app (we initialised it).
+    if state.get("qgis_owns") and state.get("qgis_app") is not None:
+        import sys
+
+        sys.stdout.flush()
+        sys.stderr.flush()
+        state["qgis_app"].exitQgis()
+        os._exit(0)
     return 0
 
 
@@ -309,7 +435,7 @@ def _make_session():
         from prompt_toolkit import PromptSession
         from prompt_toolkit.application import get_app
         from prompt_toolkit.completion import Completer, Completion
-        from prompt_toolkit.history import InMemoryHistory
+        from prompt_toolkit.history import FileHistory
         from prompt_toolkit.lexers import Lexer
         from prompt_toolkit.styles import Style
     except ImportError:
@@ -381,5 +507,5 @@ def _make_session():
         completer=_NivaCompleter(),
         complete_while_typing=True,
         bottom_toolbar=_toolbar,
-        history=InMemoryHistory(),
+        history=FileHistory(_history_path()),  # up-arrow recalls across sessions too
     )

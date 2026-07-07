@@ -94,18 +94,26 @@ export PATH="$HOME/.local/bin:$PATH"
 ```
 
 Either way, because niva is installed **into QGIS's own interpreter**, `niva run` *executes*
-flows (not just the offline commands). Upgrade later with the same command plus `--upgrade`;
-uninstall with `… pip uninstall qgis-niva`. Add the rich REPL/TUI with the `[cli]` extra:
-`… qgis-niva[cli]`.
+flows (not just the offline commands) — and since **0.55.1** niva auto-discovers QGIS's bindings
+(`/usr/share/qgis/python` on Ubuntu), so **the `niva` command just works from any directory** with
+no `PYTHONPATH` needed. Verify: `niva info` should report the Processing providers (not
+`Backend: mock`). Upgrade later with the same command plus `--upgrade`; uninstall with
+`… pip uninstall qgis-niva`. Add the rich REPL/TUI with the `[cli]` extra: `… qgis-niva[cli]`.
+
+> If your QGIS lives somewhere non-standard and `niva info` still shows `Backend: mock`, point niva
+> at the bindings once via `export NIVA_QGIS_PYTHONPATH=/path/to/qgis/python` (the dir containing
+> the `qgis/` package — find it in the QGIS Python Console with
+> `import qgis, os; print(os.path.dirname(os.path.dirname(qgis.__file__)))`).
 
 #### Make `niva` a terminal command
 
-`niva` runs on **QGIS's own Python**, so the `niva` command has to point at *that*
-interpreter — not a Homebrew/pyenv/conda `python3`. The most portable way (it works whether you
-`pip install`ed niva or run it straight from a clone) is a small alias/function in your shell
-profile. Substitute **`<qgis-python>`** — the full path to QGIS's Python; find it in the QGIS
-**Python Console** with `import sys; print(sys.executable)` — and, only when running from a clone,
-**`/path/to/niva`** (your repo root). `QT_QPA_PLATFORM=offscreen` keeps it headless.
+**If you `pip install`ed `qgis-niva` into QGIS's Python (above), you already have a `niva`
+command — skip this section.** It's only for running niva **straight from a git clone** (no
+install), where you need to point `niva` at QGIS's Python and add the repo to `PYTHONPATH`. The
+portable way is a small alias/function in your shell profile. Substitute **`<qgis-python>`** — the
+full path to QGIS's Python; find it in the QGIS **Python Console** with
+`import sys; print(sys.executable)` — and **`/path/to/niva`** (your repo root).
+`QT_QPA_PLATFORM=offscreen` keeps it headless.
 
 **Linux — add to `~/.bashrc`** (zsh: `~/.zshrc`), then `source ~/.bashrc`:
 

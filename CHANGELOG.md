@@ -6,8 +6,36 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 > **On every release** also mirror the new version's highlights into the `changelog=` field of
-> [`plugin/metadata.txt`](plugin/metadata.txt) (concise — latest one or two versions only); that
-> field is what the QGIS Plugin Manager shows. This file stays the full history.
+> [`plugin/metadata.txt`](plugin/metadata.txt) — keep only the **last three versions** there (drop
+> the oldest); that field is what the QGIS Plugin Manager shows. This file stays the full history.
+
+## [0.55.1] - 2026-07-07
+
+### Added
+- **`niva repl` command history (↑/↓).** The repl now keeps a **persistent** command history —
+  press ↑ to recall previous flows, within a session and **across sessions**. Stored at
+  `<config-dir>/niva/repl_history` (XDG on Linux). Works in both the `[cli]` prompt_toolkit path
+  (`FileHistory`) and the plain readline fallback.
+- **`niva repl` can now execute flows — `.run`.** The repl was authoring-only (it validated each
+  flow against a no-QGIS mock); it now **runs the last-entered flow against real QGIS** with
+  `.run` (or `.run <flow>` to run one inline), streaming per-stage progress and printing the
+  result. QGIS is started once per session (first `.run` pays the cost, later ones are instant)
+  and torn down safely on exit; a failing flow — or no QGIS available — is reported without ending
+  the session. A one-time hint points at `.run` after your first valid flow. (CLI-epic #41.)
+
+### Fixed
+- **The installed `niva` command now finds QGIS by itself.** A plain `pip install qgis-niva`
+  into a system Python (e.g. Ubuntu's `/usr/bin/python3.x`) could not `import qgis` — QGIS's
+  bindings live at `/usr/share/qgis/python`, which isn't on `sys.path` by default — so `niva`
+  fell back to the no-QGIS mock and `niva run` couldn't execute. niva now **auto-discovers**
+  QGIS's Python bindings when they aren't already importable, probing `NIVA_QGIS_PYTHONPATH`,
+  `QGIS_PREFIX_PATH`, an inferred macOS `.app` bundle, and the standard OS locations
+  (`/usr/share/qgis/python`, `/Applications/QGIS.app/…`). Execution now works out of the box
+  after a system install — no PYTHONPATH alias needed. Override/extend with `NIVA_QGIS_PYTHONPATH`.
+- **`niva repl` plain mode: no more garbled input.** The readline fallback now imports
+  `readline`, giving `input()` a real line editor (arrow keys, history) and making it honour the
+  prompt's zero-width colour markers — so a coloured prompt no longer miscounts the cursor and
+  drops characters as you type. (The `[cli]` extra's prompt_toolkit path was already unaffected.)
 
 ## [0.55.0] - 2026-07-07
 

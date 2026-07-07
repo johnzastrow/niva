@@ -83,6 +83,23 @@ class TestReplCommands(unittest.TestCase):
         _run("load a.gpkg | save b.gpkg", state)
         self.assertEqual(state["last"], "load a.gpkg | save b.gpkg")
 
+    def test_run_without_prior_flow_hints(self):
+        rc, out = _run(".run", {"last": None})
+        self.assertEqual(rc, "")
+        self.assertIn("no flow yet", out)
+
+    def test_run_is_a_known_command_not_flagged(self):
+        # `.run` must be handled, never fall through to the "unknown command" branch.
+        _, out = _run(".run", {"last": None})
+        self.assertNotIn("unknown command", out)
+
+    def test_first_valid_flow_hints_run_once(self):
+        state = {"last": None}
+        _, out1 = _run("load a.gpkg | save b.gpkg", state)
+        self.assertIn(".run to execute", out1)
+        _, out2 = _run("load c.gpkg | save d.gpkg", state)  # hint only fires once
+        self.assertNotIn(".run to execute", out2)
+
 
 class TestHighlight(unittest.TestCase):
     def test_classify(self):

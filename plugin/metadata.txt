@@ -6,7 +6,7 @@ name=niva
 qgisMinimumVersion=3.22
 qgisMaximumVersion=4.99
 description=Run niva flows — a concise text pipeline for QGIS geoprocessing — from a dock.
-version=0.55.0
+version=0.55.1
 author=John Zastrow
 email=br8kwall@gmail.com
 about=niva is a concise, readable text-pipeline grammar for QGIS geoprocessing
@@ -23,100 +23,16 @@ tags=processing,automation,workflow,pipeline,batch,vector,raster,analysis,geopro
 icon=icon.png
 experimental=True
 deprecated=False
-# changelog — shown on the plugin's page in the QGIS Plugin Manager. KEEP IT CONCISE: the
-# latest one or two versions only. On every release, bump `version=` above and PREPEND a
-# one-line summary for the new version here, mirroring the top entry of ../CHANGELOG.md (the
-# repo file stays the full history; this field is just the highlights). Drop the oldest line
-# so it never grows past ~2 entries. Continuation lines MUST stay indented (like `about=`).
-changelog=0.55.0 — Added: `each` now takes `find`-style filters (ext/minsize/geom/minfeatures/…)
-    to narrow a batch; `niva find --paths`/`-0` emits bare paths for piping into other tools.
-    0.45.0 — Added: CLI-epic Phase 0 — `niva plan` emits the resolved plan as a versioned,
-    QGIS-free intermediate representation (JSON: each stage's algorithm, params, injected defaults,
-    diagnostics) — the contract downstream tools read; `niva manifest` emits a machine-readable verb
-    catalog (params/defaults/enums/synonyms/example) for IDEs, LSP, and LLM agents.
-    0.44.0 — Added (plugin dock): syntax colouring in the flow editor + a configurable font
-    size on the Setup tab for readability on any monitor; a "Show log" button on the Flow tab opens
-    the session log. All verb output already streams to the dock panel. Works on QGIS 3.x (Qt5) and 4.
-    0.43.1 — Changed: `show` now reports a feature count for vectors and cell dimensions for
-    rasters (empty/oversized datasets obvious at a glance); the plugin's starter text opens with
-    runnable orientation commands (info / show / describe) for new users.
-    0.43.0 — Added: `niva pdal [check|test|setup]` sets up & tests the point-cloud (PDAL)
-    backend (finds pdal_wrench, OS-tailored fixes); a cross-platform install self-test
-    (platform_selftest) + pdal-setup guide. Fixed: `run` no longer glob-expands compact formula
-    values; pdalcli:/saga: no longer crash on a missing NIVA_TMPDIR. CI now enforces ruff + the
-    plugin-store security scan (bandit/detect-secrets) so every release stays scan-clean.
-    0.42.5 — Security: cleared all 5 blocking findings from the QGIS plugin security scan
-    (Bandit) — usedforsecurity=False on a dedup hash, parameterized SpatiaLite lineage writes, an
-    http(s)-only scheme allowlist + file/ftp-free openers for network fetches, and a DOCTYPE-refusing
-    XML parser. Real hardening, not just suppressions. Added a security-scanning playbook to the docs.
-    0.42.4 — Changed: removed the deprecated `supportsQt6` flag (removed from QGIS core, no
-    longer recognised); QGIS 4 readiness is set by qgisMaximumVersion=4.99 alone. Plugin already uses
-    the qgis.PyQt compat layer, so no code change. Added a reusable QGIS-plugin-publishing playbook.
-    0.42.3 — Fixed: `niva validate`/`--dry-run` are now side-effect-free — the dry-run no
-    longer writes report/catalog files, deletes files (`remove`), or sends `notify`/`email`. New
-    engine `inert` mode suppresses outward actions while still validating each stage.
-    0.42.2 — Packaging: the plugin zip now bundles the GPL-3.0-or-later LICENSE and ships a
-    PNG icon (icon.png) for the QGIS Plugin Repository listing. Fixed an example that didn't parse
-    (multi-line SQL string — niva's grammar is line-based). No functional change to niva itself.
-    0.42.1 — Changed: license text corrected to GPL-3.0-or-later (matches the project's
-    stated GPLv3 license); added plugin `tags` for discoverability. No functional change from 0.42.0.
-    0.42.0 — Added: `niva validate <file.niva>` — an OFFLINE linter (no QGIS). Grammar +
-    closed-set verb check (did-you-mean) + alias arg/option/enum binding + `run <id>` params, then a
-    MockBackend dry-run so a clean pass means the flow actually runs. Errors + style warnings with
-    line numbers; exit 0 clean / 1 on error. `--explain` now rejects an invented built-in verb too.
-    0.41.0 — Added: OFFLINE algorithm catalog (packaged algorithms.json, 878 algos w/ every
-    parameter default + enum) → `describe <id>` and `run <id>` parameter validation now work with NO
-    QGIS. Provenance now records the niva version (pins the exact defaults). SpatiaLite saves record
-    lineage in an aspatial `niva_lineage` table (PostGIS unchanged; best-effort, hidden from `show`).
-    0.40.1 — Fixed: provenance/lineage metadata now covers RASTER and POINT-CLOUD outputs
-    (was vector-only). Rasters and .las/.laz/.copc.laz get a .qmd sidecar carrying the niva lineage
-    when the format can't embed it (gpkg/PostGIS embed; shp/geojson/tif/asc/laz → .qmd sidecar).
-    0.40.0 — Added: `map` verb — a composed cartographic layout (PDF/PNG/SVG) with legend,
-    scale bar, north arrow ON by default; a bare `map out.pdf` yields a complete map, no template
-    needed. Overlays, basemap, labels, page/orientation/dpi; or `from=project.qgz` to export an
-    existing QGIS layout/atlas. figure/map now stream render progress. Long-run resilience test suite.
-    0.39.0 — Added: `figure` verb — render a quick map image (PNG/JPG) of the current
-    layer, vector OR raster, with labels and sensible defaults (`load x | figure out.png` just works).
-    Options: size, dpi, extent, layers (overlays), basemap=osm, bg, labels. Pass-through.
-    0.38.0 — Added: native-CLI harness — `run pdalcli:<cmd>` drives PDAL (pdal_wrench) on
-    raw LAS/LAZ/COPC (DTM/DSM/CHM, class filtering, merge/clip/classify — no COPC step), and
-    `run saga:<lib>:<tool>` drives saga_cmd. Delegates all other ids to QGIS unchanged; graceful
-    degradation when a tool is missing or the SAGA version differs. Example: lidar_pdal_grass.niva.
-    0.37.0 — Added: `search <keyword>` (fuzzy-find verbs + the live QGIS algorithm catalog)
-    and `docs <keyword>` (full describe of every match → your own mini-guide). `describe` now ends
-    with a runnable example (curated or synthesised) and covers built-in verbs too.
-    0.36.0 — Added: `describe` now runs as a flow verb (works in the dock and mid-script),
-    and any report can be captured with `to=<file>`. Changed: show/info/describe emit text the
-    same way (file / dock / stdout); assess/style/metadata now confirm their action.
-    0.35.1 — Fixed: `show` no longer lists SpatiaLite's internal tables (KNN/KNN2,
-    data_licenses, *_geometry_columns registries) as loadable layers — QGIS 3.44 exposed some that
-    QGIS 4 hid. Testing: full suite now passes on Windows 11 (QGIS 4.0.3 and 3.44 LTR).
-    0.35.0 — Added: native CSV lon/lat point loading (load points.csv builds points when it
-    has longitude/latitude columns; no .vrt needed). New format-matrix test suite + FileGDB/KML/
-    CSV/JP2 fixtures + a wget data fetcher. Fixed (macOS): all QGIS providers now load headless.
-    0.34.1 — Fixed: reproject/warp now FAIL CLOSED on an unknown CRS (e.g. EPSG:99999),
-    which used to silently produce a layer with an invalid/empty CRS. Added four property-based
-    test suites (error-path/fail-closed, numerical correctness, round-trip fidelity, security).
-    0.34.0 — Added: `remove` — delete a file output and its sidecar family (shapefile
-    parts, gpkg -wal/-shm, project attachments), behind a strict safety gate: refuses @conn refs,
-    globs, directories and non-geodata types (force to override); -dryrun previews. Batch with
-    `each "<glob>" | remove`. Generated validation scripts are now fully self-cleaning.
-    0.33.0 — Added: a @conn.table can now be a SECONDARY layer in an overlay/join
-    (clip @conn.table, spatialjoin with=@conn.table, ...). Fixed: sql results keep their
-    geometry, now including COMPUTED geometry (ST_Centroid/ST_Buffer) on SpatiaLite. Two new
-    40-pipeline validation suites (simple→complex, and "different & more complex").
-    0.32.1 — Fixed: a PostGIS table whose tableUri omits the geometry column now loads
-    WITH its geometry (was an empty aspatial layer that broke reproject/buffer/centroid); the
-    geometry column is found by type, any name. The honest geometry error now fires mid-pipe too.
-    0.32.0 — Renamed the `fix` verb to `fixgeom` (breaking) — it now says what it does
-    (repair geometry). Clearer error when centroid/pointonsurface hit invalid/empty geometry.
-    0.31.6 — Fixed: no more benign GDAL "gpkg_metadata ... unable to open database
-    file" error printed on a successful save when a flow reads from and writes to the same
-    GeoPackage (standalone niva now filters just that message).
-    0.31.5 — Clearer save error: mode= (create/replace/append) is database-only;
-    on a file use `save <file> as <layer>` to add/append a GeoPackage layer.
-    0.31.4 — show now also prints write-into-existing examples (add a layer to a
-    GeoPackage; append to a DB table mode=append); its second vector example is now `fix`
-    (centroid crashed on mixed/GeometryCollection geometry).
-    0.31.3 — show's vector example reprojects before buffering (buffer 100m used to error on a
-    geographic layer); show quotes a Source containing #, a space, or |.
+# changelog — shown on the plugin's page in the QGIS Plugin Manager. KEEP IT SHORT: the
+# **last three versions only**. On every release, bump `version=` above and PREPEND a one-line
+# summary for the new version here, mirroring the top entry of ../CHANGELOG.md (the repo file
+# stays the full history; this field is just the highlights). Then DROP the oldest entry so the
+# field never holds more than three versions. Continuation lines MUST stay indented (like `about=`).
+changelog=0.55.1 — Added: `niva repl` can now execute a flow against real QGIS with `.run`
+    (was authoring-only). Fixed: the installed `niva` command auto-discovers QGIS's Python bindings
+    (e.g. Ubuntu's /usr/share/qgis/python), so it runs out of the box after a plain
+    `pip install qgis-niva` — no PYTHONPATH needed; repl plain mode no longer garbles input.
+    0.55.0 — Added: `each` now takes `find`-style filters (ext/minsize/geom/minfeatures/…) to
+    narrow a batch; `niva find --paths`/`-0` emits bare paths for piping into other tools & files.
+    0.54.0 — Added: `catalog` gained a `deep` data-quality profile and now documents any source
+    `show` accepts (a dir, an `@conn` database, or an OWS service), each with a copy-paste `load` source.

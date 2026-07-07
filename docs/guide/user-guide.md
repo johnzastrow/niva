@@ -326,8 +326,11 @@ credentials. See the SQL recipes in the [Cookbook](cookbook.md#g-spatial-sql-in-
 ## 10. Troubleshooting
 
 **"could not import QGIS — run niva with QGIS's own Python."** You ran the CLI/API on a plain
-Python. Use QGIS's interpreter or set `PYTHONPATH` to its bindings (§3). `--dry-run` /
-`--explain` work without QGIS if you only need to validate.
+Python that has no PyQGIS. If niva is `pip install`ed **into QGIS's interpreter**, it auto-finds
+the bindings (0.55.1+) — this message then means you're on the wrong interpreter entirely; use
+QGIS's Python. Running from a **clone**, set `PYTHONPATH` to its bindings (§3). If your QGIS is in
+a non-standard place, point niva at it with `NIVA_QGIS_PYTHONPATH=/path/to/qgis/python`.
+`--dry-run` / `--explain` work without QGIS if you only need to validate.
 
 **A raster run aborts with "disk quota exceeded" / "No space left" despite free disk.** Your
 scratch is on a small RAM-backed `/tmp`. Set `NIVA_TMPDIR` to a roomy disk folder (§6).
