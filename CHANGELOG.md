@@ -9,6 +9,20 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 > [`plugin/metadata.txt`](plugin/metadata.txt) — keep only the **last three versions** there (drop
 > the oldest); that field is what the QGIS Plugin Manager shows. This file stays the full history.
 
+## [0.59.1] - 2026-07-07
+
+### Fixed
+- **`map`: the scale bar no longer reads "0".** The composed layout applied the scale bar's
+  default *appearance* but never its default *size*, leaving `unitsPerSegment` at 0 — so every
+  segment label rendered as `0`. niva now computes a sensible round segment size from the linked
+  map's real-world scale (`applyDefaultSize`), and picks **km** for small-scale (zoomed-out) maps,
+  **m** otherwise, so the labels stay readable.
+- **`map`/`figure`: no more spurious `ERROR 6: … does not support update access` line.** When
+  exporting a layout to a raster image (PNG/JPG), QGIS re-opens the file to embed a geotransform;
+  those formats can't be updated in place and never carry georeferencing anyway, so the image was
+  always written correctly but GDAL logged a scary (harmless) error. niva now filters exactly that
+  benign message, like it already does for the same-GeoPackage `gpkg_metadata` probe.
+
 ## [0.59.0] - 2026-07-07
 
 ### Added
