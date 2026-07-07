@@ -293,18 +293,26 @@ def ensure_qgis(prefix: str | None = None):
 
 
 def _install_gdal_error_filter() -> None:
-    """Filter one benign GDAL message out of standalone niva's stderr: when a flow reads from
-    and writes to the *same* GeoPackage, GDAL probes the optional `gpkg_metadata` table under
-    SQLite lock contention and logs ``unable to open database file`` — yet the write succeeds
-    and niva reports real failures through its own error codes. We drop exactly that message
-    and pass everything else through (so genuine GDAL errors stay visible). Installed only when
-    niva owns the QGIS app (CLI/standalone); inside the QGIS plugin, QGIS owns error routing."""
+    """Filter a couple of benign GDAL messages out of standalone niva's stderr, passing
+    everything else through (so genuine GDAL errors stay visible). Installed only when niva owns
+    the QGIS app (CLI/standalone); inside the QGIS plugin, QGIS owns error routing. Filtered:
+
+    * ``gpkg_metadata … unable to open database file`` — when a flow reads from and writes to the
+      *same* GeoPackage, GDAL probes the optional metadata table under SQLite lock contention; the
+      write still succeeds and niva reports real failures through its own error codes.
+    * ``<driver> driver does not support update access to existing datasets`` — QGIS
+      auto-georeferences a layout **image** export (`map`/`figure` to PNG/JPG) by re-opening the
+      file to embed a geotransform; raster image formats can't be updated in place and never carry
+      georeferencing anyway, so the image is written correctly and the message is noise.
+    """
     import sys
 
     from osgeo import gdal
 
     def handler(err_class, err_no, msg):
         if "gpkg_metadata" in msg and "unable to open database file" in msg:
+            return
+        if "does not support update access to existing datasets" in msg:
             return
         if err_class >= gdal.CE_Warning:
             label = "ERROR" if err_class >= gdal.CE_Failure else "Warning"
@@ -2682,9 +2690,21 @@ class PyqgisBackend(Backend):
             sb.setLinkedMap(mi)
             sb.applyDefaultSettings()
             sb.setStyle("Single Box")
+            # applyDefaultSettings sets the appearance but leaves `unitsPerSegment` at 0 — so the
+            # bar renders every label as "0". applyDefaultSize computes a sensible round segment
+            # size from the linked map's real-world scale; it must run AFTER setLinkedMap + setUnits.
+            # Pick km for small-scale (zoomed-out) maps, metres otherwise, so labels stay readable.
             try:
-                sb.setUnits(QgsUnitTypes.DistanceMeters)
-            except Exception:  # noqa: BLE001 — QGIS picks a sensible default otherwise
+                use_km = mi.scale() > 250000  # ~1:250 000 and smaller → kilometres
+                unit = (
+                    QgsUnitTypes.DistanceKilometers
+                    if use_km
+                    else QgsUnitTypes.DistanceMeters
+                )
+                sb.setUnits(unit)
+                sb.setUnitLabel("km" if use_km else "m")
+                sb.applyDefaultSize(unit)
+            except Exception:  # noqa: BLE001 — QGIS falls back to its own default sizing
                 pass
             sb.attemptMove(
                 QgsLayoutPoint(
@@ -2880,8 +2900,9 @@ class PyqgisBackend(Backend):
         if isinstance(extent, str) and extent not in ("", "layer"):
             borrow = self._as_map_layer(os.path.expanduser(extent), None)
             return to_dest(borrow.extent(), borrow.crs())
+        # A default-constructed QgsRectangle is null; combineExtentWith grows correctly from it,
+        # so it seeds the union directly. (The old `setMinimal()` primer is deprecated in QGIS 4.)
         union = QgsRectangle()
-        union.setMinimal()
         for ml in stack:
             e = ml.extent()
             if e.isNull() or e.isEmpty():
