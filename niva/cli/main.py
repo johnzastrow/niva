@@ -36,7 +36,7 @@ _USAGE = (
     '       niva explain <file.niva> | "<flow>"       (human view of the resolved plan)\n'
     "       niva manifest [to=<file>]                 (machine-readable verb catalog, JSON)\n"
     "       niva search <keyword> [limit=N] [--json]  (fuzzy + synonym-aware discovery, offline)\n"
-    "       niva setup [show|path|get <k>|set <k> <v>|unset <k>]   (portable config, no QGIS)\n"
+    "       niva setup [show|init|path|get <k>|set <k> <v>|unset <k>]  (portable config; init writes a sample)\n"
     "       niva describe <verb-or-algorithm-id>\n"
     "       niva pdal [check|test|setup]   (set up & test the point-cloud backend)\n"
     "       niva export <file.niva> [-o <file.py>]\n"
@@ -546,29 +546,51 @@ def _explain(args) -> int:
 
 
 def _setup(args) -> int:
-    """`niva setup [show|path|get <key>|set <key> <value>|unset <key>]` — view/edit niva's
-    portable config file **without QGIS** (issue #36). Secrets stay in the environment."""
+    """`niva setup [show|init|path|get <key>|set <key> <value>|unset <key>]` — view/edit
+    niva's portable config file **without QGIS** (issue #36); `init` writes a commented
+    sample. Secrets stay in the environment."""
+    from .. import color
     from .. import config as cfg
 
     action = args[0] if args else "show"
     rest = args[1:]
 
+    if action == "init":
+        path, written = cfg.write_template(force="--force" in rest)
+        if not written:
+            print(
+                f"niva: {path} already exists — `niva setup init --force` to overwrite",
+                file=sys.stderr,
+            )
+            return 1
+        print(f"niva: wrote a sample config → {path}", file=sys.stderr)
+        print("      edit it, or run `niva setup set <key> <value>`.", file=sys.stderr)
+        return 0
+
     if action in ("show", "list"):
         data = cfg.load()
-        print(f"# niva config: {cfg.config_path()}")
+        print(color.paint(f"# niva config: {cfg.config_path()}", "dim"))
         for key, (env, _comment) in cfg.KNOWN_KEYS.items():
             if key in data:
-                shown = data[key]
+                shown = color.paint(str(data[key]), "green")
             elif os.environ.get(env):
-                shown = f"{os.environ[env]}  (from ${env})"
+                shown = color.paint(os.environ[env], "yellow") + color.paint(
+                    f"  (from ${env})", "dim"
+                )
             else:
-                shown = "(unset)"
-            print(f"  {key:<14} = {shown}")
+                shown = color.paint("(unset)", "dim")
+            print(f"  {color.paint(f'{key:<14}', 'cyan', 'bold')} = {shown}")
         for key in (k for k in data if k not in cfg.KNOWN_KEYS):
-            print(f"  {key:<14} = {data[key]}  (custom)")
+            print(
+                f"  {color.paint(f'{key:<14}', 'magenta')} = "
+                f"{color.paint(str(data[key]), 'green')}  {color.paint('(custom)', 'dim')}"
+            )
         print(
-            "  secrets — set NIVA_NTFY_TOKEN / NIVA_SMTP_PASSWORD in the environment, "
-            "never here"
+            color.paint(
+                "  secrets — set NIVA_NTFY_TOKEN / NIVA_SMTP_PASSWORD in the environment, "
+                "never here",
+                "dim",
+            )
         )
         return 0
 

@@ -47,6 +47,21 @@ SECRET_KEYS: dict[str, str] = {
     "smtp_password": "NIVA_SMTP_PASSWORD",  # pragma: allowlist secret
 }
 
+# Example values used only by the sample template (`niva setup init`).
+_EXAMPLES: dict[str, str] = {
+    "qgis_python": "/usr/bin/python3",
+    "log_dir": "~/niva/logs",
+    "scratch_dir": "~/niva/scratch",
+    "templates_dir": "~/niva/templates",
+    "qgis_profile": "default",
+    "ntfy_topic": "niva-jobs",
+    "ntfy_server": "https://ntfy.sh",
+    "smtp_host": "smtp.gmail.com",
+    "smtp_port": "587",
+    "smtp_user": "you@example.com",
+    "smtp_from": "niva@example.com",
+}
+
 
 def config_dir() -> str:
     """The platform-appropriate niva config directory (XDG on Linux)."""
@@ -134,3 +149,34 @@ def unset_key(key: str) -> str:
     data = load()
     data.pop(key, None)
     return save(data)
+
+
+def template() -> str:
+    """A fully-commented sample config — every known key, commented out, with an example
+    value — so a new user can see what they may set. Written by ``niva setup init``."""
+    lines = [
+        "# niva configuration — portable and QGIS-free (issue #36).",
+        "# Copy this file to move your setup between machines. Uncomment a line and set its value.",
+        "# `niva setup show` lists what's active; `niva setup set <key> <value>` edits it for you.",
+        "#",
+        "# Secrets (tokens, passwords) do NOT belong here — set them in the environment:",
+        f"#   export {SECRET_KEYS['ntfy_token']}=...        export {SECRET_KEYS['smtp_password']}=...",
+        "",
+    ]
+    for key, (env, comment) in KNOWN_KEYS.items():
+        lines.append(f"# {comment}   (env: {env})")
+        lines.append(f'# {key} = "{_EXAMPLES.get(key, "")}"')
+        lines.append("")
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def write_template(force: bool = False) -> tuple[str, bool]:
+    """Write the sample config to :func:`config_path` when it does not exist (or ``force``).
+    Returns ``(path, written)`` — ``written`` is False if a config was already there."""
+    path = config_path()
+    if os.path.exists(path) and not force:
+        return path, False
+    os.makedirs(config_dir(), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write(template())
+    return path, True

@@ -189,30 +189,41 @@ def format_plan(plan: dict) -> str:
     Reads only the IR dict, never the source text or internal objects, so it stays a
     thin consumer of the stable contract.
     """
+    from . import color
+
     src = (plan.get("source") or {}).get("file") or "<inline>"
     requires = "yes" if plan.get("requires_qgis") else "no"
     lines = [
-        f"# plan for {src}  (niva {plan.get('niva_version', '?')}, "
-        f"IR v{plan.get('niva_plan', '?')})  — requires QGIS: {requires}",
+        color.paint(
+            f"# plan for {src}  (niva {plan.get('niva_version', '?')}, "
+            f"IR v{plan.get('niva_plan', '?')})  — requires QGIS: {requires}",
+            "dim",
+        ),
         "",
     ]
     for step in plan.get("steps", []):
-        lines.append(f"  {step['id']:>2}  {step.get('stage', '')}")
-        head = f"        op        {step.get('op', '?')}"
+        num = color.paint(f"{step['id']:>2}", "bold")
+        lines.append(f"  {num}  {color.paint(step.get('stage', ''), 'bold')}")
+        head = f"        op        {color.paint(str(step.get('op', '?')), 'cyan')}"
         if step.get("algorithm"):
-            head += f" → {step['algorithm']}"
-        head += f"  ({step.get('kind', '?')})"
+            head += f" → {color.paint(str(step['algorithm']), 'green')}"
+        head += color.paint(f"  ({step.get('kind', '?')})", "dim")
         lines.append(head)
         if step.get("params"):
             lines.append(f"        params    {_fmt_params(step['params'])}")
         if step.get("injected_defaults"):
             lines.append(
-                f"        defaults  {_fmt_params(step['injected_defaults'])}   (injected)"
+                color.paint(
+                    f"        defaults  {_fmt_params(step['injected_defaults'])}   (injected)",
+                    "yellow",
+                )
             )
         if step.get("inputs"):
             joined = ", ".join(str(i) for i in step["inputs"])
-            lines.append(f"        inputs    ← step {joined}")
-        lines.append(f"        produces  {step.get('produces', '?')}")
+            lines.append(color.paint(f"        inputs    ← step {joined}", "dim"))
+        lines.append(
+            color.paint(f"        produces  {step.get('produces', '?')}", "dim")
+        )
         lines.append("")
 
     diags = plan.get("diagnostics") or []
@@ -220,8 +231,14 @@ def format_plan(plan: dict) -> str:
         lines.append("diagnostics:")
         for d in diags:
             loc = f"line {d['line']}" if d.get("line") else "flow"
-            mark = "✗" if d.get("severity") == "error" else "⚠"
-            lines.append(f"  {mark} {loc}  {d.get('severity')}: {d.get('message')}")
+            is_err = d.get("severity") == "error"
+            mark = "✗" if is_err else "⚠"
+            lines.append(
+                color.paint(
+                    f"  {mark} {loc}  {d.get('severity')}: {d.get('message')}",
+                    "red" if is_err else "yellow",
+                )
+            )
     else:
-        lines.append("diagnostics: none")
+        lines.append(color.paint("diagnostics: none", "dim"))
     return "\n".join(lines)

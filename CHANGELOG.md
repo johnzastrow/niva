@@ -11,6 +11,17 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.48.0] - 2026-07-06
+
+### Added
+- **`niva setup init` — write a sample config (issue #36).** Generates a fully-commented
+  `config.toml` (every key, an example value, and the env var it mirrors) so a new user knows
+  what to set. Won't clobber an existing config (`--force` to overwrite).
+- **Colourised CLI output (docs/planning/20 §10).** A zero-dependency ANSI layer (`niva.color`)
+  colours `niva setup show` and `niva explain` for readability, and turns **off** automatically
+  when stdout is not a TTY, when `NO_COLOR` is set, or `TERM=dumb` — so piped/redirected/file
+  output stays plain. Force with `NIVA_COLOR=always|never`.
+
 ## [0.47.0] - 2026-07-06
 
 ### Added

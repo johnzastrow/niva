@@ -30,3 +30,15 @@
 
 # test_special_chars_roundtrip
 #   (pure Python — no niva flow)
+
+# test_template_lists_every_known_key
+#   (pure Python — no niva flow)
+
+# test_init_writes_when_absent
+#   (pure Python — no niva flow)
+
+# test_init_does_not_clobber_existing
+#   (pure Python — no niva flow)
+
+# test_init_force_overwrites
+#   (pure Python — no niva flow)
