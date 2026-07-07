@@ -38,6 +38,7 @@ _USAGE = (
     "       niva search <keyword> [limit=N] [--json]  (fuzzy + synonym-aware discovery, offline)\n"
     "       niva setup [show|init|path|get <k>|set <k> <v>|unset <k>]  (portable config; init writes a sample)\n"
     "       niva describe <verb-or-algorithm-id>\n"
+    "       niva repl                                  (interactive authoring; Tab completion with the [cli] extra)\n"
     "       niva pdal [check|test|setup]   (set up & test the point-cloud backend)\n"
     "       niva export <file.niva> [-o <file.py>]\n"
     "       niva import <file.py>   [-o <file.niva>]\n"
@@ -83,6 +84,10 @@ def main(argv=None) -> int:
         return _manifest(argv[1:])
     if argv[0] == "setup":
         return _setup(argv[1:])
+    if argv[0] == "repl":
+        from .repl import run as _repl
+
+        return _repl(argv[1:])
     if argv[0] == "pdal":
         from ..pdal_doctor import run as _pdal_doctor
 

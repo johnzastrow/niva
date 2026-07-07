@@ -11,6 +11,17 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.51.0] - 2026-07-06
+
+### Added
+- **`niva repl` — an interactive authoring prompt (CLI-epic Phase 3; issue #41).** Type a flow and
+  get **manifest-driven tab completion** (verbs → their options/flags → an option's enum values),
+  **live validation** (green ✓ / red ✗ with the first diagnostic), `.explain` for the resolved
+  plan, `?verb` to describe, and `/keyword` to search. Uses `prompt_toolkit` (the `[cli]` extra)
+  for completion + a live-validation toolbar; **without it the repl degrades gracefully** to a
+  plain `readline` loop — the core never requires the extra. QGIS-free authoring; execution from
+  the repl (`.run`) lands in a follow-up.
+
 ## [0.50.0] - 2026-07-06
 
 ### Changed
