@@ -31,6 +31,15 @@ load a.gpkg | buf
 # test_unknown_verb_offers_nothing
 #   (pure Python — no niva flow)
 
+# test_path_argument_completes_files_and_dirs
+#   (pure Python — no niva flow)
+
+# test_path_argument_respects_prefix
+#   (pure Python — no niva flow)
+
+# test_verb_position_offers_no_paths
+#   (pure Python — no niva flow)
+
 # ── TestReplCommands ────────────────────────────────────────────
 
 # test_quit_variants_all_quit

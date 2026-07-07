@@ -9,6 +9,17 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 > [`plugin/metadata.txt`](plugin/metadata.txt) — keep only the **last three versions** there (drop
 > the oldest); that field is what the QGIS Plugin Manager shows. This file stays the full history.
 
+## [0.56.0] - 2026-07-07
+
+### Added
+- **`niva repl`: filesystem path tab-completion.** Tab now completes **files and directories**
+  for a verb's path argument — `load `, `show `, `save `, `clip `, `each `, `catalog `, … —
+  and for path-valued options (`raster=`, `with=`, …). Directories complete with a trailing `/`
+  so you can keep tabbing into them; `~` is expanded. Works in **both** the `[cli]` prompt_toolkit
+  menu and the **plain readline** fallback (which now installs a niva-aware completer: verbs →
+  options/flags/enums → paths). Completion is offered only for real verbs, so a typo doesn't dump
+  the directory listing.
+
 ## [0.55.2] - 2026-07-07
 
 ### Fixed

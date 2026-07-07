@@ -1,8 +1,9 @@
 """`niva repl` — an interactive authoring prompt (docs/planning/20 §10 Tier 1, issue #41).
 
 Zero-QGIS authoring: type a flow and get **manifest-driven tab completion** (verbs → their
-options/flags → an option's enum values), **live validation**, **syntax highlighting**, and
-quick `?describe` / `/search`.
+options/flags → an option's enum values, and **filesystem paths** for path arguments),
+**live validation**, **syntax highlighting**, and quick `?describe` / `/search`. Read-only
+report verbs (`info`, `show`) and `.run` execute against real QGIS.
 
 The rich experience uses ``prompt_toolkit`` (the ``[cli]`` extra: ``pip install qgis-niva[cli]``)
 — live per-keystroke highlighting, a completion menu, and a colour validity toolbar. Without it,
@@ -60,13 +61,30 @@ def _current_token(text: str) -> str:
     return stage.split()[-1]
 
 
+def _fs_complete(token: str) -> list[str]:
+    """Filesystem completions for a partial path ``token``: matching files and directories,
+    directories suffixed with ``/`` so you can keep tabbing into them. ``~`` is expanded; an
+    empty token lists the current directory. Capped so a huge directory can't flood the menu."""
+    import glob as _glob
+
+    out = []
+    try:
+        for m in sorted(_glob.glob(os.path.expanduser(token) + "*")):
+            out.append(m + "/" if os.path.isdir(m) else m)
+    except OSError:
+        return []
+    return out[:200]
+
+
 def completions(text: str) -> list[str]:
     """Context-aware completions for flow ``text`` up to the cursor — the pure, testable core
     of the repl's tab completion:
 
     * at a stage start (line start or after ``|``) → verb + built-in names;
-    * after a verb → that verb's ``option=`` names and flags;
-    * after ``option=`` where the option is an enum → its values (as ``option=value``).
+    * after a verb → that verb's ``option=`` names and flags, **plus filesystem paths** (so
+      ``load``/``show``/``save`` etc. complete files and directories);
+    * after ``option=`` → the option's enum values, else filesystem paths (for path-valued
+      options like ``raster=``/``with=``).
     """
     idx = _index()
     stage = text.rsplit("|", 1)[-1]
@@ -79,18 +97,49 @@ def completions(text: str) -> list[str]:
         return [n for n in idx["names"] if n.startswith(prefix)]
 
     verb = toks[0]
-    info = idx["verbs"].get(verb)
-    if info is None:
-        return []  # built-in or unknown verb — no option catalogue to offer
-
+    known = (
+        verb in idx["names"]
+    )  # a real verb (built-in or alias)? — else offer nothing
+    if not known:
+        return []
+    info = idx["verbs"].get(verb)  # None for built-in verbs (no alias option catalogue)
     cur = "" if trailing_space else toks[-1]
+
     if "=" in cur:  # completing an option's value
         key, _, val = cur.partition("=")
-        enum = info["enums"].get(key)
-        return [f"{key}={v}" for v in (enum or []) if v.startswith(val)]
+        enum = info["enums"].get(key) if info else None
+        if enum:
+            return [f"{key}={v}" for v in enum if v.startswith(val)]
+        return [f"{key}={p}" for p in _fs_complete(val)]  # path-valued option
 
-    cands = [f"{name}=" for name in info["options"]] + list(info["flags"])
-    return sorted(c for c in cands if c.startswith(cur))
+    # A positional argument: offer the verb's options/flags (if any) AND filesystem paths, so a
+    # path argument (load/show/save/clip/each/catalog/…) completes files and directories.
+    cands = []
+    if info:
+        cands += [f"{name}=" for name in info["options"]] + list(info["flags"])
+    cands = [c for c in cands if c.startswith(cur)]
+    cands += _fs_complete(cur)
+    seen, out = set(), []
+    for c in cands:  # de-dupe, preserve order (options/flags first, then paths)
+        if c not in seen:
+            seen.add(c)
+            out.append(c)
+    return out
+
+
+def _readline_completer(text, state):
+    """readline completion hook for plain mode. readline replaces the current word (delimited
+    by the completer-delims we set) with the chosen match, so we return full-token candidates
+    from :func:`completions`, computed from the whole line up to the cursor for verb-aware
+    context. Returns the ``state``-th match, or None when exhausted."""
+    import readline as _rl
+
+    try:
+        line = _rl.get_line_buffer()[: _rl.get_endidx()]
+        matches = completions(line)
+    except Exception:  # noqa: BLE001 — a completion glitch must never break the prompt
+        return None
+    return matches[state] if 0 <= state < len(matches) else None
 
 
 def _validity(text: str) -> tuple[str, str]:
@@ -410,6 +459,11 @@ def run(argv=None) -> int:
                 rl.read_history_file(_history_path())
             except OSError:
                 pass  # no history yet
+            # Tab completion: verbs → options/flags/enums → and filesystem paths. `/` is removed
+            # from the word delimiters so a whole path token completes as one unit.
+            rl.set_completer(_readline_completer)
+            rl.set_completer_delims(" \t\n|")
+            rl.parse_and_bind("tab: complete")
         except ImportError:
             rl = None
     while True:
