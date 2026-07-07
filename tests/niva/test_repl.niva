@@ -44,3 +44,11 @@ load a.gpkg | buf
 
 # test_flow_line_is_validated_and_remembered
 load a.gpkg | save b.gpkg
+
+# ── TestHighlight ───────────────────────────────────────────────
+
+# test_classify
+#   (pure Python — no niva flow)
+
+# test_highlight_flow_is_transparent_without_color
+load a.gpkg | buffer 100m | save b.gpkg
