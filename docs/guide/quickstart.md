@@ -27,6 +27,13 @@ Install into **QGIS's own Python** (niva runs on QGIS's Processing):
 <qgis-python> -m pip install git+https://github.com/johnzastrow/niva.git
 ```
 
+> **On PyPI** (distribution **`qgis-niva`**; the import package and `niva` command are
+> unchanged): once published this becomes `pip install qgis-niva`, or with
+> [uv](https://docs.astral.sh/uv/): `uv tool install qgis-niva`, or run it without installing
+> via `uvx --from qgis-niva niva …`. Add the rich REPL/TUI with the extra: `qgis-niva[cli]`.
+> niva installed this way is the **offline** authoring CLI (validate / explain / search /
+> setup / plan / manifest / repl); *running* flows still reaches out to a QGIS runtime.
+
 #### Make `niva` a terminal command
 
 `niva` runs on **QGIS's own Python**, so the `niva` command has to point at *that*
