@@ -28,13 +28,15 @@ You are **not** installing a second GIS. niva borrows QGIS's.
 > way you got it. (This is exactly how the marimo-qgis plugin installs the
 > `marimo` pip package into QGIS's Python.)
 
-**Phase 1 (today / v1) — install the package yourself, once.** niva is
-`pip`-installed into QGIS's Python:
+**Phase 1 — install the package yourself, once.** niva is `pip`-installed into
+QGIS's Python. The PyPI distribution is **`qgis-niva`** (the import package and the
+`niva` command are unchanged). **Until the first PyPI release** it is not yet published,
+so install from git — swap `qgis-niva` for `git+https://github.com/johnzastrow/niva.git`:
 
-- **Windows (OSGeo4W):** in the OSGeo4W shell, `python -m pip install niva`.
-- **Linux:** `<qgis-python> -m pip install --user niva` (if pip is missing,
+- **Windows (OSGeo4W):** in the OSGeo4W shell, `python -m pip install qgis-niva`.
+- **Linux:** `<qgis-python> -m pip install --user qgis-niva` (if pip is missing,
   `sudo apt install python3-pip` first).
-- **macOS:** `/Applications/QGIS.app/.../bin/python3 -m pip install --user niva`.
+- **macOS:** `/Applications/QGIS.app/.../bin/python3 -m pip install --user qgis-niva`.
 
 **Phase 2 (v1.x) — let the plugin do the pip install for you.** A niva QGIS plugin
 (grown from the current logo stub) you get from **Plugins ▸ Manage and Install

@@ -11,6 +11,17 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.50.0] - 2026-07-06
+
+### Changed
+- **Packaged for PyPI + uv.** The distribution is now named **`qgis-niva`** (the import package
+  and the `niva` command are unchanged — like scikit-learn → sklearn). Adds a **Trusted-Publishing**
+  release workflow (OIDC — no stored token; fires on a GitHub Release) and the opt-in **`[cli]`
+  extra** (`prompt_toolkit`, `rich`, `textual`) for the coming `repl`/`studio`; the core stays
+  zero-dependency. Once published: `pip install qgis-niva`, `uv tool install qgis-niva`, or run it
+  without installing via `uvx --from qgis-niva niva …`. Also corrected a deployment doc that
+  prematurely showed `pip install niva` (niva is not on PyPI yet).
+
 ## [0.49.0] - 2026-07-06
 
 ### Changed

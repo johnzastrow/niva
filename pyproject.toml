@@ -3,14 +3,25 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "niva"
-version = "0.49.0"
+# Distribution name on PyPI. The import package and CLI command stay `niva`
+# (see [tool.hatch...] packages + [project.scripts]) — like scikit-learn → sklearn.
+name = "qgis_niva"
+version = "0.50.0"
 description = "A concise, readable text-pipeline grammar for QGIS geoprocessing."
 readme = "README.md"
 requires-python = ">=3.12"  # QGIS 4.x ships Python 3.12 (OSGeo4W / system); niva runs in QGIS's own interpreter
 license = "GPL-3.0-or-later"
 authors = [{ name = "John Zastrow" }]
-keywords = ["qgis", "gis", "geoprocessing", "pyqgis", "dsl"]
+keywords = ["qgis", "gis", "geoprocessing", "pyqgis", "dsl", "cli"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: End Users/Desktop",
+    "Topic :: Scientific/Engineering :: GIS",
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+    "Environment :: Console",
+]
 # Near-zero dependencies by design (see docs/planning/Oscar_the_Grouch.md E1): QGIS and
 # its stack are provided by the host interpreter, never bundled by niva.
 dependencies = []
@@ -20,6 +31,10 @@ dependencies = []
 # runs the same unittest-style tests — for anyone who prefers it.
 [project.optional-dependencies]
 dev = ["pytest", "ruff"]
+# The rich terminal layer (opt-in, docs/planning/20 §4): powers `niva repl` and
+# `niva studio`. The core CLI stays zero-dependency and degrades gracefully
+# without these — they only upgrade the experience.
+cli = ["prompt_toolkit>=3.0", "rich>=13.0", "textual>=0.60"]
 
 [project.urls]
 Homepage = "https://github.com/johnzastrow/niva"
