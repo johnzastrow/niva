@@ -875,6 +875,7 @@ niva import <file.py>   [-o <file.niva>]
 | `niva plan flow.niva` / `niva plan "<flow>"` | emit the **resolved plan** as JSON — the compiled flow as an *intermediate representation* (IR): each stage's resolved `provider:algorithm`, parameters, injected defaults, and diagnostics. The machine-readable contract downstream tools read (no QGIS) |
 | `niva manifest [to=<file>]` | emit the **machine-readable verb catalog** as JSON — every verb's algorithm, parameters, defaults, enums, synonyms, and example, for IDEs / LSP / LLM agents (no QGIS) |
 | `niva describe <name> [to=<file>]` | introspect a verb or algorithm id (with a runnable example) |
+| `niva setup doctor` | **environment health check** — niva version, the QGIS runtime niva discovered (or a ✗ with the fix), Processing providers + algorithm count, geo stack, the PDAL point-cloud backend, the config file, and `@conn` connections. Read-only; exits non-zero only if something blocking (no QGIS) is found |
 | `niva find [glob] [in <dir>…] [filters]` | discover spatial data on the filesystem (offline; GDAL filters when on QGIS's Python). Output: aligned table (default), `--json`, `--as-flow` (an `each …` skeleton), or **`--paths`** / **`-0`** — bare absolute paths for piping into other tools (`… --paths \| xargs …`, `… -0 \| xargs -0 …`, `… --paths > list.txt`) |
 | `niva "search <kw>"` / `niva "docs <kw>"` | fuzzy-find functions / build a mini-guide (flow verbs; need QGIS) |
 | `niva export flow.niva [-o out.py]` | transpile a flow to a standalone PyQGIS script |

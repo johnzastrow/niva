@@ -37,7 +37,7 @@ _USAGE = (
     "       niva manifest [to=<file>]                 (machine-readable verb catalog, JSON)\n"
     "       niva search <keyword> [limit=N] [--json]  (fuzzy + synonym-aware discovery, offline)\n"
     "       niva find [glob] [in <dir>…] [--geom …] [--crs …] [--json|--as-flow|--paths|-0]  (discover data)\n"
-    "       niva setup [show|init|path|get <k>|set <k> <v>|unset <k>]  (portable config; init writes a sample)\n"
+    "       niva setup [doctor|show|init|path|get <k>|set <k> <v>|unset <k>]  (doctor: env health check; portable config)\n"
     "       niva describe <verb-or-algorithm-id>\n"
     "       niva repl                                  (interactive authoring; Tab completion with the [cli] extra)\n"
     "       niva pdal [check|test|setup]   (set up & test the point-cloud backend)\n"
@@ -742,6 +742,11 @@ def _setup(args) -> int:
     action = args[0] if args else "show"
     rest = args[1:]
 
+    if action == "doctor":
+        from ..doctor import run as _doctor
+
+        return _doctor(rest)
+
     if action == "init":
         path, written = cfg.write_template(force="--force" in rest)
         if not written:
@@ -817,7 +822,7 @@ def _setup(args) -> int:
         return 0
 
     print(
-        "usage: niva setup [show | path | get <key> | set <key> <value> | unset <key>]",
+        "usage: niva setup [doctor | show | init | path | get <key> | set <key> <value> | unset <key>]",
         file=sys.stderr,
     )
     return 2

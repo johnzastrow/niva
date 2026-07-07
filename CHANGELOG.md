@@ -9,6 +9,18 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 > [`plugin/metadata.txt`](plugin/metadata.txt) — keep only the **last three versions** there (drop
 > the oldest); that field is what the QGIS Plugin Manager shows. This file stays the full history.
 
+## [0.57.0] - 2026-07-07
+
+### Added
+- **`niva setup doctor` — a one-command environment health check (issue #36).** Answers *"is my
+  niva install able to run?"* in one place: niva version + location, the **QGIS runtime niva
+  discovered** (version + which bindings dir — the same discovery a real `niva run` uses) or a
+  clear ✗ with the `NIVA_QGIS_PYTHONPATH` fix, Processing providers + algorithm count, the geo
+  stack (GDAL/PROJ/GEOS), the **point-cloud backend** (`pdal_wrench` + the `pdal` provider,
+  generalising `niva pdal check`), the config file, run-log + scratch settings, and the database
+  **`@conn`** connections niva can see. Read-only (writes nothing, runs no flow); exits non-zero
+  only when something blocking is found (QGIS not importable).
+
 ## [0.56.0] - 2026-07-07
 
 ### Added
