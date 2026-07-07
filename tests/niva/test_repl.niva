@@ -51,6 +51,12 @@ load a.gpkg | save b.gpkg
 # test_run_is_a_known_command_not_flagged
 #   (pure Python — no niva flow)
 
+# test_info_and_show_autorun_but_transforms_do_not
+info
+show somedir
+load a.gpkg | buffer 100m | save b.gpkg
+show a.gpkg | buffer 100m | save b.gpkg
+
 # test_first_valid_flow_hints_run_once
 load a.gpkg | save b.gpkg
 load c.gpkg | save d.gpkg

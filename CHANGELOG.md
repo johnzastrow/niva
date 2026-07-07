@@ -9,6 +9,17 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 > [`plugin/metadata.txt`](plugin/metadata.txt) — keep only the **last three versions** there (drop
 > the oldest); that field is what the QGIS Plugin Manager shows. This file stays the full history.
 
+## [0.55.2] - 2026-07-07
+
+### Fixed
+- **`niva repl`: `info` and `show` now report your real environment.** Typing a bare `info` or
+  `show <path>` in the repl used to run on the validation **mock** — so `info` reported
+  `Backend: mock (no QGIS)` and `show` listed every file with placeholder `layer_a`/`layer_b`
+  layers regardless of its real contents. These read-only report verbs now **execute against real
+  QGIS** in the repl (like `.run` does), so `info` shows the true providers/connections and `show`
+  lists real layers with correct geometry types and feature counts. Transform/producing flows are
+  unchanged — still validated only, run with `.run`.
+
 ## [0.55.1] - 2026-07-07
 
 ### Added

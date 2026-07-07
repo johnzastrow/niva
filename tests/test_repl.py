@@ -93,6 +93,23 @@ class TestReplCommands(unittest.TestCase):
         _, out = _run(".run", {"last": None})
         self.assertNotIn("unknown command", out)
 
+    def test_info_and_show_autorun_but_transforms_do_not(self):
+        # Read-only report verbs execute for real (routed to _run_flow); a transform flow is
+        # validated only (never auto-run) — it needs an explicit .run.
+        import niva.cli.repl as R
+
+        called = []
+        orig = R._run_flow
+        R._run_flow = lambda flow, state: called.append(flow)
+        try:
+            _run("info")
+            _run("show somedir")
+            _run("load a.gpkg | buffer 100m | save b.gpkg")
+            _run("show a.gpkg | buffer 100m | save b.gpkg")  # piped → not a bare report
+        finally:
+            R._run_flow = orig
+        self.assertEqual(called, ["info", "show somedir"])
+
     def test_first_valid_flow_hints_run_once(self):
         state = {"last": None}
         _, out1 = _run("load a.gpkg | save b.gpkg", state)

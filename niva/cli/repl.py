@@ -221,6 +221,11 @@ def _help_text() -> str:
 _QUIT = {".quit", ".exit", ".q", "quit", "exit", "q", r"\q", ":q"}
 _HELP_CMDS = {".help", ".?", ".h", "?", "help", r"\?", ":h", ":help"}
 
+# Bare, read-only report verbs the repl runs for real (not on the validation mock), so `info`
+# shows your actual QGIS/providers and `show <path>` lists real layers — the mock would return
+# misleading placeholder layers. Both are read-only and write nothing.
+_AUTORUN_VERBS = {"info", "show"}
+
 
 def _handle(line: str, state: dict) -> str:
     """Process one entered ``line``. Returns "quit" to end the loop, else ""."""
@@ -275,8 +280,16 @@ def _handle(line: str, state: dict) -> str:
         print(color.paint(f"unknown command {line!r} — try .help", "yellow"))
         return ""
 
-    # Otherwise: treat the line as a flow → echo it syntax-highlighted, then validate.
+    # Otherwise: treat the line as a flow.
     state["last"] = line
+    # Read-only report verbs (`info`, `show`) describe your **real** environment/data — running
+    # them on the validation mock is actively misleading (the mock returns placeholder layers), so
+    # execute them for real against QGIS. Transform/producing flows stay validate-only until an
+    # explicit `.run`. Only a bare single-stage `info`/`show …` auto-runs (a piped flow does not).
+    first = line.split(None, 1)[0]
+    if "|" not in line and first in _AUTORUN_VERBS:
+        _run_flow(line, state)
+        return ""
     sym, msg = _validity(line)
     sty = "green" if sym == "✓" else ("yellow" if sym == "⚠" else "red")
     print(f"{color.paint(sym, sty)} {highlight_flow(line)}")
