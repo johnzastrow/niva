@@ -113,11 +113,23 @@ niva, so you can keep the uv install for authoring and add either for execution)
 | --- | --- |
 | Author / validate flows fast, anywhere | `uv tool install qgis-niva` — keep it for the offline CLI |
 | **Run flows in the QGIS GUI** | Install the **plugin** (*Install from ZIP*) — it bundles niva and runs in QGIS's Python |
-| **Run flows from the terminal** | `<qgis-python> -m pip install qgis-niva`, then alias `niva` to that interpreter ([Quick start](quickstart.md#make-niva-a-terminal-command)) |
+| **Run flows from the terminal** | Install into QGIS's Python — `<qgis-python> -m pip install qgis-niva` **or** `uv pip install --python <qgis-python> qgis-niva` — then alias `niva` to that interpreter ([Quick start](quickstart.md#make-niva-a-terminal-command)) |
 
-Note the middle row: **`pip install` into QGIS's Python integrates fully** — that interpreter has
-PyQGIS, so it executes. The offline-only limitation is specific to *isolated-environment*
-installers (`uv tool`, `uvx`, `pipx`), which build their own Python on purpose.
+### It's the install *mode*, not pip-vs-uv
+
+`pip` and `uv` don't produce different *kinds* of niva — **the install mode does**, and both tools
+can do either mode. What decides whether niva can execute is always the same single question:
+**does the Python niva lands in have PyQGIS?**
+
+| Install mode | pip family | uv family | Can `niva run`? |
+| --- | --- | --- | --- |
+| **Into a chosen interpreter** | `<qgis-python> -m pip install qgis-niva` | `uv pip install --python <qgis-python> qgis-niva` | ✅ when it's QGIS's Python |
+| **Isolated app venv** | `pipx install qgis-niva` | `uv tool install qgis-niva` · `uvx …` | ❌ offline only |
+
+The common commands just pick opposite **defaults**: plain `pip install` goes *into* the
+interpreter you ran it with, while `uv tool` / `uvx` / `pipx` deliberately build a private venv —
+which is why they *look* like different kinds of install. Point either tool at QGIS's Python and
+you get full execution; let either build an isolated venv and you get the offline CLI.
 
 **Then what good is the offline install?** It's niva's *compiler half*, and it earns its place
 exactly where a multi-GB QGIS is unwanted:
