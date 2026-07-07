@@ -9,6 +9,18 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 > [`plugin/metadata.txt`](plugin/metadata.txt) (concise — latest one or two versions only); that
 > field is what the QGIS Plugin Manager shows. This file stays the full history.
 
+## [0.54.0] - 2026-07-07
+
+### Added
+- **`catalog` — a `deep` option and all of `show`'s source types.** `catalog` now documents a
+  collection from **any location `show` accepts** — a file/container, a directory, an `@conn`
+  database, or a remote OWS service — not just a filesystem directory (it reuses `show`'s source
+  resolution; a catalogued directory is always recursed). The new **`deep`** flag adds per-layer
+  data-quality profiling to the report (invalid/empty/duplicate geometries and non-zero per-field
+  null counts), like `assess`. Each entry now also records its loadable **`source`** (path + layer,
+  `@conn.table`, or service ref), so the catalog doubles as a copy-paste `load` reference.
+  `catalog <path|@conn[.schema]|service> [deep] [to=<out.md>]`.
+
 ## [0.53.0] - 2026-07-07
 
 ### Added

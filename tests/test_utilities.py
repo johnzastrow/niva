@@ -155,6 +155,46 @@ class TestCatalog(unittest.TestCase):
         flow(f'catalog "{root}" to="{out}"', backend=MockBackend())
         self.assertTrue(os.path.exists(out))
 
+    def test_catalog_deep_reports_quality_and_reaches_profiler(self):
+        root = tempfile.mkdtemp(prefix="niva_cat_")
+        open(os.path.join(root, "a.gpkg"), "w").close()
+        out = os.path.join(root, "cat.md")
+        mb = MockBackend()
+        flow(f'catalog "{root}" deep to="{out}"', backend=mb)
+        report = open(out).read()
+        self.assertIn("quality:", report)  # deep profiling rendered
+        # deep=True actually reached the profiler (MockBackend logs ("assess", name, deep))
+        self.assertTrue(any(c[0] == "assess" and c[2] is True for c in mb.calls))
+
+    def test_catalog_shallow_omits_quality(self):
+        root = tempfile.mkdtemp(prefix="niva_cat_")
+        open(os.path.join(root, "a.gpkg"), "w").close()
+        out = os.path.join(root, "cat.md")
+        flow(f'catalog "{root}" to="{out}"', backend=MockBackend())
+        self.assertNotIn("quality:", open(out).read())
+
+    def test_catalog_database_source(self):
+        # catalog accepts an @conn database like `show` does, loading each table by name.
+        out = os.path.join(tempfile.mkdtemp(prefix="niva_cat_"), "db.md")
+        mb = MockBackend()
+        flow(f'catalog @pg to="{out}"', backend=mb)
+        report = open(out).read()
+        self.assertIn("roads", report)
+        self.assertIn("homes", report)
+        self.assertTrue(any(c[0] == "load_table" for c in mb.calls))  # not plain load
+
+    def test_catalog_service_source(self):
+        # catalog accepts a remote OWS service URL like `show` does.
+        out = os.path.join(tempfile.mkdtemp(prefix="niva_cat_"), "svc.md")
+        mb = MockBackend()
+        flow(f'catalog "https://example.com/wfs" to="{out}"', backend=mb)
+        self.assertIn("topp:states", open(out).read())
+        self.assertTrue(any(c[0] == "list_service" for c in mb.calls))
+
+    def test_catalog_unknown_option_rejected(self):
+        with self.assertRaises(FlowError):
+            flow("catalog /tmp bogus=1", backend=MockBackend())
+
 
 class TestShowFormat(unittest.TestCase):
     """`format_show` — the Markdown table the `show` verb renders."""
