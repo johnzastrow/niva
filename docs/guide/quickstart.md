@@ -27,12 +27,17 @@ Install into **QGIS's own Python** (niva runs on QGIS's Processing):
 <qgis-python> -m pip install git+https://github.com/johnzastrow/niva.git
 ```
 
-> **On PyPI** (distribution **`qgis-niva`**; the import package and `niva` command are
-> unchanged): once published this becomes `pip install qgis-niva`, or with
-> [uv](https://docs.astral.sh/uv/): `uv tool install qgis-niva`, or run it without installing
-> via `uvx --from qgis-niva niva …`. Add the rich REPL/TUI with the extra: `qgis-niva[cli]`.
-> niva installed this way is the **offline** authoring CLI (validate / explain / search /
-> setup / plan / manifest / repl); *running* flows still reaches out to a QGIS runtime.
+> **On PyPI** as **[`qgis-niva`](https://pypi.org/project/qgis-niva/)** (the import package and
+> `niva` command stay `niva`, like `scikit-learn` → `sklearn`): `pip install qgis-niva`, or with
+> [uv](https://docs.astral.sh/uv/): `uv tool install qgis-niva`, or run it with no install via
+> `uvx --from qgis-niva niva …`. Add the rich REPL/TUI with the extra: `qgis-niva[cli]`.
+>
+> **One caveat with `uv tool` / `uvx` / `pipx`:** they install niva into their *own* isolated
+> Python, which has **no PyQGIS** — so that install is the **offline** CLI (validate / explain /
+> search / setup / plan / manifest / repl / export) only. To *execute* flows, niva has to run on
+> QGIS's own Python: install the **plugin** (runs in QGIS) or `pip install qgis-niva` into
+> `<qgis-python>` as above. Full breakdown in the
+> [FAQ](faq.md#does-uv-tool-install-qgis-niva-connect-to-qgis-do-i-need-the-plugin).
 
 #### Make `niva` a terminal command
 

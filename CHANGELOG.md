@@ -11,6 +11,15 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Docs
+- **Install docs now reflect the PyPI release and explain the QGIS-integration path.** The FAQ and
+  Quick start note that **`qgis-niva` is live on PyPI**, and a new FAQ entry answers *"does
+  `uv tool install qgis-niva` connect to QGIS? do I need the plugin?"* — clarifying that
+  isolated-env installers (`uv tool`/`uvx`/`pipx`) give the **offline** CLI only, that
+  **`pip install` into QGIS's Python integrates fully** (execution included), and what the
+  offline install is genuinely good for (CI/editor validation, `manifest`/`plan` tooling,
+  `export`, learning).
+
 ## [0.51.1] - 2026-07-07
 
 ### Changed
