@@ -57,7 +57,7 @@ One row per run, newest first. `Pass/Total` sums unit tests + all suite blocks f
 
 | Date (UTC) | niva | OS | QGIS | Python | Result | Pass / Total | Skip | Details |
 |---|---|---|---|---|---|---|---|---|
-| 2026-07-07 | 0.55.0 | Linux 7.0 · x86_64 | 4.2.0 | 3.14.4 | ✅ | 689 / 689 (unit) | 17 | [↓](#0550--linux--2026-07-07) |
+| 2026-07-07 | 0.55.0 | Linux 7.0 · x86_64 | 4.2.0 | 3.14.4 | ✅ | 925 / 925 | 17 | [↓](#0550--linux--2026-07-07) |
 | 2026-06-24 | 0.35.1 | macOS 26.5 · arm64 | 4.0.3 | 3.12.11 | ✅ | 718 / 718 | 3 | [↓](#0351--macos-265--2026-06-24) |
 | 2026-06-23 | 0.35.1 | Linux 7.0 · x86_64 | 4.0.3 | 3.14.4 | ✅ | 718 / 718 | 10 | [↓](#0351--linux--2026-06-23) |
 | 2026-06-23 | 0.35.0 | Windows 11 · x86_64 | 4.0.3 | 3.12.13 | ✅ | 718 / 718 | 3 | [↓](#0350--windows-11--2026-06-23) |
@@ -80,24 +80,25 @@ One row per run, newest first. `Pass/Total` sums unit tests + all suite blocks f
 
 ### 0.55.0 · Linux · 2026-07-07
 
-**Result: ✅ unit tier all passed (689/689, 17 skipped)** — first run on QGIS **4.2.0-Belém do
-Pará** (Python 3.14.4). The full `python -m unittest discover` ran under QGIS's Python: 706 tests,
-689 passed, 17 skipped, 0 failures. The **live-QGIS tier ran** (78 `test_pyqgis` tests, 67 passed /
-7 env-skipped), so the real `PyqgisBackend` — load/run/save/CRS/sql — is exercised on 4.2. The
-exit-139 at interpreter shutdown is the known cosmetic Qt teardown segfault (post-summary; not a
-test failure). The 17 skips are all opt-in/env-gated: `NIVA_STRESS` (6), `NIVA_TEST_REMOTE` (3),
-and one GDAL-present offline-guard path (the new `each` meta-filter test, which asserts the
-*no-GDAL* error and so is inapplicable when GDAL is present).
+**Result: ✅ full battery all passed (925/925, 17 skipped)** — first run on QGIS **4.2.0-Belém do
+Pará** (Python 3.14.4), and the first **full-battery** certification of 4.2. Unit: `python -m
+unittest discover` under QGIS's Python — 706 tests, 689 passed, 17 skipped, 0 failures; the
+**live-QGIS tier ran** (78 `test_pyqgis`, 67 passed / 7 env-skipped), so the real `PyqgisBackend`
+(load/run/save/CRS/sql) is exercised on 4.2. Assertion suites: all nine passed block-for-block
+(236/236), reaching **local PostGIS** (`@localpg`) and a live **WFS** endpoint. Benchmark suite ran
+(25 blocks; records metrics, not pass/fail). The exit-139 at interpreter shutdown is the known
+cosmetic Qt teardown segfault (post-summary; not a test failure). The 17 skips are all
+opt-in/env-gated: `NIVA_STRESS` (6), `NIVA_TEST_REMOTE` (3), and one GDAL-present offline-guard path
+(the new `each` meta-filter test, which asserts the *no-GDAL* error, inapplicable when GDAL is
+present).
 
 Also verified by hand on 4.2 against `examples/demo/`: the new `each` filters (offline `ext`/
 `minsize`/`maxsize`/`newerthan` and GDAL `geom`/`crs`/`minfeatures`/`hasfield`) and `niva find
 --paths`/`-0` (the 0.55.0 features).
 
-**Not run this session:** the niva **assertion suites** (validation/validation_2/validation_3/
-portable/format_matrix/numerical/round_trip/security/error_path) — their runner expects the suite
-fixtures at `examples/…` and a generated `data/` tree that isn't provisioned on this host. `@localpg`
-itself is reachable. A full-battery certification of 4.2 is left as a follow-up once the fixtures
-are regenerated.
+> Note on the runner: `run_validation_suite.py` / `run_assert_suite.py` take the suite path as a
+> positional arg (`… run_assert_suite.py tests/suites/<suite>.niva`); with no arg they default to
+> `examples/validation_suite.niva`. Fixtures resolve from `data/` + `tests/datagen/{testdata,realworld}`.
 
 | Key | Value |
 |---|---|
@@ -106,14 +107,19 @@ are regenerated.
 | QGIS | 4.2.0-Belém do Pará |
 | Python | 3.14.4 |
 | OS / kernel | Linux 7.0.0-27-generic · x86_64 |
-| PostGIS | `@localpg` reachable (local PG18) — used only by the (not-run) assertion suites |
+| PostGIS | local PG18 via `@localpg` (reached by validation + security + round_trip suites) |
 
 | Suite | Passed | Total | Result | Note |
 |---|---:|---:|---|---|
 | unit (full discover, under QGIS) | 689 | 689 | ✅ | 17 skipped (env-gated); live-QGIS tier included (67/74 `test_pyqgis`) |
-| validation_suite / _2 / _3 | — | — | — | not run — suite fixtures not provisioned on host |
-| portable / format_matrix / numerical / round_trip / security / error_path | — | — | — | not run — same |
-| benchmark_suite | — | — | — | not run |
+| validation_suite / _2 / _3 | 123 | 123 | ✅ | 41 each; PostGIS + WFS reached |
+| portable_suite | 25 | 25 | ✅ | |
+| format_matrix_suite | 16 | 16 | ✅ | |
+| numerical_suite | 21 | 21 | ✅ | value correctness (areas/counts/round-trips) |
+| round_trip_suite | 17 | 17 | ✅ | |
+| security_suite | 14 | 14 | ✅ | |
+| error_path_suite | 20 | 20 | ✅ | fail-closed behaviour |
+| benchmark_suite | — | 25 | ✅ | metrics only (not pass/fail) |
 
 ### 0.35.1 · macOS 26.5 · 2026-06-24
 

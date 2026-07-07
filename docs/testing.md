@@ -10,19 +10,19 @@ and a how-to-update template for adding new platforms).
 
 | Platform | OS | QGIS | Python | niva | Result | Date |
 |---|---|---|---|---|---|---|
-| Linux 7.0 · x86\_64 | Linux 7.0.0 | 4.2.0-Belém do Pará | 3.14.4 | 0.55.0 | ✅ 689/689 unit + 17 skip · suites pending | 2026-07-07 |
+| Linux 7.0 · x86\_64 | Linux 7.0.0 | 4.2.0-Belém do Pará | 3.14.4 | 0.55.0 | ✅ 925/925 + 17 skip | 2026-07-07 |
 | Windows 11 · x86\_64 | 10.0.26200 | 4.0.3-Norrköping | 3.12.13 | 0.35.0 | ✅ 718/718 + 3 skip | 2026-06-23 |
 | Windows 11 · x86\_64 | 10.0.26200 | 3.44.11-Solothurn | 3.12.13 | 0.35.0 | ✅ 718/718 + 3 skip | 2026-06-23 |
 | macOS 26.5.1 · x86\_64 | Darwin 25.5.0 | 4.0.3-Norrköping | 3.12.11 | 0.35.0 | ✅ 715/715 + 3 skip | 2026-06-22 |
 | Linux 7.0 · x86\_64 | Linux 7.0.0 | 4.0.3-Norrköping | 3.14.4 | 0.35.0 | ✅ 718/718 + 10 skip | 2026-06-22 |
 | macOS 26.5.1 · x86\_64 | Darwin 25.5.0 | 4.0.3-Norrköping | 3.12.11 | 0.34.1 | ✅ 668/668 + 3 skip | 2026-06-22 |
 
-> Latest: Linux passes 0.55.0 on QGIS **4.2.0** (Python 3.14) — the `unittest` tier (689/689, the
-> live-QGIS backend included); the 17 skips are all opt-in/env-gated (`NIVA_STRESS`,
-> `NIVA_TEST_REMOTE`, and GDAL-present offline-guard paths). The niva **assertion suites**
-> (validation/portable/numerical/…) are pending a data-fixture refresh on this host. Linux, macOS,
-> and Windows all pass 0.35.0 (full battery); Windows covers both the QGIS **4.0.3** and **3.44 LTR**
-> lines. See [`tests/TESTING_LOG.md`](../tests/TESTING_LOG.md) for per-run detail.
+> Latest: Linux passes 0.55.0 on QGIS **4.2.0** (Python 3.14) — the **full battery** (689 unit + 236
+> assertion-suite blocks = 925, live-QGIS + local PostGIS included; benchmark metrics recorded
+> separately). The 17 skips are all opt-in/env-gated (`NIVA_STRESS`, `NIVA_TEST_REMOTE`, and one
+> GDAL-present offline-guard path). Linux, macOS, and Windows all pass 0.35.0; Windows covers both
+> the QGIS **4.0.3** and **3.44 LTR** lines. See [`tests/TESTING_LOG.md`](../tests/TESTING_LOG.md)
+> for per-run detail.
 
 ## Running the suite
 
