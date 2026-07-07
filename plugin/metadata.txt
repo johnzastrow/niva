@@ -6,7 +6,7 @@ name=niva
 qgisMinimumVersion=3.22
 qgisMaximumVersion=4.99
 description=Run niva flows — a concise text pipeline for QGIS geoprocessing — from a dock.
-version=0.57.0
+version=0.58.0
 author=John Zastrow
 email=br8kwall@gmail.com
 about=niva is a concise, readable text-pipeline grammar for QGIS geoprocessing
@@ -28,9 +28,9 @@ deprecated=False
 # summary for the new version here, mirroring the top entry of ../CHANGELOG.md (the repo file
 # stays the full history; this field is just the highlights). Then DROP the oldest entry so the
 # field never holds more than three versions. Continuation lines MUST stay indented (like `about=`).
-changelog=0.57.0 — Added: `niva setup doctor` — a one-command environment health check
+changelog=0.58.0 — Added: `niva repl` — `.save study.niva` harvests the session's valid flows
+    into a runnable .niva file (and `.history` lists them), so good interactive commands become a study.
+    0.57.0 — Added: `niva setup doctor` — a one-command environment health check
     (QGIS runtime + where it was found, providers, PDAL, config, and @conn connections).
     0.56.0 — Added: `niva repl` tab-completes filesystem paths for path arguments
     (load/show/save/clip/each/…) and path-valued options, in both the rich and plain modes.
-    0.55.2 — Fixed: in `niva repl`, bare `info`/`show` now run against real QGIS (were
-    showing mock placeholder data) — real providers, connections, layers, and feature counts.

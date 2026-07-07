@@ -140,6 +140,49 @@ class TestReplCommands(unittest.TestCase):
             R._run_flow = orig
         self.assertEqual(called, ["info", "show somedir"])
 
+    def test_valid_flows_are_collected_invalid_excluded(self):
+        state = {"last": None}
+        _run("load a.gpkg | buffer 100m | save b.gpkg", state)
+        _run("load bad | | oops", state)  # invalid → not collected
+        _run("load c.gpkg | save d.gpkg", state)
+        self.assertEqual(
+            state.get("session"),
+            ["load a.gpkg | buffer 100m | save b.gpkg", "load c.gpkg | save d.gpkg"],
+        )
+
+    def test_history_lists_session_flows(self):
+        state = {"last": None}
+        _run("load a.gpkg | save b.gpkg", state)
+        _, out = _run(".history", state)
+        self.assertIn("load a.gpkg | save b.gpkg", out)
+        _, empty = _run(".history", {"last": None})
+        self.assertIn("no flows yet", empty)
+
+    def test_save_writes_a_runnable_niva_file(self):
+        import os
+        import tempfile
+
+        state = {"last": None}
+        _run("load a.gpkg | buffer 100m | save b.gpkg", state)
+        _run("load c.gpkg | save d.gpkg", state)
+        d = tempfile.mkdtemp(prefix="niva_save_")
+        target = os.path.join(d, "study")  # no extension → .niva appended
+        _run(f".save {target}", state)
+        path = target + ".niva"
+        self.assertTrue(os.path.isfile(path))
+        body = open(path, encoding="utf-8").read()
+        self.assertIn("load a.gpkg | buffer 100m | save b.gpkg", body)
+        self.assertIn("load c.gpkg | save d.gpkg", body)
+        self.assertTrue(body.startswith("#"))  # has a header comment
+
+    def test_save_with_nothing_or_no_target(self):
+        _, out1 = _run(".save x.niva", {"last": None})  # no session yet
+        self.assertIn("nothing to save", out1)
+        state = {"last": None}
+        _run("load a.gpkg | save b.gpkg", state)
+        _, out2 = _run(".save", state)  # missing target
+        self.assertIn("usage: .save", out2)
+
     def test_first_valid_flow_hints_run_once(self):
         state = {"last": None}
         _, out1 = _run("load a.gpkg | save b.gpkg", state)

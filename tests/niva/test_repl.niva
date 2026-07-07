@@ -66,6 +66,21 @@ show somedir
 load a.gpkg | buffer 100m | save b.gpkg
 show a.gpkg | buffer 100m | save b.gpkg
 
+# test_valid_flows_are_collected_invalid_excluded
+load a.gpkg | buffer 100m | save b.gpkg
+load bad | | oops
+load c.gpkg | save d.gpkg
+
+# test_history_lists_session_flows
+load a.gpkg | save b.gpkg
+
+# test_save_writes_a_runnable_niva_file
+load a.gpkg | buffer 100m | save b.gpkg
+load c.gpkg | save d.gpkg
+
+# test_save_with_nothing_or_no_target
+load a.gpkg | save b.gpkg
+
 # test_first_valid_flow_hints_run_once
 load a.gpkg | save b.gpkg
 load c.gpkg | save d.gpkg

@@ -9,6 +9,16 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 > [`plugin/metadata.txt`](plugin/metadata.txt) — keep only the **last three versions** there (drop
 > the oldest); that field is what the QGIS Plugin Manager shows. This file stays the full history.
 
+## [0.58.0] - 2026-07-07
+
+### Added
+- **`niva repl`: harvest your session into a `.niva` file — `.save` and `.history`.** As you work
+  out flows interactively, the repl now remembers every **valid** flow you enter (invalid drafts
+  are skipped). `.history` lists them; **`.save study.niva`** writes them to a runnable `.niva`
+  script (one flow per line, with a header; the `.niva` extension is added if you omit it) — so
+  good commands you develop in the repl become a saved study, ready for `niva run`. The full raw
+  line history still persists across sessions at `<config-dir>/niva/repl_history` for deeper mining.
+
 ## [0.57.0] - 2026-07-07
 
 ### Added
