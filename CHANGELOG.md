@@ -9,6 +9,17 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 > [`plugin/metadata.txt`](plugin/metadata.txt) — keep only the **last three versions** there (drop
 > the oldest); that field is what the QGIS Plugin Manager shows. This file stays the full history.
 
+## [0.59.0] - 2026-07-07
+
+### Added
+- **`niva setup wizard` — a guided, interactive config walk-through (issue #36).** Steps through
+  every portable setting (QGIS Python, log/scratch/templates dirs, QGIS profile, ntfy, SMTP),
+  showing the current value (from the config, else the mirrored env var, else an example);
+  **Enter** keeps it, a typed value sets it, `-` clears it. Secrets are **never** prompted or
+  stored — the wizard only reminds you which env vars (`NIVA_NTFY_TOKEN`, `NIVA_SMTP_PASSWORD`)
+  to set. Writes through the same portable `config.toml` as `niva setup set`. Completes the
+  `niva setup` family alongside `doctor`.
+
 ## [0.58.0] - 2026-07-07
 
 ### Added
