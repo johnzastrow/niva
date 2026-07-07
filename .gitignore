@@ -254,6 +254,11 @@ examples/demo/
 # Transportable test data — regenerate with examples/make_testdata.py (deterministic)
 tests/datagen/testdata/
 
+# Local scratch / run artifacts (figure & map images, `niva info` dumps, ad-hoc output dirs)
+/info.md
+/outputs/
+/examples/*.png
+
 # macOS metadata files
 .DS_Store
 
