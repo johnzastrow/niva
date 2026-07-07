@@ -47,6 +47,57 @@ below and the [FAQ](faq.md#its-the-install-mode-not-pip-vs-uv).
 > `<qgis-python>` as above. Full breakdown in the
 > [FAQ](faq.md#does-uv-tool-install-qgis-niva-connect-to-qgis-do-i-need-the-plugin).
 
+#### Ubuntu (system QGIS) — install for all users or one user
+
+On Ubuntu/Debian, QGIS uses the **system Python** (e.g. `/usr/bin/python3.14`; its PyQGIS
+bindings live at `/usr/share/qgis/python`, added to the path at runtime). Confirm the exact
+interpreter in the QGIS **Python Console**:
+
+```python
+import sys; print(sys.executable)      # → /usr/bin/python3.14 on Ubuntu
+```
+
+That interpreter is **externally-managed** (PEP 668), so every install below passes
+`--break-system-packages` — safe here because niva is **pure-Python with zero runtime
+dependencies** (it adds nothing to the system but niva itself).
+
+**All users (system-wide, needs `sudo`)** — installs into the interpreter's global
+`site-packages`, so the `niva` command and `import niva` work for every account and inside
+QGIS's Python Console:
+
+```bash
+# with uv (recommended): --system installs into the interpreter, not a venv
+sudo uv pip install --python /usr/bin/python3.14 --system --break-system-packages qgis-niva
+# …or with pip:
+sudo /usr/bin/python3.14 -m pip install --break-system-packages qgis-niva
+```
+
+This lands the package in `/usr/local/lib/python3.14/dist-packages/niva` and the launcher at
+`/usr/local/bin/niva` (root-owned, on everyone's `PATH`). Verify from any directory:
+
+```bash
+niva --version            # or:  /usr/bin/python3.14 -c "import niva; print(niva.__version__)"
+```
+
+**One user (no `sudo`)** — installs into your personal user-site, which the same interpreter
+also reads (nothing system-wide changes):
+
+```bash
+/usr/bin/python3.14 -m pip install --user --break-system-packages qgis-niva
+```
+
+This lands niva in `~/.local/lib/python3.14/site-packages` and the launcher at
+`~/.local/bin/niva`. Make sure that bin dir is on your `PATH` (add to `~/.bashrc` if needed):
+
+```bash
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+Either way, because niva is installed **into QGIS's own interpreter**, `niva run` *executes*
+flows (not just the offline commands). Upgrade later with the same command plus `--upgrade`;
+uninstall with `… pip uninstall qgis-niva`. Add the rich REPL/TUI with the `[cli]` extra:
+`… qgis-niva[cli]`.
+
 #### Make `niva` a terminal command
 
 `niva` runs on **QGIS's own Python**, so the `niva` command has to point at *that*
