@@ -61,6 +61,36 @@ class TestReplCompletion(unittest.TestCase):
     def test_unknown_verb_offers_nothing(self):
         self.assertEqual(completions("definitelynotaverb "), [])
 
+    def test_path_argument_completes_files_and_dirs(self):
+        import os
+        import tempfile
+
+        d = tempfile.mkdtemp(prefix="niva_comp_")
+        os.makedirs(os.path.join(d, "subdir"))
+        open(os.path.join(d, "roads.gpkg"), "w").close()
+        open(os.path.join(d, "rivers.gpkg"), "w").close()
+        got = completions(f"show {d}/")
+        names = sorted(os.path.basename(p.rstrip("/")) for p in got)
+        self.assertEqual(names, ["rivers.gpkg", "roads.gpkg", "subdir"])
+        # directories are suffixed with "/"; files are not
+        self.assertTrue(any(p.endswith("subdir/") for p in got))
+        self.assertTrue(all(not p.endswith("roads.gpkg/") for p in got))
+
+    def test_path_argument_respects_prefix(self):
+        import os
+        import tempfile
+
+        d = tempfile.mkdtemp(prefix="niva_comp_")
+        open(os.path.join(d, "roads.gpkg"), "w").close()
+        open(os.path.join(d, "rivers.gpkg"), "w").close()
+        got = [os.path.basename(p) for p in completions(f"load {d}/ro")]
+        self.assertEqual(got, ["roads.gpkg"])
+
+    def test_verb_position_offers_no_paths(self):
+        # At the stage start we complete verbs, never filesystem entries.
+        self.assertNotIn("./", completions("sho"))
+        self.assertIn("show", completions("sho"))
+
 
 class TestReplCommands(unittest.TestCase):
     def test_quit_variants_all_quit(self):
