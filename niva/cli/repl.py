@@ -1,15 +1,20 @@
 """`niva repl` — an interactive authoring prompt (docs/planning/20 §10 Tier 1, issue #41).
 
 Zero-QGIS authoring: type a flow and get **manifest-driven tab completion** (verbs → their
-options/flags → an option's enum values), **live validation**, and quick `?describe` / `/search`.
+options/flags → an option's enum values), **live validation**, **syntax highlighting**, and
+quick `?describe` / `/search`.
 
-The rich experience uses ``prompt_toolkit`` (the ``[cli]`` extra: ``pip install qgis-niva[cli]``).
-Without it, the repl **degrades gracefully** to a plain ``readline`` loop — the core never
-*requires* the extra (Oscar E1 / the design's hard rule). Colour reuses ``niva.color``.
+The rich experience uses ``prompt_toolkit`` (the ``[cli]`` extra: ``pip install qgis-niva[cli]``)
+— live per-keystroke highlighting, a completion menu, and a colour validity toolbar. Without it,
+the repl **degrades gracefully** to a plain ``readline`` loop that still colours the prompt, echoes
+each flow **syntax-highlighted** (:func:`highlight_flow`), and colours all output — the core never
+*requires* the extra (Oscar E1 / the design's hard rule). All colour reuses ``niva.color``, so it
+turns off automatically off-TTY / under ``NO_COLOR``.
 """
 
 from __future__ import annotations
 
+import re
 import sys
 from functools import lru_cache
 
@@ -92,14 +97,108 @@ def _validity(text: str) -> tuple[str, str]:
     return "✗", "invalid"
 
 
-_HELP = """commands:
-  <flow>          validate a flow (e.g. load a.gpkg | buffer 100m | save b.gpkg)
-  .explain        show the resolved plan for the last flow
-  ?<verb>         describe a verb (e.g. ?buffer)
-  /<keyword>      search verbs & the algorithm catalog
-  .help           this help          (also: help, ?)
-  .quit           leave              (also: quit, exit, q, or Ctrl-D)
-Tab completes verbs, then their options/flags, then an option's enum values."""
+# ----------------------------------------------------------------- flow syntax highlighting
+
+# One tokenizer shared by the ANSI highlighter (readline echo) and the prompt_toolkit lexer:
+# keeps quoted strings whole (so a `|` inside "a.gpkg|layername=x" isn't mistaken for a pipe),
+# and treats a bare `|` and runs of whitespace as their own tokens.
+_TOKEN_RE = re.compile(r"\s+|\"[^\"]*\"|'[^']*'|\||[^\s|]+")
+
+# token class → ANSI styles (for niva.color). The prompt_toolkit lexer maps the same class
+# names to a Style below, so the two highlighters agree.
+_STYLE_ANSI = {
+    "verb": ("cyan", "bold"),
+    "unknown": ("red",),
+    "optkey": ("yellow",),
+    "optval": ("green",),
+    "conn": ("blue",),
+    "path": ("green",),
+    "flag": ("yellow",),
+    "num": ("blue",),
+    "pipe": ("magenta",),
+}
+
+
+def _classify(tok: str, first: bool, verbs) -> str:
+    """The highlight class for one non-space token. ``first`` marks a stage-initial token
+    (verb position). Pure — shared by both highlighters."""
+    if first:
+        return "verb" if tok in verbs else "unknown"
+    if tok.startswith("@"):
+        return "conn"
+    if tok[:1] in "\"'":
+        return "path"
+    if "=" in tok:
+        return "optkey"
+    if "/" in tok or "\\" in tok:
+        return "path"
+    # A number (optionally signed/decimal, with an m/km-style unit suffix) → num; check this
+    # before the dotted-filename rule so `2.5` and `100m` stay numeric, `a.gpkg` a path.
+    stripped = tok.replace(".", "").replace("-", "").replace("m", "").replace("k", "")
+    if stripped.isdigit():
+        return "num"
+    if "." in tok:  # a dotted bareword is a filename (roads.gpkg, dem.tif)
+        return "path"
+    return "flag"
+
+
+def highlight_flow(text: str) -> str:
+    """``text`` re-rendered with ANSI colour: verbs cyan (red if unknown), ``option=value``
+    yellow/green, pipes magenta, ``@conn`` blue, paths/strings green. Used to echo the flow
+    back in readline mode (where there's no live highlighter). Colour auto-off off-TTY."""
+    from .. import color
+
+    verbs = set(_index()["names"])
+    out, at_start = [], True
+    for m in _TOKEN_RE.finditer(text):
+        tok = m.group()
+        if not tok.strip():
+            out.append(tok)  # preserve spacing
+            continue
+        if tok == "|":
+            out.append(color.paint("|", "magenta"))
+            at_start = True
+            continue
+        cls = _classify(tok, at_start, verbs)
+        at_start = False
+        if cls == "optkey" and "=" in tok:
+            k, _, v = tok.partition("=")
+            out.append(
+                color.paint(k, "yellow")
+                + color.paint("=", "dim")
+                + color.paint(v, "green")
+            )
+        else:
+            out.append(color.paint(tok, *_STYLE_ANSI[cls]))
+    return "".join(out)
+
+
+def _help_text() -> str:
+    """The colourised command help (``.help``)."""
+    from .. import color
+
+    def row(cmd: str, desc: str) -> str:
+        return f"  {color.paint(cmd, 'cyan')}{' ' * (14 - len(cmd))}{desc}"
+
+    return "\n".join(
+        [
+            color.paint("commands:", "bold"),
+            row(
+                "<flow>",
+                "validate a flow (e.g. load a.gpkg | buffer 100m | save b.gpkg)",
+            ),
+            row(".explain", "show the resolved plan for the last flow"),
+            row("?<verb>", "describe a verb (e.g. ?buffer)"),
+            row("/<keyword>", "search verbs & the algorithm catalog"),
+            row(".help", "this help          (also: help, ?)"),
+            row(".quit", "leave              (also: quit, exit, q, or Ctrl-D)"),
+            color.paint(
+                "Tab completes verbs, then options/flags, then an option's enum values.",
+                "dim",
+            ),
+        ]
+    )
+
 
 # Accept the variants people actually reach for — with or without the leading
 # dot, plus psql/vim muscle memory (\q, :q) — so quitting and help never stump.
@@ -114,7 +213,7 @@ def _handle(line: str, state: dict) -> str:
     if line in _QUIT:
         return "quit"
     if line in _HELP_CMDS:
-        print(_HELP)
+        print(_help_text())
         return ""
     if line == ".explain":
         flow = state.get("last")
@@ -153,11 +252,13 @@ def _handle(line: str, state: dict) -> str:
         print(color.paint(f"unknown command {line!r} — try .help", "yellow"))
         return ""
 
-    # Otherwise: treat the line as a flow → validate + remember it.
+    # Otherwise: treat the line as a flow → echo it syntax-highlighted, then validate.
     state["last"] = line
     sym, msg = _validity(line)
     sty = "green" if sym == "✓" else ("yellow" if sym == "⚠" else "red")
-    print(f"{color.paint(sym, sty)} {msg}")
+    print(f"{color.paint(sym, sty)} {highlight_flow(line)}")
+    if sym != "✓":
+        print(f"  {color.paint('→ ' + msg, sty)}")
     return ""
 
 
@@ -170,14 +271,26 @@ def _banner() -> str:
     return f"{head}\n{quit_ln}\n{help_ln}"
 
 
+def _readline_prompt() -> str:
+    """The plain-mode prompt, cyan+bold when colour is on. The ``\\001``/``\\002`` markers tell
+    readline the escapes are zero-width so it measures the line length correctly."""
+    from .. import color
+
+    if not color.enabled():
+        return "niva ▸ "
+    codes = color._CODES
+    return f"\001{codes['bold']}{codes['cyan']}\002niva ▸ \001{codes['reset']}\002"
+
+
 def run(argv=None) -> int:
     """Start the interactive authoring repl (prompt_toolkit if available, else readline)."""
     print(_banner())
     state: dict = {"last": None}
     session = _make_session()
+    prompt = _readline_prompt()
     while True:
         try:
-            line = (session.prompt() if session else input("niva ▸ ")).strip()
+            line = (session.prompt() if session else input(prompt)).strip()
         except (EOFError, KeyboardInterrupt):
             break
         if not line:
@@ -189,19 +302,63 @@ def run(argv=None) -> int:
 
 
 def _make_session():
-    """A ``prompt_toolkit`` session with completion + a live-validation toolbar, or None when
-    the extra isn't installed (the caller then falls back to plain ``input``)."""
+    """A ``prompt_toolkit`` session with **live syntax highlighting**, completion, and a
+    validity toolbar, or None when the extra isn't installed (the caller then falls back to
+    plain ``input`` — which still colours the prompt, the echoed flow, and all output)."""
     try:
         from prompt_toolkit import PromptSession
         from prompt_toolkit.application import get_app
         from prompt_toolkit.completion import Completer, Completion
         from prompt_toolkit.history import InMemoryHistory
+        from prompt_toolkit.lexers import Lexer
+        from prompt_toolkit.styles import Style
     except ImportError:
         print(
-            "  (plain mode — `pip install qgis-niva[cli]` for tab completion & live validation)",
+            "  (plain mode — `pip install qgis-niva[cli]` for tab completion & live highlighting)",
             file=sys.stderr,
         )
         return None
+
+    verbs = set(_index()["names"])
+
+    # Live highlighting: the same token classes the readline echo uses, mapped to a Style so
+    # the two paths look identical. Fragments include whitespace so spacing is preserved.
+    class _FlowLexer(Lexer):
+        def lex_document(self, document):
+            def get_line(lineno):
+                frags, at_start = [], True
+                for m in _TOKEN_RE.finditer(document.lines[lineno]):
+                    tok = m.group()
+                    if not tok.strip():
+                        frags.append(("", tok))
+                        continue
+                    if tok == "|":
+                        frags.append(("class:pipe", tok))
+                        at_start = True
+                        continue
+                    frags.append((f"class:{_classify(tok, at_start, verbs)}", tok))
+                    at_start = False
+                return frags
+
+            return get_line
+
+    style = Style.from_dict(
+        {
+            "verb": "#00aaff bold",
+            "unknown": "#ff5555",
+            "optkey": "#ffcc00",
+            "optval": "#33cc66",
+            "conn": "#4488ff",
+            "path": "#33cc66",
+            "flag": "#ffcc00",
+            "num": "#4488ff",
+            "pipe": "#cc66cc bold",
+            "prompt": "#00aaff bold",
+            "tb-ok": "bg:#005500 #ffffff",
+            "tb-warn": "bg:#665500 #ffffff",
+            "tb-err": "bg:#660000 #ffffff",
+        }
+    )
 
     class _NivaCompleter(Completer):
         def get_completions(self, document, complete_event):
@@ -212,10 +369,15 @@ def _make_session():
 
     def _toolbar():
         sym, msg = _validity(get_app().current_buffer.text)
-        return f"{sym} {msg}" if sym else ""
+        if not sym:
+            return ""
+        cls = "tb-ok" if sym == "✓" else ("tb-warn" if sym == "⚠" else "tb-err")
+        return [(f"class:{cls}", f" {sym} {msg} ")]
 
     return PromptSession(
-        message="niva ▸ ",
+        message=[("class:prompt", "niva ▸ ")],
+        lexer=_FlowLexer(),
+        style=style,
         completer=_NivaCompleter(),
         complete_while_typing=True,
         bottom_toolbar=_toolbar,

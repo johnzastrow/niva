@@ -84,5 +84,43 @@ class TestReplCommands(unittest.TestCase):
         self.assertEqual(state["last"], "load a.gpkg | save b.gpkg")
 
 
+class TestHighlight(unittest.TestCase):
+    def test_classify(self):
+        from niva.cli.repl import _classify
+
+        verbs = {"load", "buffer", "save"}
+        self.assertEqual(_classify("load", True, verbs), "verb")
+        self.assertEqual(_classify("nope", True, verbs), "unknown")
+        self.assertEqual(_classify("@gisdb3.parcels", False, verbs), "conn")
+        self.assertEqual(_classify("field=county", False, verbs), "optkey")
+        self.assertEqual(_classify("roads.gpkg", False, verbs), "path")
+        self.assertEqual(_classify("100m", False, verbs), "num")
+        self.assertEqual(_classify("2.5", False, verbs), "num")
+        self.assertEqual(
+            _classify("dissolve", False, verbs), "flag"
+        )  # bareword, not stage-start
+
+    def test_highlight_flow_is_transparent_without_color(self):
+        # With colour disabled, the highlighter must round-trip the text byte-for-byte
+        # (whitespace and pipes preserved) — it only *adds* invisible ANSI when enabled.
+        import os
+
+        from niva.cli.repl import highlight_flow
+
+        old = os.environ.get("NO_COLOR")
+        os.environ["NO_COLOR"] = "1"
+        try:
+            for flow in (
+                "load a.gpkg | buffer 100m | save b.gpkg",
+                'sql @c "SELECT 1"',
+            ):
+                self.assertEqual(highlight_flow(flow), flow)
+        finally:
+            if old is None:
+                del os.environ["NO_COLOR"]
+            else:
+                os.environ["NO_COLOR"] = old
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -9,6 +9,17 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 > [`plugin/metadata.txt`](plugin/metadata.txt) (concise — latest one or two versions only); that
 > field is what the QGIS Plugin Manager shows. This file stays the full history.
 
+## [0.53.0] - 2026-07-07
+
+### Added
+- **`niva repl` — syntax highlighting and a fully colourised prompt.** With the `[cli]` extra the
+  input line is highlighted live per keystroke (verbs, `option=value`, pipes, `@conn`, paths,
+  numbers) and the validity toolbar is colour-coded green/amber/red. **In plain readline mode**
+  (no `prompt_toolkit`) the prompt is coloured, each entered flow is echoed back
+  syntax-highlighted, and `.help` is colourised — so the repl is colourful even without the extra.
+  The highlighter (`highlight_flow` / `_classify`) is shared by both paths and is colour-safe
+  (auto-off off-TTY / under `NO_COLOR`).
+
 ## [0.52.0] - 2026-07-07
 
 ### Added
