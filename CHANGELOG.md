@@ -9,7 +9,18 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 > [`plugin/metadata.txt`](plugin/metadata.txt) (concise — latest one or two versions only); that
 > field is what the QGIS Plugin Manager shows. This file stays the full history.
 
-## [Unreleased]
+## [0.52.0] - 2026-07-07
+
+### Added
+- **`niva find` — data discovery as a first-class command (CLI-epic Phase 1; issue #43).** Scan the
+  filesystem for spatial data by glob, extension, size, and mtime — **offline**, on any interpreter
+  (`niva find "*.gpkg" in ~/data --newer-than 7d`). When **GDAL/OGR is importable** (QGIS's Python),
+  each match is enriched with **geometry type, CRS, feature count, attribute field names, and the
+  primary-key/FID column**, unlocking the `--geom`, `--crs`, `--min-features` / `--max-features`,
+  and `--has-field` filters; used offline those filters report that they need GDAL rather than
+  silently matching nothing. Output as an aligned **table** (default), **`--json`**, or
+  **`--as-flow`** — a runnable `each … | <stages> | save …` skeleton, so *find becomes the source
+  of a flow*.
 
 ### Docs
 - **Install docs now reflect the PyPI release and explain the QGIS-integration path.** The FAQ and

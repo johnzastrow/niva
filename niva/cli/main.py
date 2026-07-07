@@ -36,6 +36,7 @@ _USAGE = (
     '       niva explain <file.niva> | "<flow>"       (human view of the resolved plan)\n'
     "       niva manifest [to=<file>]                 (machine-readable verb catalog, JSON)\n"
     "       niva search <keyword> [limit=N] [--json]  (fuzzy + synonym-aware discovery, offline)\n"
+    "       niva find [glob] [in <dir>…] [--geom …] [--crs …] [--json|--as-flow]  (discover data)\n"
     "       niva setup [show|init|path|get <k>|set <k> <v>|unset <k>]  (portable config; init writes a sample)\n"
     "       niva describe <verb-or-algorithm-id>\n"
     "       niva repl                                  (interactive authoring; Tab completion with the [cli] extra)\n"
@@ -44,6 +45,25 @@ _USAGE = (
     "       niva import <file.py>   [-o <file.niva>]\n"
     "  (default executes via QGIS; --dry-run validates over a mock backend; "
     "--explain shows the plan)"
+)
+
+
+# Options to `niva find` that consume a following value (`--geom polygon`).
+_FIND_VALUE_FLAGS = frozenset(
+    {
+        "--geom",
+        "--crs",
+        "--has-field",
+        "--format",
+        "--newer-than",
+        "--min-size",
+        "--max-size",
+        "--min-features",
+        "--max-features",
+        "--max-depth",
+        "--limit",
+        "--in",
+    }
 )
 
 
@@ -78,6 +98,8 @@ def main(argv=None) -> int:
         return _plan(argv[1:])
     if argv[0] == "search":
         return _search(argv[1:])
+    if argv[0] == "find":
+        return _find(argv[1:])
     if argv[0] == "explain":
         return _explain(argv[1:])
     if argv[0] == "manifest":
@@ -548,6 +570,118 @@ def _search(args) -> int:
         print(f"niva: wrote {out}", file=sys.stderr)
     else:
         print(text)
+    return 0
+
+
+def _find(args) -> int:
+    """`niva find [glob] [in <dir>…] [filters] [--json|--as-flow]` — discover spatial data on
+    the filesystem (issue #43). The scan is **offline** (glob / extension / size / mtime);
+    the geometry/CRS/attribute filters (`--geom`, `--crs`, `--min-features`, `--max-features`,
+    `--has-field`) need GDAL — present on QGIS's Python, absent in an isolated `uv`/`pipx` venv."""
+    import time
+
+    from .. import color
+    from .. import find as F
+
+    crit: dict = {}
+    roots: list = []
+    pattern = None
+    as_json = as_flow = all_files = shallow = no_meta = False
+    limit, max_depth = 500, None
+    in_mode = False
+    i = 0
+    try:
+        while i < len(args):
+            a = args[i]
+            nxt = args[i + 1] if i + 1 < len(args) else None
+            if a == "in":
+                in_mode = True
+            elif a == "--json":
+                as_json = True
+            elif a == "--as-flow":
+                as_flow = True
+            elif a == "--all-files":
+                all_files = True
+            elif a == "--shallow":
+                shallow = True
+            elif a == "--no-meta":
+                no_meta = True
+            elif a.startswith("limit="):
+                limit = int(a.split("=", 1)[1])
+            elif a in _FIND_VALUE_FLAGS:
+                if nxt is None:
+                    _err(f"{a} needs a value")
+                    return 2
+                i += 1
+                if a == "--geom":
+                    crit["geom"] = nxt
+                elif a == "--crs":
+                    crit["crs"] = nxt
+                elif a == "--has-field":
+                    crit["has_field"] = nxt
+                elif a == "--format":
+                    crit["format"] = nxt
+                elif a == "--newer-than":
+                    crit["newer_than"] = time.time() - F.parse_age(nxt)
+                elif a == "--min-size":
+                    crit["min_size"] = F.parse_size(nxt)
+                elif a == "--max-size":
+                    crit["max_size"] = F.parse_size(nxt)
+                elif a == "--min-features":
+                    crit["min_features"] = int(nxt)
+                elif a == "--max-features":
+                    crit["max_features"] = int(nxt)
+                elif a == "--max-depth":
+                    max_depth = int(nxt)
+                elif a == "--limit":
+                    limit = int(nxt)
+                elif a == "--in":
+                    roots.append(nxt)
+            elif not a.startswith("-"):
+                if in_mode or pattern is not None:
+                    roots.append(a)
+                else:
+                    pattern = a
+            else:
+                _err(f"unknown option {a!r} (try: niva find --help)")
+                return 2
+            i += 1
+    except ValueError as exc:
+        _err(f"bad value: {exc}")
+        return 2
+
+    roots = roots or ["."]
+    crit["pattern"] = pattern or "*"
+    crit["exts"] = F.exts_for_pattern(crit["pattern"], all_files=all_files)
+
+    wants_meta = any(
+        k in crit for k in ("geom", "crs", "min_features", "max_features", "has_field")
+    )
+    if wants_meta and not F.have_gdal():
+        _err(
+            "the --geom/--crs/--features/--has-field filters need GDAL, which isn't importable "
+            "here. Run niva on QGIS's Python (see the FAQ), or drop those filters."
+        )
+        return 2
+
+    records = F.find(
+        roots,
+        crit,
+        recursive=not shallow,
+        max_depth=max_depth,
+        limit=limit,
+        do_enrich=not no_meta,
+    )
+    if as_json:
+        print(F.format_json(records))
+    elif as_flow:
+        print(F.format_as_flow(records))
+    else:
+        print(
+            F.format_table(
+                records, color=color.enabled(), meta=F.have_gdal() and not no_meta
+            )
+        )
     return 0
 
 
