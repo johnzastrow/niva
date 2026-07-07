@@ -22,6 +22,9 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   those formats can't be updated in place and never carry georeferencing anyway, so the image was
   always written correctly but GDAL logged a scary (harmless) error. niva now filters exactly that
   benign message, like it already does for the same-GeoPackage `gpkg_metadata` probe.
+- **`figure`/`map`: silenced a QGIS 4 `QgsRectangle.setMinimal()` deprecation warning.** The
+  extent-union seed used the deprecated primer; a default-constructed `QgsRectangle` is already
+  null and `combineExtentWith` grows from it identically, so the line was simply removed.
 
 ## [0.59.0] - 2026-07-07
 

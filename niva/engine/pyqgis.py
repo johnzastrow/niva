@@ -2900,8 +2900,9 @@ class PyqgisBackend(Backend):
         if isinstance(extent, str) and extent not in ("", "layer"):
             borrow = self._as_map_layer(os.path.expanduser(extent), None)
             return to_dest(borrow.extent(), borrow.crs())
+        # A default-constructed QgsRectangle is null; combineExtentWith grows correctly from it,
+        # so it seeds the union directly. (The old `setMinimal()` primer is deprecated in QGIS 4.)
         union = QgsRectangle()
-        union.setMinimal()
         for ml in stack:
             e = ml.extent()
             if e.isNull() or e.isEmpty():
