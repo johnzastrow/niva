@@ -253,6 +253,8 @@ def _help_text() -> str:
             ),
             row(".run", "execute the last flow against real QGIS (also: .run <flow>)"),
             row(".explain", "show the resolved plan for the last flow"),
+            row(".history", "list the flows entered this session"),
+            row(".save", "save this session's flows to a file  (.save study.niva)"),
             row("?<verb>", "describe a verb (e.g. ?buffer)"),
             row("/<keyword>", "search verbs & the algorithm catalog"),
             row(".help", "this help          (also: help, ?)"),
@@ -274,6 +276,49 @@ _HELP_CMDS = {".help", ".?", ".h", "?", "help", r"\?", ":h", ":help"}
 # shows your actual QGIS/providers and `show <path>` lists real layers — the mock would return
 # misleading placeholder layers. Both are read-only and write nothing.
 _AUTORUN_VERBS = {"info", "show"}
+
+
+def _remember(state: dict, line: str) -> None:
+    """Collect a runnable flow into the session list (for ``.history`` / ``.save``), skipping an
+    immediately-repeated identical line so re-running the same draft doesn't pile up."""
+    sess = state.setdefault("session", [])
+    if not sess or sess[-1] != line:
+        sess.append(line)
+
+
+def _save_session(state: dict, target: str) -> None:
+    """Write the session's flows to a ``.niva`` file — harvest the good commands you worked out
+    interactively into a runnable script. One flow per line, with a short header; `.niva` is
+    appended if missing. The full raw history (every line, across sessions) also persists at the
+    repl history file for deeper mining."""
+    from .. import color
+
+    flows = state.get("session") or []
+    if not flows:
+        print(color.paint("nothing to save yet — enter some valid flows first", "dim"))
+        return
+    if not target:
+        print(color.paint("usage: .save <file.niva>", "yellow"))
+        return
+    path = os.path.expanduser(target)
+    if not path.endswith(".niva"):
+        path += ".niva"
+    try:
+        parent = os.path.dirname(path)
+        if parent:
+            os.makedirs(parent, exist_ok=True)
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write(
+                "# niva flows harvested from a repl session — edit/reorder as needed.\n"
+            )
+            fh.write(
+                f"# {len(flows)} flow(s). Run with: niva run {os.path.basename(path)}\n\n"
+            )
+            fh.write("\n".join(flows) + "\n")
+    except OSError as exc:
+        print(color.paint(f"✗ could not write {path}: {exc}", "red"))
+        return
+    print(color.paint(f"saved {len(flows)} flow(s) → {path}", "green"))
 
 
 def _handle(line: str, state: dict) -> str:
@@ -325,6 +370,19 @@ def _handle(line: str, state: dict) -> str:
         hits = _search(line[1:].strip(), algorithms=algs, limit=15)
         print(format_results(line[1:].strip(), hits, color=True))
         return ""
+    if line == ".history":  # review the flows entered this session
+        flows = state.get("session") or []
+        if not flows:
+            print(color.paint("no flows yet this session", "dim"))
+        else:
+            for i, fl in enumerate(flows, 1):
+                print(f"  {color.paint(str(i).rjust(2), 'dim')}  {highlight_flow(fl)}")
+        return ""
+    if line == ".save" or line.startswith(
+        ".save "
+    ):  # harvest session flows → a .niva file
+        _save_session(state, line[6:].strip() if line.startswith(".save ") else "")
+        return ""
     if line.startswith("."):  # a mistyped dot-command shouldn't parse as a flow
         print(color.paint(f"unknown command {line!r} — try .help", "yellow"))
         return ""
@@ -342,6 +400,10 @@ def _handle(line: str, state: dict) -> str:
     sym, msg = _validity(line)
     sty = "green" if sym == "✓" else ("yellow" if sym == "⚠" else "red")
     print(f"{color.paint(sym, sty)} {highlight_flow(line)}")
+    if (
+        sym != "✗"
+    ):  # a runnable flow (✓ or ⚠ warning) — remember it for `.save`/`.history`
+        _remember(state, line)
     if sym != "✓":
         print(f"  {color.paint('→ ' + msg, sty)}")
     elif not state.get("_run_hinted"):
