@@ -204,12 +204,70 @@ def _qgis_prefix_path() -> str:
     return "/usr"
 
 
+def _qgis_python_dirs() -> list:
+    """Directories that may hold QGIS's Python bindings (the ``qgis`` package), so
+    ``import qgis`` can work on a standalone interpreter that wasn't told where QGIS lives —
+    e.g. a plain ``pip install qgis-niva`` into Ubuntu's **system** Python, where the bindings
+    sit at ``/usr/share/qgis/python`` and aren't on ``sys.path`` by default. Ordered by
+    priority; only directories that exist are returned."""
+    import sys
+
+    cands: list = []
+    env = os.environ.get("NIVA_QGIS_PYTHONPATH")
+    if env:
+        cands += env.split(os.pathsep)
+    prefix = os.environ.get("QGIS_PREFIX_PATH")
+    if prefix:
+        cands.append(
+            os.path.join(prefix, "share", "qgis", "python")
+        )  # Unix prefix layout
+        cands.append(os.path.join(prefix, "python"))  # some bundle layouts
+    exe = sys.executable.replace(
+        "\\", "/"
+    )  # macOS: infer the .app bundle from the interpreter
+    parts = exe.split("/")
+    for i, part in enumerate(parts):
+        if part.endswith(".app"):
+            bundle = "/".join(parts[: i + 1])
+            cands.append(os.path.join(bundle, "Contents", "Resources", "python"))
+            break
+    cands += [
+        "/usr/share/qgis/python",  # Debian/Ubuntu/Fedora system QGIS
+        "/Applications/QGIS.app/Contents/Resources/python",  # macOS default install
+    ]
+    seen, out = set(), []
+    for d in cands:
+        if d and d not in seen and os.path.isdir(d):
+            seen.add(d)
+            out.append(d)
+    return out
+
+
+def _ensure_qgis_importable() -> None:
+    """Best-effort: make the ``qgis`` package importable by adding known binding directories to
+    ``sys.path`` when it isn't already. A no-op when ``import qgis`` already works (inside QGIS,
+    the plugin, or a correctly-set ``PYTHONPATH``). Never raises — if nothing is found the
+    caller's import fails with the usual clear message. Override/extend via ``NIVA_QGIS_PYTHONPATH``."""
+    import importlib.util
+    import sys
+
+    if importlib.util.find_spec("qgis") is not None:
+        return
+    for d in _qgis_python_dirs():
+        if d not in sys.path:
+            sys.path.insert(0, d)
+        importlib.invalidate_caches()
+        if importlib.util.find_spec("qgis") is not None:
+            return
+
+
 def ensure_qgis(prefix: str | None = None):
     """Make sure a QGIS application and Processing are available.
 
     Returns ``(app, owns)`` — ``owns`` is True only when niva created the app (so a
     standalone caller knows it should ``app.exitQgis()`` on the way out)."""
     global _QGIS_APP
+    _ensure_qgis_importable()  # add QGIS's bindings to sys.path if a bare interpreter lacks them
     from qgis.core import QgsApplication
 
     app = QgsApplication.instance()
