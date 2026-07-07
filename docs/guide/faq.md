@@ -81,14 +81,77 @@ the parser without QGIS using `--explain`:
 
 ## Is niva on PyPI? How do I install it?
 
-Not yet on PyPI. Get it as the **plugin zip** (`niva_qgis.zip`, from the
-[latest release](https://github.com/johnzastrow/niva/releases/latest) or
-`plugin/build_plugin.sh`) and *Install from ZIP* in QGIS, or install the package from source
-into QGIS's Python:
+Yes — as **[`qgis-niva`](https://pypi.org/project/qgis-niva/)** (the import package and the
+`niva` command stay `niva`, like `scikit-learn` → `sklearn`). Pick by what you want to do:
 
-```bash
-<qgis-python> -m pip install git+https://github.com/johnzastrow/niva.git
-```
+- **Run inside QGIS (GUI):** the **plugin zip** (`niva_qgis.zip`, from the
+  [latest release](https://github.com/johnzastrow/niva/releases/latest) or
+  `plugin/build_plugin.sh`) → *Install from ZIP*. Bundles niva; no pip step.
+- **Execute from the terminal:** install into **QGIS's own Python** so `niva run` has PyQGIS —
+  `<qgis-python> -m pip install qgis-niva` (see [Quick start](quickstart.md#as-a-package--cli--python)).
+- **Author offline anywhere:** `uv tool install qgis-niva` (or `uvx --from qgis-niva niva …`) —
+  the offline CLI, no QGIS required. This isolated install can't *execute* flows; see the next
+  question.
+
+(For a source/dev install: `<qgis-python> -m pip install git+https://github.com/johnzastrow/niva.git`.)
+
+## Does `uv tool install qgis-niva` connect to QGIS? Do I need the plugin?
+
+Short version: **`uv tool install`** (and `uvx`, and `pipx`) put niva in their **own isolated
+Python that has no PyQGIS**, so you get the complete **offline** CLI but **not** execution. niva
+doesn't bundle or auto-discover QGIS — *running* a flow imports `qgis`, which lives only in
+QGIS's own Python. So a `uv tool install qgis-niva` on a clean OS gives you:
+
+- ✅ `validate`, `explain`, `search`, `setup`, `plan`, `manifest`, `repl`, `export` — author and
+  check flows, no QGIS needed;
+- ❌ `run`, `show @conn`, executing a one-liner for real — these need PyQGIS.
+
+To actually run geoprocessing, add **one** of these (they're independent front-ends over the same
+niva, so you can keep the uv install for authoring and add either for execution):
+
+| You want… | Do this |
+| --- | --- |
+| Author / validate flows fast, anywhere | `uv tool install qgis-niva` — keep it for the offline CLI |
+| **Run flows in the QGIS GUI** | Install the **plugin** (*Install from ZIP*) — it bundles niva and runs in QGIS's Python |
+| **Run flows from the terminal** | Install into QGIS's Python — `<qgis-python> -m pip install qgis-niva` **or** `uv pip install --python <qgis-python> qgis-niva` — then alias `niva` to that interpreter ([Quick start](quickstart.md#make-niva-a-terminal-command)) |
+
+### It's the install *mode*, not pip-vs-uv
+
+`pip` and `uv` don't produce different *kinds* of niva — **the install mode does**, and both tools
+can do either mode. What decides whether niva can execute is always the same single question:
+**does the Python niva lands in have PyQGIS?**
+
+| Install mode | pip family | uv family | Can `niva run`? |
+| --- | --- | --- | --- |
+| **Into a chosen interpreter** | `<qgis-python> -m pip install qgis-niva` | `uv pip install --python <qgis-python> qgis-niva` | ✅ when it's QGIS's Python |
+| **Isolated app venv** | `pipx install qgis-niva` | `uv tool install qgis-niva` · `uvx …` | ❌ offline only |
+
+The common commands just pick opposite **defaults**: plain `pip install` goes *into* the
+interpreter you ran it with, while `uv tool` / `uvx` / `pipx` deliberately build a private venv —
+which is why they *look* like different kinds of install. Point either tool at QGIS's Python and
+you get full execution; let either build an isolated venv and you get the offline CLI.
+
+**Then what good is the offline install?** It's niva's *compiler half*, and it earns its place
+exactly where a multi-GB QGIS is unwanted:
+
+- **CI / pre-commit / editors** — `validate` + `explain` your `.niva` files in a pipeline or on
+  save, catching errors long before they reach QGIS (no QGIS in the CI image).
+- **Tooling & agents** — `manifest` + `plan` emit the machine-readable verb catalog and resolved
+  plan IR that power editor completion, an LSP, and LLM agents.
+- **Author / learn / scaffold anywhere** — `repl`, `search`, `setup`, or a one-off
+  `uvx --from qgis-niva niva …` on any laptop.
+- **`export`** — transpile a flow to a standalone PyQGIS script to run wherever QGIS lives.
+
+Think **compiler front-end** (installs anywhere) vs **runtime** (needs the platform). And it
+won't stay execution-less forever: a planned executor bridge will let `niva run` shell out to a
+QGIS you already have installed (`qgis_process`), so even an isolated `uv` install could execute
+against a system QGIS.
+
+**So do you need the plugin?** Only if you want to run *inside QGIS* — the dock's **Run** button
+or the QGIS Python console. If you'd rather drive execution from a shell, skip the plugin and
+`pip install qgis-niva` into `<qgis-python>` instead. Either way, note that **`uv tool install`
+does not install QGIS itself** — on a clean OS you still need QGIS on the machine before anything
+can execute, no matter which path you choose.
 
 ## Which QGIS versions are supported?
 
