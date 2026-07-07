@@ -73,6 +73,9 @@
 # test_format_as_flow_emits_valid_each_lines
 | save
 
+# test_format_paths_is_bare_and_pipeable
+#   (pure Python — no niva flow)
+
 # ── TestEnrichment ──────────────────────────────────────────────
 
 # test_enrich_vector_surfaces_fields_and_fid

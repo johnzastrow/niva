@@ -9,6 +9,25 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 > [`plugin/metadata.txt`](plugin/metadata.txt) (concise — latest one or two versions only); that
 > field is what the QGIS Plugin Manager shows. This file stays the full history.
 
+## [0.55.0] - 2026-07-07
+
+### Added
+- **`each` — filter the batch (flat options, the `find` vocabulary).** `each` now accepts
+  optional `option=value` filters that narrow which datasets the batch runs over, using the
+  **same criteria as `niva find`** — so a filtered `each` selects exactly what `find` would
+  show (and what `find --as-flow` emits). Offline filters — `ext`, `minsize`, `maxsize`,
+  `newerthan`, `format` — need nothing; the GDAL-enriched filters — `geom`, `crs`,
+  `minfeatures`, `maxfeatures`, `hasfield` — resolve on QGIS's Python (`each` loads via QGIS
+  anyway; used without GDAL they raise a clear error rather than silently matching nothing).
+  Implemented by reusing `niva.find`'s predicates (no duplicated logic, no grammar change).
+  `each "data/**/*.gpkg" geom=polygon minfeatures=1 | dissolve | save out.gpkg`.
+- **`niva find --paths` / `-0` — script-friendly output for non-niva piping.** Beyond the
+  table, `--json`, and `--as-flow` outputs, `find` can now emit **just the absolute paths**
+  (one per line, no header/count/colour) so results pipe cleanly into other tools and files:
+  `niva find "*.tif" in ~/data --paths | wc -l`, `… --paths > list.txt`. **`-0`** (alias
+  `--print0`) NUL-separates the paths with no trailing newline, for `xargs -0` and paths
+  containing spaces. (`-l` is an alias for `--paths`.)
+
 ## [0.54.0] - 2026-07-07
 
 ### Added

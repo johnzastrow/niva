@@ -114,6 +114,76 @@ if __name__ == "__main__":
     unittest.main()
 
 
+class TestEachFilters(unittest.TestCase):
+    """`each`'s flat filter options (reuse of find's predicates). Offline filters only —
+    the GDAL-enriched ones (geom/crs/features/hasfield) are exercised in the live-QGIS tier."""
+
+    def _dir(self):
+        return tempfile.mkdtemp(prefix="niva_eachf_")
+
+    def _write(self, root, name, nbytes=0):
+        path = os.path.join(root, name)
+        with open(path, "w") as fh:
+            fh.write("x" * nbytes)
+        return path
+
+    def _run(self, source, opts=""):
+        mb = MockBackend()
+        flow(f'each "{source}" {opts} | save out.gpkg', backend=mb)
+        return sorted(s["layer_name"] for s in mb.saves)
+
+    def test_ext_filter(self):
+        root = self._dir()
+        self._write(root, "a.geojson")
+        self._write(root, "b.gpkg")
+        self._write(root, "c.geojson")
+        self.assertEqual(self._run(root, "ext=geojson"), ["a", "c"])
+
+    def test_minsize_filter(self):
+        root = self._dir()
+        self._write(root, "small.geojson", 10)
+        self._write(root, "big.geojson", 5000)
+        self.assertEqual(self._run(f"{root}/*.geojson", "minsize=1k"), ["big"])
+
+    def test_maxsize_filter(self):
+        root = self._dir()
+        self._write(root, "small.geojson", 10)
+        self._write(root, "big.geojson", 5000)
+        self.assertEqual(self._run(f"{root}/*.geojson", "maxsize=1k"), ["small"])
+
+    def test_unknown_option_errors(self):
+        root = self._dir()
+        self._write(root, "a.geojson")
+        with self.assertRaises(FlowError):
+            flow(f'each "{root}" bogus=1 | save out.gpkg', backend=MockBackend())
+
+    def test_bad_numeric_value_errors(self):
+        root = self._dir()
+        self._write(root, "a.geojson")
+        with self.assertRaises(FlowError):
+            flow(
+                f'each "{root}" minfeatures=abc | save out.gpkg', backend=MockBackend()
+            )
+
+    def test_no_match_after_filter_errors(self):
+        root = self._dir()
+        self._write(root, "a.geojson", 10)
+        with self.assertRaises(FlowError):
+            flow(f'each "{root}" minsize=1g | save out.gpkg', backend=MockBackend())
+
+    def test_meta_filter_without_gdal_errors_clearly(self):
+        # geom/crs/features/hasfield need OGR; offline (no GDAL) they must raise a clear
+        # error, not silently match nothing.
+        from niva import find as _find
+
+        if _find.have_gdal():
+            self.skipTest("GDAL present — offline-guard path not exercised")
+        root = self._dir()
+        self._write(root, "a.geojson")
+        with self.assertRaises(FlowError):
+            flow(f'each "{root}" geom=polygon | save out.gpkg', backend=MockBackend())
+
+
 class TestSplit(unittest.TestCase):
     def test_split_dispatches_to_filterbygeometry(self):
         mb = MockBackend()

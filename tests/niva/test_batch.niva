@@ -48,6 +48,29 @@ load a.gpkg | each "x/*.shp"
 # test_name_placeholder_outside_batch_errors
 load a.gpkg | save "out/{name}.gpkg"
 
+# ── TestEachFilters ─────────────────────────────────────────────
+
+# test_ext_filter
+#   (pure Python — no niva flow)
+
+# test_minsize_filter
+#   (pure Python — no niva flow)
+
+# test_maxsize_filter
+#   (pure Python — no niva flow)
+
+# test_unknown_option_errors
+each "{root}" bogus=1 | save out.gpkg
+
+# test_bad_numeric_value_errors
+each "{root}" minfeatures=abc | save out.gpkg
+
+# test_no_match_after_filter_errors
+each "{root}" minsize=1g | save out.gpkg
+
+# test_meta_filter_without_gdal_errors_clearly
+each "{root}" geom=polygon | save out.gpkg
+
 # ── TestSplit ───────────────────────────────────────────────────
 
 # test_split_dispatches_to_filterbygeometry

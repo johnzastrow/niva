@@ -177,6 +177,22 @@ class TestFindAndFormat(unittest.TestCase):
         self.assertTrue(all("| save " in ln for ln in each_lines))
         self.assertIn("nothing to build", F.format_as_flow([]))
 
+    def test_format_paths_is_bare_and_pipeable(self):
+        recs = F.find(
+            [self.td], {"pattern": "*.gpkg", "exts": {"gpkg"}}, do_enrich=False
+        )
+        out = F.format_paths(recs)
+        lines = out.splitlines()
+        self.assertEqual(len(lines), 2)
+        # Nothing but absolute paths — no header, count, or decoration.
+        self.assertTrue(all(os.path.isabs(ln) and ln.endswith(".gpkg") for ln in lines))
+        # NUL form uses \0 separators and no trailing newline (for xargs -0).
+        nul = F.format_paths(recs, nul=True)
+        self.assertEqual(nul.split("\0"), lines)
+        self.assertFalse(nul.endswith("\n"))
+        # Empty input → empty string (clean no-op through a pipe).
+        self.assertEqual(F.format_paths([]), "")
+
 
 @unittest.skipUnless(F.have_gdal(), "GDAL/OGR not importable on this interpreter")
 class TestEnrichment(unittest.TestCase):
