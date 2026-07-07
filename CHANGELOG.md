@@ -11,6 +11,15 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.51.1] - 2026-07-07
+
+### Changed
+- **`niva repl` — quitting and help are now discoverable.** The startup banner prints the version
+  followed by `- Quit: .quit (or Ctrl-D)` and `- Help: .help`. Both commands accept the variants
+  people actually reach for — `quit` / `exit` / `q` / `\q` / `:q` and `help` / `?` / `\?` / `:h`,
+  with or without the leading dot — and a mistyped `.command` is flagged (`unknown command … — try
+  .help`) instead of being silently validated as a flow.
+
 ## [0.51.0] - 2026-07-06
 
 ### Added

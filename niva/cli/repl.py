@@ -97,17 +97,23 @@ _HELP = """commands:
   .explain        show the resolved plan for the last flow
   ?<verb>         describe a verb (e.g. ?buffer)
   /<keyword>      search verbs & the algorithm catalog
-  .help  .quit    this help / leave
+  .help           this help          (also: help, ?)
+  .quit           leave              (also: quit, exit, q, or Ctrl-D)
 Tab completes verbs, then their options/flags, then an option's enum values."""
+
+# Accept the variants people actually reach for — with or without the leading
+# dot, plus psql/vim muscle memory (\q, :q) — so quitting and help never stump.
+_QUIT = {".quit", ".exit", ".q", "quit", "exit", "q", r"\q", ":q"}
+_HELP_CMDS = {".help", ".?", ".h", "?", "help", r"\?", ":h", ":help"}
 
 
 def _handle(line: str, state: dict) -> str:
     """Process one entered ``line``. Returns "quit" to end the loop, else ""."""
     from .. import color
 
-    if line in (".quit", ".exit", ".q"):
+    if line in _QUIT:
         return "quit"
-    if line in (".help", ".?", "?"):
+    if line in _HELP_CMDS:
         print(_HELP)
         return ""
     if line == ".explain":
@@ -143,6 +149,9 @@ def _handle(line: str, state: dict) -> str:
         hits = _search(line[1:].strip(), algorithms=algs, limit=15)
         print(format_results(line[1:].strip(), hits, color=True))
         return ""
+    if line.startswith("."):  # a mistyped dot-command shouldn't parse as a flow
+        print(color.paint(f"unknown command {line!r} — try .help", "yellow"))
+        return ""
 
     # Otherwise: treat the line as a flow → validate + remember it.
     state["last"] = line
@@ -155,11 +164,10 @@ def _handle(line: str, state: dict) -> str:
 def _banner() -> str:
     from .. import __version__, color
 
-    return color.paint(
-        f"niva repl {__version__} — type a flow, Tab to complete, .help for commands, "
-        ".quit to leave",
-        "dim",
-    )
+    head = color.paint(f"niva repl {__version__} — type a flow, Tab to complete", "dim")
+    quit_ln = f"- {color.paint('Quit', 'bold')}: .quit (or Ctrl-D)"
+    help_ln = f"- {color.paint('Help', 'bold')}: .help"
+    return f"{head}\n{quit_ln}\n{help_ln}"
 
 
 def run(argv=None) -> int:
