@@ -1158,55 +1158,75 @@ class Engine:
         )
 
     def _catalog(self, stage) -> Layer | None:
-        """`catalog <dir> [to=<out.md>]` — recurse a directory, inventory every
-        geospatial dataset found (CRS, extent, geometry/fields or raster bands), and
-        write a Markdown report. Terminal: produces a report, not a pipeable layer."""
-        from ..utilities import CATALOG_MULTILAYER_EXTS, facet_for_ext, format_catalog
+        """`catalog <path|@conn[.schema[.table]]|service-url> [deep] [to=<out.md>]` —
+        inventory every dataset/layer at a location and write a Markdown report to **document
+        a collection for later reference**. Accepts the **same sources as `show`** (a
+        file/container, a directory, a database connection, or a remote OWS service); a
+        directory is recursed. The `deep` flag adds per-layer data-quality profiling
+        (invalid/empty/duplicate geometries and per-field null counts), like `assess`.
+        Terminal: produces a report file, not a pipeable layer."""
+        from ..utilities import format_catalog
 
-        if not stage.args:
+        flags = {a for a in stage.args if a.lstrip("-") == "deep"}
+        locations = [a for a in stage.args if a.lstrip("-") != "deep"]
+        if len(locations) != 1:
             raise FlowError(
-                "catalog needs a directory: `catalog <dir> [to=out.md]`",
+                "catalog needs one location: "
+                "`catalog <path|@conn[.schema]|service> [deep] [to=out.md]`",
                 line=stage.line,
                 stage=stage.raw,
             )
-        root = os.path.expanduser(stage.args[0])
-        if not os.path.isdir(root):
+        unknown = set(stage.options) - {"to"}
+        if unknown:
             raise FlowError(
-                f"catalog: not a directory: {root}", line=stage.line, stage=stage.raw
+                f"`catalog`: unknown option(s) {', '.join(sorted(unknown))} — "
+                "only `to=<out.md>` is accepted",
+                line=stage.line,
+                stage=stage.raw,
             )
+        target = locations[0]
+        deep = bool(flags)
+        # Same source resolution as `show` — files/dirs, `@conn` databases, and OWS services —
+        # but a catalogued directory is always recursed (it documents the whole tree).
+        label, listing, is_db, _is_service = self._resolve_listing(
+            target, recurse=True, stage=stage, verb="catalog"
+        )
+
+        # Default output: inside a catalogued directory, else the working directory.
         out = stage.options.get("to")
-        out = os.path.expanduser(out) if out else os.path.join(root, "catalog.md")
+        if out:
+            out = os.path.expanduser(out)
+        elif os.path.isdir(os.path.expanduser(target)):
+            out = os.path.join(os.path.expanduser(target), "catalog.md")
+        else:
+            out = "catalog.md"
+
+        conn = schema = None
+        if is_db:  # resolve once so each table loads by name (credentials stay in QGIS)
+            conn, schema, _t = self._resolve_show_connection(target, stage)
 
         entries = []
-        for dirpath, _dirs, files in os.walk(root):
-            for fn in sorted(files):
-                ext = os.path.splitext(fn)[1]
-                facet = facet_for_ext(ext)
-                if facet is None:
-                    continue
-                path = os.path.join(dirpath, fn)
-                rel = os.path.relpath(path, root)
-                # A multi-layer container (GeoPackage, …) becomes one entry per layer.
-                targets = [(rel, path)]
-                if facet == "vector" and ext.lower() in CATALOG_MULTILAYER_EXTS:
-                    names = self.backend.sublayers(path)
-                    if names:
-                        targets = [
-                            (f"{rel} :: {n}", f"{path}|layername={n}") for n in names
-                        ]
-                for display, source in targets:
-                    try:
-                        layer = self.backend.load(source, facet=facet)
-                        entries.append(
-                            (display, facet, self.backend.profile(layer), None)
-                        )
-                    except (
-                        Exception
-                    ) as exc:  # unreadable / locked / unsupported — note it
-                        entries.append((display, facet, None, str(exc)))
-                    self._emit(f"  catalog: {display}")
+        for row in listing:
+            # Heading = the layer name; the loadable `source` (path + layer, `@conn.table`, or
+            # service ref) is carried alongside so the catalog doubles as a `load` reference.
+            name = row.get("name") or row.get("ref") or "?"
+            source = row.get("ref") or name
+            facet = (
+                row.get("kind") if row.get("kind") in ("vector", "raster") else "vector"
+            )
+            try:
+                if is_db:
+                    layer = self.backend.load_table(conn, schema, row.get("name"))
+                else:
+                    layer = self.backend.load(source, facet=facet)
+                entries.append(
+                    (name, facet, self.backend.profile(layer, deep), None, source)
+                )
+            except Exception as exc:  # noqa: BLE001 — unreadable/locked/unsupported: note it
+                entries.append((name, facet, None, str(exc), source))
+            self._emit(f"  catalog: {name}")
 
-        report = format_catalog(root, entries)
+        report = format_catalog(label, entries, deep=deep)
         if self.inert:  # linter/dry-run: don't write the catalog file
             self._emit(
                 f"  catalogued {len(entries)} dataset(s) → {out} (dry-run: not written)"
@@ -1307,53 +1327,58 @@ class Engine:
             )
         target = locations[0]
         deep = bool(flags)
-        is_db = False
+        label, entries, is_db, is_service = self._resolve_listing(
+            target, recurse=deep, stage=stage, verb="show"
+        )
+        report = format_show(label, entries, is_db=is_db, is_service=is_service)
+        self._emit_report(
+            report, to=stage.options.get("to"), label=f"listed {len(entries)} item(s)"
+        )
+        return None  # terminal
 
+    def _resolve_listing(self, target, *, recurse, stage, verb):
+        """Resolve a location into ``(label, entries, is_db, is_service)`` — the shared
+        source-resolution behind both `show` and `catalog`, so both accept a file/container,
+        a directory, a database `@conn[.schema[.table]]`, or a remote OWS service URL.
+        ``recurse`` controls directory descent (`show` ties it to the `deep` flag; `catalog`
+        always recurses). ``entries`` are the per-layer dicts from ``list_layers`` /
+        ``list_tables`` / ``list_service`` — ``{name, kind, type, format, ref}``."""
         from ..remote import is_service_url
 
-        is_service = False
         if is_connection_ref(target):
-            is_db = True
             conn, schema, table = self._resolve_show_connection(target, stage)
             entries = self.backend.list_tables(conn, schema, table, warn=self._emit)
-            label = target
-        elif is_service_url(target):
-            is_service = True
-            label = target
+            return target, entries, True, False
+        if is_service_url(target):
             try:
                 entries = self.backend.list_service(target)
             except (
                 Exception
             ) as exc:  # network / parse / unsupported — a clear flow error
                 raise FlowError(
-                    f"show: could not list service `{target}`: {exc}",
+                    f"{verb}: could not list service `{target}`: {exc}",
                     line=stage.line,
                     stage=stage.raw,
                 )
-        else:
-            path = os.path.expanduser(target)
-            label = path
-            if (
-                os.path.isdir(path)
-                and os.path.splitext(path)[1].lower() not in self._SHOW_DIR_DATASETS
-            ):
-                entries = self._show_walk(path, deep)
-            elif os.path.exists(path):
-                entries = self._show_probe(
-                    path
-                )  # a file, or a directory-dataset (.gdb)
-            else:
-                raise FlowError(
-                    f"show: no such file, directory, or connection: {target}",
-                    line=stage.line,
-                    stage=stage.raw,
-                )
-
-        report = format_show(label, entries, is_db=is_db, is_service=is_service)
-        self._emit_report(
-            report, to=stage.options.get("to"), label=f"listed {len(entries)} item(s)"
+            return target, entries, False, True
+        path = os.path.expanduser(target)
+        if (
+            os.path.isdir(path)
+            and os.path.splitext(path)[1].lower() not in self._SHOW_DIR_DATASETS
+        ):
+            return path, self._show_walk(path, recurse), False, False
+        if os.path.exists(path):
+            return (
+                path,
+                self._show_probe(path),
+                False,
+                False,
+            )  # a file, or a .gdb dataset
+        raise FlowError(
+            f"{verb}: no such file, directory, or connection: {target}",
+            line=stage.line,
+            stage=stage.raw,
         )
-        return None  # terminal
 
     def _resolve_show_connection(self, target, stage):
         """Split `show @ref` into ``(conn, schema, table)`` via the shared

@@ -221,9 +221,11 @@ def facet_for_ext(ext: str) -> str | None:
     return None
 
 
-def format_catalog(root: str, entries: list) -> str:
+def format_catalog(root: str, entries: list, *, deep: bool = False) -> str:
     """Render the catalogue as Markdown. ``entries`` is a list of
-    ``(relpath, facet, profile_dict | None, error | None)``."""
+    ``(relpath, facet, profile_dict | None, error | None)``. With ``deep`` (the profiles were
+    built with ``deep=True``) each vector dataset also reports data-quality counts —
+    invalid/empty/duplicate geometries and any non-zero per-field null counts."""
     ok = [e for e in entries if e[2] is not None]
     bad = [e for e in entries if e[2] is None]
     lines = [
@@ -234,8 +236,14 @@ def format_catalog(root: str, entries: list) -> str:
         + ".",
         "",
     ]
-    for relpath, facet, prof, _err in ok:
+    for entry in ok:
+        relpath, facet, prof = entry[0], entry[1], entry[2]
+        source = (
+            entry[4] if len(entry) > 4 else None
+        )  # loadable ref (path/@conn/service)
         lines.append(f"## {relpath}")
+        if source and source != relpath:
+            lines.append(f"- source: `{source}`")
         crs = (prof.get("crs") or {}).get("authid", "(unknown)")
         lines.append(f"- type: **{facet}** · CRS: `{crs}`")
         if facet == "vector":
@@ -246,6 +254,16 @@ def format_catalog(root: str, entries: list) -> str:
             if fields:
                 names = ", ".join(f.get("name", "?") for f in fields)
                 lines.append(f"- fields ({len(fields)}): {names}")
+            if deep and "invalid_geometries" in prof:
+                lines.append(
+                    f"- quality: {prof.get('invalid_geometries', 0)} invalid, "
+                    f"{prof.get('empty_geometries', 0)} empty, "
+                    f"{prof.get('duplicate_geometries', 0)} duplicate geometries"
+                )
+                nulls = {k: v for k, v in (prof.get("null_counts") or {}).items() if v}
+                if nulls:
+                    detail = ", ".join(f"{k}={v}" for k, v in sorted(nulls.items()))
+                    lines.append(f"- nulls: {detail}")
         else:
             size = prof.get("size") or prof.get("dimensions")
             if size:
@@ -262,7 +280,8 @@ def format_catalog(root: str, entries: list) -> str:
         lines.append("")
     if bad:
         lines.append("## Could not be read")
-        for relpath, facet, _p, err in bad:
+        for entry in bad:
+            relpath, facet, err = entry[0], entry[1], entry[3]
             lines.append(f"- `{relpath}` ({facet}): {err}")
         lines.append("")
     return "\n".join(lines)

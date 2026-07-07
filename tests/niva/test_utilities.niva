@@ -47,6 +47,21 @@ catalog /no/such/dir/here
 # test_catalog_custom_output_path
 catalog "{root}" to="{out}"
 
+# test_catalog_deep_reports_quality_and_reaches_profiler
+catalog "{root}" deep to="{out}"
+
+# test_catalog_shallow_omits_quality
+catalog "{root}" to="{out}"
+
+# test_catalog_database_source
+catalog @pg to="{out}"
+
+# test_catalog_service_source
+catalog "https://example.com/wfs" to="{out}"
+
+# test_catalog_unknown_option_rejected
+catalog /tmp bogus=1
+
 # ── TestShowFormat ──────────────────────────────────────────────
 
 # test_table_has_header_and_rows
