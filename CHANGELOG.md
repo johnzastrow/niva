@@ -11,6 +11,17 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.49.0] - 2026-07-06
+
+### Changed
+- **Colourised CLI output is now global.** The zero-dependency `niva.color` layer (added in
+  0.48) now colours all human-facing output — errors (red `niva:`), `validate` (green ✓ / red ✗
+  / yellow ⚠ + counts), the `--explain`/`--dry-run` plan (verbs, algorithms, unknown-verb flags),
+  `run` results, and `search`. Machine/data output (`--json`, `plan`/`manifest` JSON) and anything
+  written to a file (`to=`) stays plain, so piping and saving are unaffected. Colour still turns
+  off automatically when stdout is not a TTY, or with `NO_COLOR` / `TERM=dumb`; force with
+  `NIVA_COLOR=always|never`.
+
 ## [0.48.0] - 2026-07-06
 
 ### Added

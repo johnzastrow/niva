@@ -46,6 +46,13 @@ _USAGE = (
 )
 
 
+def _err(msg: object) -> None:
+    """One error line to stderr: a red ``niva:`` prefix + ``msg`` (colour auto-off off-TTY)."""
+    from .. import color
+
+    print(f"{color.paint('niva:', 'red', 'bold')} {msg}", file=sys.stderr)
+
+
 def main(argv=None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
     mode = "execute"
@@ -96,7 +103,7 @@ def main(argv=None) -> int:
             # An unknown verb is a definitive error (the verb set is closed), so --explain
             # exits non-zero — a real offline gate for CI/agents (issue #29).
             if _print_plan(program, source):
-                print("niva: flow has unknown verb(s) — see ⚠ above", file=sys.stderr)
+                _err("flow has unknown verb(s) — see ⚠ above")
                 return 2
         elif mode == "dry-run":
             _print_plan(program, source)
@@ -104,13 +111,13 @@ def main(argv=None) -> int:
         else:
             return _execute(program, base_dir, source=source, log=log)
     except FlowError as exc:
-        print(f"niva: {exc}", file=sys.stderr)
+        _err(exc)
         return 2
     except OpError as exc:
-        print(f"niva: {exc}", file=sys.stderr)
+        _err(exc)
         return 1
     except OSError as exc:
-        print(f"niva: {exc}", file=sys.stderr)
+        _err(exc)
         return 3
 
     return 0
@@ -148,7 +155,7 @@ def _convert(kind: str, args) -> int:
         with open(args[0], encoding="utf-8") as fh:
             text = fh.read()
     except OSError as exc:
-        print(f"niva: {exc}", file=sys.stderr)
+        _err(exc)
         return 3
 
     if kind == "export":
@@ -210,16 +217,13 @@ def _describe(args) -> int:
         else:
             print(report)
     except FlowError as exc:
-        print(f"niva: {exc}", file=sys.stderr)
+        _err(exc)
         code = 2
     except ImportError as exc:
-        print(
-            f"niva: describing an algorithm needs QGIS's Python [{exc}]",
-            file=sys.stderr,
-        )
+        _err(f"describing an algorithm needs QGIS's Python [{exc}]")
         code = 3
     except BaseException as exc:  # noqa: BLE001 — must still reach the safe teardown
-        print(f"niva: unexpected error: {type(exc).__name__}: {exc}", file=sys.stderr)
+        _err(f"unexpected error: {type(exc).__name__}: {exc}")
         code = 1
     finally:
         # If describing an algorithm bootstrapped a standalone QGIS, tear it down and
@@ -244,10 +248,9 @@ def _execute(program, base_dir=None, *, source="<inline>", log=None) -> int:
             ensure_qgis()
         )  # the qgis import happens here (lazy), so catch it here
     except ImportError as exc:
-        print(
-            "niva: could not import QGIS — run niva with QGIS's own Python "
-            f"(inside QGIS, or with PYTHONPATH set to its bindings). [{exc}]",
-            file=sys.stderr,
+        _err(
+            "could not import QGIS — run niva with QGIS's own Python "
+            f"(inside QGIS, or with PYTHONPATH set to its bindings). [{exc}]"
         )
         return 3
 
@@ -275,15 +278,15 @@ def _execute(program, base_dir=None, *, source="<inline>", log=None) -> int:
         _print_result(result)
         print(f"# done in {_fmt_elapsed(time.monotonic() - t0)}")
     except FlowError as exc:
-        print(f"niva: {exc}", file=sys.stderr)
+        _err(exc)
         code = 2
     except OpError as exc:
-        print(f"niva: {exc}", file=sys.stderr)
+        _err(exc)
         code = 1
     except BaseException as exc:  # noqa: BLE001 — incl. KeyboardInterrupt: must still
         # reach the safe teardown below, or interpreter shutdown races QGIS's C++
         # teardown and segfaults. Surface a generic message; never leak past `finally`.
-        print(f"niva: unexpected error: {type(exc).__name__}: {exc}", file=sys.stderr)
+        _err(f"unexpected error: {type(exc).__name__}: {exc}")
         code = 1
     finally:
         if journal is not None:
@@ -302,8 +305,10 @@ def _execute(program, base_dir=None, *, source="<inline>", log=None) -> int:
 
 
 def _print_result(result) -> None:
+    from .. import color
+
     if result is None:
-        print("# done (no output layer)")
+        print(color.paint("# done (no output layer)", "dim"))
         return
     count = ""
     fn = getattr(getattr(result, "ref", None), "featureCount", None)
@@ -312,25 +317,37 @@ def _print_result(result) -> None:
             count = f", {fn()} feature(s)"
         except Exception:
             count = ""
-    print(f"# done — {result.kind}: {result.name or result.ref}{count}")
+    print(
+        color.paint(
+            f"# done — {result.kind}: {result.name or result.ref}{count}",
+            "green",
+            "bold",
+        )
+    )
 
 
 def _print_plan(program: list, source: str) -> bool:
     """Print the parse+bind plan. Returns True if any stage uses an **unknown verb**
     (not a built-in, alias, or `run` id) — the caller turns that into a non-zero exit."""
+    from ..color import paint
+
     unknown = False
-    print(f"# parsed {source}: {len(program)} statement(s)")
+    print(paint(f"# parsed {source}: {len(program)} statement(s)", "dim"))
     for i, st in enumerate(program, start=1):
+        num = paint(f"{i}.", "bold")
         if isinstance(st, Call):
-            print(f"{i}. call {st.target}")
+            print(f"{num} call {paint(st.target, 'cyan')}")
             continue
-        print(f"{i}. flow — {len(st.stages)} stage(s):")
+        print(f"{num} flow — {len(st.stages)} stage(s):")
         for s in st.stages:
             if s.verb == "run":  # the escape hatch — passed to QGIS verbatim
                 algo = s.args[0] if s.args else "?"
-                print(f"     run → {algo}  (raw)  {s.options}")
+                print(
+                    f"     {paint('run', 'cyan')} → {paint(str(algo), 'green')}"
+                    f"  {paint('(raw)', 'dim')}  {s.options}"
+                )
                 for w in _run_warnings(algo, s.options):
-                    print(f"       ⚠ {w}")
+                    print(paint(f"       ⚠ {w}", "yellow"))
                 continue
             alias = _REG.get(s.verb)
             if alias is None:
@@ -338,7 +355,10 @@ def _print_plan(program: list, source: str) -> bool:
                 # an invented/misspelled verb ("compute", "stats", "reproj") lands here and
                 # must be flagged, or --explain silently blesses it (issue #29).
                 if s.verb in _BUILTIN_VERB_NAMES:
-                    print(f"     {s.verb}  (built-in: handled by the engine)")
+                    print(
+                        f"     {paint(s.verb, 'cyan')}  "
+                        f"{paint('(built-in: handled by the engine)', 'dim')}"
+                    )
                 else:
                     import difflib
 
@@ -346,16 +366,25 @@ def _print_plan(program: list, source: str) -> bool:
                     near = difflib.get_close_matches(s.verb, _ALL_VERB_NAMES, n=1)
                     hint = f" — did you mean `{near[0]}`?" if near else ""
                     print(
-                        f"     {s.verb}  ⚠ UNKNOWN VERB — not a built-in or alias{hint} "
-                        "(use `run <provider:id> KEY=value` for a raw algorithm)"
+                        paint(
+                            f"     {s.verb}  ⚠ UNKNOWN VERB — not a built-in or alias{hint} "
+                            "(use `run <provider:id> KEY=value` for a raw algorithm)",
+                            "red",
+                        )
                     )
                 continue
             op = bind(s, alias)
-            print(f"     {s.verb} → {op.algorithm}")
-            print(f"         {op.input_param} ← upstream layer (engine fills)")
+            print(f"     {paint(s.verb, 'cyan')} → {paint(op.algorithm, 'green')}")
+            print(
+                paint(
+                    f"         {op.input_param} ← upstream layer (engine fills)", "dim"
+                )
+            )
             for key, value in op.params.items():
                 print(f"         {key} = {value!r}")
-            print(f"         {op.output_param} ← output dest (engine fills)")
+            print(
+                paint(f"         {op.output_param} ← output dest (engine fills)", "dim")
+            )
     return unknown
 
 
@@ -373,6 +402,7 @@ def _validate(paths) -> int:
     if any file has an error (use it in CI / pre-commit)."""
     import glob
 
+    from ..color import paint
     from ..validate import validate_text
 
     if not paths:
@@ -391,7 +421,7 @@ def _validate(paths) -> int:
             with open(f, encoding="utf-8") as fh:
                 text = fh.read()
         except OSError as exc:
-            print(f"✗ {f}: {exc}", file=sys.stderr)
+            print(paint(f"✗ {f}: {exc}", "red"), file=sys.stderr)
             had_error = True
             continue
         ok, issues = validate_text(text, file=f)
@@ -399,14 +429,20 @@ def _validate(paths) -> int:
         warns = [i for i in issues if i[1] == "warning"]
         n_err += len(errs)
         n_warn += len(warns)
-        mark = "✓" if ok and not warns else ("✗" if errs else "⚠")
-        print(f"{mark} {f}")
+        sym = "✓" if ok and not warns else ("✗" if errs else "⚠")
+        sty = "green" if sym == "✓" else ("red" if sym == "✗" else "yellow")
+        print(f"{paint(sym, sty)} {f}")
         for line, sev, msg in sorted(issues, key=lambda i: (i[0], i[1])):
             loc = f"line {line}" if line else "flow"
-            print(f"    {'error' if sev == 'error' else 'warn '}  {loc}: {msg}")
+            label = (
+                paint("error", "red") if sev == "error" else paint("warn ", "yellow")
+            )
+            print(f"    {label}  {loc}: {msg}")
         if not ok:
             had_error = True
-    print(f"# {len(files)} file(s): {n_err} error(s), {n_warn} warning(s)")
+    err_txt = paint(f"{n_err} error(s)", "red") if n_err else "0 error(s)"
+    warn_txt = paint(f"{n_warn} warning(s)", "yellow") if n_warn else "0 warning(s)"
+    print(f"# {len(files)} file(s): {err_txt}, {warn_txt}")
     return 1 if had_error else 0
 
 
@@ -430,7 +466,7 @@ def _plan(args) -> int:
     try:
         program = parse(text, file=file)
     except FlowError as exc:
-        print(f"niva: {exc}", file=sys.stderr)
+        _err(exc)
         return 2
     print(json.dumps(build_plan(program, file=file), indent=2, ensure_ascii=False))
     return 0
@@ -496,7 +532,7 @@ def _search(args) -> int:
             ensure_ascii=False,
         )
     else:
-        text = format_results(query, hits)
+        text = format_results(query, hits, color=out is None)
 
     if out:
         parent = os.path.dirname(out)
@@ -533,7 +569,7 @@ def _explain(args) -> int:
     try:
         program = parse(text, file=file)
     except FlowError as exc:
-        print(f"niva: {exc}", file=sys.stderr)
+        _err(exc)
         return 2
     plan = build_plan(program, file=file)
     if as_json:
@@ -616,7 +652,7 @@ def _setup(args) -> int:
         try:
             path = cfg.set_key(key, value)
         except ValueError as exc:
-            print(f"niva: {exc}", file=sys.stderr)
+            _err(exc)
             return 2
         print(f"niva: set {key} = {value}  →  {path}", file=sys.stderr)
         return 0

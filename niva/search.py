@@ -128,8 +128,13 @@ def search(
     return hits[:limit]
 
 
-def format_results(query: str, hits: list) -> str:
-    """A compact Markdown listing of `search` hits — name, kind, summary, score."""
+def format_results(query: str, hits: list, *, color: bool = False) -> str:
+    """A compact Markdown listing of `search` hits — name, kind, summary, score. Pass
+    ``color=True`` to tint names/scores for a terminal; keep it off when writing to a file
+    (ANSI would corrupt the saved Markdown). Colour still self-disables off a TTY / NO_COLOR."""
+    from . import color as _color
+
+    paint = _color.paint if color else (lambda t, *s: t)
     if not hits:
         return (
             f"# No matches for `{query}`\n\n"
@@ -143,7 +148,10 @@ def format_results(query: str, hits: list) -> str:
     ]
     for h in hits:
         summary = h.summary.replace("|", "\\|") if h.summary else ""
-        lines.append(f"| `{h.name}` | {h.kind} | {h.score:.2f} | {summary} |")
+        lines.append(
+            f"| {paint(f'`{h.name}`', 'cyan', 'bold')} | {paint(h.kind, 'dim')} | "
+            f"{paint(f'{h.score:.2f}', 'green')} | {summary} |"
+        )
     lines.append("")
     lines.append(
         f"Run `describe <name>` for any of these, or `docs {query}` for the full "
