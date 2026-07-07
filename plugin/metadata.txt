@@ -6,7 +6,7 @@ name=niva
 qgisMinimumVersion=3.22
 qgisMaximumVersion=4.99
 description=Run niva flows — a concise text pipeline for QGIS geoprocessing — from a dock.
-version=0.55.1
+version=0.55.2
 author=John Zastrow
 email=br8kwall@gmail.com
 about=niva is a concise, readable text-pipeline grammar for QGIS geoprocessing
@@ -28,11 +28,11 @@ deprecated=False
 # summary for the new version here, mirroring the top entry of ../CHANGELOG.md (the repo file
 # stays the full history; this field is just the highlights). Then DROP the oldest entry so the
 # field never holds more than three versions. Continuation lines MUST stay indented (like `about=`).
-changelog=0.55.1 — Added: `niva repl` can now execute a flow against real QGIS with `.run`
+changelog=0.55.2 — Fixed: in `niva repl`, bare `info`/`show` now run against real QGIS (were
+    showing mock placeholder data) — real providers, connections, layers, and feature counts.
+    0.55.1 — Added: `niva repl` can now execute a flow against real QGIS with `.run`
     (was authoring-only). Fixed: the installed `niva` command auto-discovers QGIS's Python bindings
     (e.g. Ubuntu's /usr/share/qgis/python), so it runs out of the box after a plain
     `pip install qgis-niva` — no PYTHONPATH needed; repl plain mode no longer garbles input.
     0.55.0 — Added: `each` now takes `find`-style filters (ext/minsize/geom/minfeatures/…) to
     narrow a batch; `niva find --paths`/`-0` emits bare paths for piping into other tools & files.
-    0.54.0 — Added: `catalog` gained a `deep` data-quality profile and now documents any source
-    `show` accepts (a dir, an `@conn` database, or an OWS service), each with a copy-paste `load` source.
