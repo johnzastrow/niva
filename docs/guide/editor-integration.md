@@ -57,8 +57,11 @@ bash .vscode/niva/install.sh    # packages a .vsix and installs it via the `code
 then reload the window. (Manual install: `cd .vscode/niva && npm install && npx @vscode/vsce
 package`, then Extensions ⇒ ⋯ ⇒ *Install from VSIX…*.) If the `niva` on VS Code's PATH isn't the
 one you want, set **`niva.lsp.command`** in Settings to an absolute path. See the extension's
-[README](../../.vscode/niva/README.md). **Kate**: add it under *Settings → LSP Client → User
-Server Settings* with `{"servers":{"niva":{"command":["niva","lsp"],"highlightingModeRegex":"^niva$"}}}`.
+[README](../../.vscode/niva/README.md). **Kate / KWrite**: `bash .vscode/niva/install.sh` writes the
+LSP server config for you (`~/.config/kate/lspclient/settings.json`); then enable it once via
+*Settings → Configure Kate → Plugins → "LSP Client"* and reopen a `.niva` file. (Manual equivalent:
+add `{"servers":{"niva":{"command":["niva","lsp"],"highlightingModeRegex":"^niva$"}}}` under
+*Settings → LSP Client → User Server Settings*.)
 
 > Make sure the `niva` command on your `PATH` is the one you installed (see the [Quick
 > start](quickstart.md)); `niva lsp` uses that interpreter's niva.
