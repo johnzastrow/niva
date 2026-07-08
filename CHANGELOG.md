@@ -9,6 +9,14 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 > [`plugin/metadata.txt`](plugin/metadata.txt) — keep only the **last three versions** there (drop
 > the oldest); that field is what the QGIS Plugin Manager shows. This file stays the full history.
 
+## [0.62.2] - 2026-07-08
+
+### Fixed
+- **`validate` no longer warns "flow ends with no `save`" on terminal output verbs.** A flow ending
+  in `figure`, `map`, `catalog`, `info`, `assess`, `show`, `notify`, or `email` writes its own
+  output or is a legitimate terminal — only `save` used to clear the no-output lint, so
+  `load x.tif | figure out.png` tripped a false warning. All of them now clear it.
+
 ## [0.62.1] - 2026-07-08
 
 ### Fixed
