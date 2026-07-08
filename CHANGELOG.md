@@ -26,6 +26,12 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   `$HOME`, `$NIVA_TMPDIR`, and any exported variable (the shell only did this for CLI one-liners,
   not inside a `.niva` file or the repl): `save "$OUTDIR/{name}.tif"`. Expansion is applied to
   **paths only**, so QGIS expression variables (`$area`, `$geometry`) in a `filter` are untouched.
+- **Discovery + reporting now span every data type QGIS reads.** `each`/`find`/`show`/`catalog`
+  recognise the full set of GDAL/OGR **vector and raster** formats — a much larger static floor
+  **plus** the live GDAL driver list when running under QGIS (so it auto-syncs with your build) —
+  and now **mesh** layers (`.2dm`, Telemac, UGRID, XDMF, …), reported by `show`/`catalog` via the
+  MDAL provider with a vertex/face/dataset-group summary. Together with point clouds, discovery
+  covers vector · raster · point cloud · mesh. (Processing verbs for mesh land as they're needed.)
 
 ## [0.61.1] - 2026-07-08
 

@@ -1507,9 +1507,13 @@ class Engine:
         directly as a single ``pointcloud`` entry (with a best-effort point count)."""
         from ..utilities import facet_for_ext
 
-        if facet_for_ext(os.path.splitext(full)[1]) == "pointcloud":
+        facet = facet_for_ext(os.path.splitext(full)[1])
+        if facet == "pointcloud":
             self._emit(f"  show: {os.path.basename(full)} (point cloud)")
             return [self._pointcloud_entry(full)]
+        if facet == "mesh":  # QGIS reads mesh via MDAL, not querySublayers
+            self._emit(f"  show: {os.path.basename(full)} (mesh)")
+            return [self._mesh_entry(full)]
         try:
             rows = self.backend.list_layers(full)
         except Exception as exc:  # noqa: BLE001
@@ -1558,6 +1562,35 @@ class Engine:
             return f"point cloud · {int(n):,} pts" if n else "point cloud"
         except Exception:  # noqa: BLE001 — best effort; header probe must never break `show`
             return "point cloud"
+
+    def _mesh_entry(self, full: str) -> dict:
+        """A `show`/`catalog` entry for a mesh file (`.2dm`/UGRID/Telemac/…) — kind ``mesh``, with
+        a best-effort vertex/face/dataset-group summary via the backend's mesh provider."""
+        fmt = os.path.splitext(full)[1].lstrip(".").upper()
+        detail = "mesh"
+        probe = getattr(self.backend, "probe_mesh", None)
+        if probe:
+            try:
+                info = probe(full)
+                if info:
+                    detail = (
+                        f"mesh · {info.get('vertices', 0):,} vertices · "
+                        f"{info.get('faces', 0):,} faces"
+                        + (
+                            f" · {info['groups']} dataset group(s)"
+                            if info.get("groups")
+                            else ""
+                        )
+                    )
+            except Exception:  # noqa: BLE001 — best effort
+                pass
+        return {
+            "name": os.path.splitext(os.path.basename(full))[0],
+            "kind": "mesh",
+            "type": detail,
+            "format": fmt,
+            "ref": full,
+        }
 
     def _show_walk(self, root, deep):
         """Collect `show` entries under ``root``. Shallow by default; ``deep`` recurses.

@@ -30,7 +30,7 @@ deprecated=False
 # field never holds more than three versions. Continuation lines MUST stay indented (like `about=`).
 changelog=0.62.0 — Added: point clouds are first-class — `each`/`show`/`catalog` recognise
     LAS/LAZ/COPC/E57/… tiles, friendly `dtm`/`dsm`/`hag` verbs (over pdal_wrench), and $VAR/${VAR}
-    expansion in path values (save "$OUTDIR/{name}.tif"). show reports point clouds with a point count.
+    expansion in path values (save "$OUTDIR/{name}.tif"). show/catalog span vector/raster/pointcloud/mesh (all GDAL formats + MDAL mesh).
     0.61.1 — Fixed: `niva lsp` no longer dies on an unexpected editor message (completion/
     hover/diagnostics used to silently stop until an editor restart); the event loop is now resilient.
     0.61.0 — Added: repl/LSP completion now covers `run` — the 878 QGIS algorithm ids

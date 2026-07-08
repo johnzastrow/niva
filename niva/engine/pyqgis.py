@@ -2171,6 +2171,29 @@ class PyqgisBackend(Backend):
                 continue
         return rows
 
+    def probe_mesh(self, path: str) -> dict | None:
+        """`{vertices, faces, groups}` if ``path`` opens as a mesh (QGIS MDAL provider), else None
+        — so `show`/`catalog` can report mesh files that `querySublayers` (vector/raster) doesn't
+        cover. Best-effort and quiet; never raises."""
+        try:
+            from osgeo import gdal
+            from qgis.core import QgsMeshLayer
+
+            gdal.PushErrorHandler("CPLQuietErrorHandler")
+            try:
+                ml = QgsMeshLayer(path, "mesh", "mdal")
+            finally:
+                gdal.PopErrorHandler()
+            if not ml.isValid():
+                return None
+            return {
+                "vertices": ml.meshVertexCount(),
+                "faces": ml.meshFaceCount(),
+                "groups": ml.datasetGroupCount(),
+            }
+        except Exception:  # noqa: BLE001 — MDAL missing / unreadable → just no mesh entry
+            return None
+
     def _vector_summary(self, uri: str, provider: str, geom: str) -> str:
         """`<geom> · <n> feature(s)` for a vector sublayer; best effort (issue #21).
         Surfaces empty (0) and huge layers; falls back to just the geometry type if the

@@ -207,6 +207,17 @@ class TestPointCloudDiscovery(unittest.TestCase):
         self.assertEqual(entry["ref"], las)
         self.assertIn("point cloud", entry["type"])  # pdal absent/empty → the fallback
 
+    def test_show_probe_reports_a_mesh_entry(self):
+        root = tempfile.mkdtemp(prefix="niva_pc_")
+        mesh = os.path.join(root, "sim.2dm")
+        open(mesh, "w").close()
+        entry = Engine(MockBackend())._show_probe(mesh)[0]
+        self.assertEqual(entry["kind"], "mesh")
+        self.assertEqual(entry["format"], "2DM")
+        self.assertEqual(
+            entry["ref"], mesh
+        )  # MockBackend has no probe_mesh → basic "mesh"
+
 
 class TestSplit(unittest.TestCase):
     def test_split_dispatches_to_filterbygeometry(self):

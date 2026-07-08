@@ -79,6 +79,9 @@ each "{root}" geom=polygon | save out.gpkg
 # test_show_probe_reports_a_point_cloud_entry
 #   (pure Python — no niva flow)
 
+# test_show_probe_reports_a_mesh_entry
+#   (pure Python — no niva flow)
+
 # ── TestSplit ───────────────────────────────────────────────────
 
 # test_split_dispatches_to_filterbygeometry
