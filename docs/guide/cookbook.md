@@ -494,45 +494,69 @@ whole provider.
 
 ---
 
-## L. LiDAR from raw LAS — the `pdalcli:` harness
+## L. LiDAR & point clouds
 
-`run pdalcli:<command>` shells out to `pdal_wrench` and reads **raw `.las`/`.laz`/`.copc.laz`
-directly** (no COPC step) — the natural home for classification-aware LiDAR. The upstream
-`load`ed cloud auto-wires to the tool's input; raster/vector outputs pipe on, point-cloud
-outputs are kept with an explicit `output=`. Needs `pdal_wrench` (see the
-[PDAL/LAStools guide](pdal-lastools-qgis4.md)). Filter by ASPRS class with a PDAL expression.
+Point clouds are first-class: `each`/`show`/`catalog` recognise `.las`/`.laz`/`.copc.laz`/`.vpc`/
+`.e57`/… (so a folder of tiles batches), and the friendly verbs **`dtm`** / **`dsm`** / **`hag`**
+wrap niva's `pdalcli:` harness (`pdal_wrench`, reading **raw LAS** — no COPC step). Needs the
+point-cloud backend (`niva pdal check`; see the [PDAL/LAStools guide](pdal-lastools-qgis4.md)). The
+raw `run pdalcli:<command>` escape hatch is still there for everything the verbs don't cover.
 
-**74. DTM — bare earth from GROUND returns (class 2)**
+**74. DTM — bare-earth terrain from GROUND returns (class 2)**
 ```
-load tile.las | run pdalcli:to_raster attribute=Z filter="Classification==2" resolution=1 | save dtm.tif
+load "tile.las" | dtm resolution=1 | save dtm.tif
 ```
+`dtm` = `run pdalcli:to_raster attribute=Z filter="Classification==2"` — just friendlier.
 
 **75. DSM — top surface from all returns**
 ```
-load tile.las | run pdalcli:to_raster attribute=Z resolution=1 | save dsm.tif
+load "tile.las" | dsm resolution=1 | save dsm.tif
 ```
 
-**76. CHM — canopy height = DSM − DTM (GRASS aligns the two grids)**
+**76. CHM — canopy height, the clean way (`hag` normalises, `dsm` rasterises)**
 ```
-run grass:r.mapcalc.simple expression="A-B" a=dsm.tif b=dtm.tif output=chm.tif
+load "tile.las" | hag | dsm resolution=1 | save chm.tif
+```
+`hag` sets each point's height-above-ground; `dsm` then gives the max height per cell = canopy
+height. (Alternative: DSM − DTM via `run grass:r.mapcalc.simple expression="A-B" a=dsm.tif b=dtm.tif output=chm.tif`.)
+
+**77. Batch a whole folder of tiles into DTMs**
+```
+each "~/lidar/tiles/*.las" | dtm resolution=1 | save "~/lidar/dtm/{name}.tif"
+```
+One DTM per tile, named after the tile. Add filters: `each "*.las" minsize=50M | dtm | save …`.
+
+**78. Batch → single mosaic DTM (rasterise per tile, then merge)**
+```
+each "~/lidar/tiles/*.las" | dtm resolution=1 | save "~/lidar/dtm/{name}.tif"
+run gdal:merge INPUT="~/lidar/dtm/*.tif" OUTPUT="~/lidar/dtm_mosaic.tif"
+```
+Per-tile rasterising is parallel-friendly and avoids one giant merged cloud. (Cloud-level merge:
+`run pdalcli:merge files="a.las;b.las" output=merged.laz`, then `load "merged.laz" | dtm …`.)
+
+**79. `$VAR` in output paths (portable studies)**
+```
+export LIDAR=~/lidar
+niva 'each "$LIDAR/tiles/*.las" | dtm resolution=1 | save "$LIDAR/dtm/{name}.tif"'
+```
+`$VAR`/`${VAR}` expand in path values (in `.niva` files and the repl too, not just the shell) —
+paths only, so a `filter "$area > 100"` expression is untouched.
+
+**80. Raw-harness extras — extract a class, clip, classify, density**
+```
+load "tile.las" | run pdalcli:translate filter="Classification==6" output=buildings.laz   # class 6 = buildings
+load "merged.laz" | run pdalcli:clip polygon=aoi.gpkg output=study.laz
+load "tile.las" | run pdalcli:classify_ground output=classified.laz
+load "tile.las" | run pdalcli:density resolution=1 | save point_density.tif                 # coverage QA
 ```
 
-**77. Extract one class to its own cloud** (buildings = class 6; ground = 2, water = 9)
+**81. Inventory a LiDAR folder**
 ```
-load tile.las | run pdalcli:translate filter="Classification==6" output=buildings.laz
+show ~/lidar/tiles            # each tile: kind=pointcloud, point count, loadable source
+catalog ~/lidar/tiles to=lidar_inventory.md
 ```
-
-**78. Merge tiles, then clip to an area of interest**
-```
-run pdalcli:merge files="a.las;b.las;c.las" output=merged.laz
-load merged.laz | run pdalcli:clip polygon=aoi.gpkg output=study.laz
-```
-
-**79. Classify ground on unclassified points; density raster for coverage QA**
-```
-load tile.las | run pdalcli:classify_ground output=classified.laz
-load tile.las | run pdalcli:density resolution=1 | save point_density.tif
-```
+`show`/`catalog` report point clouds (and vector/raster/**mesh**) — discovery spans every data
+type QGIS reads.
 
 ---
 
@@ -540,7 +564,7 @@ load tile.las | run pdalcli:density resolution=1 | save point_density.tif
 
 Multi-provider chains that turn raw data into finished products. Each is verified end to end.
 
-**80. LiDAR → a full bare-earth terrain set** (DTM once, then three derivatives)
+**82. LiDAR → a full bare-earth terrain set** (DTM once, then three derivatives)
 ```
 load tile.las | run pdalcli:to_raster attribute=Z filter="Classification==2" resolution=1 | save dtm.tif
 load dtm.tif | hillshade z_factor=2 | save dtm_hillshade.tif
@@ -548,7 +572,7 @@ load dtm.tif | slope | save dtm_slope.tif
 load dtm.tif | run gdal:contour BAND=1 INTERVAL=5 FIELD_NAME=elev OUTPUT=contours_5m.gpkg
 ```
 
-**81. Canopy height model → mean tree height per parcel** (PDAL → GRASS → zonal stats)
+**83. Canopy height model → mean tree height per parcel** (PDAL → GRASS → zonal stats)
 ```
 load tile.las | run pdalcli:to_raster attribute=Z filter="Classification==2" resolution=1 | save dtm.tif
 load tile.las | run pdalcli:to_raster attribute=Z resolution=1 | save dsm.tif
@@ -556,30 +580,30 @@ run grass:r.mapcalc.simple expression="A-B" a=dsm.tif b=dtm.tif output=chm.tif
 load parcels.gpkg | zonalstats raster=chm.tif prefix="canopy_" stats=mean | save parcels_canopy.gpkg
 ```
 
-**82. Hydrology from LiDAR** — bare-earth DTM → GRASS flow accumulation + drainage direction
+**84. Hydrology from LiDAR** — bare-earth DTM → GRASS flow accumulation + drainage direction
 ```
 load tile.las | run pdalcli:to_raster attribute=Z filter="Classification==2" resolution=1 | save dtm.tif
 load dtm.tif | run grass:r.watershed elevation=dtm.tif accumulation=flow_accum.tif drainage=flow_dir.tif
 ```
 
-**83. Landform classification** — geomorphons (valleys, ridges, slopes, pits, peaks) from the DTM
+**85. Landform classification** — geomorphons (valleys, ridges, slopes, pits, peaks) from the DTM
 ```
 load dtm.tif | run grass:r.geomorphon elevation=dtm.tif forms=landforms.tif search=15
 ```
 
-**84. Building footprint candidates** — extract the building class, then its coverage polygons
+**86. Building footprint candidates** — extract the building class, then its coverage polygons
 ```
 load tile.las | run pdalcli:translate filter="Classification==6" output=buildings.laz
 load buildings.laz | run pdalcli:boundary | fixgeom | simplify 0.5m | save building_footprints.gpkg
 ```
 
-**85. The simplest possible map** — one layer, one line, no options; `figure` picks a sensible
+**87. The simplest possible map** — one layer, one line, no options; `figure` picks a sensible
 extent, size, and stretch so it just works for vector *or* raster
 ```
 load dem.tif | figure dem.png
 ```
 
-**86. Push it — a full thematic map using every knob** — themed primary layer, a raster hillshade
+**88. Push it — a full thematic map using every knob** — themed primary layer, a raster hillshade
 plus two vector overlays, an OSM basemap, field labels, a borrowed extent, and print-scale output
 ```
 load flood_zones.gpkg | style apply=flood.qml
@@ -595,32 +619,32 @@ Where `figure` is a bare image, **`map`** builds a page **layout** (→ PDF/PNG/
 scale bar, and north arrow **on by default** — a proper map with no template required. These six
 climb from one line to a full multi-layer plate.
 
-**87. Tiny** — one layer, one line; a complete A4 map (legend + scale bar + north arrow)
+**89. Tiny** — one layer, one line; a complete A4 map (legend + scale bar + north arrow)
 ```
 load dem.tif | map dem.pdf
 ```
 
-**88. Add a title**
+**90. Add a title**
 ```
 load parcels.gpkg | map parcels.pdf title="Parcels — 2026"
 ```
 
-**89. Label it, pick a page and format** — PNG on US Letter, features labelled by a field
+**91. Label it, pick a page and format** — PNG on US Letter, features labelled by a field
 ```
 load zones.gpkg | map zones.png title="Zoning" labels=zone_type page=Letter dpi=200
 ```
 
-**90. Themed, with an overlay and a basemap** — styled primary layer over roads over OSM tiles
+**92. Themed, with an overlay and a basemap** — styled primary layer over roads over OSM tiles
 ```
 load flood.gpkg | style apply=flood.qml | map flood.pdf title="Flood Risk" layers="roads.gpkg" basemap=osm labels=risk portrait
 ```
 
-**91. Many layers, many types** — line, two rasters, polygon, and point layers on one A3 plate
+**93. Many layers, many types** — line, two rasters, polygon, and point layers on one A3 plate
 ```
 load contours.gpkg | map terrain.pdf title="Terrain — Multi-Layer" layers="dtm.tif;dsm.tif;building_footprints.gpkg;control_points.gpkg" labels=elev extent=dsm.tif page=A3 landscape dpi=300
 ```
 
-**92. Extreme** — build every derivative from raw LiDAR, then compose one rich A3 plate that stacks
+**94. Extreme** — build every derivative from raw LiDAR, then compose one rich A3 plate that stacks
 a hillshade, contours, footprints and markers over a basemap, framed to a study area at print DPI
 ```
 load tile.las | run pdalcli:to_raster attribute=Z filter="Classification==2" resolution=1 | save dtm.tif
@@ -644,36 +668,36 @@ terminal (they report, they don't transform), and every recipe here is runnable 
 
 ### `find` — produce output for various uses
 
-**93. A plain file list (redirect to a file)**
+**95. A plain file list (redirect to a file)**
 ```
 niva find "*.gpkg" in ~/data --paths > inventory.txt
 ```
 `--paths` prints just absolute paths, one per line, nothing else — ideal for a manifest.
 
-**94. Count matches**
+**96. Count matches**
 ```
 niva find "*.tif" in ~/data --paths | wc -l
 ```
 
-**95. Feed any external tool, spaces-safe**
+**97. Feed any external tool, spaces-safe**
 ```
 niva find "*.shp" in ~/data -0 | xargs -0 -n1 ogrinfo -so
 ```
 `-0` (alias `--print0`) NUL-separates paths so `xargs -0` handles names with spaces/newlines.
 
-**96. Machine-readable records for scripts / LLMs (`--json` + `jq`)**
+**98. Machine-readable records for scripts / LLMs (`--json` + `jq`)**
 ```
 niva find "*.gpkg" in ~/data --json | jq -r '.[] | select(.features > 1000) | .path'
 ```
 Each record carries `path`, `format`, `kind`, `size`, and — on QGIS's Python — `geometry`,
 `crs`, `features`, `fields`, `fid_column`.
 
-**97. Only polygon layers with data (GDAL filters), as paths**
+**99. Only polygon layers with data (GDAL filters), as paths**
 ```
 niva find "*.gpkg" in ~/data --geom Polygon --min-features 1 --paths
 ```
 
-**98. Turn a search into a runnable batch (`--as-flow`)**
+**100. Turn a search into a runnable batch (`--as-flow`)**
 ```
 niva find "*.tif" in ~/rasters --as-flow > batch.txt
 ```
@@ -681,25 +705,25 @@ Emits one `each "<path>" | <stages> | save …` line per match — fill in the s
 
 ### `catalog` — inventory to a report
 
-**99. Inventory a directory tree**
+**101. Inventory a directory tree**
 ```
 niva catalog "data/" to=reports/inventory.md
 ```
 Recurses `data/`, profiling every dataset (type, CRS, geometry/bands, feature count, extent);
 multi-layer containers expand per layer. Omit `to=` to write `data/catalog.md`.
 
-**100. Deep profile — add data-quality checks**
+**102. Deep profile — add data-quality checks**
 ```
 niva catalog "data/" deep to=reports/inventory_deep.md
 ```
 `deep` adds per-layer invalid/empty/duplicate-geometry counts and per-field null counts.
 
-**101. Catalog one container**
+**103. Catalog one container**
 ```
 niva catalog "basemap.gpkg" to=reports/basemap.md
 ```
 
-**102. Catalog a database connection**
+**104. Catalog a database connection**
 ```
 niva catalog @gisdb3 to=reports/db.md
 ```
