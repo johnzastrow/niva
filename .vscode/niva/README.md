@@ -6,15 +6,22 @@ for `.niva` geospatial pipeline files.
 ## Quick install
 
 ```bash
-# Build the language-server client (fetches vscode-languageclient) + copy into VS Code:
+# Builds a .vsix (fetching vscode-languageclient) and installs it with the `code` CLI:
 bash .vscode/niva/install.sh
 ```
 
-That runs `npm install` here and copies the extension (with `extension.js` + `node_modules`) into
-your VS Code extensions dir. Reload VS Code (**Developer: Reload Window**) and open a `.niva` file.
-No npm? The installer still gives you highlighting + snippets, just not the language server.
+Then **reload VS Code** (Developer: Reload Window) and open a `.niva` file. Modern VS Code only
+loads an extension it installed itself, so the installer packages a proper `.vsix` and runs
+`code --install-extension` — a manually-copied folder is silently ignored. Needs Node/npm.
 
-For development, open `.vscode/niva/` in VS Code and press **F5** (run `npm install` here first).
+**Manual install** (no `code` CLI, or you prefer the UI): build the package and install it from the
+Extensions view:
+
+```bash
+cd .vscode/niva && npm install && npx @vscode/vsce package   # → niva-<version>.vsix
+```
+then **Extensions ⇒ ⋯ ⇒ Install from VSIX…** and pick the file. For development, open
+`.vscode/niva/` in VS Code and press **F5** (run `npm install` here first).
 
 ## Features
 

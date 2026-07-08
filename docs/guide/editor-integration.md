@@ -47,9 +47,18 @@ command = "niva"
 args = ["lsp"]
 ```
 
-**VS Code / VSCodium**: point a generic LSP-client extension (e.g. *"Generic LSP Client"*) at
-`niva lsp` for `.niva` files, or wrap it in a tiny extension. **Kate**: add it under *Settings →
-LSP Client → User Server Settings* with `{"servers":{"niva":{"command":["niva","lsp"],"highlightingModeRegex":"^niva$"}}}`.
+**VS Code / VSCodium**: the bundled extension already includes the language-server client — build
+and install it (needs Node/npm):
+
+```bash
+bash .vscode/niva/install.sh    # packages a .vsix and installs it via the `code` CLI
+```
+
+then reload the window. (Manual install: `cd .vscode/niva && npm install && npx @vscode/vsce
+package`, then Extensions ⇒ ⋯ ⇒ *Install from VSIX…*.) If the `niva` on VS Code's PATH isn't the
+one you want, set **`niva.lsp.command`** in Settings to an absolute path. See the extension's
+[README](../../.vscode/niva/README.md). **Kate**: add it under *Settings → LSP Client → User
+Server Settings* with `{"servers":{"niva":{"command":["niva","lsp"],"highlightingModeRegex":"^niva$"}}}`.
 
 > Make sure the `niva` command on your `PATH` is the one you installed (see the [Quick
 > start](quickstart.md)); `niva lsp` uses that interpreter's niva.

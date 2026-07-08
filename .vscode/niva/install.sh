@@ -7,27 +7,33 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 did=0
 note() { printf '  ✓ %s\n' "$1"; did=1; }
 
-# --- VS Code / VSCodium (TextMate grammar + snippets + LANGUAGE SERVER) ---
-# The language server (completion/diagnostics/hover) needs the vscode-languageclient npm package.
-# If npm is present we fetch it and ship the full extension; otherwise we install the declarative
-# parts only (highlighting + snippets) and note that the LSP needs Node.
-vsfiles=(package.json language-configuration.json syntaxes snippets README.md)
-if command -v npm >/dev/null 2>&1; then
-  ( cd "$HERE" && npm install --omit=dev --no-audit --no-fund >/dev/null 2>&1 ) \
-    && vsfiles+=(extension.js node_modules) \
-    || echo "  ! npm install failed — VS Code will get highlighting only (no language server)."
-else
-  echo "  ! npm not found — VS Code gets highlighting only. Install Node.js and re-run for the language server."
-fi
-for ext in "$HOME/.vscode/extensions" "$HOME/.vscode-server/extensions" \
-           "$HOME/.vscode-oss/extensions" "$HOME/.vscodium/extensions"; do
-  if [ -d "$(dirname "$ext")" ]; then
-    rm -rf "$ext/niva"  # clean stale files (e.g. an old node_modules) so the copy is exact
-    mkdir -p "$ext/niva"
-    for f in "${vsfiles[@]}"; do cp -r "$HERE/$f" "$ext/niva/" 2>/dev/null || true; done
-    note "VS Code family → $ext/niva$( [ -e "$ext/niva/extension.js" ] && echo ' (with language server)' )"
-  fi
+# --- VS Code / VSCodium — grammar + snippets + LANGUAGE SERVER (installed as a proper .vsix) ---
+# Modern VS Code reliably loads only extensions it installed itself (a manually-copied folder is
+# ignored — it never lands in extensions.json), so we PACKAGE a .vsix (which bundles the
+# language-server client) and install it through the editor's CLI. Needs Node/npm.
+vscli=""
+for c in code codium code-insiders; do
+  command -v "$c" >/dev/null 2>&1 && { vscli="$c"; break; }
 done
+if [ -n "$vscli" ]; then
+  if command -v npm >/dev/null 2>&1; then
+    # Remove any stale manually-copied folder from older installs so it can't shadow the .vsix.
+    rm -rf "$HOME/.vscode/extensions/niva" "$HOME/.vscodium/extensions/niva" 2>/dev/null || true
+    if ( cd "$HERE" \
+           && npm install --omit=dev --no-audit --no-fund >/dev/null 2>&1 \
+           && npx --yes @vscode/vsce package --out "$HERE/niva.vsix" >/dev/null 2>&1 ); then
+      if "$vscli" --install-extension "$HERE/niva.vsix" --force >/dev/null 2>&1; then
+        note "VS Code ($vscli) → niva extension installed WITH language server (reload the window)"
+      else
+        note "VS Code → built $HERE/niva.vsix — install it via Extensions ⇒ ⋯ ⇒ Install from VSIX…"
+      fi
+    else
+      echo "  ! Could not build the VS Code .vsix — see docs/guide/editor-integration.md"
+    fi
+  else
+    echo "  ! VS Code found but npm is missing — install Node.js, then re-run, for the language server."
+  fi
+fi
 
 # --- Vim / Neovim (syntax + filetype detection) ---
 for d in "$HOME/.vim" "$HOME/.config/nvim"; do
