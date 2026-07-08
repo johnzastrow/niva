@@ -82,6 +82,66 @@ class TestLspSession(unittest.TestCase):
             rc = lsp.run([])
         return rc, _parse_all(stdout.getvalue())
 
+    def test_malformed_messages_do_not_kill_the_server(self):
+        # A real editor sends shapes we don't fully model. One bad message must NEVER end the
+        # loop (that was the "completion/hover stop working until reload" bug). After a batch of
+        # malformed requests, a normal completion must still be answered.
+        rc, replies = self._run(
+            [
+                {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}},
+                {
+                    "jsonrpc": "2.0",
+                    "method": "textDocument/didOpen",
+                    "params": {
+                        "textDocument": {"uri": "file:///s.niva", "text": "load a.gpkg"}
+                    },
+                },
+                # missing textDocument (used to raise KeyError and kill the process)
+                {
+                    "jsonrpc": "2.0",
+                    "method": "textDocument/didChange",
+                    "params": {"contentChanges": [{"text": "x"}]},
+                },
+                # completion request with empty params
+                {
+                    "jsonrpc": "2.0",
+                    "id": 2,
+                    "method": "textDocument/completion",
+                    "params": {},
+                },
+                # position past end of line / non-existent line
+                {
+                    "jsonrpc": "2.0",
+                    "id": 3,
+                    "method": "textDocument/hover",
+                    "params": {
+                        "textDocument": {"uri": "file:///s.niva"},
+                        "position": {"line": 99, "character": 99},
+                    },
+                },
+                # a normal completion AFTER the bad ones — must still work
+                {
+                    "jsonrpc": "2.0",
+                    "id": 4,
+                    "method": "textDocument/completion",
+                    "params": {
+                        "textDocument": {"uri": "file:///s.niva"},
+                        "position": {"line": 0, "character": 2},
+                    },
+                },
+                {"jsonrpc": "2.0", "method": "exit"},
+            ]
+        )
+        self.assertEqual(rc, 0)
+        by_id = {m["id"]: m for m in replies if "id" in m}
+        self.assertIn(
+            2, by_id
+        )  # the empty-params request got a (null-ish) reply, not a crash
+        self.assertIn(3, by_id)
+        self.assertIn(
+            "load", [i["label"] for i in by_id[4]["result"]["items"]]
+        )  # still alive
+
     def test_initialize_open_complete_shutdown(self):
         rc, replies = self._run(
             [

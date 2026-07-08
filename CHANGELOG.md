@@ -9,6 +9,16 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 > [`plugin/metadata.txt`](plugin/metadata.txt) — keep only the **last three versions** there (drop
 > the oldest); that field is what the QGIS Plugin Manager shows. This file stays the full history.
 
+## [0.61.1] - 2026-07-08
+
+### Fixed
+- **`niva lsp` no longer dies on an unexpected message.** A single message shape the server didn't
+  fully model (e.g. a `didChange` without `textDocument`) raised an unhandled exception that
+  **killed the whole process** — so completion, hover, and diagnostics silently stopped working in
+  the editor until it restarted the server. The event loop now handles each message defensively and
+  is wrapped so one bad message can never end the loop (errors are logged to stderr; a pending
+  request still gets a reply). Guarded by a malformed-message regression test.
+
 ## [0.61.0] - 2026-07-08
 
 ### Added
