@@ -9,6 +9,20 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 > [`plugin/metadata.txt`](plugin/metadata.txt) — keep only the **last three versions** there (drop
 > the oldest); that field is what the QGIS Plugin Manager shows. This file stays the full history.
 
+## [0.61.0] - 2026-07-08
+
+### Added
+- **Completion now covers the `run` escape hatch — every QGIS algorithm.** In the repl and the
+  LSP, `run ` completes the **878 catalogued algorithm ids** (`native:…`, `gdal:…`, `grass:…`, …),
+  then that algorithm's **`KEY=` parameter names** and **enum values** — e.g. `run native:buf` →
+  `native:buffer`, then `INPUT=`/`DISTANCE=`/…, then `END_CAP_STYLE=Round|Flat|Square`. Offline
+  (from the packaged catalogue); shared by both front-ends via `niva.intelligence`.
+
+### Fixed
+- **Hover/`describe` now covers `map` and `figure`.** They were missing from `describe`'s built-in
+  table, so `describe map` / `describe figure` (and LSP hover over them) errored. Every built-in
+  verb is now describable — guarded by a test so a new built-in can't ship without a hover entry.
+
 ## [0.60.0] - 2026-07-07
 
 ### Added

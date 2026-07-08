@@ -79,12 +79,18 @@ def completions(text: str) -> list[str]:
         return [n for n in idx["names"] if n.startswith(prefix)]
 
     verb = toks[0]
+    cur = "" if trailing_space else toks[-1]
+
+    # `run <provider:id> KEY=value` — the escape hatch reaches every QGIS algorithm, so complete
+    # the 878 catalogued ids (the "native ones"), then that algorithm's KEY= params and enum values.
+    if verb == "run":
+        return _run_completions(toks, cur, trailing_space)
+
     if (
         verb not in idx["names"]
     ):  # a real verb (built-in or alias)? — else offer nothing
         return []
     info = idx["verbs"].get(verb)  # None for built-in verbs (no alias option catalogue)
-    cur = "" if trailing_space else toks[-1]
 
     if "=" in cur:  # completing an option's value
         key, _, val = cur.partition("=")
@@ -106,6 +112,33 @@ def completions(text: str) -> list[str]:
             seen.add(c)
             out.append(c)
     return out
+
+
+def _run_completions(toks: list, cur: str, trailing_space: bool) -> list[str]:
+    """Completion inside a ``run`` stage: the algorithm id first (from the offline 878-id
+    catalogue), then that algorithm's ``KEY=`` parameter names and enum values. QGIS-free."""
+    from .registry import catalog as _cat
+
+    try:
+        cat = _cat.catalog()
+    except Exception:  # noqa: BLE001 — no packaged catalogue → nothing to offer
+        return []
+
+    # Still on the id itself: only `run` typed, or typing the id with no trailing space yet.
+    if len(toks) == 1 or (len(toks) == 2 and not trailing_space):
+        return sorted(aid for aid in cat if aid.startswith(cur))[:200]
+
+    entry = cat.get(toks[1])  # toks[1] is the algorithm id
+    if not entry:
+        return []
+    params = entry.get("params") or []
+    if "=" in cur:  # completing a parameter value → enum options, if any
+        key, _, val = cur.partition("=")
+        for p in params:
+            if p.get("name") == key and p.get("enum"):
+                return [f"{key}={v}" for v in p["enum"] if str(v).startswith(val)]
+        return []
+    return [f"{p['name']}=" for p in params if p.get("name", "").startswith(cur)]
 
 
 def diagnostics(text: str) -> list[dict]:

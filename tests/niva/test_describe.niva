@@ -10,6 +10,13 @@
 
 # ── TestDescribeVerb ────────────────────────────────────────────
 
+# test_every_builtin_verb_is_describable
+#   (pure Python — no niva flow)
+
+# test_describe_map_and_figure
+describe map
+describe figure
+
 # test_describe_alias_shows_mapping
 describe buffer
 
