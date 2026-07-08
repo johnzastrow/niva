@@ -5,6 +5,7 @@
   "version": "0.2.0",
   "publisher": "niva",
   "license": "GPL-3.0-or-later",
+  "repository": { "type": "git", "url": "https://github.com/johnzastrow/niva" },
   "engines": { "vscode": "^1.75.0" },
   "categories": ["Programming Languages", "Linters"],
   "main": "./extension.js",
