@@ -27,6 +27,27 @@ class TestCompletions(unittest.TestCase):
     def test_unknown_verb_offers_nothing(self):
         self.assertEqual(intel.completions("notaverb "), [])
 
+    def test_run_completes_algorithm_ids(self):
+        self.assertIn("native:buffer", intel.completions("run native:buf"))
+        self.assertTrue(all(":" in c for c in intel.completions("run nat")[:5]))
+        # bare `run ` offers ids, not filesystem paths
+        first = intel.completions("run ")
+        self.assertTrue(first and all(":" in c for c in first[:5]))
+
+    def test_run_completes_params_then_enum_values(self):
+        params = intel.completions("run native:buffer ")
+        self.assertIn("INPUT=", params)
+        self.assertIn("DISTANCE=", params)
+        self.assertEqual(
+            intel.completions("run native:buffer END_CAP_STYLE="),
+            ["END_CAP_STYLE=Round", "END_CAP_STYLE=Flat", "END_CAP_STYLE=Square"],
+        )
+
+    def test_run_completion_works_mid_pipe(self):
+        self.assertIn(
+            "gdal:warpreproject", intel.completions("load x.tif | run gdal:war")
+        )
+
     def test_current_token(self):
         self.assertEqual(intel.current_token("load a.gpkg | buf"), "buf")
         self.assertEqual(intel.current_token("load a.gpkg | "), "")

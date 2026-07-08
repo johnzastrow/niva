@@ -22,6 +22,15 @@ load a.gpkg | buffer 5m cap=
 # test_unknown_verb_offers_nothing
 #   (pure Python — no niva flow)
 
+# test_run_completes_algorithm_ids
+#   (pure Python — no niva flow)
+
+# test_run_completes_params_then_enum_values
+#   (pure Python — no niva flow)
+
+# test_run_completion_works_mid_pipe
+load x.tif | run gdal:war
+
 # test_current_token
 load a.gpkg | buf
 load a.gpkg |

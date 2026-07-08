@@ -15,6 +15,25 @@ from niva.registry import core_registry
 
 
 class TestDescribeVerb(unittest.TestCase):
+    def test_every_builtin_verb_is_describable(self):
+        # Guards against a built-in verb (e.g. map/figure) shipping without a describe entry —
+        # which shows up as a missing hover in the editor/LSP.
+        missing = []
+        for verb in Engine._BUILTIN_VERBS:
+            try:
+                out = describe(verb)
+                if not (out and out.strip()):
+                    missing.append(verb)
+            except Exception:  # noqa: BLE001
+                missing.append(verb)
+        self.assertEqual(
+            missing, [], f"built-in verbs with no describe entry: {missing}"
+        )
+
+    def test_describe_map_and_figure(self):
+        self.assertIn("cartographic", describe("map"))
+        self.assertIn("map image", describe("figure"))
+
     def test_describe_alias_shows_mapping(self):
         out = describe("buffer")
         self.assertIn("verb `buffer` → native:buffer", out)

@@ -94,6 +94,18 @@ BUILTINS = {
         "Profile the current layer to a data-quality Markdown report (pass-through).",
         "load parcels.gpkg | assess deep to quality.md",
     ),
+    "figure": (
+        "Render a quick map image (PNG/JPG) of the current layer — vector or raster — "
+        "with labels and sensible defaults (pass-through). Options: size, dpi, extent, "
+        "layers (overlays), basemap=osm, bg.",
+        "load dem.tif | figure dem.png",
+    ),
+    "map": (
+        "Compose a cartographic layout (PDF/PNG/JPG/SVG) with legend, scale bar, and north "
+        "arrow on by default — or export a layout/atlas from an existing QGIS project with "
+        "`from=`. Options: page, orientation, dpi, title, layers, basemap, bare, no<deco>.",
+        "load roads.gpkg | map roads.pdf",
+    ),
     "catalog": (
         "Inventory a directory of datasets to a Markdown report.",
         'catalog "data/" to=inventory.md',
