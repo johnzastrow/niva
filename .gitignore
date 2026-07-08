@@ -259,6 +259,9 @@ tests/datagen/testdata/
 /outputs/
 /examples/*.png
 
+# VS Code extension dependencies — rebuilt by .vscode/niva/install.sh (npm install)
+.vscode/niva/node_modules/
+
 # macOS metadata files
 .DS_Store
 

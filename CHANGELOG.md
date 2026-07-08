@@ -17,7 +17,10 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   **completion** (verbs → options/flags → enum values → filesystem paths), **live diagnostics**
   (the offline validator's errors/warnings as you type), and **hover** (`describe` docs for the
   verb under the cursor). Speaks LSP over stdio with stdlib JSON-RPC — **no new dependencies**.
-  Editor setup snippets are in [editor integration](docs/guide/editor-integration.md).
+  Editor setup snippets are in [editor integration](docs/guide/editor-integration.md). The bundled
+  **VS Code extension** ([`.vscode/niva/`](.vscode/niva)) now ships a language-server client
+  (`extension.js`, via `vscode-languageclient`) so it upgrades from highlighting-only to full
+  completion/diagnostics/hover — `bash .vscode/niva/install.sh` builds and installs it.
 
 ### Changed
 - **Language services are now one shared core — `niva.intelligence`.** Completion, the verb/option
