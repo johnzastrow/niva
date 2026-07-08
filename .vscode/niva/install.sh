@@ -62,11 +62,38 @@ for v in gtksourceview-4 gtksourceview-3.0 gtksourceview-5; do
 done
 note "GtkSourceView (Mousepad/gedit/…) → ~/.local/share/gtksourceview-*/language-specs/niva.lang"
 
-# --- Kate / KWrite / KDevelop ---
+# --- Kate / KWrite / KDevelop — syntax + LANGUAGE SERVER (LSP Client plugin) ---
 dst="$HOME/.local/share/org.kde.syntax-highlighting/syntax"
 mkdir -p "$dst"
 cp "$HERE/kate/niva.xml" "$dst/niva.xml"
-note "Kate family → ~/.local/share/org.kde.syntax-highlighting/syntax/niva.xml"
+# Register `niva lsp` with Kate's LSP Client, merging into any existing user server settings so
+# other servers are preserved. Uses the absolute niva path (a GUI-launched Kate may lack /usr/local
+# on PATH). Needs python3 for the safe JSON merge.
+if command -v python3 >/dev/null 2>&1; then
+  nivacmd="$(command -v niva || echo niva)"
+  mkdir -p "$HOME/.config/kate/lspclient"
+  python3 - "$HOME/.config/kate/lspclient/settings.json" "$nivacmd" <<'PY'
+import json, os, sys
+path, cmd = sys.argv[1], sys.argv[2]
+data = {}
+if os.path.exists(path):
+    try:
+        data = json.load(open(path)) or {}
+    except Exception:
+        data = {}
+data.setdefault("servers", {})["niva"] = {
+    "command": [cmd, "lsp"],
+    "highlightingModeRegex": "^niva$",
+    "documentLanguageId": "niva",
+    "url": "https://github.com/johnzastrow/niva",
+    "rootIndicationFileNames": ["*.niva"],
+}
+json.dump(data, open(path, "w"), indent=2)
+PY
+  note "Kate family → syntax + LSP registered. Enable it once: Settings ⇒ Configure Kate ⇒ Plugins ⇒ 'LSP Client'."
+else
+  note "Kate family → syntax only (install python3 to also register the LSP server)"
+fi
 
 [ "$did" = 1 ] && echo "Done — restart your editor(s)." || echo "No supported editors detected."
 echo "Windows / Notepad++ / other editors: see docs/guide/editor-integration.md"
