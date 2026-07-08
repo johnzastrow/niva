@@ -1,12 +1,14 @@
 {
   "name": "niva",
   "displayName": "niva",
-  "description": "Syntax highlighting for niva geoprocessing flows",
-  "version": "0.1.0",
+  "description": "Syntax highlighting + language server (completion, diagnostics, hover) for niva geoprocessing flows",
+  "version": "0.2.0",
   "publisher": "niva",
   "license": "GPL-3.0-or-later",
-  "engines": { "vscode": "^1.80.0" },
-  "categories": ["Programming Languages"],
+  "engines": { "vscode": "^1.75.0" },
+  "categories": ["Programming Languages", "Linters"],
+  "main": "./extension.js",
+  "activationEvents": ["onLanguage:niva"],
   "contributes": {
     "languages": [{
       "id": "niva",
@@ -22,6 +24,25 @@
     "snippets": [{
       "language": "niva",
       "path": "./snippets/niva.code-snippets"
-    }]
+    }],
+    "configuration": {
+      "title": "niva",
+      "properties": {
+        "niva.lsp.command": {
+          "type": "string",
+          "default": "niva",
+          "description": "Command that launches the niva language server. Point it at the niva installed into QGIS's Python (the same one `niva run` uses). An absolute path is fine."
+        },
+        "niva.lsp.args": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": ["lsp"],
+          "description": "Arguments passed to the language-server command."
+        }
+      }
+    }
+  },
+  "dependencies": {
+    "vscode-languageclient": "^8.1.0"
   }
 }
