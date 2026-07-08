@@ -18,7 +18,6 @@ from __future__ import annotations
 import os
 import re
 import sys
-from functools import lru_cache
 
 
 def _history_path() -> str:
@@ -35,96 +34,16 @@ def _history_path() -> str:
         return os.path.expanduser("~/.niva_repl_history")
 
 
-@lru_cache(maxsize=1)
-def _index() -> dict:
-    """Completion data from the manifest: per-verb option/flag names and each option's enum
-    values, plus the sorted set of stage-initial names (verbs + built-ins). QGIS-free."""
-    from ..manifest import build_manifest
-
-    m = build_manifest()
-    verbs: dict = {}
-    for v in m["verbs"]:
-        verbs[v["name"]] = {
-            "options": [o["name"] for o in v["options"]],
-            "flags": [f["name"] for f in v["flags"]],
-            "enums": {o["name"]: o["enum"] for o in v["options"] if o.get("enum")},
-        }
-    names = sorted(set(verbs) | set(m["builtins"]))
-    return {"verbs": verbs, "names": names}
-
-
-def _current_token(text: str) -> str:
-    """The token currently being typed at the end of ``text`` (empty after a space)."""
-    stage = text.rsplit("|", 1)[-1]
-    if not stage or stage[-1].isspace():
-        return ""
-    return stage.split()[-1]
-
-
-def _fs_complete(token: str) -> list[str]:
-    """Filesystem completions for a partial path ``token``: matching files and directories,
-    directories suffixed with ``/`` so you can keep tabbing into them. ``~`` is expanded; an
-    empty token lists the current directory. Capped so a huge directory can't flood the menu."""
-    import glob as _glob
-
-    out = []
-    try:
-        for m in sorted(_glob.glob(os.path.expanduser(token) + "*")):
-            out.append(m + "/" if os.path.isdir(m) else m)
-    except OSError:
-        return []
-    return out[:200]
-
-
-def completions(text: str) -> list[str]:
-    """Context-aware completions for flow ``text`` up to the cursor — the pure, testable core
-    of the repl's tab completion:
-
-    * at a stage start (line start or after ``|``) → verb + built-in names;
-    * after a verb → that verb's ``option=`` names and flags, **plus filesystem paths** (so
-      ``load``/``show``/``save`` etc. complete files and directories);
-    * after ``option=`` → the option's enum values, else filesystem paths (for path-valued
-      options like ``raster=``/``with=``).
-    """
-    idx = _index()
-    stage = text.rsplit("|", 1)[-1]
-    toks = stage.split()
-    trailing_space = bool(stage) and stage[-1].isspace()
-
-    # Stage start: still typing (or about to type) the first token → complete verb names.
-    if not toks or (len(toks) == 1 and not trailing_space):
-        prefix = toks[0] if toks else ""
-        return [n for n in idx["names"] if n.startswith(prefix)]
-
-    verb = toks[0]
-    known = (
-        verb in idx["names"]
-    )  # a real verb (built-in or alias)? — else offer nothing
-    if not known:
-        return []
-    info = idx["verbs"].get(verb)  # None for built-in verbs (no alias option catalogue)
-    cur = "" if trailing_space else toks[-1]
-
-    if "=" in cur:  # completing an option's value
-        key, _, val = cur.partition("=")
-        enum = info["enums"].get(key) if info else None
-        if enum:
-            return [f"{key}={v}" for v in enum if v.startswith(val)]
-        return [f"{key}={p}" for p in _fs_complete(val)]  # path-valued option
-
-    # A positional argument: offer the verb's options/flags (if any) AND filesystem paths, so a
-    # path argument (load/show/save/clip/each/catalog/…) completes files and directories.
-    cands = []
-    if info:
-        cands += [f"{name}=" for name in info["options"]] + list(info["flags"])
-    cands = [c for c in cands if c.startswith(cur)]
-    cands += _fs_complete(cur)
-    seen, out = set(), []
-    for c in cands:  # de-dupe, preserve order (options/flags first, then paths)
-        if c not in seen:
-            seen.add(c)
-            out.append(c)
-    return out
+# The language-services core — completion, the verb/option index, path completion, and the
+# validity summary — lives in niva.intelligence so the repl, the LSP, and (later) the studio
+# share exactly one implementation and can never drift. `completions` is re-exported here for
+# back-compatible imports (`from niva.cli.repl import completions`).
+from ..intelligence import (  # noqa: E402
+    completions,
+    current_token as _current_token,
+    validity as _validity,
+    verb_names,
+)
 
 
 def _readline_completer(text, state):
@@ -140,25 +59,6 @@ def _readline_completer(text, state):
     except Exception:  # noqa: BLE001 — a completion glitch must never break the prompt
         return None
     return matches[state] if 0 <= state < len(matches) else None
-
-
-def _validity(text: str) -> tuple[str, str]:
-    """(symbol, message) summarising ``validate`` for a flow line: ✓/✗/⚠ + first issue."""
-    from ..validate import validate_text
-
-    t = text.strip()
-    if not t:
-        return "", ""
-    ok, issues = validate_text(t)
-    errs = [i for i in issues if i[1] == "error"]
-    if errs:
-        ln, _sev, msg = errs[0]
-        return "✗", f"{'line ' + str(ln) + ': ' if ln else ''}{msg}"
-    if issues:
-        return "⚠", issues[0][2]
-    if ok:
-        return "✓", "valid"
-    return "✗", "invalid"
 
 
 # ----------------------------------------------------------------- flow syntax highlighting
@@ -212,7 +112,7 @@ def highlight_flow(text: str) -> str:
     back in readline mode (where there's no live highlighter). Colour auto-off off-TTY."""
     from .. import color
 
-    verbs = set(_index()["names"])
+    verbs = verb_names()
     out, at_start = [], True
     for m in _TOKEN_RE.finditer(text):
         tok = m.group()
@@ -574,7 +474,7 @@ def _make_session():
         )
         return None
 
-    verbs = set(_index()["names"])
+    verbs = verb_names()
 
     # Live highlighting: the same token classes the readline echo uses, mapped to a Style so
     # the two paths look identical. Fragments include whitespace so spacing is preserved.

@@ -1,8 +1,58 @@
 # Editor / IDE integration
 
-niva flows are plain `.niva` text files. This guide sets up **syntax highlighting** (and, in
-VS Code, **snippets + tab-completion**) in whatever editor you use. The definitions live in
-[`.vscode/niva/`](../../.vscode/niva) — despite the folder name they cover far more than VS Code.
+niva flows are plain `.niva` text files. This guide sets up **syntax highlighting** in whatever
+editor you use (the definitions live in [`.vscode/niva/`](../../.vscode/niva) — despite the folder
+name they cover far more than VS Code) — and, via the **language server**, real completion,
+diagnostics, and hover docs.
+
+## Language server — `niva lsp` (real completion, diagnostics, hover)
+
+The syntax files below only *colour* a `.niva` file. **`niva lsp`** gives your editor the same
+intelligence the repl has, in any editor that speaks LSP:
+
+- **completion** — verbs → their options/flags → enum values → **filesystem paths**;
+- **diagnostics** — the offline validator's errors/warnings, live as you type (unknown verb,
+  bad option/enum, a flow with no `save`), before you ever run;
+- **hover** — `describe` docs for the verb under the cursor.
+
+It's the *same* engine as the repl (`niva.intelligence`), so the two never disagree, and it stays
+correct as verbs evolve because it's generated from niva's manifest. It runs over stdio with **no
+extra dependencies** — you just need niva installed on the interpreter the command runs
+(`niva lsp` starts the server; it needs QGIS only for hover on live-only algorithm ids, everything
+else is offline).
+
+**Neovim** (built-in LSP, `init.lua`):
+
+```lua
+vim.filetype.add({ extension = { niva = "niva" } })
+vim.api.nvim_create_autocmd("FileType", {
+  pattern = "niva",
+  callback = function(args)
+    vim.lsp.start({ name = "niva", cmd = { "niva", "lsp" }, root_dir = vim.fn.getcwd() })
+  end,
+})
+```
+
+**Helix** (`~/.config/helix/languages.toml`):
+
+```toml
+[[language]]
+name = "niva"
+scope = "source.niva"
+file-types = ["niva"]
+language-servers = ["niva-lsp"]
+
+[language-server.niva-lsp]
+command = "niva"
+args = ["lsp"]
+```
+
+**VS Code / VSCodium**: point a generic LSP-client extension (e.g. *"Generic LSP Client"*) at
+`niva lsp` for `.niva` files, or wrap it in a tiny extension. **Kate**: add it under *Settings →
+LSP Client → User Server Settings* with `{"servers":{"niva":{"command":["niva","lsp"],"highlightingModeRegex":"^niva$"}}}`.
+
+> Make sure the `niva` command on your `PATH` is the one you installed (see the [Quick
+> start](quickstart.md)); `niva lsp` uses that interpreter's niva.
 
 ## One command (Linux / macOS)
 
