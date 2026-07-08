@@ -22,6 +22,11 @@
 # test_new_verbs_bind_to_expected_algorithms
 #   (pure Python — no niva flow)
 
+# test_pointcloud_verbs_bind_to_pdalcli
+dtm resolution=1
+dsm resolution=2
+hag
+
 # ── TestBinder ──────────────────────────────────────────────────
 
 # test_buffer_full

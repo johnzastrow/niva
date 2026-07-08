@@ -9,6 +9,24 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 > [`plugin/metadata.txt`](plugin/metadata.txt) — keep only the **last three versions** there (drop
 > the oldest); that field is what the QGIS Plugin Manager shows. This file stays the full history.
 
+## [0.62.0] - 2026-07-08
+
+### Added
+- **Point clouds are now first-class in discovery and processing.**
+  - **Recognition** — `each`/`show`/`catalog`/`find` now see point-cloud files (`.las`, `.laz`,
+    `.copc.laz`, `.vpc`, `.e57`, `.bpf`, `.pts`, `.ptx`, `.pcd`), so a folder of LiDAR tiles can be
+    batched: `each "tiles/*.las" | dtm resolution=1 | save "out/{name}.tif"`.
+  - **Verbs** — friendly `dtm` (ground/bare-earth raster), `dsm` (surface, all returns), and `hag`
+    (height-above-ground; pipe into `dsm` for a CHM) over niva's `pdalcli:` harness. They're
+    first-class registry verbs, so they get completion, hover/`describe`, validation, and manifest
+    entries automatically. (Needs the point-cloud backend — `niva pdal check`.)
+  - **Reporting** — `show`/`catalog` list point clouds as a `pointcloud` layer with a best-effort
+    **point count** (fast header probe via `pdal info` when available), and a loadable source.
+- **Environment variables in flow values — `$VAR` / `${VAR}`.** Path-typed values now expand
+  `$HOME`, `$NIVA_TMPDIR`, and any exported variable (the shell only did this for CLI one-liners,
+  not inside a `.niva` file or the repl): `save "$OUTDIR/{name}.tif"`. Expansion is applied to
+  **paths only**, so QGIS expression variables (`$area`, `$geometry`) in a `filter` are untouched.
+
 ## [0.61.1] - 2026-07-08
 
 ### Fixed

@@ -71,6 +71,14 @@ each "{root}" minsize=1g | save out.gpkg
 # test_meta_filter_without_gdal_errors_clearly
 each "{root}" geom=polygon | save out.gpkg
 
+# ── TestPointCloudDiscovery ─────────────────────────────────────
+
+# test_each_resolves_point_clouds
+#   (pure Python — no niva flow)
+
+# test_show_probe_reports_a_point_cloud_entry
+#   (pure Python — no niva flow)
+
 # ── TestSplit ───────────────────────────────────────────────────
 
 # test_split_dispatches_to_filterbygeometry

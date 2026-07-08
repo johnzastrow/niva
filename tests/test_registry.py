@@ -96,6 +96,21 @@ class TestRegistry(unittest.TestCase):
             self.assertEqual(op.algorithm, alg, text)
             self.assertEqual(op.params[key], val, text)
 
+    def test_pointcloud_verbs_bind_to_pdalcli(self):
+        # dtm/dsm/hag are friendly verbs over the pdalcli: harness (no QGIS provider). The binder
+        # must produce the pdalcli id + the forced pdal_wrench flags, so the NativeToolBackend
+        # routes them to pdal_wrench.
+        dtm = bound("dtm resolution=1")
+        self.assertEqual(dtm.algorithm, "pdalcli:to_raster")
+        self.assertEqual(dtm.params["attribute"], "Z")
+        self.assertEqual(dtm.params["filter"], "Classification==2")  # ground only
+        self.assertEqual(dtm.params["resolution"], 1)
+        dsm = bound("dsm resolution=2")
+        self.assertEqual(dsm.algorithm, "pdalcli:to_raster")
+        self.assertEqual(dsm.params["attribute"], "Z")
+        self.assertNotIn("filter", dsm.params)  # all returns, no ground filter
+        self.assertEqual(bound("hag").algorithm, "pdalcli:height_above_ground")
+
 
 class TestBinder(unittest.TestCase):
     # --- the full spread: positionals, flags, options, enums, defaults -------

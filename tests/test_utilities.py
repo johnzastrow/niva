@@ -634,5 +634,30 @@ class TestInfo(unittest.TestCase):
             flow("info bogus=1", backend=MockBackend())
 
 
+class TestExpandPath(unittest.TestCase):
+    def test_expands_env_vars_and_tilde(self):
+        import os
+
+        from niva.utilities import expand_path
+
+        os.environ["NIVA_TEST_VAR"] = "/tmp/nivatest"
+        self.assertEqual(expand_path("$NIVA_TEST_VAR/x.tif"), "/tmp/nivatest/x.tif")
+        self.assertEqual(expand_path("${NIVA_TEST_VAR}/x.tif"), "/tmp/nivatest/x.tif")
+        self.assertEqual(expand_path("~/x.tif"), os.path.expanduser("~/x.tif"))
+
+    def test_unset_var_left_as_is(self):
+        from niva.utilities import expand_path
+
+        self.assertEqual(expand_path("$NIVA_DEFINITELY_UNSET/x"), "$NIVA_DEFINITELY_UNSET/x")
+
+    def test_facet_pointcloud(self):
+        from niva.utilities import facet_for_ext
+
+        for ext in (".las", ".laz", ".e57", ".bpf", ".pts", ".ptx", ".pcd", ".vpc"):
+            self.assertEqual(facet_for_ext(ext), "pointcloud", ext)
+        self.assertEqual(facet_for_ext(".gpkg"), "vector")
+        self.assertEqual(facet_for_ext(".tif"), "raster")
+
+
 if __name__ == "__main__":
     unittest.main()

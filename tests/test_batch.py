@@ -6,7 +6,7 @@ import tempfile
 import unittest
 
 from niva import flow
-from niva.engine import MockBackend
+from niva.engine import Engine, MockBackend
 from niva.errors import FlowError
 
 
@@ -182,6 +182,30 @@ class TestEachFilters(unittest.TestCase):
         self._write(root, "a.geojson")
         with self.assertRaises(FlowError):
             flow(f'each "{root}" geom=polygon | save out.gpkg', backend=MockBackend())
+
+
+class TestPointCloudDiscovery(unittest.TestCase):
+    """each/show recognise point clouds (previously invisible — `facet_for_ext` was vector/raster
+    only). Mock-backed: a touched `.las` is a real path; the pdal-info probe just falls back."""
+
+    def test_each_resolves_point_clouds(self):
+        root = tempfile.mkdtemp(prefix="niva_pc_")
+        for n in ("a.las", "b.laz", "c.copc.laz", "notes.txt"):
+            open(os.path.join(root, n), "w").close()
+        eng = Engine(MockBackend())
+        items = eng._resolve_sources(f"{root}/*", verb="each", line=1, raw="each")
+        names = sorted(name for name, _ in items)
+        self.assertEqual(names, ["a", "b", "c.copc"])  # 3 point clouds, .txt skipped
+
+    def test_show_probe_reports_a_point_cloud_entry(self):
+        root = tempfile.mkdtemp(prefix="niva_pc_")
+        las = os.path.join(root, "tile.las")
+        open(las, "w").close()
+        entry = Engine(MockBackend())._show_probe(las)[0]
+        self.assertEqual(entry["kind"], "pointcloud")
+        self.assertEqual(entry["format"], "LAS")
+        self.assertEqual(entry["ref"], las)
+        self.assertIn("point cloud", entry["type"])  # pdal absent/empty → the fallback
 
 
 class TestSplit(unittest.TestCase):

@@ -15,6 +15,7 @@ import time
 from datetime import datetime, timezone
 
 from ..errors import FlowError, NivaError, OpError
+from ..utilities import expand_path
 from ..grammar import Call, Flow, parse
 from ..registry import bind, core_registry
 from ..values import Distance
@@ -85,7 +86,7 @@ class Engine:
         the plugin always passes ``progress=self.message.emit`` and the CLI a stderr sink.
         """
         if to:
-            to = os.path.expanduser(to)
+            to = expand_path(to)
             if self.inert:  # linter/dry-run: validate the path but write nothing
                 self._emit(f"  {label} → {to} (dry-run: not written)")
                 return
@@ -397,7 +398,7 @@ class Engine:
         before expansion, so filtering matches `niva find` exactly."""
         from ..utilities import CATALOG_MULTILAYER_EXTS, facet_for_ext
 
-        src = os.path.expanduser(source)
+        src = expand_path(source)
 
         # Gather candidate file paths first, so a file-level filter (crit) can run before we
         # expand a multi-layer container to per-layer items.
@@ -522,7 +523,7 @@ class Engine:
                 out if out else (os.path.join(root, "catalog.md") if root else "")
             )
             paths = [p for p in paths if p]
-        return ", ".join(os.path.abspath(os.path.expanduser(p)) for p in paths)
+        return ", ".join(os.path.abspath(expand_path(p)) for p in paths)
 
     # --- per-stage dispatch --------------------------------------------------
 
@@ -653,7 +654,7 @@ class Engine:
                     stage=stage.raw,
                 )
             return self.backend.load_table(conn, schema, table)
-        return self.backend.load(os.path.expanduser(source))
+        return self.backend.load(expand_path(source))
 
     def _sql(self, stage) -> Layer:
         if len(stage.args) != 2 or stage.options:
@@ -724,7 +725,7 @@ class Engine:
             )
 
         batch = self._batch_item
-        dest = os.path.expanduser(path)
+        dest = expand_path(path)
         templated = "{name}" in dest
         if templated and not batch:
             raise FlowError(
@@ -919,7 +920,7 @@ class Engine:
                 line=stage.line,
                 stage=stage.raw,
             )
-        dest = os.path.expanduser(rest[1])
+        dest = expand_path(rest[1])
         if self.inert:  # linter/dry-run: args validated above; write nothing
             self._emit(f"  assessment → {dest} (dry-run: not written)")
             return current
@@ -994,7 +995,7 @@ class Engine:
                 line=stage.line,
                 stage=stage.raw,
             )
-        path = os.path.abspath(os.path.expanduser(target))
+        path = os.path.abspath(expand_path(target))
         if os.path.isdir(path):
             raise FlowError(
                 f"`remove` deletes files, not directories (`{target}` is a folder). "
@@ -1201,7 +1202,7 @@ class Engine:
             to=to,
             subject=opts.get("subject", ""),
             body=opts.get("body", ""),
-            attach=os.path.expanduser(opts["attach"]) if opts.get("attach") else None,
+            attach=expand_path(opts["attach"]) if opts.get("attach") else None,
         )
         self._emit(f"  emailed → {recipient}")
         return current
@@ -1298,9 +1299,9 @@ class Engine:
         # Default output: inside a catalogued directory, else the working directory.
         out = stage.options.get("to")
         if out:
-            out = os.path.expanduser(out)
-        elif os.path.isdir(os.path.expanduser(target)):
-            out = os.path.join(os.path.expanduser(target), "catalog.md")
+            out = expand_path(out)
+        elif os.path.isdir(expand_path(target)):
+            out = os.path.join(expand_path(target), "catalog.md")
         else:
             out = "catalog.md"
 
@@ -1464,7 +1465,7 @@ class Engine:
                     stage=stage.raw,
                 )
             return target, entries, False, True
-        path = os.path.expanduser(target)
+        path = expand_path(target)
         if (
             os.path.isdir(path)
             and os.path.splitext(path)[1].lower() not in self._SHOW_DIR_DATASETS
@@ -1501,7 +1502,14 @@ class Engine:
 
     def _show_probe(self, full):
         """List the layers in one file/container, defensively — an unreadable file just
-        contributes nothing (so probing a whole directory never aborts on one bad file)."""
+        contributes nothing (so probing a whole directory never aborts on one bad file).
+        Point clouds (.las/.laz/.copc.laz/…) aren't QGIS layers here, so they're reported
+        directly as a single ``pointcloud`` entry (with a best-effort point count)."""
+        from ..utilities import facet_for_ext
+
+        if facet_for_ext(os.path.splitext(full)[1]) == "pointcloud":
+            self._emit(f"  show: {os.path.basename(full)} (point cloud)")
+            return [self._pointcloud_entry(full)]
         try:
             rows = self.backend.list_layers(full)
         except Exception as exc:  # noqa: BLE001
@@ -1510,6 +1518,46 @@ class Engine:
         if rows:
             self._emit(f"  show: {os.path.basename(full)} ({len(rows)})")
         return rows
+
+    def _pointcloud_entry(self, full: str) -> dict:
+        """A `show`/`catalog` entry for a point-cloud file — kind ``pointcloud``, format from the
+        extension, and the file as its own loadable ``ref`` (feed it to `load`/`dtm`/`dsm`)."""
+        fmt = os.path.splitext(full)[1].lstrip(".").upper()
+        return {
+            "name": os.path.splitext(os.path.basename(full))[0],
+            "kind": "pointcloud",
+            "type": self._pointcloud_summary(full),
+            "format": fmt,
+            "ref": full,
+        }
+
+    def _pointcloud_summary(self, path: str) -> str:
+        """`point cloud · N pts` from the file HEADER (fast — no full scan), via the `pdal` CLI
+        when it's available (next to `pdal_wrench` or on PATH). Falls back to `point cloud` if
+        `pdal` is missing or slow, so `show` never blocks on a huge tile."""
+        import json
+        import shutil
+        import subprocess
+
+        pdal = shutil.which("pdal")
+        if not pdal:
+            wrench = os.environ.get("QGIS_WRENCH_EXECUTABLE") or ""
+            cand = os.path.join(os.path.dirname(wrench), "pdal") if wrench else ""
+            pdal = cand if cand and os.path.isfile(cand) else None
+        if not pdal:
+            return "point cloud"
+        try:
+            proc = subprocess.run(
+                [pdal, "info", "--metadata", path],
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+            meta = (json.loads(proc.stdout) or {}).get("metadata", {})
+            n = meta.get("count") or meta.get("num_points")
+            return f"point cloud · {int(n):,} pts" if n else "point cloud"
+        except Exception:  # noqa: BLE001 — best effort; header probe must never break `show`
+            return "point cloud"
 
     def _show_walk(self, root, deep):
         """Collect `show` entries under ``root``. Shallow by default; ``deep`` recurses.
@@ -1651,7 +1699,7 @@ class Engine:
                 line=stage.line,
                 stage=stage.raw,
             )
-        src = os.path.expanduser(stage.args[0])
+        src = expand_path(stage.args[0])
         if not os.path.isfile(src):
             raise FlowError(
                 f"`project`: not a file: {src}", line=stage.line, stage=stage.raw
@@ -1708,7 +1756,7 @@ class Engine:
                 line=stage.line,
                 stage=stage.raw,
             )
-        out = os.path.expanduser(out)
+        out = expand_path(out)
         if os.path.splitext(out)[1].lower() not in (".qgs", ".qgz"):
             raise FlowError(
                 f"`project` writes a .qgs or .qgz — `{out}` is neither",
@@ -1716,7 +1764,7 @@ class Engine:
                 stage=stage.raw,
             )
         if rasters:
-            rasters = os.path.expanduser(rasters)
+            rasters = expand_path(rasters)
             if not os.path.isdir(rasters):
                 raise FlowError(
                     f"`project` rasters= must be a directory — `{rasters}` is not one",
@@ -1725,7 +1773,7 @@ class Engine:
                 )
         # A connection target (@conn[.schema]) is passed through; a file target is expanded.
         if target and not is_connection_ref(target):
-            target = os.path.expanduser(target)
+            target = expand_path(target)
         self.backend.repoint_project(
             src,
             out,
@@ -1761,7 +1809,7 @@ class Engine:
                 stage=stage.raw,
             )
         action = stage.args[0]
-        path = os.path.expanduser(stage.args[1])
+        path = expand_path(stage.args[1])
         ext = os.path.splitext(path)[1].lower()
         # `apply` reads a QGIS-native sidecar; `save` also exports SLD (interop) and QLR
         # (a portable layer-definition: datasource + style).
@@ -1814,7 +1862,7 @@ class Engine:
                 line=stage.line,
                 stage=stage.raw,
             )
-        dest = os.path.expanduser(stage.args[0])
+        dest = expand_path(stage.args[0])
         ext = os.path.splitext(dest)[1].lower()
         if ext not in self._FIGURE_EXTS:
             raise FlowError(
@@ -1828,7 +1876,7 @@ class Engine:
         extent = self._parse_extent(opts.pop("extent", None))
         raw_layers = opts.pop("layers", None)
         overlay = (
-            [os.path.expanduser(s.strip()) for s in raw_layers.split(";") if s.strip()]
+            [expand_path(s.strip()) for s in raw_layers.split(";") if s.strip()]
             if raw_layers
             else []
         )
@@ -1893,7 +1941,7 @@ class Engine:
                 return tuple(float(p) for p in parts)
             except ValueError:
                 pass  # not numeric — fall through to treat as a layer path
-        return os.path.expanduser(str(value))  # a layer path to borrow the extent from
+        return expand_path(str(value))  # a layer path to borrow the extent from
 
     _MAP_EXTS = (".pdf", ".png", ".jpg", ".jpeg", ".svg")
     # Composition elements are ON by default — a map is a cartographic product, so a bare
@@ -1929,7 +1977,7 @@ class Engine:
                 line=stage.line,
                 stage=stage.raw,
             )
-        dest = os.path.expanduser(stage.args[0])
+        dest = expand_path(stage.args[0])
         ext = os.path.splitext(dest)[1].lower()
         if ext not in self._MAP_EXTS:
             raise FlowError(
@@ -1965,7 +2013,7 @@ class Engine:
         extent = self._parse_extent(opts.pop("extent", None))
         raw_layers = opts.pop("layers", None)
         overlay = (
-            [os.path.expanduser(s.strip()) for s in raw_layers.split(";") if s.strip()]
+            [expand_path(s.strip()) for s in raw_layers.split(";") if s.strip()]
             if raw_layers
             else []
         )
@@ -1994,7 +2042,7 @@ class Engine:
             layers=overlay,
             basemap=basemap,
             labels=labels,
-            from_project=os.path.expanduser(from_project) if from_project else None,
+            from_project=expand_path(from_project) if from_project else None,
             layout=layout,
             progress=self.progress,
         )
@@ -2107,7 +2155,7 @@ class Engine:
             raise FlowError(
                 "`project new` needs `to=<out.qgs>`", line=stage.line, stage=stage.raw
             )
-        out = os.path.expanduser(out)
+        out = expand_path(out)
         if os.path.splitext(out)[1].lower() not in (".qgs", ".qgz"):
             raise FlowError(
                 f"`project new` writes a .qgs or .qgz — `{out}` is neither",
@@ -2143,7 +2191,7 @@ class Engine:
                 line=stage.line,
                 stage=stage.raw,
             )
-        src = os.path.expanduser(stage.args[1])
+        src = expand_path(stage.args[1])
         if not os.path.isfile(src):
             raise FlowError(
                 f"`project info`: not a file: {src}", line=stage.line, stage=stage.raw
@@ -2162,7 +2210,7 @@ class Engine:
                 stage=stage.raw,
             )
         out = stage.options.get("to")
-        out = os.path.expanduser(out) if out else os.path.splitext(src)[0] + "_info.md"
+        out = expand_path(out) if out else os.path.splitext(src)[0] + "_info.md"
         info = self.backend.read_project(src)
         report = _format_project_info(info, src)
         parent = os.path.dirname(out)
@@ -2188,8 +2236,8 @@ class Engine:
         roots = []
         env = os.environ.get(self._TEMPLATES_ENV)
         if env:
-            roots.append(os.path.expanduser(env))
-        roots.append(os.path.expanduser(self._TEMPLATES_USER))
+            roots.append(expand_path(env))
+        roots.append(expand_path(self._TEMPLATES_USER))
         roots.append(os.path.normpath(self._TEMPLATES_BUNDLED))
         return roots
 
@@ -2244,7 +2292,7 @@ class Engine:
                 line=stage.line,
                 stage=stage.raw,
             )
-        out = os.path.expanduser(out)
+        out = expand_path(out)
         if os.path.splitext(out)[1].lower() not in (".qgs", ".qgz"):
             raise FlowError(
                 f"`project from-template` writes a .qgs or .qgz — `{out}` is neither",
@@ -2293,7 +2341,7 @@ class Engine:
                 line=stage.line,
                 stage=stage.raw,
             )
-        src = os.path.expanduser(src)
+        src = expand_path(src)
         if not os.path.isfile(src):
             raise FlowError(
                 f"`project to-template`: not a file: {src}",
@@ -2332,7 +2380,7 @@ class Engine:
             or os.path.splitext(value)[1].lower() in (".qgs", ".qgz")
         )
         if looks_like_path:
-            dest = os.path.expanduser(value)
+            dest = expand_path(value)
             if os.path.splitext(dest)[1].lower() not in (".qgs", ".qgz"):
                 raise FlowError(
                     f"`project to-template` writes a .qgs or .qgz — `{dest}` is neither",
@@ -2345,7 +2393,7 @@ class Engine:
     def _resolve_template(self, value: str, stage) -> str:
         """Resolve a `from-template=` value to a project-file path: a direct path
         (`~`-expanded), or a bare name looked up in the templates library."""
-        expanded = os.path.expanduser(value)
+        expanded = expand_path(value)
         looks_like_path = (
             os.sep in value
             or (os.altsep and os.altsep in value)
@@ -2402,7 +2450,7 @@ class Engine:
         base = getattr(self, "_base_dir", None) or os.getcwd()
         items, globbed = [], False
         for seg in (s.strip() for s in value.split(";") if s.strip()):
-            seg = os.path.expanduser(seg)
+            seg = expand_path(seg)
             has_sep = "/" in seg or os.sep in seg
             is_path_glob = any(c in seg for c in "*?[") and (has_sep or " " not in seg)
             if is_path_glob:

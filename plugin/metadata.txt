@@ -6,7 +6,7 @@ name=niva
 qgisMinimumVersion=3.22
 qgisMaximumVersion=4.99
 description=Run niva flows — a concise text pipeline for QGIS geoprocessing — from a dock.
-version=0.61.1
+version=0.62.0
 author=John Zastrow
 email=br8kwall@gmail.com
 about=niva is a concise, readable text-pipeline grammar for QGIS geoprocessing
@@ -28,9 +28,10 @@ deprecated=False
 # summary for the new version here, mirroring the top entry of ../CHANGELOG.md (the repo file
 # stays the full history; this field is just the highlights). Then DROP the oldest entry so the
 # field never holds more than three versions. Continuation lines MUST stay indented (like `about=`).
-changelog=0.61.1 — Fixed: `niva lsp` no longer dies on an unexpected editor message (completion/
+changelog=0.62.0 — Added: point clouds are first-class — `each`/`show`/`catalog` recognise
+    LAS/LAZ/COPC/E57/… tiles, friendly `dtm`/`dsm`/`hag` verbs (over pdal_wrench), and $VAR/${VAR}
+    expansion in path values (save "$OUTDIR/{name}.tif"). show reports point clouds with a point count.
+    0.61.1 — Fixed: `niva lsp` no longer dies on an unexpected editor message (completion/
     hover/diagnostics used to silently stop until an editor restart); the event loop is now resilient.
     0.61.0 — Added: repl/LSP completion now covers `run` — the 878 QGIS algorithm ids
     (native:/gdal:/…), then each algorithm's KEY= params and enum values. Fixed: hover for `map`/`figure`.
-    0.60.0 — Added: `niva lsp` — a Language Server for .niva files (completion,
-    live diagnostics, hover) in any LSP editor (Neovim/Helix/VS Code/Kate). Same engine as the repl.

@@ -208,8 +208,32 @@ CATALOG_RASTER_EXTS = {
     ".grd",
     ".nc",
 }
+# Point clouds — handled by niva's `pdalcli:` harness (PDAL), and recognised by `each`/`show`/
+# `catalog` so a folder of tiles can be batched: `each "*.las" | dtm resolution=1 | save "{name}.tif"`.
+# `.copc.laz` is matched via its `.laz` tail (os.path.splitext). LAS/LAZ/COPC/VPC are the common
+# case; e57/bpf/pts/ptx/pcd are the other unambiguous single-file point clouds PDAL reads (a given
+# PDAL build may still lack a reader plugin — the harness then skips that item with a message).
+CATALOG_POINTCLOUD_EXTS = {
+    ".las",
+    ".laz",
+    ".vpc",
+    ".e57",
+    ".bpf",
+    ".pts",
+    ".ptx",
+    ".pcd",
+}
 # Containers that can hold many layers — catalog enumerates each layer.
 CATALOG_MULTILAYER_EXTS = {".gpkg", ".sqlite", ".db"}
+
+
+def expand_path(p: str) -> str:
+    """Expand ``~`` **and** environment variables (``$VAR`` / ``${VAR}``) in a path-like value —
+    so flows and the repl can use ``$HOME``, ``$NIVA_TMPDIR``, or any exported variable (the shell
+    only expands ``$VAR`` for CLI one-liners, not inside a ``.niva`` file or the repl). Applied to
+    **path-typed values only** — never to expressions, so QGIS expression variables (``$area``,
+    ``$geometry``, ``$id``) in a ``filter`` survive untouched. An unset ``$VAR`` is left as-is."""
+    return os.path.expanduser(os.path.expandvars(p))
 
 
 def facet_for_ext(ext: str) -> str | None:
@@ -218,6 +242,8 @@ def facet_for_ext(ext: str) -> str | None:
         return "vector"
     if ext in CATALOG_RASTER_EXTS:
         return "raster"
+    if ext in CATALOG_POINTCLOUD_EXTS:
+        return "pointcloud"
     return None
 
 

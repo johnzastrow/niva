@@ -17,6 +17,8 @@ Two ways niva gets a QGIS context (``ensure_qgis``):
 from __future__ import annotations
 
 import os
+
+from ..utilities import expand_path
 import re
 import sys
 import tempfile
@@ -2529,7 +2531,7 @@ class PyqgisBackend(Backend):
         for src in layers or []:
             if progress:
                 progress(f"   loading overlay {os.path.basename(str(src))}…")
-            stack.append(self._as_map_layer(os.path.expanduser(str(src)), None))
+            stack.append(self._as_map_layer(expand_path(str(src)), None))
         if basemap:
             bm = self._basemap_layer(basemap)
             if bm is not None:
@@ -2721,7 +2723,7 @@ class PyqgisBackend(Backend):
     def _export_project_layout(self, project_path, layout_name, dest, *, dpi, progress):
         from qgis.core import QgsProject
 
-        path = os.path.expanduser(project_path)
+        path = expand_path(project_path)
         if not os.path.isfile(path):
             raise OpError(
                 f"`map from=`: no project at `{path}`",
@@ -2898,7 +2900,7 @@ class PyqgisBackend(Backend):
                 float(extent[0]), float(extent[1]), float(extent[2]), float(extent[3])
             )
         if isinstance(extent, str) and extent not in ("", "layer"):
-            borrow = self._as_map_layer(os.path.expanduser(extent), None)
+            borrow = self._as_map_layer(expand_path(extent), None)
             return to_dest(borrow.extent(), borrow.crs())
         # A default-constructed QgsRectangle is null; combineExtentWith grows correctly from it,
         # so it seeds the union directly. (The old `setMinimal()` primer is deprecated in QGIS 4.)

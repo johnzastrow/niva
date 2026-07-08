@@ -35,6 +35,8 @@ generated in niva's scratch dir.
 from __future__ import annotations
 
 import os
+
+from ..utilities import expand_path
 import re
 import shutil
 import subprocess
@@ -158,13 +160,42 @@ class NativeToolBackend:
         ``pdal`` data provider), so return a path handle the ``pdalcli:*`` tools read via
         ``--input`` — no QGIS involved. Every other source delegates to the wrapped
         backend unchanged."""
-        path = os.path.expanduser(source)
+        path = expand_path(source)
         low = path.lower()
         if low.endswith((".las", ".laz")):  # covers .copc.laz too
             return Layer(SOURCE, path, facet="pointcloud", name=os.path.basename(path))
         return self._inner.load(source, facet=facet)
 
     # --- dispatch ------------------------------------------------------------
+
+    def run(
+        self,
+        algorithm: str,
+        params: dict,
+        *,
+        input_param=None,
+        input_layer: Layer | None = None,
+        output_param=None,
+        progress=None,
+        cancel=None,
+    ):
+        """Alias dispatch. Point-cloud verbs (``dtm``/``dsm``/``hag``) bind to ``pdalcli:*`` ids,
+        and terrain SAGA verbs to ``saga:*`` — route those to the native-CLI harness (input
+        auto-wired from the piped layer, output to a scratch path; ``input_param``/``output_param``
+        don't apply). Everything else delegates to the wrapped QGIS backend unchanged."""
+        if algorithm.startswith(SAGA_PREFIX):
+            return self._run_saga(algorithm, params, input_layer, progress, cancel)
+        if algorithm.startswith(PDAL_PREFIX):
+            return self._run_pdal(algorithm, params, input_layer, progress, cancel)
+        return self._inner.run(
+            algorithm,
+            params,
+            input_param=input_param,
+            input_layer=input_layer,
+            output_param=output_param,
+            progress=progress,
+            cancel=cancel,
+        )
 
     def run_raw(
         self,
@@ -323,7 +354,7 @@ class NativeToolBackend:
                 else re.split(r"[;\n]", str(files))
             )
             for f in raw:
-                f = os.path.expanduser(str(f).strip())
+                f = expand_path(str(f).strip())
                 if not f:
                     continue
                 if f.startswith("-"):  # never let a path be read as an option

@@ -477,4 +477,32 @@ CORE = [
         },
         flags={"eight": Flag("EIGHT_CONNECTEDNESS")},
     ),
+    # --- point clouds ---------------------------------------------------------
+    # Friendly verbs over niva's `pdalcli:` harness (PDAL / pdal_wrench), NOT a QGIS provider —
+    # the NativeToolBackend intercepts these ids and shells to pdal_wrench, so they need the
+    # point-cloud backend set up (see `niva pdal check`). Input auto-wires from the piped cloud;
+    # output is a scratch raster/cloud that pipes into `save`. `.copc.laz` works too.
+    Alias(
+        "dtm",
+        "pdalcli:to_raster",
+        "Rasterize a point cloud's GROUND returns (Classification 2) to a bare-earth DTM.",
+        example='load "tile.las" | dtm resolution=1 | save "dtm.tif"',
+        options={"resolution": Option("resolution", "number", "1")},
+        forced={"attribute": "Z", "filter": "Classification==2"},
+    ),
+    Alias(
+        "dsm",
+        "pdalcli:to_raster",
+        "Rasterize ALL returns of a point cloud to a surface model (DSM).",
+        example='load "tile.las" | dsm resolution=1 | save "dsm.tif"',
+        options={"resolution": Option("resolution", "number", "1")},
+        forced={"attribute": "Z"},
+    ),
+    Alias(
+        "hag",
+        "pdalcli:height_above_ground",
+        "Normalise a cloud to height-above-ground per point; pipe into `dsm` for a canopy "
+        "height model (CHM).",
+        example='load "tile.las" | hag | dsm resolution=1 | save "chm.tif"',
+    ),
 ]
