@@ -9,6 +9,23 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 > [`plugin/metadata.txt`](plugin/metadata.txt) — keep only the **last three versions** there (drop
 > the oldest); that field is what the QGIS Plugin Manager shows. This file stays the full history.
 
+## [0.60.0] - 2026-07-07
+
+### Added
+- **`niva lsp` — a Language Server for `.niva` files (CLI-epic #41).** Any LSP editor (Neovim,
+  Helix, VS Code, Kate, …) now gets niva's real intelligence, not just syntax colouring:
+  **completion** (verbs → options/flags → enum values → filesystem paths), **live diagnostics**
+  (the offline validator's errors/warnings as you type), and **hover** (`describe` docs for the
+  verb under the cursor). Speaks LSP over stdio with stdlib JSON-RPC — **no new dependencies**.
+  Editor setup snippets are in [editor integration](docs/guide/editor-integration.md).
+
+### Changed
+- **Language services are now one shared core — `niva.intelligence`.** Completion, the verb/option
+  index, path completion, and diagnostics were lifted out of the repl into a single QGIS-free
+  module that the repl and the LSP (and, later, the studio) all call directly. This guarantees an
+  editor and the repl can never disagree, and it's generated from the same manifest as the CLI so
+  it tracks new verbs automatically. No behaviour change for the repl.
+
 ## [0.59.1] - 2026-07-07
 
 ### Fixed
