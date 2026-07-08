@@ -2515,11 +2515,18 @@ class Engine:
         """Resolve any `@conn.table` value bound to a *secondary-layer* param (e.g. clip's
         OVERLAY, `intersect`/`difference`/`union`'s overlay, `spatialjoin`'s `with=`) into a
         loaded layer. The binder is QGIS-free so it passes a `@conn` ref through as a string;
-        here we load it via the backend (a plain path is left untouched). Lets a database table
-        be used as the second layer in an overlay/join, not just a file."""
+        here we load it via the backend. A plain filesystem path is `~`/`$VAR`-expanded (so a
+        secondary layer/raster path honours env vars like a primary load/save path). Lets a
+        database table be used as the second layer in an overlay/join, not just a file."""
         for pname in op.layer_params:
             val = op.params.get(pname)
-            if not (isinstance(val, str) and is_connection_ref(val)):
+            if not isinstance(val, str):
+                continue
+            if not is_connection_ref(val):
+                # A plain filesystem path: `~`/`$VAR`-expand it just like a primary
+                # load/save path, so `clip $O/aoi.gpkg` or `zonalstats raster=$O/dem.tif`
+                # resolves the same env vars the rest of the flow uses.
+                op.params[pname] = expand_path(val)
                 continue
             try:
                 conn, schema, table = parse_connection_ref(

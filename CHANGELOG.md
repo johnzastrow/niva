@@ -9,6 +9,19 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 > [`plugin/metadata.txt`](plugin/metadata.txt) — keep only the **last three versions** there (drop
 > the oldest); that field is what the QGIS Plugin Manager shows. This file stays the full history.
 
+## [0.62.1] - 2026-07-08
+
+### Fixed
+- **`$VAR` / `~` now expand in *secondary* layer & raster paths, not just primary load/save.**
+  A path bound to an overlay/mask or raster option — `clip $O/aoi.gpkg`, `intersect`/`difference`/
+  `union`, `spatialjoin with=…`, `zonalstats raster=$O/dem.tif` — was passed to the backend
+  verbatim, so `clip $O/aoi.gpkg` looked for a literal `$O/…` file and failed. These now honour the
+  same env-var/`~` expansion as `load`/`save`, so a flow can thread a `$O` output dir through every
+  stage. (Fixes cross-referenced pipelines like the Youngstown LiDAR→vector suite.)
+- **`.dat` no longer misclassified as a mesh.** It's far more often a MapInfo `.tab` companion or a
+  generic data file than a Telemac result, and treating it as mesh made `catalog`/`show` emit
+  spurious "unable to load mesh" errors on ordinary trees. Dropped from the mesh extension set.
+
 ## [0.62.0] - 2026-07-08
 
 ### Added

@@ -266,7 +266,9 @@ CATALOG_MESH_EXTS = {
     ".gr3",
     ".msh",
     ".mesh",
-    ".dat",
+    # `.dat` is deliberately NOT here: it's a Telemac mesh result extension, but far more
+    # commonly a MapInfo `.tab` companion or a generic data file — treating it as mesh made
+    # `catalog`/`show` emit spurious "unable to load mesh" errors on ordinary trees.
 }
 # Point clouds — handled by niva's `pdalcli:` harness (PDAL), and recognised by `each`/`show`/
 # `catalog` so a folder of tiles can be batched: `each "*.las" | dtm resolution=1 | save "{name}.tif"`.
