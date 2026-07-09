@@ -158,12 +158,60 @@ A whole pipeline on one line — that a non-programmer can **write and read** �
 # All of QGIS — in plain language
 
 <div class="stats">
-<div class="stat"><div class="num">769</div><div class="lab">Processing algorithms</div></div>
+<div class="stat"><div class="num">878</div><div class="lab">Processing algorithms</div></div>
 <div class="stat"><div class="num">406</div><div class="lab">expression functions</div></div>
 <div class="stat"><div class="num">SQL</div><div class="lab">SpatiaLite &amp; PostGIS</div></div>
 </div>
 
 <p class="lead">niva is a <strong>thin wrapper</strong> — friendly verbs mapped onto QGIS's own algorithms, not a re-implementation of GIS. The full power of the world's leading open-source GIS, in one readable line.</p>
+
+---
+
+> Beyond the vector layer
+
+# Every data type QGIS reads
+
+<div class="cols">
+<div class="card"><h3>Point clouds</h3><p>✓ <code>each</code>/<code>show</code>/<code>catalog</code> see LAS · LAZ · COPC · E57 · …<br>✓ Friendly <code>dtm</code> · <code>dsm</code> · <code>hag</code> — raw LiDAR → raster</p></div>
+<div class="card warm"><h3>Raster · mesh · vector</h3><p>✓ Discovery spans <strong>all</strong> GDAL formats + MDAL mesh<br>✓ One inventory: <code>catalog data/ to=report.md</code></p></div>
+</div>
+
+<p class="lead">A folder of LiDAR tiles is just another pipeline input:</p>
+
+```
+each "tiles/*.las" | dtm resolution=1 | save "dtm/{name}.tif"
+```
+
+---
+
+> A real study · end to end
+
+# From a point cloud to a watershed
+
+<p class="lead">One bare-earth DTM → a full hydrologic stack, in plain lines:</p>
+
+```
+each "*.las" | dtm resolution=1 | save "dtm/{name}.tif"
+run gdal:merge INPUT="dtm/*.tif" OUTPUT=dtm.tif
+run grass:r.watershed elevation=dtm.tif accumulation=accum.tif drainage=dir.tif basin=basin.tif
+run grass:r.to.vect input=basin.tif type=2 output=catchments.gpkg
+run saga:ta_channels:5 DEM=dtm.tif ORDER=strahler.tif SEGMENTS=streams.gpkg BASINS=basins.gpkg
+```
+
+<p class="lead">Flow direction · flow accumulation · <strong>vector catchments</strong> · <strong>Strahler-ordered streams</strong> — GRASS &amp; SAGA, one grammar.</p>
+
+---
+
+> Fuse anything
+
+# Terrain, imagery &amp; features — together
+
+<div class="cols">
+<div class="card"><h3>Multispectral</h3><p>✓ Landsat · Sentinel-2 · NAIP → NDVI<br>✓ Zonal stats onto parcels — greenness per lot</p></div>
+<div class="card warm"><h3>LiDAR → vector</h3><p>✓ Contours · slope zones from the DTM<br>✓ Elevation &amp; canopy per building footprint</p></div>
+</div>
+
+<p class="lead">Rasters become lines and polygons; every vector product lands in one GeoPackage.</p>
 
 ---
 
@@ -199,15 +247,15 @@ A whole pipeline on one line — that a non-programmer can **write and read** �
 
 # What's working today
 
-<p class="lead">niva ships as a <strong>QGIS plugin</strong> (v0.31) and runs real analysis end-to-end, on QGIS's own algorithms:</p>
+<p class="lead">niva ships as a <strong>QGIS plugin</strong> (v0.62) and on <strong>PyPI</strong>, and runs real analysis end-to-end on QGIS's own algorithms:</p>
 
 <div class="cols">
 <div class="card"><h3>Grammar &amp; engine</h3><p>✓ Readable lexer + parser → pipeline stages<br>✓ Pipe-chaining engine: layer handles, lineage<br>✓ PyQGIS backend — runs real geoprocessing</p></div>
-<div class="card warm"><h3>Verbs &amp; algorithms</h3><p>✓ ~45 alias verbs + 14 built-ins (vector + raster)<br>✓ <code>sql @conn</code> — SELECT → layer, and server-side writes<br>✓ <code>run</code> — reach ANY of QGIS's 769 algorithms</p></div>
+<div class="card warm"><h3>Verbs &amp; algorithms</h3><p>✓ 48 alias verbs + built-ins (vector · raster · point cloud)<br>✓ <code>sql @conn</code> — SELECT → layer, and server-side writes<br>✓ <code>run</code> — reach ANY of QGIS's 878 algorithms</p></div>
 </div>
 <div class="cols">
-<div class="card"><h3>Data &amp; cartography</h3><p>✓ PostGIS &amp; SpatiaLite — read · write · analyse<br>✓ <code>project</code> — repoint / build / templates · bookmarks<br>✓ <code>style</code> — apply / export .qml · .sld · .qlr</p></div>
-<div class="card warm"><h3>Discovery, delivery &amp; quality</h3><p>✓ <code>show</code> / <code>info</code> / <code>catalog</code> — list data, inspect the environment<br>✓ QGIS plugin (Install from ZIP) · CLI · Python API<br>✓ 300+ tests, live-QGIS + PostGIS CI · full docs</p></div>
+<div class="card"><h3>Every data type</h3><p>✓ Vector · raster · <strong>point cloud</strong> · <strong>mesh</strong> discovery<br>✓ LiDAR: <code>dtm</code>/<code>dsm</code>/<code>hag</code> · GRASS + SAGA hydrology<br>✓ Landsat / Sentinel-2 / NAIP fusion → NDVI</p></div>
+<div class="card warm"><h3>Data, cartography &amp; delivery</h3><p>✓ PostGIS &amp; SpatiaLite — read · write · analyse<br>✓ <code>project</code> / <code>style</code> · <code>figure</code> / <code>map</code> · <code>show</code> / <code>catalog</code><br>✓ Plugin · CLI · Python · LSP · 660+ tests · full docs</p></div>
 </div>
 
 ---
@@ -216,8 +264,8 @@ A whole pipeline on one line — that a non-programmer can **write and read** �
 
 # The road ahead
 
-- **v0.1 – 0.31 — Shipped** <span class="tan">· available now</span><br><span class="lead">Grammar · ~45 verbs + raster · <code>run</code> → 769 algorithms · PostGIS read·write·analyse · project / template / style · <code>show</code> / <code>info</code> discovery · QGIS plugin + CLI + Python · provenance · full docs</span>
-- **v1.0 — Stable release**<br><span class="lead">Grammar freeze (SemVer) · PyPI publish · worked Marimo–QGIS integration</span>
+- **v0.1 – 0.62 — Shipped** <span class="tan">· available now, on PyPI</span><br><span class="lead">Grammar · 48 verbs + raster · <code>run</code> → 878 algorithms · point clouds + mesh + all-types discovery · GRASS/SAGA hydrology · multispectral fusion · PostGIS read·write·analyse · project / style · <code>figure</code>/<code>map</code> · LSP · QGIS plugin + CLI + Python · provenance · full docs</span>
+- **v1.0 — Stable release**<br><span class="lead">Grammar freeze (SemVer) · worked Marimo–QGIS integration</span>
 - **v2.0 — Power features**<br><span class="lead">Named intermediates &amp; variables · SQL-driven quality rules &amp; constraints</span>
 - **v2.x — Service mode**<br><span class="lead">Service / daemon mode · richer layout &amp; symbology export</span>
 
