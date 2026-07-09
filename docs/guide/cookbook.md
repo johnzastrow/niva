@@ -580,30 +580,44 @@ run grass:r.mapcalc.simple expression="A-B" a=dsm.tif b=dtm.tif output=chm.tif
 load parcels.gpkg | zonalstats raster=chm.tif prefix="canopy_" stats=mean | save parcels_canopy.gpkg
 ```
 
-**84. Hydrology from LiDAR** — bare-earth DTM → GRASS flow accumulation + drainage direction
+**84. Hydrology from LiDAR, with GRASS** — DTM → flow accumulation + direction + streams + basins,
+then vector catchments and vector streams. `r.watershed` writes several rasters at once (each is an
+output *param*), and `run` now creates the output folders for you.
 ```
 load tile.las | run pdalcli:to_raster attribute=Z filter="Classification==2" resolution=1 | save dtm.tif
-load dtm.tif | run grass:r.watershed elevation=dtm.tif accumulation=flow_accum.tif drainage=flow_dir.tif
+run grass:r.watershed elevation=dtm.tif accumulation=hydro/flow_accum.tif drainage=hydro/flow_dir.tif stream=hydro/stream.tif basin=hydro/basin.tif
+run grass:r.to.vect input=hydro/basin.tif type=2 output=catchments.gpkg
+run grass:r.stream.extract elevation=dtm.tif accumulation=hydro/flow_accum.tif threshold=20000 stream_vector=streams.gpkg
 ```
 
-**85. Landform classification** — geomorphons (valleys, ridges, slopes, pits, peaks) from the DTM
+**85. Hydrology with SAGA — Strahler-ordered stream network + drainage basins** (a complete run).
+GRASS's Strahler tool (`r.stream.order`) is an addon that isn't always installed; SAGA's channel
+network gives vector channels carrying an `ORDER` (Strahler) attribute plus vector basins in one
+tool. `saga:<library>:<tool>` reaches `saga_cmd` (set `NIVA_SAGA_CMD` if it isn't on `PATH`).
+```
+run saga:ta_preprocessor:4 ELEV=dtm.tif FILLED=hydro/filled.tif
+run saga:ta_hydrology:0 ELEVATION=hydro/filled.tif FLOW=hydro/flow_accum.tif
+run saga:ta_channels:5 DEM=hydro/filled.tif ORDER=hydro/strahler.tif SEGMENTS=streams_ordered.gpkg BASINS=basins.gpkg THRESHOLD=6
+```
+
+**86. Landform classification** — geomorphons (valleys, ridges, slopes, pits, peaks) from the DTM
 ```
 load dtm.tif | run grass:r.geomorphon elevation=dtm.tif forms=landforms.tif search=15
 ```
 
-**86. Building footprint candidates** — extract the building class, then its coverage polygons
+**87. Building footprint candidates** — extract the building class, then its coverage polygons
 ```
 load tile.las | run pdalcli:translate filter="Classification==6" output=buildings.laz
 load buildings.laz | run pdalcli:boundary | fixgeom | simplify 0.5m | save building_footprints.gpkg
 ```
 
-**87. The simplest possible map** — one layer, one line, no options; `figure` picks a sensible
+**88. The simplest possible map** — one layer, one line, no options; `figure` picks a sensible
 extent, size, and stretch so it just works for vector *or* raster
 ```
 load dem.tif | figure dem.png
 ```
 
-**88. Push it — a full thematic map using every knob** — themed primary layer, a raster hillshade
+**89. Push it — a full thematic map using every knob** — themed primary layer, a raster hillshade
 plus two vector overlays, an OSM basemap, field labels, a borrowed extent, and print-scale output
 ```
 load flood_zones.gpkg | style apply=flood.qml
@@ -619,32 +633,32 @@ Where `figure` is a bare image, **`map`** builds a page **layout** (→ PDF/PNG/
 scale bar, and north arrow **on by default** — a proper map with no template required. These six
 climb from one line to a full multi-layer plate.
 
-**89. Tiny** — one layer, one line; a complete A4 map (legend + scale bar + north arrow)
+**90. Tiny** — one layer, one line; a complete A4 map (legend + scale bar + north arrow)
 ```
 load dem.tif | map dem.pdf
 ```
 
-**90. Add a title**
+**91. Add a title**
 ```
 load parcels.gpkg | map parcels.pdf title="Parcels — 2026"
 ```
 
-**91. Label it, pick a page and format** — PNG on US Letter, features labelled by a field
+**92. Label it, pick a page and format** — PNG on US Letter, features labelled by a field
 ```
 load zones.gpkg | map zones.png title="Zoning" labels=zone_type page=Letter dpi=200
 ```
 
-**92. Themed, with an overlay and a basemap** — styled primary layer over roads over OSM tiles
+**93. Themed, with an overlay and a basemap** — styled primary layer over roads over OSM tiles
 ```
 load flood.gpkg | style apply=flood.qml | map flood.pdf title="Flood Risk" layers="roads.gpkg" basemap=osm labels=risk portrait
 ```
 
-**93. Many layers, many types** — line, two rasters, polygon, and point layers on one A3 plate
+**94. Many layers, many types** — line, two rasters, polygon, and point layers on one A3 plate
 ```
 load contours.gpkg | map terrain.pdf title="Terrain — Multi-Layer" layers="dtm.tif;dsm.tif;building_footprints.gpkg;control_points.gpkg" labels=elev extent=dsm.tif page=A3 landscape dpi=300
 ```
 
-**94. Extreme** — build every derivative from raw LiDAR, then compose one rich A3 plate that stacks
+**95. Extreme** — build every derivative from raw LiDAR, then compose one rich A3 plate that stacks
 a hillshade, contours, footprints and markers over a basemap, framed to a study area at print DPI
 ```
 load tile.las | run pdalcli:to_raster attribute=Z filter="Classification==2" resolution=1 | save dtm.tif
@@ -668,36 +682,36 @@ terminal (they report, they don't transform), and every recipe here is runnable 
 
 ### `find` — produce output for various uses
 
-**95. A plain file list (redirect to a file)**
+**96. A plain file list (redirect to a file)**
 ```
 niva find "*.gpkg" in ~/data --paths > inventory.txt
 ```
 `--paths` prints just absolute paths, one per line, nothing else — ideal for a manifest.
 
-**96. Count matches**
+**97. Count matches**
 ```
 niva find "*.tif" in ~/data --paths | wc -l
 ```
 
-**97. Feed any external tool, spaces-safe**
+**98. Feed any external tool, spaces-safe**
 ```
 niva find "*.shp" in ~/data -0 | xargs -0 -n1 ogrinfo -so
 ```
 `-0` (alias `--print0`) NUL-separates paths so `xargs -0` handles names with spaces/newlines.
 
-**98. Machine-readable records for scripts / LLMs (`--json` + `jq`)**
+**99. Machine-readable records for scripts / LLMs (`--json` + `jq`)**
 ```
 niva find "*.gpkg" in ~/data --json | jq -r '.[] | select(.features > 1000) | .path'
 ```
 Each record carries `path`, `format`, `kind`, `size`, and — on QGIS's Python — `geometry`,
 `crs`, `features`, `fields`, `fid_column`.
 
-**99. Only polygon layers with data (GDAL filters), as paths**
+**100. Only polygon layers with data (GDAL filters), as paths**
 ```
 niva find "*.gpkg" in ~/data --geom Polygon --min-features 1 --paths
 ```
 
-**100. Turn a search into a runnable batch (`--as-flow`)**
+**101. Turn a search into a runnable batch (`--as-flow`)**
 ```
 niva find "*.tif" in ~/rasters --as-flow > batch.txt
 ```
@@ -705,25 +719,25 @@ Emits one `each "<path>" | <stages> | save …` line per match — fill in the s
 
 ### `catalog` — inventory to a report
 
-**101. Inventory a directory tree**
+**102. Inventory a directory tree**
 ```
 niva catalog "data/" to=reports/inventory.md
 ```
 Recurses `data/`, profiling every dataset (type, CRS, geometry/bands, feature count, extent);
 multi-layer containers expand per layer. Omit `to=` to write `data/catalog.md`.
 
-**102. Deep profile — add data-quality checks**
+**103. Deep profile — add data-quality checks**
 ```
 niva catalog "data/" deep to=reports/inventory_deep.md
 ```
 `deep` adds per-layer invalid/empty/duplicate-geometry counts and per-field null counts.
 
-**103. Catalog one container**
+**104. Catalog one container**
 ```
 niva catalog "basemap.gpkg" to=reports/basemap.md
 ```
 
-**104. Catalog a database connection**
+**105. Catalog a database connection**
 ```
 niva catalog @gisdb3 to=reports/db.md
 ```

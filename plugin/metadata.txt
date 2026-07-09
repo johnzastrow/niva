@@ -28,10 +28,11 @@ deprecated=False
 # summary for the new version here, mirroring the top entry of ../CHANGELOG.md (the repo file
 # stays the full history; this field is just the highlights). Then DROP the oldest entry so the
 # field never holds more than three versions. Continuation lines MUST stay indented (like `about=`).
-changelog=0.62.0 — Added: point clouds are first-class — `each`/`show`/`catalog` recognise
-    LAS/LAZ/COPC/E57/… tiles, friendly `dtm`/`dsm`/`hag` verbs (over pdal_wrench), and $VAR/${VAR}
-    expansion in path values (save "$OUTDIR/{name}.tif"). show/catalog span vector/raster/pointcloud/mesh (all GDAL formats + MDAL mesh).
-    0.61.1 — Fixed: `niva lsp` no longer dies on an unexpected editor message (completion/
-    hover/diagnostics used to silently stop until an editor restart); the event loop is now resilient.
-    0.61.0 — Added: repl/LSP completion now covers `run` — the 878 QGIS algorithm ids
-    (native:/gdal:/…), then each algorithm's KEY= params and enum values. Fixed: hover for `map`/`figure`.
+changelog=0.62.4 — Added: `niva flow.niva` runs a file without the `run` subcommand.
+    Fixed (0.62.1–0.62.3): $VAR/~ now expand in secondary layer/raster paths (clip, zonalstats raster=,
+    spatialjoin with=); `run` creates output folders like `save` (multi-output algs like r.watershed);
+    `validate` no longer false-warns on figure/map/catalog; `.dat` no longer misread as mesh.
+    0.62.0 — Added: point clouds are first-class — `each`/`show`/`catalog` recognise LAS/LAZ/COPC/E57/…
+    tiles, friendly `dtm`/`dsm`/`hag` verbs (over pdal_wrench), and $VAR/${VAR} path expansion.
+    show/catalog span vector/raster/pointcloud/mesh (all GDAL formats + MDAL mesh).
+    0.61.1 — Fixed: `niva lsp` no longer dies on an unexpected editor message; the loop is resilient.

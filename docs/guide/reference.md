@@ -893,6 +893,7 @@ niva import <file.py>   [-o <file.niva>]
 | Command / flag | Effect |
 |---|---|
 | `niva run flow.niva` | execute a `.niva` file (real, via PyQGIS) |
+| `niva flow.niva` | same — the `run` is optional for a `.niva`/`.flow` file |
 | `niva "load a.gpkg \| buffer 100m \| save b.gpkg"` | execute an inline flow |
 | `--dry-run` | print the plan and validate it over the mock backend (no QGIS, no data touched) |
 | `--explain` | parse + bind only; print the resolved algorithm + parameters per stage |
