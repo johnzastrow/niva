@@ -181,19 +181,39 @@ def send_email(
 
 # --- catalog formatting (the directory walk + profiling lives in the engine) -
 
-# Extensions that mark a file as geospatial data worth cataloguing. (Plain `.json`
-# is deliberately excluded — too broad; GeoJSON uses `.geojson`.)
+# Extensions that mark a file as geospatial data worth discovering (`each`/`find`) and reporting
+# (`show`/`catalog`). This is the **offline floor** — a curated superset of common GDAL/OGR
+# formats; when GDAL is importable (under QGIS), :func:`_gdal_facet_map` augments it with the live
+# driver list, so discovery recognises *everything the installed GDAL can read*. `show`/`catalog`
+# also probe files directly, so they stay comprehensive regardless. (`.json` stays out of the
+# static floor — too broad — but GDAL's GeoJSON driver picks up `.json` when present.)
 CATALOG_VECTOR_EXTS = {
     ".gpkg",
     ".shp",
     ".geojson",
+    ".geojsonl",
+    ".geojsons",
     ".gml",
     ".kml",
+    ".kmz",
     ".gpx",
     ".fgb",
     ".parquet",
     ".tab",
     ".mif",
+    ".mid",
+    ".dxf",
+    ".dgn",
+    ".gmt",
+    ".bna",
+    ".jml",
+    ".vct",
+    ".map",
+    ".osm",
+    ".pbf",
+    ".topojson",
+    ".sqlite",
+    ".gdb",
 }
 CATALOG_RASTER_EXTS = {
     ".tif",
@@ -207,18 +227,126 @@ CATALOG_RASTER_EXTS = {
     ".bil",
     ".grd",
     ".nc",
+    ".ecw",
+    ".sid",
+    ".pix",
+    ".rst",
+    ".sdat",
+    ".ers",
+    ".dt0",
+    ".dt1",
+    ".dt2",
+    ".kap",
+    ".nitf",
+    ".ntf",
+    ".gen",
+    ".bt",
+    ".hdr",
+    ".hf2",
+    ".gxf",
+    ".rda",
+    ".jpg",
+    ".jpeg",
+    ".png",
+    ".gif",
+    ".xyz",
+    ".mbtiles",
+    ".gpkg",
+}
+# Mesh (unstructured / time-varying grids — hydrodynamic, ocean/atmosphere) — read by QGIS's MDAL
+# provider, NOT GDAL vector/raster, so `show`/`catalog` probe them via QgsMeshLayer separately.
+# `.nc`/`.grib` are deliberately left as RASTER here (they open as raster too); QGIS decides mesh
+# vs raster at load time.
+CATALOG_MESH_EXTS = {
+    ".2dm",
+    ".slf",
+    ".sww",
+    ".xdmf",
+    ".xmf",
+    ".gr3",
+    ".msh",
+    ".mesh",
+    # `.dat` is deliberately NOT here: it's a Telemac mesh result extension, but far more
+    # commonly a MapInfo `.tab` companion or a generic data file — treating it as mesh made
+    # `catalog`/`show` emit spurious "unable to load mesh" errors on ordinary trees.
+}
+# Point clouds — handled by niva's `pdalcli:` harness (PDAL), and recognised by `each`/`show`/
+# `catalog` so a folder of tiles can be batched: `each "*.las" | dtm resolution=1 | save "{name}.tif"`.
+# `.copc.laz` is matched via its `.laz` tail (os.path.splitext). LAS/LAZ/COPC/VPC are the common
+# case; e57/bpf/pts/ptx/pcd are the other unambiguous single-file point clouds PDAL reads (a given
+# PDAL build may still lack a reader plugin — the harness then skips that item with a message).
+CATALOG_POINTCLOUD_EXTS = {
+    ".las",
+    ".laz",
+    ".vpc",
+    ".e57",
+    ".bpf",
+    ".pts",
+    ".ptx",
+    ".pcd",
 }
 # Containers that can hold many layers — catalog enumerates each layer.
 CATALOG_MULTILAYER_EXTS = {".gpkg", ".sqlite", ".db"}
 
 
+def expand_path(p: str) -> str:
+    """Expand ``~`` **and** environment variables (``$VAR`` / ``${VAR}``) in a path-like value —
+    so flows and the repl can use ``$HOME``, ``$NIVA_TMPDIR``, or any exported variable (the shell
+    only expands ``$VAR`` for CLI one-liners, not inside a ``.niva`` file or the repl). Applied to
+    **path-typed values only** — never to expressions, so QGIS expression variables (``$area``,
+    ``$geometry``, ``$id``) in a ``filter`` survive untouched. An unset ``$VAR`` is left as-is."""
+    return os.path.expanduser(os.path.expandvars(p))
+
+
+def _gdal_facet_map() -> dict:
+    """``{ext: 'vector'|'raster'}`` from the **live** GDAL/OGR driver metadata, so discovery
+    recognises every format the installed GDAL can read (auto-syncing with QGIS). ``{}`` offline
+    (no ``osgeo``). Cached — the driver scan runs once."""
+    global _GDAL_FACET_CACHE
+    if _GDAL_FACET_CACHE is not None:
+        return _GDAL_FACET_CACHE
+    out: dict = {}
+    try:
+        from osgeo import gdal
+    except Exception:  # noqa: BLE001 — offline: the static floor is authoritative
+        _GDAL_FACET_CACHE = out
+        return out
+    for i in range(gdal.GetDriverCount()):
+        drv = gdal.GetDriver(i)
+        exts = (drv.GetMetadataItem("DMD_EXTENSIONS") or "").split()
+        if not exts:
+            continue
+        md = drv.GetMetadata_Dict()
+        facet = (
+            "raster"
+            if md.get("DCAP_RASTER") == "YES"
+            else ("vector" if md.get("DCAP_VECTOR") == "YES" else None)
+        )
+        if facet is None:
+            continue
+        for e in exts:
+            out.setdefault("." + e.lower().lstrip("."), facet)
+    _GDAL_FACET_CACHE = out
+    return out
+
+
+_GDAL_FACET_CACHE: dict | None = None
+
+
 def facet_for_ext(ext: str) -> str | None:
+    """The layer facet for a file extension, or None if not geospatial. Point clouds and mesh
+    (PDAL/MDAL, not GDAL) are checked first, then the static vector/raster floor, then the live
+    GDAL driver list (when importable) so *any* GDAL-readable format is recognised under QGIS."""
     ext = ext.lower()
+    if ext in CATALOG_POINTCLOUD_EXTS:
+        return "pointcloud"
+    if ext in CATALOG_MESH_EXTS:
+        return "mesh"
     if ext in CATALOG_VECTOR_EXTS:
         return "vector"
     if ext in CATALOG_RASTER_EXTS:
         return "raster"
-    return None
+    return _gdal_facet_map().get(ext)
 
 
 def format_catalog(root: str, entries: list, *, deep: bool = False) -> str:

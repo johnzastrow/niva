@@ -30,6 +30,7 @@ _ALL_VERB_NAMES = _BUILTIN_VERB_NAMES | set(_REG.verbs())
 
 _USAGE = (
     "usage: niva run <file.niva> [--dry-run|--explain]\n"
+    "       niva <file.niva>     [--dry-run|--explain]   (run is optional for a .niva file)\n"
     '       niva "<flow>"        [--dry-run|--explain]\n'
     "       niva validate <file.niva> [more.niva …]   (offline linter)\n"
     '       niva plan <file.niva> | "<flow>"          (emit the resolved plan IR, JSON)\n'
@@ -162,6 +163,19 @@ def _read_source(argv):
             return "<inline>", None
         with open(argv[1], encoding="utf-8") as fh:
             return argv[1], fh.read()
+    # Convenience: a lone `.niva`/`.flow` argument is run as a file even without the `run`
+    # subcommand, so `niva flow.niva` works (a common slip that used to fail with
+    # "unknown verb `flow.niva`"). An inline flow never ends in `.niva` — that's a script
+    # extension, not a data output — so this can't shadow a real inline program.
+    if len(argv) == 1 and argv[0].endswith((".niva", ".flow")):
+        if os.path.isfile(argv[0]):
+            with open(argv[0], encoding="utf-8") as fh:
+                return argv[0], fh.read()
+        print(
+            f"niva: no such file: {argv[0]} (for an inline flow, drop the .niva)",
+            file=sys.stderr,
+        )
+        return "<inline>", None
     # Inline mode: the program may arrive as one quoted argument
     # (`niva "show /path"`) or as several unquoted shell tokens
     # (`niva show /path`). Re-join the tokens so both forms work; a

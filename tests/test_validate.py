@@ -173,6 +173,20 @@ class TestLintWarnings(unittest.TestCase):
     def test_flow_with_no_save(self):
         self._warns("load a.gpkg | buffer 100m", "no `save`")
 
+    def test_terminal_output_verbs_need_no_save(self):
+        # figure/map/catalog/assess/show/info/notify write their own output or end the flow —
+        # they must NOT trip the "no `save`" warning (regression: only `save` used to clear it).
+        for flow in (
+            "load dem.tif | figure out.png",
+            "load roads.gpkg | map out.pdf title=Roads",
+            "load a.gpkg | assess deep to q.md",
+            "load a.gpkg | metadata set title=X | assess to q.md",
+        ):
+            with self.subTest(flow=flow):
+                self.assertNotIn(
+                    "no `save`", " ".join(warnings(flow)), flow
+                )
+
     def test_distance_with_unit_is_clean(self):
         self.assertNotIn(
             "has no unit", " ".join(warnings("load a.gpkg | buffer 100m | save b.gpkg"))

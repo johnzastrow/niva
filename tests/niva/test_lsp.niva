@@ -30,5 +30,8 @@ load a.gpkg | buffer
 
 # ── TestLspSession ──────────────────────────────────────────────
 
+# test_malformed_messages_do_not_kill_the_server
+#   (pure Python — no niva flow)
+
 # test_initialize_open_complete_shutdown
 load a.gpkg | bufffer 5m

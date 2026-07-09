@@ -115,13 +115,18 @@ def bind(stage, alias: Alias) -> BoundOp:
     # 7. Forced values are literal (never coerced) and always win.
     params.update(alias.forced)
 
+    # Secondary path-bearing inputs — a filesystem path or a `@conn.table` ref. The engine
+    # `~`/`$VAR`-expands the path form and loads the `@conn` form (see `_resolve_layer_refs`).
+    # Covers overlay/mask *layers* (clip, intersect, spatialjoin `with=`) AND *raster*/*vector*
+    # option inputs (zonalstats `raster=`, joins) so all of them expand env vars alike.
+    _PATH_TYPES = ("layer", "raster", "vector")
     layer_params = {
-        s.param for s in alias.args if s.type == "layer" and s.param in params
+        s.param for s in alias.args if s.type in _PATH_TYPES and s.param in params
     }
     layer_params |= {
         s.param
         for s in alias.options.values()
-        if s.type == "layer" and s.param in params
+        if s.type in _PATH_TYPES and s.param in params
     }
     crs_params = {s.param for s in alias.args if s.type == "crs" and s.param in params}
     crs_params |= {

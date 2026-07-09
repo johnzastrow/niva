@@ -634,5 +634,64 @@ class TestInfo(unittest.TestCase):
             flow("info bogus=1", backend=MockBackend())
 
 
+class TestExpandPath(unittest.TestCase):
+    def test_expands_env_vars_and_tilde(self):
+        import os
+
+        from niva.utilities import expand_path
+
+        os.environ["NIVA_TEST_VAR"] = "/tmp/nivatest"
+        self.assertEqual(expand_path("$NIVA_TEST_VAR/x.tif"), "/tmp/nivatest/x.tif")
+        self.assertEqual(expand_path("${NIVA_TEST_VAR}/x.tif"), "/tmp/nivatest/x.tif")
+        self.assertEqual(expand_path("~/x.tif"), os.path.expanduser("~/x.tif"))
+
+    def test_unset_var_left_as_is(self):
+        from niva.utilities import expand_path
+
+        self.assertEqual(expand_path("$NIVA_DEFINITELY_UNSET/x"), "$NIVA_DEFINITELY_UNSET/x")
+
+    def test_facet_pointcloud(self):
+        from niva.utilities import facet_for_ext
+
+        for ext in (".las", ".laz", ".e57", ".bpf", ".pts", ".ptx", ".pcd", ".vpc"):
+            self.assertEqual(facet_for_ext(ext), "pointcloud", ext)
+        self.assertEqual(facet_for_ext(".gpkg"), "vector")
+        self.assertEqual(facet_for_ext(".tif"), "raster")
+
+
+class TestSecondaryLayerPathExpansion(unittest.TestCase):
+    """A `$VAR`/`~` path bound to a *secondary* param — an overlay layer (clip) or a
+    raster input (zonalstats) — must reach the backend expanded, exactly like a primary
+    load/save path. Regression: it used to be passed through verbatim, so `clip $O/aoi.gpkg`
+    looked for a literal `$O/…` file."""
+
+    def _clip_overlay(self, overlay_arg):
+        os.environ["NIVA_TEST_OUT"] = "/tmp/nivaout"
+        mb = MockBackend()
+        flow(f"load a.gpkg | clip {overlay_arg} | save out.gpkg", backend=mb)
+        run = next(c for c in mb.calls if c[0] == "run" and c[1] == "native:clip")
+        return run[2]["OVERLAY"]
+
+    def test_clip_overlay_expands_env_var(self):
+        self.assertEqual(self._clip_overlay("$NIVA_TEST_OUT/aoi.gpkg"), "/tmp/nivaout/aoi.gpkg")
+
+    def test_clip_overlay_expands_tilde(self):
+        self.assertEqual(
+            self._clip_overlay("~/aoi.gpkg"), os.path.expanduser("~/aoi.gpkg")
+        )
+
+    def test_zonalstats_raster_expands_env_var(self):
+        os.environ["NIVA_TEST_OUT"] = "/tmp/nivaout"
+        mb = MockBackend()
+        flow(
+            "load a.gpkg | zonalstats raster=$NIVA_TEST_OUT/dem.tif stats=mean | save o.gpkg",
+            backend=mb,
+        )
+        run = next(
+            c for c in mb.calls if c[0] == "run" and c[1] == "native:zonalstatisticsfb"
+        )
+        self.assertEqual(run[2]["INPUT_RASTER"], "/tmp/nivaout/dem.tif")
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -169,13 +169,15 @@ QGIS bindings may still need to be on `PYTHONPATH`, so Option A's alias is often
 
 ```
 niva run <file.niva> [--dry-run | --explain] [--log <base>]
+niva <file.niva>     [--dry-run | --explain] [--log <base>]   # run is optional for a .niva file
 niva "<flow>"        [--dry-run | --explain] [--log <base>]
 niva describe <verb-or-algorithm-id> [to=<file>]
 niva export <file.niva> [-o <file.py>]
 niva import <file.py>   [-o <file.niva>]
 ```
 
-- `niva run flow.niva` / `niva "load … | save …"` — execute a file or an inline flow.
+- `niva run flow.niva` / `niva flow.niva` / `niva "load … | save …"` — execute a file (the `run`
+  is optional for a `.niva`/`.flow` file) or an inline flow.
 - `--dry-run` — print the plan and validate it with no QGIS, no data touched.
 - `--explain` — print the resolved algorithm and parameters for each stage.
 - `--log <base>` — also write the journal (`<base>.jsonl` + `<base>.log`).

@@ -565,7 +565,7 @@ _footer(prs.slides[-1], 12)
 # ---- 13. THE REACH ------------------------------------------------------
 s = content_slide(prs, "All of QGIS — in plain language", eyebrow="Thin, not limiting")
 stats = [
-    ("769", "Processing algorithms"),
+    ("878", "Processing algorithms"),
     ("406", "expression functions"),
     ("SQL", "SpatiaLite & PostGIS"),
 ]
@@ -661,8 +661,8 @@ _text(
     [
         [
             (
-                "niva ships as a QGIS plugin (v0.31) and runs real analysis "
-                "end-to-end, on QGIS's own algorithms:",
+                "niva ships as a QGIS plugin (v0.62) and on PyPI, and runs real "
+                "analysis end-to-end on QGIS's own algorithms:",
                 {"size": 17, "color": SAGE},
             )
         ]
@@ -682,27 +682,27 @@ status_cards = [
         "Verbs & algorithms",
         TAN,
         [
-            "~45 alias verbs + 14 built-ins (vector + raster)",
+            "48 alias verbs + built-ins (vector · raster · point cloud)",
             "sql @conn — SELECT → layer, and server-side writes",
-            "run — reach ANY of QGIS's 769 algorithms",
+            "run — reach ANY of QGIS's 878 algorithms",
         ],
     ),
     (
-        "Data & cartography",
+        "Every data type",
         DEEP,
         [
-            "PostGIS & SpatiaLite — read · write · analyse",
-            "project — repoint / build / templates · bookmarks",
-            "style — apply / export .qml · .sld · .qlr",
+            "Vector · raster · point cloud · mesh discovery",
+            "LiDAR: dtm / dsm / hag · GRASS + SAGA hydrology",
+            "Landsat / Sentinel-2 / NAIP fusion → NDVI",
         ],
     ),
     (
-        "Discovery, delivery & quality",
+        "Data, cartography & delivery",
         TAN,
         [
-            "show / info / catalog — list data, inspect environment",
-            "QGIS plugin (Install from ZIP) · CLI · Python API",
-            "300+ tests, live-QGIS + PostGIS CI · full docs",
+            "PostGIS & SpatiaLite — read · write · analyse",
+            "project / style · figure / map · show / catalog",
+            "Plugin · CLI · Python · LSP · 660+ tests · full docs",
         ],
     ),
 ]
@@ -733,15 +733,15 @@ spine = _box(s, 1.62, 2.1, 0.04, 4.35)
 _fill(spine, TAN)
 milestones = [
     (
-        "v0.31",
-        "Shipped — available now",
-        "~45 verbs + raster · run → 769 · PostGIS read·write·analyse · project / template / style · show / info discovery · QGIS plugin · CLI / Python · full docs",
+        "v0.62",
+        "Shipped — available now, on PyPI",
+        "48 verbs + raster · run → 878 · point clouds + mesh + all-types discovery · GRASS/SAGA hydrology · multispectral fusion · PostGIS read·write·analyse · project / style · figure / map · LSP · plugin · CLI / Python · full docs",
         "available now",
     ),
     (
         "v1.0",
         "Stable release",
-        "Grammar freeze (SemVer) · PyPI publish · worked Marimo–QGIS integration",
+        "Grammar freeze (SemVer) · worked Marimo–QGIS integration",
         None,
     ),
     (

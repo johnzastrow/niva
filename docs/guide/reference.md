@@ -1,15 +1,15 @@
 # niva Reference
 
-The complete reference for **niva v0.32.0** — every verb, alias, option, type, environment
-variable, CLI command, and Python entry point. For a task-oriented tour see the
-[Cookbook](cookbook.md); for setup and day-to-day use see the [User Guide](user-guide.md).
+The complete reference — every verb, alias, option, type, environment variable, CLI command, and
+Python entry point. For a task-oriented tour see the [Cookbook](cookbook.md); for setup and
+day-to-day use see the [User Guide](user-guide.md).
 
 ### Algorithm coverage at a glance
 
-niva gives **45 alias verbs** friendly names; **every** QGIS Processing algorithm — **878**
-in QGIS 4.0.3 — is reachable through the [`run`](#6-the-run-escape-hatch--describe) escape
-hatch. The complete, per-algorithm appendix (parameters, defaults, enum options, descriptions,
-and which verb aliases each) is in [`docs/algorithms/`](../algorithms/README.md).
+niva gives **48 alias verbs** friendly names; **every** QGIS Processing algorithm — **878** in
+QGIS 4 — is reachable through the [`run`](#6-the-run-escape-hatch--describe) escape hatch. The
+complete, per-algorithm appendix (parameters, defaults, enum options, descriptions, and which
+verb aliases each) is in [`docs/algorithms/`](../algorithms/README.md).
 
 | Provider | Algorithms | niva alias verbs |
 |---|---|---|
@@ -23,7 +23,15 @@ and which verb aliases each) is in [`docs/algorithms/`](../algorithms/README.md)
 | **Total** | **878** | **45** |
 
 Plus niva's native-CLI harness (not QGIS providers): `pdalcli:` (12 PDAL commands on raw
-LAS/LAZ/COPC) and `saga:` (`saga_cmd`). See the [PDAL/LAStools guide](pdal-lastools-qgis4.md).
+LAS/LAZ/COPC) and `saga:` (`saga_cmd`) — and **3 more alias verbs** wrap it for point clouds:
+**`dtm`**, **`dsm`**, **`hag`** (48 aliases total). See the
+[PDAL/LAStools guide](pdal-lastools-qgis4.md).
+
+**Data types.** Discovery (`each`/`find`) and reporting (`show`/`catalog`) span every type QGIS
+reads — **vector · raster · point cloud · mesh** — from a broad built-in format list plus the live
+GDAL driver list when running under QGIS. Point clouds (`.las`/`.laz`/`.copc.laz`/`.vpc`/`.e57`/…)
+and mesh (`.2dm`/Telemac/UGRID/…) are recognised and summarised; processing verbs exist for point
+clouds today (`dtm`/`dsm`/`hag`), with mesh reachable via `run`.
 
 - [1. The flow model](#1-the-flow-model)
 - [2. Syntax](#2-syntax)
@@ -120,9 +128,13 @@ buffer 100m dissolve cap=flat segments=12
 
 ### Paths
 
-A path argument has a leading `~` expanded to your home directory (`clip "~/aoi.gpkg"`).
-A layer inside a multi-layer container is addressed with the OGR suffix
-`|layername=<name>`: `load "data.gpkg|layername=roads"`.
+A path argument has a leading `~` expanded to your home directory (`clip "~/aoi.gpkg"`), and
+**environment variables** expanded — `$VAR` / `${VAR}` — so `$HOME`, `$NIVA_TMPDIR`, or any
+exported variable works inside a `.niva` file and the repl, not just a shell one-liner
+(`save "$OUTDIR/{name}.tif"`). Expansion is applied to **path values only**, so QGIS expression
+variables (`$area`, `$geometry`, `$id`) in a `filter` are never touched. A layer inside a
+multi-layer container is addressed with the OGR suffix `|layername=<name>`:
+`load "data.gpkg|layername=roads"`.
 
 ### Per-item placeholder `{name}`
 
@@ -731,6 +743,18 @@ Enum options list their words.
 | `countpoints` | `native:countpointsinpolygon` | — | `points=`(req, layer) · `field=`(NUMPOINTS) · `weight=` · `classfield=` | — |
 | `zonalstats` | `native:zonalstatisticsfb` | — | `raster=`(req) · `band=`(1) · `stats=`(count,sum,mean) ⟨count, sum, mean, median, stdev, min, max, range, minority, majority, variety, variance⟩ — comma-list · `prefix=`(_) | — |
 
+### Point clouds — the `pdalcli:` harness (needs `pdal_wrench`, `niva pdal check`)
+
+Load a raw `.las`/`.laz`/`.copc.laz` and pipe it in; these produce a raster (pipes into `save`) or,
+for `hag`, a normalised cloud (pipe into `dsm` for a CHM). Filter/aggregation defaults come from the
+verb; drop to `run pdalcli:<cmd>` for the full option set.
+
+| Verb | Harness id | Options | Notes |
+|---|---|---|---|
+| `dtm` | `pdalcli:to_raster` | `resolution=`(1) | ground/bare-earth raster — forces `attribute=Z filter="Classification==2"` |
+| `dsm` | `pdalcli:to_raster` | `resolution=`(1) | surface raster from **all** returns — forces `attribute=Z` |
+| `hag` | `pdalcli:height_above_ground` | — | height-above-ground per point; `load x.las \| hag \| dsm \| save chm.tif` = CHM |
+
 ### Vector — point creation
 
 | Verb | Algorithm | Args | Options | Flags |
@@ -832,6 +856,8 @@ identically; the only difference is which engine's spatial SQL functions you wri
 | `NIVA_QGIS_PROFILE` | active desktop profile | **Which QGIS user profile to read** for database connections (the `@conn` names) and other settings, when running standalone. By default niva uses the profile your QGIS desktop last used; set this to another profile's name to target its connections. Run `info` to see all profiles and their connections. |
 | `QGIS_PREFIX_PATH` | `/usr` | QGIS install prefix for standalone bootstrap. |
 | `NIVA_QGIS_PYTHONPATH` | unset | **Where QGIS's Python bindings live**, if niva can't find them. When a standalone `niva` can't `import qgis`, it auto-discovers the bindings by probing this variable first, then `QGIS_PREFIX_PATH`, an inferred macOS `.app` bundle, and the OS defaults (`/usr/share/qgis/python`, `/Applications/QGIS.app/…`). Set it (the dir containing the `qgis/` package, `os.pathsep`-joined for several) only when your QGIS is in a non-standard location. |
+| `QGIS_WRENCH_EXECUTABLE` / `NIVA_PDAL_WRENCH` | `pdal_wrench` on PATH | Path to **`pdal_wrench`** — the point-cloud backend behind `dtm`/`dsm`/`hag` and `run pdalcli:*`. `QGIS_WRENCH_EXECUTABLE` is reused (it also configures QGIS's `pdal:` provider); `niva pdal check` diagnoses it. |
+| `NIVA_SAGA_CMD` | `saga_cmd` on PATH | Path to `saga_cmd` for the `run saga:*` harness. |
 | `QT_QPA_PLATFORM` | `offscreen` (set if unset) | Headless Qt platform for standalone runs. |
 | `NIVA_NTFY_TOPIC` | unset | Default ntfy topic for `notify`. |
 | `NIVA_NTFY_SERVER` | `https://ntfy.sh` | ntfy server URL. |
@@ -867,6 +893,7 @@ niva import <file.py>   [-o <file.niva>]
 | Command / flag | Effect |
 |---|---|
 | `niva run flow.niva` | execute a `.niva` file (real, via PyQGIS) |
+| `niva flow.niva` | same — the `run` is optional for a `.niva`/`.flow` file |
 | `niva "load a.gpkg \| buffer 100m \| save b.gpkg"` | execute an inline flow |
 | `--dry-run` | print the plan and validate it over the mock backend (no QGIS, no data touched) |
 | `--explain` | parse + bind only; print the resolved algorithm + parameters per stage |

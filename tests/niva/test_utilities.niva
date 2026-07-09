@@ -200,3 +200,14 @@ info something.qgs
 
 # test_info_rejects_unknown_options
 info bogus=1
+
+# ── TestExpandPath ──────────────────────────────────────────────
+
+# test_expands_env_vars_and_tilde
+#   (pure Python — no niva flow)
+
+# test_unset_var_left_as_is
+#   (pure Python — no niva flow)
+
+# test_facet_pointcloud
+#   (pure Python — no niva flow)

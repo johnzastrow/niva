@@ -179,59 +179,69 @@ def run(argv=None) -> int:
     def reply(mid, result):
         _send(stdout, {"jsonrpc": "2.0", "id": mid, "result": result})
 
+    def publish(uri):
+        _send(
+            stdout,
+            {
+                "jsonrpc": "2.0",
+                "method": "textDocument/publishDiagnostics",
+                "params": diagnostics_params(uri, docs.get(uri, "")),
+            },
+        )
+
     while True:
         msg = _read_message(stdin)
         if msg is None:
             break
-        method, mid, params = msg.get("method"), msg.get("id"), msg.get("params", {})
-
-        if method == "initialize":
-            reply(
-                mid,
-                {
-                    "capabilities": _CAPABILITIES,
-                    "serverInfo": {"name": "niva-lsp", "version": __version__},
-                },
-            )
-        elif method == "shutdown":
-            reply(mid, None)
-        elif method == "exit":
+        method = msg.get("method")
+        if method == "exit":
             break
-        elif method == "textDocument/didOpen":
-            td = params["textDocument"]
-            docs[td["uri"]] = td.get("text", "")
-            _send(
-                stdout,
-                {
-                    "jsonrpc": "2.0",
-                    "method": "textDocument/publishDiagnostics",
-                    "params": diagnostics_params(td["uri"], docs[td["uri"]]),
-                },
-            )
-        elif method == "textDocument/didChange":
-            uri = params["textDocument"]["uri"]
-            changes = params.get("contentChanges", [])
-            if changes:  # full sync → the last change holds the whole document
-                docs[uri] = changes[-1].get("text", "")
-            _send(
-                stdout,
-                {
-                    "jsonrpc": "2.0",
-                    "method": "textDocument/publishDiagnostics",
-                    "params": diagnostics_params(uri, docs.get(uri, "")),
-                },
-            )
-        elif method == "textDocument/didClose":
-            docs.pop(params["textDocument"]["uri"], None)
-        elif method == "textDocument/completion":
-            uri = params["textDocument"]["uri"]
-            items = completion_items(docs.get(uri, ""), params.get("position", {}))
-            reply(mid, {"isIncomplete": False, "items": items})
-        elif method == "textDocument/hover":
-            uri = params["textDocument"]["uri"]
-            reply(mid, hover(docs.get(uri, ""), params.get("position", {})))
-        elif mid is not None:
-            reply(mid, None)  # unknown request → empty result (keeps the client happy)
-        # unknown notifications are ignored
+        mid = msg.get("id")
+        params = msg.get("params") or {}
+        # Field accesses are defensive (real editors send message shapes we don't fully model),
+        # and the whole dispatch is wrapped so ONE malformed message can never kill the server —
+        # an unhandled exception here used to take the whole LSP down until an editor restart.
+        try:
+            uri = (params.get("textDocument") or {}).get("uri", "")
+            if method == "initialize":
+                reply(
+                    mid,
+                    {
+                        "capabilities": _CAPABILITIES,
+                        "serverInfo": {"name": "niva-lsp", "version": __version__},
+                    },
+                )
+            elif method == "shutdown":
+                reply(mid, None)
+            elif method == "textDocument/didOpen":
+                docs[uri] = (params.get("textDocument") or {}).get("text", "")
+                publish(uri)
+            elif method == "textDocument/didChange":
+                changes = params.get("contentChanges") or []
+                if changes:  # full sync → the last change holds the whole document
+                    docs[uri] = changes[-1].get("text", "")
+                publish(uri)
+            elif method == "textDocument/didClose":
+                docs.pop(uri, None)
+            elif method == "textDocument/completion":
+                items = completion_items(
+                    docs.get(uri, ""), params.get("position") or {}
+                )
+                reply(mid, {"isIncomplete": False, "items": items})
+            elif method == "textDocument/hover":
+                reply(mid, hover(docs.get(uri, ""), params.get("position") or {}))
+            elif mid is not None:
+                reply(
+                    mid, None
+                )  # unknown request → empty result (keeps the client happy)
+            # unknown notifications are ignored
+        except Exception as exc:  # noqa: BLE001 — resilience: never let one message end the loop
+            sys.stderr.write(f"niva-lsp: error handling {method!r}: {exc!r}\n")
+            sys.stderr.flush()
+            if mid is not None:  # don't leave a request hanging
+                try:
+                    reply(mid, None)
+                except Exception:  # noqa: BLE001
+                    pass
 
     return 0

@@ -18,6 +18,21 @@ from functools import lru_cache
 from .errors import FlowError
 from .grammar import Call, parse
 
+# Verbs that end a flow legitimately — they either write their own output (`save`, `figure`,
+# `map`, `catalog`, `info`, `assess`) or are a terminal side effect (`show`, `notify`, `email`).
+# A flow ending on one of these needs no trailing `save`.
+_TERMINAL_VERBS = {
+    "save",
+    "figure",
+    "map",
+    "catalog",
+    "info",
+    "assess",
+    "show",
+    "notify",
+    "email",
+}
+
 # Distance units the grammar understands — a distance-typed value without one of these is
 # interpreted in the layer's CRS units (a classic silent gotcha on a geographic CRS).
 _BARE_NUM_RE = re.compile(r"^\d+(?:\.\d+)?$")
@@ -163,8 +178,11 @@ def validate_program(program: list) -> list[tuple]:
                 issues.append((s.line, "error", vi))
             elif s.verb in {"load", "run", "sql", "split"} or s.verb in reg.verbs():
                 last_producing = s.verb
-            elif s.verb == "save":
-                last_producing = None  # output persisted
+            elif s.verb in _TERMINAL_VERBS:
+                # A verb that writes its own output (`save`, `figure`, `map`, `catalog`, `info`,
+                # `assess`) or is a legitimate flow terminal (`show`, `notify`, `email`) —
+                # the pipeline result IS persisted / consumed, so no "add a save" warning.
+                last_producing = None
     if last_producing is not None:
         issues.append(
             (

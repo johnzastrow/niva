@@ -9,6 +9,78 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 > [`plugin/metadata.txt`](plugin/metadata.txt) — keep only the **last three versions** there (drop
 > the oldest); that field is what the QGIS Plugin Manager shows. This file stays the full history.
 
+## [0.62.4] - 2026-07-08
+
+### Added
+- **`niva <file.niva>` runs a script without the `run` subcommand.** A lone `.niva`/`.flow`
+  argument is now executed as a file, so the common slip `niva flow.niva` works instead of failing
+  with `unknown verb `flow.niva``. Inline flows are unaffected (a flow never ends in `.niva`), and a
+  mistyped `niva nope.niva` gives a clear "no such file" rather than an unknown-verb error.
+
+## [0.62.3] - 2026-07-08
+
+### Fixed
+- **`run` now creates an output's parent directory, like `save` does.** A destination in a new
+  folder — `run gdal:contour … OUTPUT=out/sub/contours.gpkg`, or a multi-output algorithm such as
+  `grass:r.watershed accumulation=hydro/accum.tif …` — failed because GDAL/QGIS won't `mkdir`. niva
+  now creates the parent of any not-yet-existing file-path value, so `run` writes into new
+  directory trees just like `save`.
+
+## [0.62.2] - 2026-07-08
+
+### Fixed
+- **`validate` no longer warns "flow ends with no `save`" on terminal output verbs.** A flow ending
+  in `figure`, `map`, `catalog`, `info`, `assess`, `show`, `notify`, or `email` writes its own
+  output or is a legitimate terminal — only `save` used to clear the no-output lint, so
+  `load x.tif | figure out.png` tripped a false warning. All of them now clear it.
+
+## [0.62.1] - 2026-07-08
+
+### Fixed
+- **`$VAR` / `~` now expand in *secondary* layer & raster paths, not just primary load/save.**
+  A path bound to an overlay/mask or raster option — `clip $O/aoi.gpkg`, `intersect`/`difference`/
+  `union`, `spatialjoin with=…`, `zonalstats raster=$O/dem.tif` — was passed to the backend
+  verbatim, so `clip $O/aoi.gpkg` looked for a literal `$O/…` file and failed. These now honour the
+  same env-var/`~` expansion as `load`/`save`, so a flow can thread a `$O` output dir through every
+  stage. (Fixes cross-referenced pipelines like the Youngstown LiDAR→vector suite.)
+- **`.dat` no longer misclassified as a mesh.** It's far more often a MapInfo `.tab` companion or a
+  generic data file than a Telemac result, and treating it as mesh made `catalog`/`show` emit
+  spurious "unable to load mesh" errors on ordinary trees. Dropped from the mesh extension set.
+
+## [0.62.0] - 2026-07-08
+
+### Added
+- **Point clouds are now first-class in discovery and processing.**
+  - **Recognition** — `each`/`show`/`catalog`/`find` now see point-cloud files (`.las`, `.laz`,
+    `.copc.laz`, `.vpc`, `.e57`, `.bpf`, `.pts`, `.ptx`, `.pcd`), so a folder of LiDAR tiles can be
+    batched: `each "tiles/*.las" | dtm resolution=1 | save "out/{name}.tif"`.
+  - **Verbs** — friendly `dtm` (ground/bare-earth raster), `dsm` (surface, all returns), and `hag`
+    (height-above-ground; pipe into `dsm` for a CHM) over niva's `pdalcli:` harness. They're
+    first-class registry verbs, so they get completion, hover/`describe`, validation, and manifest
+    entries automatically. (Needs the point-cloud backend — `niva pdal check`.)
+  - **Reporting** — `show`/`catalog` list point clouds as a `pointcloud` layer with a best-effort
+    **point count** (fast header probe via `pdal info` when available), and a loadable source.
+- **Environment variables in flow values — `$VAR` / `${VAR}`.** Path-typed values now expand
+  `$HOME`, `$NIVA_TMPDIR`, and any exported variable (the shell only did this for CLI one-liners,
+  not inside a `.niva` file or the repl): `save "$OUTDIR/{name}.tif"`. Expansion is applied to
+  **paths only**, so QGIS expression variables (`$area`, `$geometry`) in a `filter` are untouched.
+- **Discovery + reporting now span every data type QGIS reads.** `each`/`find`/`show`/`catalog`
+  recognise the full set of GDAL/OGR **vector and raster** formats — a much larger static floor
+  **plus** the live GDAL driver list when running under QGIS (so it auto-syncs with your build) —
+  and now **mesh** layers (`.2dm`, Telemac, UGRID, XDMF, …), reported by `show`/`catalog` via the
+  MDAL provider with a vertex/face/dataset-group summary. Together with point clouds, discovery
+  covers vector · raster · point cloud · mesh. (Processing verbs for mesh land as they're needed.)
+
+## [0.61.1] - 2026-07-08
+
+### Fixed
+- **`niva lsp` no longer dies on an unexpected message.** A single message shape the server didn't
+  fully model (e.g. a `didChange` without `textDocument`) raised an unhandled exception that
+  **killed the whole process** — so completion, hover, and diagnostics silently stopped working in
+  the editor until it restarted the server. The event loop now handles each message defensively and
+  is wrapped so one bad message can never end the loop (errors are logged to stderr; a pending
+  request still gets a reply). Guarded by a malformed-message regression test.
+
 ## [0.61.0] - 2026-07-08
 
 ### Added
