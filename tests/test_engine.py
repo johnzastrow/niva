@@ -39,6 +39,22 @@ class TestSaveCreatesParentDir(unittest.TestCase):
         )
 
 
+class TestRunCreatesOutputParentDir(unittest.TestCase):
+    def test_run_output_makes_nested_parent(self):
+        import os
+        import tempfile
+
+        tmp = tempfile.mkdtemp(prefix="niva_run_")
+        out = os.path.join(tmp, "hydro", "deep", "accum.tif")
+        # a multi-output algorithm passes its output destinations as params; the parent dir
+        # of such a path must be created (like `save` does), or GDAL/QGIS can't write it.
+        run(f"run grass:r.watershed elevation=dem.tif accumulation={out}")
+        self.assertTrue(
+            os.path.isdir(os.path.dirname(out)),
+            "run should create an output param's parent directory",
+        )
+
+
 class TestPipeline(unittest.TestCase):
     def test_load_op_save_threads_the_layer(self):
         backend, result = run("load roads.gpkg | buffer 100m | save out.gpkg")

@@ -2504,6 +2504,20 @@ class Engine:
                     # FORMULA="A*1.0" or "(A<0.2)*1"). Pass it through untouched.
                     items.append(_scalar(seg))
             else:
+                # A plain (non-glob) value. If it's a not-yet-existing file path — i.e. an
+                # OUTPUT destination like `OUTPUT=hydro/dem.tif` — create its parent dir so
+                # `run` writes into new folders just like `save` does (GDAL won't mkdir).
+                if has_sep and os.path.splitext(seg)[1] and not os.path.exists(seg):
+                    parent = os.path.dirname(
+                        seg if os.path.isabs(seg) else os.path.join(base, seg)
+                    )
+                    if parent and not os.path.isdir(parent):
+                        # Best-effort: a genuine output gets its folder; a bogus/unwritable
+                        # path (e.g. a nonexistent *input*) is left for the real write to error.
+                        try:
+                            os.makedirs(parent, exist_ok=True)
+                        except OSError:
+                            pass
                 items.append(_scalar(seg))
         if globbed or len(items) > 1:
             return items

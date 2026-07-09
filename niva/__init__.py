@@ -16,7 +16,7 @@ Pass ``backend=MockBackend()`` to exercise a flow with no QGIS at all.
 
 from __future__ import annotations
 
-__version__ = "0.62.2"
+__version__ = "0.62.3"
 
 from .describe import describe
 from .errors import FlowError, NivaError, OpError

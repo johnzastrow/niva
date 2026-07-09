@@ -9,6 +9,15 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 > [`plugin/metadata.txt`](plugin/metadata.txt) — keep only the **last three versions** there (drop
 > the oldest); that field is what the QGIS Plugin Manager shows. This file stays the full history.
 
+## [0.62.3] - 2026-07-08
+
+### Fixed
+- **`run` now creates an output's parent directory, like `save` does.** A destination in a new
+  folder — `run gdal:contour … OUTPUT=out/sub/contours.gpkg`, or a multi-output algorithm such as
+  `grass:r.watershed accumulation=hydro/accum.tif …` — failed because GDAL/QGIS won't `mkdir`. niva
+  now creates the parent of any not-yet-existing file-path value, so `run` writes into new
+  directory trees just like `save`.
+
 ## [0.62.2] - 2026-07-08
 
 ### Fixed
