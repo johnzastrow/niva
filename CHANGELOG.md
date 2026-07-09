@@ -9,6 +9,14 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 > [`plugin/metadata.txt`](plugin/metadata.txt) — keep only the **last three versions** there (drop
 > the oldest); that field is what the QGIS Plugin Manager shows. This file stays the full history.
 
+## [0.62.4] - 2026-07-08
+
+### Added
+- **`niva <file.niva>` runs a script without the `run` subcommand.** A lone `.niva`/`.flow`
+  argument is now executed as a file, so the common slip `niva flow.niva` works instead of failing
+  with `unknown verb `flow.niva``. Inline flows are unaffected (a flow never ends in `.niva`), and a
+  mistyped `niva nope.niva` gives a clear "no such file" rather than an unknown-verb error.
+
 ## [0.62.3] - 2026-07-08
 
 ### Fixed
