@@ -5,21 +5,25 @@ name=niva
 # back. See https://plugins.qgis.org/docs/migrate-qgis4 and docs/guide/qgis-plugin-publishing.md.
 qgisMinimumVersion=3.22
 qgisMaximumVersion=4.99
-description=Run niva flows — a concise text pipeline for QGIS geoprocessing — from a dock.
-version=0.63.0
+description=QGIS from the command line: write concise text-pipeline geoprocessing flows (no PyQGIS coding) and run them in a dock.
+version=0.63.1
 author=John Zastrow
 email=br8kwall@gmail.com
-about=niva is a concise, readable text-pipeline grammar for QGIS geoprocessing
-    (load … | buffer 100m dissolve | save …). This plugin adds a dock where you
-    write or open a .niva flow and run it in the current QGIS session; results land
-    on the map. niva is bundled with the plugin (zero-dependency, pure Python), so
-    there is no separate install step on Windows, macOS, or Linux. It runs in-process
-    on QGIS's own Python and Processing algorithms.
+about=QGIS from the command line. A concise, readable text-pipeline grammar for QGIS
+    geoprocessing (load … | buffer 100m dissolve | save …) that stands on PyQGIS, but for
+    people who don't write PyQGIS. Reach ~878 QGIS Processing algorithms through ~45 friendly
+    verbs (or `run` any algorithm by id), across vector, raster, point clouds and databases.
+    This plugin adds a dock where you write or open a .niva flow file and run it in the current
+    QGIS session; results land on the map. The same grammar also runs as a standalone
+    command-line tool and REPL (pip install qgis-niva). niva is bundled with the plugin
+    (zero-dependency, pure Python), so there is no separate install step on Windows, macOS, or
+    Linux. It runs in-process on QGIS's own Python and Processing algorithms and can run without
+    QGIS itself even running (batch jobs).
 tracker=https://github.com/johnzastrow/niva/issues
 repository=https://github.com/johnzastrow/niva
 homepage=https://github.com/johnzastrow/niva
 category=Plugins
-tags=processing,automation,workflow,pipeline,batch,vector,raster,analysis,geoprocessing,gdal,grass,pdal,scripting
+tags=command line,cli,pyqgis,terminal,no code,automation,geoprocessing,processing,pipeline,workflow,batch,scripting,vector,raster,point cloud,database,gdal,grass,pdal,analysis
 icon=icon.png
 experimental=True
 deprecated=False
@@ -28,7 +32,9 @@ deprecated=False
 # summary for the new version here, mirroring the top entry of ../CHANGELOG.md (the repo file
 # stays the full history; this field is just the highlights). Then DROP the oldest entry so the
 # field never holds more than three versions. Continuation lines MUST stay indented (like `about=`).
-changelog=0.63.0 — Added `niva setup command` (installs a real `niva` launcher on PATH; idempotent,
+changelog=0.63.1 — Plugin listing sharpened: description/about/tags now lead with "QGIS from the
+    command line" (adds CLI/PyQGIS/no-code/point-cloud/database keywords). No code change.
+    0.63.0 — Added `niva setup command` (installs a real `niva` launcher on PATH; idempotent,
     --dry-run/--remove). Windows editor integration: PowerShell installer (install.ps1), VS Code LSP now
     starts on Windows (shell-spawns python-qgis.bat + auto-writes niva.lsp.command), repainted Notepad++
     colours, and docs for bash (Git Bash/MSYS2) in Windows Terminal.
@@ -36,4 +42,3 @@ changelog=0.63.0 — Added `niva setup command` (installs a real `niva` launcher
     Fixed (0.62.1–0.62.3): $VAR/~ now expand in secondary layer/raster paths (clip, zonalstats raster=,
     spatialjoin with=); `run` creates output folders like `save` (multi-output algs like r.watershed);
     `validate` no longer false-warns on figure/map/catalog; `.dat` no longer misread as mesh.
-    0.61.1 — Fixed: `niva lsp` no longer dies on an unexpected editor message; the loop is resilient.

@@ -9,6 +9,14 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 > [`plugin/metadata.txt`](plugin/metadata.txt) — keep only the **last three versions** there (drop
 > the oldest); that field is what the QGIS Plugin Manager shows. This file stays the full history.
 
+## [0.63.1] - 2026-07-10
+
+### Changed
+- **Sharpened the QGIS plugin listing** (`plugin/metadata.txt`). The `description`, `about`, and
+  `tags` now lead with niva's identity — *"QGIS from the command line"* — and add command-line / CLI /
+  PyQGIS / no-code / point-cloud / database keywords for discoverability on plugins.qgis.org. No code
+  change; PyPI `qgis-niva` is bumped to 0.63.1 to stay in lockstep with the plugin.
+
 ## [0.63.0] - 2026-07-09
 
 ### Added
