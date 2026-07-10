@@ -211,3 +211,14 @@ info bogus=1
 
 # test_facet_pointcloud
 #   (pure Python — no niva flow)
+
+# ── TestSecondaryLayerPathExpansion ─────────────────────────────
+
+# test_clip_overlay_expands_env_var
+#   (pure Python — no niva flow)
+
+# test_clip_overlay_expands_tilde
+#   (pure Python — no niva flow)
+
+# test_zonalstats_raster_expands_env_var
+load a.gpkg | zonalstats raster=$NIVA_TEST_OUT/dem.tif stats=mean | save o.gpkg

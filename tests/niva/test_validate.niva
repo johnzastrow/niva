@@ -75,6 +75,12 @@ load i.tif | run otb:Smoothing type=mean | save o.tif
 # test_flow_with_no_save
 load a.gpkg | buffer 100m
 
+# test_terminal_output_verbs_need_no_save
+load dem.tif | figure out.png
+load roads.gpkg | map out.pdf title=Roads
+load a.gpkg | assess deep to q.md
+load a.gpkg | metadata set title=X | assess to q.md
+
 # test_distance_with_unit_is_clean
 load a.gpkg | buffer 100m | save b.gpkg
 

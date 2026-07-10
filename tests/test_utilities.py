@@ -648,7 +648,9 @@ class TestExpandPath(unittest.TestCase):
     def test_unset_var_left_as_is(self):
         from niva.utilities import expand_path
 
-        self.assertEqual(expand_path("$NIVA_DEFINITELY_UNSET/x"), "$NIVA_DEFINITELY_UNSET/x")
+        self.assertEqual(
+            expand_path("$NIVA_DEFINITELY_UNSET/x"), "$NIVA_DEFINITELY_UNSET/x"
+        )
 
     def test_facet_pointcloud(self):
         from niva.utilities import facet_for_ext
@@ -673,7 +675,9 @@ class TestSecondaryLayerPathExpansion(unittest.TestCase):
         return run[2]["OVERLAY"]
 
     def test_clip_overlay_expands_env_var(self):
-        self.assertEqual(self._clip_overlay("$NIVA_TEST_OUT/aoi.gpkg"), "/tmp/nivaout/aoi.gpkg")
+        self.assertEqual(
+            self._clip_overlay("$NIVA_TEST_OUT/aoi.gpkg"), "/tmp/nivaout/aoi.gpkg"
+        )
 
     def test_clip_overlay_expands_tilde(self):
         self.assertEqual(

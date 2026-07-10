@@ -44,12 +44,16 @@ class TestDetection(unittest.TestCase):
             proc = plugins / "marimo_launcher" / "ui" / "process.py"
             proc.parent.mkdir(parents=True)
             proc.write_text("class MarimoProcessManager:\n    pass\n", encoding="utf-8")
-            self.assertEqual(marimo._find_plugin_dir(plugins), plugins / "marimo_launcher")
+            self.assertEqual(
+                marimo._find_plugin_dir(plugins), plugins / "marimo_launcher"
+            )
 
     def test_is_installed(self):
         with (
             mock.patch.object(marimo, "_plugins_dir", return_value=Path("p")),
-            mock.patch.object(marimo, "_find_plugin_dir", return_value=Path("p/marimo_launcher")),
+            mock.patch.object(
+                marimo, "_find_plugin_dir", return_value=Path("p/marimo_launcher")
+            ),
         ):
             self.assertTrue(marimo.is_installed())
         with (
@@ -77,7 +81,9 @@ class TestDownloadRelease(unittest.TestCase):
     def test_downloads_to_dest(self):
         with tempfile.TemporaryDirectory() as d:
             dest = Path(d) / "marimo_launcher.zip"
-            with mock.patch("urllib.request.urlopen", side_effect=self._fake_urlopen(b"ZIPBYTES")):
+            with mock.patch(
+                "urllib.request.urlopen", side_effect=self._fake_urlopen(b"ZIPBYTES")
+            ):
                 err = marimo.download_release(dest)
             self.assertIsNone(err)
             self.assertEqual(dest.read_bytes(), b"ZIPBYTES")
@@ -96,7 +102,9 @@ class TestInstallFromZip(unittest.TestCase):
     def test_uses_qgis_plugin_installer(self):
         fake = types.ModuleType("pyplugin_installer")
         calls = {}
-        inst = types.SimpleNamespace(installFromZipFile=lambda p: calls.setdefault("path", p))
+        inst = types.SimpleNamespace(
+            installFromZipFile=lambda p: calls.setdefault("path", p)
+        )
         fake.instance = lambda: inst
         with mock.patch.dict(sys.modules, {"pyplugin_installer": fake}):
             ok = marimo.install_from_zip(Path("marimo_launcher.zip"))
@@ -131,7 +139,11 @@ class TestOrchestration(unittest.TestCase):
             mock.patch.object(marimo, "is_installed", return_value=True),
             mock.patch.object(marimo, "download_release") as dl,
             mock.patch.object(marimo, "install_from_zip") as inst,
-            mock.patch.object(marimo, "start_marimo_install", return_value=(True, "marimo installing.")),
+            mock.patch.object(
+                marimo,
+                "start_marimo_install",
+                return_value=(True, "marimo installing."),
+            ),
         ):
             res = marimo.install_marimo_qgis()
         self.assertTrue(res.ok)
@@ -144,7 +156,11 @@ class TestOrchestration(unittest.TestCase):
             mock.patch.object(marimo, "is_installed", return_value=False),
             mock.patch.object(marimo, "download_release", return_value=None) as dl,
             mock.patch.object(marimo, "install_from_zip", return_value=True) as inst,
-            mock.patch.object(marimo, "start_marimo_install", return_value=(True, "marimo installing.")) as start,
+            mock.patch.object(
+                marimo,
+                "start_marimo_install",
+                return_value=(True, "marimo installing."),
+            ) as start,
         ):
             res = marimo.install_marimo_qgis()
         self.assertTrue(res.ok)

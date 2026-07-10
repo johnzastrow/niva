@@ -55,7 +55,9 @@ def _find_plugin_dir(plugins_dir: Path) -> Optional[Path]:
         return None
     for proc in plugins_dir.glob("*/ui/process.py"):
         try:
-            if "MarimoProcessManager" in proc.read_text(encoding="utf-8", errors="ignore"):
+            if "MarimoProcessManager" in proc.read_text(
+                encoding="utf-8", errors="ignore"
+            ):
                 return proc.parent.parent  # the plugin root
         except OSError:
             continue
@@ -71,7 +73,9 @@ def _call_install_marimo(plugins_dir: Path, plugin_dir: Path) -> tuple[bool, str
         if str(plugins_dir) not in sys.path:
             sys.path.insert(0, str(plugins_dir))
         mod = importlib.import_module(f"{plugin_dir.name}.ui.process")
-        record = mod.MarimoProcessManager().install_marimo()  # async: installs in the background
+        record = (
+            mod.MarimoProcessManager().install_marimo()
+        )  # async: installs in the background
         log = record.get("log") if isinstance(record, dict) else None
         msg = "marimo is installing in the background"
         return True, (f"{msg} (log: {log})." if log else f"{msg}.")
@@ -94,7 +98,9 @@ def preflight() -> Optional[StepResult]:
     QGIS < 4.0, or no plugins dir), else ``None``."""
     ver = _qgis_version_int()
     if ver is None:
-        return StepResult(ok=False, changed=False, message="Marimo integration must run inside QGIS.")
+        return StepResult(
+            ok=False, changed=False, message="Marimo integration must run inside QGIS."
+        )
     if ver < MIN_QGIS_INT:
         return StepResult(
             ok=False,
@@ -102,7 +108,9 @@ def preflight() -> Optional[StepResult]:
             message=f"marimo-qgis requires QGIS 4.0+ (this is {ver // 10000}.{(ver // 100) % 100}).",
         )
     if _plugins_dir() is None:
-        return StepResult(ok=False, changed=False, message="Couldn't locate the QGIS plugins folder.")
+        return StepResult(
+            ok=False, changed=False, message="Couldn't locate the QGIS plugins folder."
+        )
     return None
 
 

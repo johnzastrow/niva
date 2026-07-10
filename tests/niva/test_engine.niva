@@ -13,6 +13,11 @@
 # test_save_makes_nested_parent
 load roads.gpkg | buffer 100m | save "{dest}"
 
+# ── TestRunCreatesOutputParentDir ───────────────────────────────
+
+# test_run_output_makes_nested_parent
+run grass:r.watershed elevation=dem.tif accumulation={out}
+
 # ── TestPipeline ────────────────────────────────────────────────
 
 # test_load_op_save_threads_the_layer

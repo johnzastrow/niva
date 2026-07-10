@@ -125,6 +125,15 @@ def fake_pathstore(tmpdir):
                 ),
             )
         )
+        es.enter_context(
+            mock.patch.object(
+                pathenv,
+                "_remove_posix_rc",
+                side_effect=lambda dcy: store.__setitem__(
+                    "path", pathenv.path_remove(store["path"], str(dcy))[0]
+                ),
+            )
+        )
         es.enter_context(mock.patch.object(pathenv, "broadcast_env_change"))
         yield store, target
 
@@ -163,6 +172,28 @@ class TestOrchestration(unittest.TestCase):
             self.assertTrue(res3.ok and res3.changed)
             self.assertFalse(target.exists())
             self.assertFalse(pathenv.is_on_path(store["path"], target.parent))
+
+
+class TestPosixRc(unittest.TestCase):
+    def test_append_then_remove_roundtrip(self):
+        # Against a temp rc (never the real ~/.bashrc). Verifies --remove actually cleans POSIX PATH.
+        with tempfile.TemporaryDirectory() as d:
+            rc = Path(d) / ".bashrc"
+            rc.write_text("export FOO=1\n", encoding="utf-8")
+            marker = "# added by `niva setup command`"
+            bindir = Path("/opt/niva/bin")
+            # Assert on the marker + `:$PATH` sentinel, not the dir string — Path() renders with
+            # backslashes on Windows, but removal keys on the marker, so this stays OS-independent.
+            with mock.patch.object(pathenv, "_rc_marker", return_value=(rc, marker)):
+                pathenv._append_posix_rc(bindir)
+                after_add = rc.read_text(encoding="utf-8")
+                self.assertIn(marker, after_add)
+                self.assertIn(":$PATH", after_add)  # our export line was added
+                pathenv._remove_posix_rc(bindir)
+            txt = rc.read_text(encoding="utf-8")
+            self.assertNotIn(marker, txt)
+            self.assertNotIn(":$PATH", txt)  # our export line removed
+            self.assertIn("export FOO=1", txt)  # unrelated content untouched
 
 
 if __name__ == "__main__":

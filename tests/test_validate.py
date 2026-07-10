@@ -183,9 +183,7 @@ class TestLintWarnings(unittest.TestCase):
             "load a.gpkg | metadata set title=X | assess to q.md",
         ):
             with self.subTest(flow=flow):
-                self.assertNotIn(
-                    "no `save`", " ".join(warnings(flow)), flow
-                )
+                self.assertNotIn("no `save`", " ".join(warnings(flow)), flow)
 
     def test_distance_with_unit_is_clean(self):
         self.assertNotIn(

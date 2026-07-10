@@ -279,7 +279,9 @@ class NivaDock(QDockWidget):
         )
         mk.clicked.connect(self._install_niva_command)
         rm = QPushButton("Remove", tab)
-        rm.setToolTip("Remove the `niva` launcher and take its folder back off your PATH.")
+        rm.setToolTip(
+            "Remove the `niva` launcher and take its folder back off your PATH."
+        )
         rm.clicked.connect(self._uninstall_niva_command)
         for b in (mk, rm):
             crow.addWidget(b)
@@ -372,11 +374,17 @@ class NivaDock(QDockWidget):
         self.marimo_btn.setEnabled(True)
         if not ok:
             self._set_install_status(
-                "marimo-qgis download failed: " + (task.download_error or "unknown error"), False
+                "marimo-qgis download failed: "
+                + (task.download_error or "unknown error"),
+                False,
             )
             return
         # main thread: install via QGIS's own installer (registered + uninstallable), then start marimo
-        if task.needed_download and task.zip_path and not marimo.install_from_zip(task.zip_path):
+        if (
+            task.needed_download
+            and task.zip_path
+            and not marimo.install_from_zip(task.zip_path)
+        ):
             self._set_install_status(
                 "QGIS couldn't install the marimo-qgis zip; install it manually from the repo's Releases.",
                 False,

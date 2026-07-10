@@ -149,9 +149,11 @@ def remove_from_path(directory: Path) -> tuple[bool, str]:
     """Remove *directory* from the persisted user PATH. Returns ``(changed, prior_value)``."""
     prior = read_user_path()
     new_value, changed = path_remove(prior, str(directory))
-    if changed and IS_WINDOWS:
-        _write_user_path_windows(new_value)
-    # POSIX rc edits are left to _append_posix_rc's marker block; removal there is best-effort.
+    if changed:
+        if IS_WINDOWS:
+            _write_user_path_windows(new_value)
+        else:
+            _remove_posix_rc(directory)
     return changed, prior
 
 
@@ -169,6 +171,25 @@ def _append_posix_rc(directory: Path) -> None:
         return
     with rc.open("a", encoding="utf-8") as fh:
         fh.write(("\n" if existing and not existing.endswith("\n") else "") + line)
+
+
+def _remove_posix_rc(directory: Path) -> None:
+    """Strip the marker block (`# added by …` + its `export PATH=…` line) that
+    :func:`_append_posix_rc` wrote, so ``--remove`` actually cleans PATH on POSIX too."""
+    rc, marker = _rc_marker()
+    if not rc.exists():
+        return
+    lines = rc.read_text(encoding="utf-8").splitlines(keepends=True)
+    out, skip_next = [], False
+    for ln in lines:
+        if marker in ln:  # drop the marker line and the export line right after it
+            skip_next = True
+            continue
+        if skip_next:
+            skip_next = False
+            continue
+        out.append(ln)
+    rc.write_text("".join(out), encoding="utf-8")
 
 
 def broadcast_env_change() -> None:
