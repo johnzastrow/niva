@@ -29,6 +29,7 @@ from qgis.PyQt.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
+    QMessageBox,
     QPlainTextEdit,
     QPushButton,
     QSpinBox,
@@ -37,6 +38,9 @@ from qgis.PyQt.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+
+from niva.credentials import NTFY_AUTHCFG_KEY as _NTFY_AUTHCFG_KEY
+from niva.credentials import SMTP_AUTHCFG_KEY as _SMTP_AUTHCFG_KEY
 
 from . import environment, runner
 
@@ -53,6 +57,14 @@ try:
     _PW_ECHO = QLineEdit.EchoMode.Password
 except AttributeError:  # pragma: no cover — Qt5 path
     _PW_ECHO = QLineEdit.Password
+
+# QMessageBox buttons: Qt6 scopes the enum, Qt5 exposes it flat.
+try:
+    _MB_YES = QMessageBox.StandardButton.Yes
+    _MB_NO = QMessageBox.StandardButton.No
+except AttributeError:  # pragma: no cover — Qt5 path
+    _MB_YES = QMessageBox.Yes
+    _MB_NO = QMessageBox.No
 
 # The environment the `email` / `notify` verbs read (niva.utilities). Each row is
 # (env var, label, secret?, placeholder, detailed tooltip). Non-secret values are
@@ -127,10 +139,9 @@ _ENV_FIELDS = [
     ),
 ]
 _ENV_SETTINGS_PREFIX = "niva/env/"
-# QgsAuthManager config IDs for the persisted secrets (the secrets live encrypted in
-# QGIS's auth DB; only these non-secret IDs are kept in QgsSettings).
-_SMTP_AUTHCFG_KEY = "niva/smtp_authcfg"
-_NTFY_AUTHCFG_KEY = "niva/ntfy_authcfg"
+# QgsAuthManager config IDs for the persisted secrets (the secrets live encrypted in QGIS's auth
+# DB; only these non-secret IDs are kept in QgsSettings). Keys are imported from niva.credentials at
+# the top of this file — the single source of truth the CLI/repl/TUI also read from.
 
 
 def default_log_dir() -> str:
@@ -236,11 +247,144 @@ class NivaDock(QDockWidget):
         self.tabs.addTab(self._build_flow_tab(), "Flow")
         self.tabs.addTab(self._build_convert_tab(), "Convert")
         self.tabs.addTab(self._build_setup_tab(), "Setup")
+        self.tabs.addTab(self._build_install_tab(), "Install")
         self.setWidget(self.tabs)
 
         # Syntax colouring for the editor + the saved font size (issue #35).
         self._highlighter = NivaHighlighter(self.editor.document())
         self._apply_font_size()
+
+    def _build_install_tab(self) -> QWidget:
+        """One-click setup: make `niva` a real command everywhere, and get the optional marimo
+        notebook environment. Backed by niva.setup (planning doc 21)."""
+        tab = QWidget(self)
+        layout = QVBoxLayout(tab)
+
+        hdr = QLabel(
+            'Make <a href="https://github.com/johnzastrow/niva">niva</a> a command-line tool.<br>'
+            "Writes a small <code>niva</code> launcher (pointing at QGIS's Python) and adds it to "
+            "your per-user PATH, so <code>niva</code> works in every terminal <i>and</i> editor — "
+            "no per-shell profile functions. Reversible; no admin needed.",
+            tab,
+        )
+        hdr.setWordWrap(True)
+        hdr.setOpenExternalLinks(True)  # make the niva link clickable
+        layout.addWidget(hdr)
+
+        crow = QHBoxLayout()
+        mk = QPushButton("Create niva command", tab)
+        mk.setToolTip(
+            "Create the `niva` launcher and add its folder to your per-user PATH. Then `niva` "
+            "works in PowerShell, cmd, Git Bash, VS Code, etc. Open a new terminal afterwards."
+        )
+        mk.clicked.connect(self._install_niva_command)
+        rm = QPushButton("Remove", tab)
+        rm.setToolTip("Remove the `niva` launcher and take its folder back off your PATH.")
+        rm.clicked.connect(self._uninstall_niva_command)
+        for b in (mk, rm):
+            crow.addWidget(b)
+        crow.addStretch(1)
+        layout.addLayout(crow)
+
+        mhdr = QLabel(
+            "<hr><b>Notebooks &mdash; marimo (optional)</b><br>"
+            '<a href="https://marimo.io">marimo</a> is a reactive Python notebook (like Jupyter, but '
+            "cells re-run automatically). This installs the <i>marimo Launcher</i> plugin and starts "
+            "marimo's install (run by that plugin, not niva), giving you notebooks on QGIS's Python "
+            "with a live map bridge. <b>Requires QGIS 4.0+</b> and a larger dependency set than niva.",
+            tab,
+        )
+        mhdr.setWordWrap(True)
+        mhdr.setOpenExternalLinks(True)  # make the marimo.io links clickable
+        layout.addWidget(mhdr)
+
+        mrow = QHBoxLayout()
+        self.marimo_btn = QPushButton("Install Marimo QGIS", tab)
+        self.marimo_btn.setToolTip(
+            "Install the marimo-qgis plugin (via QGIS's plugin installer, so it's uninstallable "
+            "like any plugin) and start marimo's install. The download runs in the background."
+        )
+        self.marimo_btn.clicked.connect(self._install_marimo)
+        mrow.addWidget(self.marimo_btn)
+        mrow.addStretch(1)
+        layout.addLayout(mrow)
+
+        self.install_status = QLabel("", tab)
+        self.install_status.setWordWrap(True)
+        layout.addWidget(self.install_status)
+        layout.addStretch(1)
+        return tab
+
+    def _set_install_status(self, msg: str, ok: bool = True) -> None:
+        self.install_status.setText(msg)
+        try:
+            from qgis.core import Qgis, QgsMessageLog
+
+            QgsMessageLog.logMessage(msg, "niva", Qgis.Info if ok else Qgis.Warning)
+        except Exception:  # noqa: BLE001 — status is best-effort
+            pass
+
+    def _confirm(self, title: str, text: str) -> bool:
+        return QMessageBox.question(self, title, text, _MB_YES | _MB_NO) == _MB_YES
+
+    def _install_niva_command(self) -> None:
+        from niva import setup
+
+        preview = setup.install_command(dry_run=True)
+        if not self._confirm("Create niva command", preview.message + "\n\nContinue?"):
+            return
+        res = setup.install_command()
+        self._set_install_status(res.message, res.ok)
+
+    def _uninstall_niva_command(self) -> None:
+        from niva import setup
+
+        res = setup.uninstall_command()
+        self._set_install_status(res.message, res.ok)
+
+    def _install_marimo(self) -> None:
+        from niva.setup import marimo
+
+        block = marimo.preflight()  # QGIS < 4.0, not in QGIS, …
+        if block:
+            self._set_install_status(block.message, False)
+            return
+        preview = marimo.install_marimo_qgis(dry_run=True).message
+        if not self._confirm("Install Marimo QGIS", preview + "\n\nContinue?"):
+            return
+        # Download (the slow step) runs on a worker thread; the QGIS-side install happens on the
+        # main thread in _marimo_finished so the dock stays responsive.
+        from qgis.core import QgsApplication
+
+        from .flowtask import MarimoInstallTask
+
+        self._set_install_status("Downloading marimo-qgis in the background…")
+        self.marimo_btn.setEnabled(False)
+        task = MarimoInstallTask()
+        task.taskCompleted.connect(lambda: self._marimo_finished(task, True))
+        task.taskTerminated.connect(lambda: self._marimo_finished(task, False))
+        self._marimo_task = task  # keep a reference alive
+        QgsApplication.taskManager().addTask(task)
+
+    def _marimo_finished(self, task, ok: bool) -> None:
+        from niva.setup import marimo
+
+        self.marimo_btn.setEnabled(True)
+        if not ok:
+            self._set_install_status(
+                "marimo-qgis download failed: " + (task.download_error or "unknown error"), False
+            )
+            return
+        # main thread: install via QGIS's own installer (registered + uninstallable), then start marimo
+        if task.needed_download and task.zip_path and not marimo.install_from_zip(task.zip_path):
+            self._set_install_status(
+                "QGIS couldn't install the marimo-qgis zip; install it manually from the repo's Releases.",
+                False,
+            )
+            return
+        okm, msg = marimo.start_marimo_install()
+        tail = " Open the marimo Launcher dock (Browse / Running)." if okm else ""
+        self._set_install_status(msg + tail, okm)
 
     def _build_flow_tab(self) -> QWidget:
         tab = QWidget(self)

@@ -264,6 +264,31 @@ only outbound features are **opt-in**: `notify` (ntfy), `email` (SMTP), and any 
 is itself online (e.g. a geocoder you call via `run`). Their credentials come **only** from
 the environment, never from flow text.
 
+## Can I use niva with marimo notebooks? What are the caveats?
+
+Eventually, yes — there's a sibling project, [marimo-qgis](https://github.com/johnzastrow/marimo-qgis),
+that runs reactive [marimo](https://marimo.io) notebooks on QGIS's own Python, and niva's
+`niva.flow("…")` Python API already drops straight into a notebook cell. It's a promising pairing:
+marimo as the interactive workbench, niva as the concise geoprocessing grammar inside it.
+
+But be clear-eyed about the trade-offs, because they're the opposite of niva's own design:
+
+- **niva is zero-dependency; marimo is not.** marimo pulls a substantial dependency tree
+  (a web server stack, code-intelligence libraries, and more). Installing it into QGIS's **shared**
+  Python can conflict with versions QGIS bundles and, in the worst case, disturb your QGIS install.
+  This is the very thing niva's stdlib-only design avoids.
+- **It runs a local web server.** marimo serves notebooks over `localhost`, and marimo-qgis adds a
+  local HTTP bridge between the notebook and your running QGIS. That's a larger surface than niva's
+  fully-local, no-network core — and notebooks execute arbitrary Python by design.
+- **Narrower support.** marimo-qgis requires **QGIS 4.0+** (niva itself supports 3.22+), and its
+  macOS support is untested at time of writing.
+
+Because of that, niva keeps marimo strictly **optional and at arm's length**: niva core never
+depends on marimo, niva never installs marimo for you, and if/when a plugin button is added it will
+only *install the marimo-qgis plugin* — marimo itself is then installed by that plugin, on your
+separate, explicit consent. Design details and the security analysis are in
+[planning doc 21](../planning/21-install-and-onboarding-design.md).
+
 ## How do I get the whole guide as one document?
 
 Build a single PDF of this guide (and the full algorithm appendix) with:

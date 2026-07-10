@@ -56,8 +56,8 @@ bash .vscode/niva/install.sh    # packages a .vsix and installs it via the `code
 
 then reload the window. (Manual install: `cd .vscode/niva && npm install && npx @vscode/vsce
 package`, then Extensions ⇒ ⋯ ⇒ *Install from VSIX…*.) If the `niva` on VS Code's PATH isn't the
-one you want, set **`niva.lsp.command`** in Settings to an absolute path. See the extension's
-[README](../../.vscode/niva/README.md). **Kate / KWrite**: `bash .vscode/niva/install.sh` writes the
+one you want, set **`niva.lsp.command`** in Settings to an absolute path (and **`niva.lsp.args`** to
+match). See the extension's [README](../../.vscode/niva/README.md). **Kate / KWrite**: `bash .vscode/niva/install.sh` writes the
 LSP server config for you (`~/.config/kate/lspclient/settings.json`); then enable it once via
 *Settings → Configure Kate → Plugins → "LSP Client"* and reopen a `.niva` file. (Manual equivalent:
 add `{"servers":{"niva":{"command":["niva","lsp"],"highlightingModeRegex":"^niva$"}}}` under
@@ -65,8 +65,24 @@ add `{"servers":{"niva":{"command":["niva","lsp"],"highlightingModeRegex":"^niva
 
 > Make sure the `niva` command on your `PATH` is the one you installed (see the [Quick
 > start](quickstart.md)); `niva lsp` uses that interpreter's niva.
+>
+> **Windows (Git Bash users):** the `niva()` function you added to `~/.bashrc` (see the [Quick
+> start](quickstart.md#make-niva-a-terminal-command)) is a *shell* function — a GUI editor that
+> spawns `niva lsp` never sees it. Give the editor a real command instead. Either **(a)**
+> `pip install qgis-niva` into QGIS's Python so a `niva.exe` lands on `PATH`, or **(b)** point the
+> LSP client straight at QGIS's Python. In VS Code, set:
+>
+> ```jsonc
+> // settings.json — runs the server through QGIS's own Python
+> "niva.lsp.command": "C:\\OSGeo4W\\bin\\python-qgis.bat",
+> "niva.lsp.args": ["-m", "niva.cli.main", "lsp"]
+> ```
+>
+> (Standalone installer? Use its `...\\bin\\python-qgis.bat`. Running from a git clone rather than a
+> pip install? Add the repo to the environment — set `PYTHONPATH` to the repo root in the editor's
+> integrated-terminal/env, or just `pip install qgis-niva` to avoid the issue.)
 
-## One command (Linux / macOS)
+## One command (Linux / macOS / Windows Git Bash)
 
 ```bash
 bash .vscode/niva/install.sh
@@ -74,7 +90,31 @@ bash .vscode/niva/install.sh
 
 Idempotent, per-user, no root. It detects VS Code/VSCodium, Vim/Neovim, nano, the GtkSourceView
 family (Mousepad, gedit, …), and Kate, and installs into each. Restart your editor afterward.
-Windows and a few editors are manual — see below.
+
+**On Windows**, run it from **Git Bash / MSYS2** (the same bash you use in Windows Terminal) — the
+script drives the `code` CLI, so it installs the VS Code extension **with** the language server as
+long as `code` and `npm` are on your `PATH` (they are if you enabled *"Add to PATH"* when installing
+VS Code / Node). The Linux-only branches (GtkSourceView, Kate) simply no-op.
+
+**No bash on Windows?** Use the PowerShell port instead — same idea, native paths:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .vscode\niva\install.ps1
+```
+
+It installs the **VS Code** extension + language server (needs `code` and `npm` on `PATH`), sets up
+**Vim** (`%USERPROFILE%\vimfiles`) and **Neovim** (`%LOCALAPPDATA%\nvim`) if present, and — a Windows
+bonus the bash script can't do — drops the **Notepad++** User Defined Language straight into
+`%APPDATA%\Notepad++\userDefineLangs\` so it auto-loads with no manual *Import…* step. The
+`-ExecutionPolicy Bypass` runs it for that one call without changing your machine's policy.
+
+It also **auto-points the VS Code language server at QGIS's Python**: since a bare `niva` isn't on
+Windows `PATH`, the script finds your `python-qgis.bat` (OSGeo4W or a *Program Files* QGIS) and sets
+`niva.lsp.command` / `niva.lsp.args` for you. If a VS Code `settings.json` already exists it isn't
+rewritten — the script prints the two lines to paste, preserving your file. (This is why VS Code
+"couldn't find niva/python": the extension spawns `niva lsp`, which needs to resolve to QGIS's
+Python — see the [language-server note](#language-server--niva-lsp-real-completion-diagnostics-hover)
+above.)
 
 ## Coverage at a glance
 
@@ -166,8 +206,10 @@ Restart Kate — it indexes that folder at startup. (Older KDE: `~/.local/share/
 
 ## Notepad++ (Windows)
 
-**Language → User Defined Language → Define your language… → Import…** and choose
-`.vscode\niva\npp\niva.udl.xml`. Restart Notepad++.
+Easiest — let the PowerShell installer place it: `powershell -ExecutionPolicy Bypass -File
+.vscode\niva\install.ps1` copies the UDL into `%APPDATA%\Notepad++\userDefineLangs\`, which
+Notepad++ auto-loads. Or do it by hand: **Language → User Defined Language → Define your language…
+→ Import…** and choose `.vscode\niva\npp\niva.udl.xml`. Either way, restart Notepad++.
 
 ## GitHub
 

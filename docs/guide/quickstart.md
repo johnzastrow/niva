@@ -131,7 +131,7 @@ alias niva='QT_QPA_PLATFORM=offscreen /Applications/QGIS.app/Contents/MacOS/bin/
 # running from a clone? add the repo: PYTHONPATH=/path/to/niva /Applications/QGIS.app/Contents/MacOS/bin/python3 -m niva.cli.main
 ```
 
-**Windows (Windows Terminal / PowerShell) — add to `$PROFILE`** (open it with `notepad $PROFILE`),
+**Windows · PowerShell (Windows Terminal) — add to `$PROFILE`** (open it with `notepad $PROFILE`),
 then reload with `. $PROFILE`:
 
 ```powershell
@@ -142,9 +142,35 @@ function niva {
 # standalone installer instead of OSGeo4W? use e.g. 'C:\Program Files\QGIS 3.40\bin\python-qgis.bat'.
 ```
 
-`python-qgis.bat` sets up the QGIS environment itself, so no `PYTHONPATH` is needed on Windows.
-After reloading your profile, `niva run myflow.niva` works from any terminal. More detail
-(finding QGIS's Python, troubleshooting) is in the **[User Guide](user-guide.md)**.
+**Windows · Git Bash / MSYS2 (Windows Terminal) — add to `~/.bashrc`**, then reload with
+`source ~/.bashrc`. Prefer bash over PowerShell in Windows Terminal? Use this instead. Call the
+same `python-qgis.bat` — Git Bash runs Windows `.bat` files directly; quote the path with forward
+slashes (`/c/...`):
+
+```bash
+niva() {
+  QT_QPA_PLATFORM=offscreen "/c/OSGeo4W/bin/python-qgis.bat" -m niva.cli.main "$@"
+}
+# standalone installer instead of OSGeo4W? use e.g. "/c/Program Files/QGIS 3.40/bin/python-qgis.bat".
+# running from a git clone (no pip install)? add the repo to PYTHONPATH as a *Windows* path so
+# MSYS doesn't rewrite it — put it before the `"/c/OSGeo4W/...` on the line above:
+#   QT_QPA_PLATFORM=offscreen PYTHONPATH='C:\Users\me\Github\niva' "/c/OSGeo4W/bin/python-qgis.bat" -m niva.cli.main "$@"
+```
+
+The **OSGeo4W Shell** (Start menu → *OSGeo4W Shell*) already has QGIS's Python on `PATH`, so there
+you can `pip install qgis-niva` and just call `niva` — or run `python-qgis -m niva.cli.main` — with
+no function needed.
+
+`python-qgis.bat` sets up the QGIS environment itself, so no `PYTHONPATH` is needed on Windows
+(except the git-clone case noted above). After reloading your profile, `niva run myflow.niva` works
+from any terminal — verify with `niva info` (it should report the QGIS providers, not
+`Backend: mock`). More detail (finding QGIS's Python, troubleshooting) is in the
+**[User Guide](user-guide.md)**.
+
+> **Git Bash path-rewriting gotcha:** MSYS auto-translates arguments that look like Unix paths when
+> handing them to a Windows `.bat`. That usually helps (`/c/data/x.gpkg` → `C:\data\x.gpkg`), but if
+> an argument ever gets mangled, prefix the call with `MSYS_NO_PATHCONV=1` to turn translation off
+> for that command.
 
 Then run flows from the shell or Python:
 

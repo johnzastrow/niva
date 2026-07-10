@@ -44,6 +44,28 @@ here was run for real.
 To run everything below from a clean checkout:
 - **git** + **[`gh`](https://cli.github.com/)** authenticated (`gh auth status`) for tagging/releases.
 - **`zip`** and a POSIX shell (Linux/macOS, or Git-Bash/WSL/OSGeo4W shell on Windows).
+  - **⚠ Git Bash for Windows does NOT bundle `zip`** — `build_plugin.sh` dies with `zip: command not
+    found`. Either run the build from **WSL** / the **OSGeo4W shell**, or use a **stdlib `zipfile`
+    fallback** that stages + self-verifies identically (no external `zip`):
+    ```python
+    # build via python; TOP must differ from any vendored package name (niva_qgis, not niva)
+    import os, zipfile
+    TOP, out = "niva_qgis", "plugin/niva_qgis.zip"
+    with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
+        for f in ["__init__.py","plugin.py","dock.py","runner.py","flowtask.py","environment.py",
+                  "metadata.txt","icon.svg","icon.png","README.md"]:
+            z.write(f"plugin/{f}", f"{TOP}/{f}")
+        z.write("LICENSE", f"{TOP}/LICENSE")
+        for dp,dns,fns in os.walk("niva"):
+            dns[:] = [d for d in dns if d != "__pycache__"]          # skip caches
+            for fn in fns:
+                if not fn.endswith((".pyc",".pyo")):
+                    rel = os.path.relpath(os.path.join(dp,fn), "niva").replace(os.sep, "/")
+                    z.write(os.path.join(dp,fn), f"{TOP}/libs/niva/{rel}")
+    names = zipfile.ZipFile(out).namelist()
+    assert {n.split('/',1)[0] for n in names} == {TOP}, "must be one top folder"
+    assert not [n for n in names if "__pycache__" in n or n.endswith(".pyc")], "junk in zip"
+    ```
 - **[`uv`](https://docs.astral.sh/uv/)** — runs the linters/scanners in throwaway envs, no global installs
   (`uv run --no-project --with <tool> …`). Nothing else to `pip install`.
 - **A real QGIS** to smoke-test the zip. Only need **QGIS's Python / `pyrcc5`** if the plugin still uses
@@ -213,6 +235,7 @@ uv run --no-project --with flake8 flake8 .
 | **B608** SQL injection | An identifier (table/column) is f-string-interpolated into SQL (params `?` can't bind identifiers) | Validate against a strict allowlist: `re.match(r'^[A-Za-z_][A-Za-z0-9_]*$', name)`; then `# nosec B608 - validated identifier` |
 | **B314 / B405** XXE | `xml.etree.ElementTree.parse` on untrusted XML | Use `defusedxml`, **or** if it's only local user-selected files (no external entities): `# nosec B314 - local sidecar, no external entities` |
 | **B404 / B603 / B607** subprocess | Shelling out (e.g. `df` for a mount point) with a partial path | Best: remove it. The Unix mount point is pure-Python: walk up with `os.path.ismount()`. Else `# nosec` with justification |
+| **B310** urlopen scheme | `urllib.request.urlopen(url)` — bandit can't prove `url` isn't `file:`/custom | If the URL is a **fixed `https://…` constant** (e.g. a pinned GitHub release), it's a reviewed non-issue: `# nosec B310 - fixed https URL`. If the URL is user/config-derived, validate the scheme is `https` first. (Ruff's equivalent is `S310`; a line can carry both: `# noqa: S310  # nosec B310`.) Note QGIS's guideline (§10) prefers `QgsNetworkAccessManager` over `urllib` — a zero-dependency plugin may justify `urllib` in the `about`/review, but reviewers do look for it. |
 | **B110** try/except/pass | Silently swallowed exceptions | Low severity (rarely blocks). Prefer logging the exception; at minimum use `except Exception:` not bare `except:` |
 | **Secret: "Hex High Entropy String" in `.ruff_cache/CACHEDIR.TAG`** | A **false positive** — the ruff cache's magic signature | `.gitignore` the cache (`.ruff_cache/`, `__pycache__/`) and `rm -rf .ruff_cache` before scanning |
 

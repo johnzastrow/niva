@@ -2,7 +2,7 @@
   "name": "niva",
   "displayName": "niva",
   "description": "Syntax highlighting + language server (completion, diagnostics, hover) for niva geoprocessing flows",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "publisher": "niva",
   "license": "GPL-3.0-or-later",
   "repository": { "type": "git", "url": "https://github.com/johnzastrow/niva" },

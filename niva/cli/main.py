@@ -38,7 +38,7 @@ _USAGE = (
     "       niva manifest [to=<file>]                 (machine-readable verb catalog, JSON)\n"
     "       niva search <keyword> [limit=N] [--json]  (fuzzy + synonym-aware discovery, offline)\n"
     "       niva find [glob] [in <dir>…] [--geom …] [--crs …] [--json|--as-flow|--paths|-0]  (discover data)\n"
-    "       niva setup [doctor|wizard|show|init|path|get <k>|set <k> <v>|unset <k>]  (doctor: health check; wizard: guided config)\n"
+    "       niva setup [doctor|wizard|show|init|path|command|get <k>|set <k> <v>|unset <k>]  (doctor: health check; command: install the `niva` launcher on PATH)\n"
     "       niva describe <verb-or-algorithm-id>\n"
     "       niva repl                                  (interactive authoring; Tab completion with the [cli] extra)\n"
     "       niva lsp                                   (Language Server over stdio: completion/diagnostics/hover in your editor)\n"
@@ -107,7 +107,7 @@ def main(argv=None) -> int:
     if argv[0] == "manifest":
         return _manifest(argv[1:])
     if argv[0] == "setup":
-        return _setup(argv[1:])
+        return _setup(argv[1:], dry_run=(mode == "dry-run"))
     if argv[0] == "repl":
         from .repl import run as _repl
 
@@ -751,10 +751,11 @@ def _explain(args) -> int:
     return 0
 
 
-def _setup(args) -> int:
-    """`niva setup [show|init|path|get <key>|set <key> <value>|unset <key>]` — view/edit
+def _setup(args, dry_run: bool = False) -> int:
+    """`niva setup [show|init|path|command|get <key>|set <key> <value>|unset <key>]` — view/edit
     niva's portable config file **without QGIS** (issue #36); `init` writes a commented
-    sample. Secrets stay in the environment."""
+    sample; `command` installs the `niva` launcher on PATH. Secrets stay in the environment.
+    `dry_run` is threaded from the global `--dry-run` flag (which `main()` strips before dispatch)."""
     from .. import color
     from .. import config as cfg
 
@@ -843,8 +844,22 @@ def _setup(args) -> int:
         print(f"niva: unset {rest[0]}", file=sys.stderr)
         return 0
 
+    if action == "command":
+        # `niva setup command [--remove] [--dry-run]` — install/remove the real `niva` launcher on
+        # PATH so `niva` works in every shell and GUI (planning doc 21). Uses the setup-core.
+        from ..setup import install_command, uninstall_command
+
+        dry = dry_run or "--dry-run" in rest
+        fn = uninstall_command if "--remove" in rest else install_command
+        res = fn(dry_run=dry)
+        print(res.message)
+        if res.undo_hint and not dry and res.changed:
+            print(color.paint(f"  undo: {res.undo_hint}", "dim"))
+        return 0 if res.ok else 1
+
     print(
-        "usage: niva setup [doctor | wizard | show | init | path | get <key> | set <key> <value> | unset <key>]",
+        "usage: niva setup [doctor | wizard | show | init | path | command | "
+        "get <key> | set <key> <value> | unset <key>]",
         file=sys.stderr,
     )
     return 2

@@ -6,7 +6,7 @@ name=niva
 qgisMinimumVersion=3.22
 qgisMaximumVersion=4.99
 description=Run niva flows — a concise text pipeline for QGIS geoprocessing — from a dock.
-version=0.62.4
+version=0.63.0
 author=John Zastrow
 email=br8kwall@gmail.com
 about=niva is a concise, readable text-pipeline grammar for QGIS geoprocessing
@@ -28,11 +28,12 @@ deprecated=False
 # summary for the new version here, mirroring the top entry of ../CHANGELOG.md (the repo file
 # stays the full history; this field is just the highlights). Then DROP the oldest entry so the
 # field never holds more than three versions. Continuation lines MUST stay indented (like `about=`).
-changelog=0.62.4 — Added: `niva flow.niva` runs a file without the `run` subcommand.
+changelog=0.63.0 — Added `niva setup command` (installs a real `niva` launcher on PATH; idempotent,
+    --dry-run/--remove). Windows editor integration: PowerShell installer (install.ps1), VS Code LSP now
+    starts on Windows (shell-spawns python-qgis.bat + auto-writes niva.lsp.command), repainted Notepad++
+    colours, and docs for bash (Git Bash/MSYS2) in Windows Terminal.
+    0.62.4 — Added: `niva flow.niva` runs a file without the `run` subcommand.
     Fixed (0.62.1–0.62.3): $VAR/~ now expand in secondary layer/raster paths (clip, zonalstats raster=,
     spatialjoin with=); `run` creates output folders like `save` (multi-output algs like r.watershed);
     `validate` no longer false-warns on figure/map/catalog; `.dat` no longer misread as mesh.
-    0.62.0 — Added: point clouds are first-class — `each`/`show`/`catalog` recognise LAS/LAZ/COPC/E57/…
-    tiles, friendly `dtm`/`dsm`/`hag` verbs (over pdal_wrench), and $VAR/${VAR} path expansion.
-    show/catalog span vector/raster/pointcloud/mesh (all GDAL formats + MDAL mesh).
     0.61.1 — Fixed: `niva lsp` no longer dies on an unexpected editor message; the loop is resilient.

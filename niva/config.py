@@ -4,8 +4,9 @@ A single TOML file — ``$XDG_CONFIG_HOME/niva/config.toml`` on Linux, the platf
 equivalent on macOS/Windows — holds niva's **non-secret** settings, so you can view and
 edit them **without opening QGIS**, and copy the file to move your setup between machines.
 
-Secrets (tokens, passwords) never live here: they come from the environment (and, in a
-later increment, the OS keyring). ``set`` refuses a secret key and says where it belongs.
+Secrets (tokens, passwords) never live here: they come from the environment, or from QGIS's
+encrypted auth store (``QgsAuthManager``, via ``niva.credentials``) shared with the plugin.
+``set`` refuses a secret key and says where it belongs.
 
 Zero-dependency: reads with stdlib ``tomllib`` (Python 3.11+); writes a small, commented
 TOML by hand (values are strings), so no TOML-writer dependency enters QGIS's Python.

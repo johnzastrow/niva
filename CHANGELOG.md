@@ -9,6 +9,93 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 > [`plugin/metadata.txt`](plugin/metadata.txt) — keep only the **last three versions** there (drop
 > the oldest); that field is what the QGIS Plugin Manager shows. This file stays the full history.
 
+## [0.63.0] - 2026-07-09
+
+### Added
+- **Plugin "Install" tab + optional marimo on-ramp (phased marimo plan, doc 21 §10).** A new tab in
+  the niva dock: **Create/Remove `niva` command** (drives the launcher `niva setup command`, so
+  `niva` works in every terminal + editor) and **Install Marimo QGIS** — a one-click on-ramp that
+  installs the *marimo-qgis plugin* and starts marimo's install via that plugin's own
+  `MarimoProcessManager().install_marimo()`. **niva never installs marimo itself** (keeps marimo's
+  deps/uv/web-server in marimo-qgis's trust boundary); the button is gated to QGIS 4.0+ and is
+  entirely optional. Backend is `niva.setup.install_marimo_qgis` (dry-run supported); pulls a
+  **pinned marimo-qgis release** (`v0.6.0`).
+  - Installs the plugin **through QGIS's own installer** (`pyplugin_installer.installFromZipFile`), so
+    QGIS registers it as a normal user plugin — enabled and **uninstallable** from *Plugins → Manage
+    and Install* (a manual extract left it un-removable).
+  - The download (the only slow step) runs on a **`QgsTask`** worker thread so the dock stays
+    responsive; the QGIS-side install runs on the main thread when it completes.
+  - Section headers link to **[marimo.io](https://marimo.io)** and the **niva** project so users who
+    came for niva know what each is. *The in-QGIS install + `install_marimo()` call still want a
+    click-test on live QGIS 4.x.*
+- **`niva setup command` — install a real `niva` launcher on PATH** (issue: the "install is fiddly"
+  thread). Writes a small launcher (`%LOCALAPPDATA%\niva\bin\niva.cmd` → `python-qgis.bat -m
+  niva.cli.main` on Windows; `~/.local/bin/niva` on POSIX) and appends its dir to the **per-user**
+  PATH, so `niva` works in every shell *and* GUI — replacing the fragile per-shell `$PROFILE` /
+  `~/.bashrc` functions. Idempotent; `--dry-run` previews; `--remove` reverts (restores PATH exactly).
+  Refuses to write a launcher if it can't find QGIS's `python-qgis.bat` (won't point at a non-QGIS
+  Python). Backed by a new pure-Python `niva/setup/` **setup-core** (data in/out, no printing) that a
+  future QGIS-plugin **Setup tab** will share — see
+  [planning doc 21](docs/planning/21-install-and-onboarding-design.md). PATH edits append-only,
+  per-user registry (`HKCU`), never `setx`, `REG_EXPAND_SZ` preserved.
+- **PowerShell installer for editor integration — `.vscode/niva/install.ps1`.** A native port of
+  `install.sh` for Windows users without bash: installs the VS Code extension + language server
+  (via the `code` CLI), sets up Vim (`%USERPROFILE%\vimfiles`) and Neovim (`%LOCALAPPDATA%\nvim`),
+  and — a Windows-only win — drops the Notepad++ User Defined Language into
+  `%APPDATA%\Notepad++\userDefineLangs\` so it auto-loads (no manual *Import…*). Idempotent;
+  run with `powershell -ExecutionPolicy Bypass -File .vscode\niva\install.ps1`.
+
+### Changed
+- **Secrets now resolve from QGIS's encrypted auth store on every surface (CLI, repl, TUI), not just
+  the plugin.** New `niva.credentials` resolver: the `notify` token and `email` password take the
+  environment variable if set (an override), else read from QGIS's `QgsAuthManager` — the same
+  encrypted store the plugin's "Save secrets to QGIS encrypted store" button writes to (shared
+  authcfg keys are now single-sourced in `niva.credentials`). Reading the store never blocks or
+  prompts: on a headless CLI with the auth master password locked, it falls back to `None`. Secrets
+  still never live in niva's config file. DB `@conn` credentials were already QGIS-only; this brings
+  `notify`/`email` secrets to parity.
+
+### Fixed
+- **`install.ps1` no longer mistakes a PowerShell `$PROFILE` `niva` function for a real command.**
+  `powershell -File install.ps1` loads the user's profile, so a `function niva {…}` there made
+  `Get-Command niva` succeed and the installer skipped wiring VS Code's `niva.lsp.command` — yet that
+  function is invisible to VS Code. Now uses `Get-Command niva -CommandType Application`, so only a
+  real `niva.exe`/`.cmd` on PATH counts. (A textbook case of the shell-function anti-pattern the
+  `niva setup command` launcher exists to fix.)
+- **VS Code language server now starts on Windows.** The extension defaulted to a bare `niva`
+  command, which isn't on Windows `PATH` (niva runs through QGIS's `python-qgis.bat`), so the LSP
+  died silently. Two fixes: (1) the extension spawns `.bat`/`.cmd` commands through a shell — modern
+  Node/Electron refuse to launch a batch file without one (EINVAL) — and now shows an actionable
+  error notification instead of failing quietly; (2) `install.ps1` detects `python-qgis.bat` and
+  writes `niva.lsp.command` / `niva.lsp.args` into VS Code `settings.json` (creating it if absent,
+  otherwise printing the snippet rather than rewriting an existing file). Extension bumped to 0.2.1.
+- **Notepad++ syntax colours no longer muddy.** The User Defined Language used low-contrast earth
+  tones (operators shared the alias-verb orange; strings clashed with the built-in-verb green) and
+  hard-coded a white background that broke Notepad++ Dark Mode. Repainted to a clear, distinct
+  palette that mirrors the rest of the niva editor family (green built-ins, orange aliases, purple
+  options, teal strings, blue numbers, grey operators/comments), with empty backgrounds so it sits
+  on your Light *or* Dark theme.
+
+### Docs
+- **New planning doc [`21-install-and-onboarding-design.md`](docs/planning/21-install-and-onboarding-design.md)** —
+  the design for frictionless install: a real `niva` launcher on PATH (vs fragile shell functions), a
+  QGIS-plugin **Setup tab** that bootstraps the OS install from buttons, a shared **setup-core** API
+  (one core behind both `niva setup …` and the plugin), plus security/precedent/cross-platform/gotchas
+  and the **optional** marimo-qgis on-ramp with its attack-surface caveats.
+- **FAQ now covers niva + marimo honestly** — acknowledges that marimo (unlike niva) is not
+  zero-dependency, runs a local web server, and needs QGIS 4.0+, and states that niva keeps marimo
+  strictly optional and never installs it directly.
+- **Getting-started & editor-integration docs now cover bash on Windows (Git Bash / MSYS2) in
+  Windows Terminal.** The [Quick start](docs/guide/quickstart.md) gains a Git Bash `~/.bashrc`
+  `niva()` function alongside the existing PowerShell `$PROFILE` one — it calls the same
+  `python-qgis.bat` (quoted `/c/...`), documents the git-clone `PYTHONPATH` (Windows-style, to dodge
+  MSYS rewriting) and the OSGeo4W Shell shortcut, and warns about MSYS path auto-translation
+  (`MSYS_NO_PATHCONV=1`). [Editor integration](docs/guide/editor-integration.md) notes that
+  `bash .vscode/niva/install.sh` also works from Windows Git Bash (drives the `code` CLI), and that
+  a `~/.bashrc` `niva()` shell function is invisible to a GUI editor spawning `niva lsp` — so it
+  shows the `niva.lsp.command`/`niva.lsp.args` settings that point VS Code straight at
+  `python-qgis.bat`.
+
 ## [0.62.4] - 2026-07-08
 
 ### Added

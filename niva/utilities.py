@@ -4,9 +4,9 @@
 handling lives here, isolated from the engine. Design rules:
 
 - **Zero third-party deps** — stdlib ``urllib`` / ``smtplib`` / ``ssl`` only (Oscar E1).
-- **Secrets come only from the environment**, never from the flow text, and are never
-  returned in errors or logged. The flow text carries *what* to send, not *how to
-  authenticate*.
+- **Secrets never come from the flow text** — they resolve from the environment, or from
+  QGIS's encrypted auth store (see ``niva.credentials``), and are never returned in errors or
+  logged. The flow text carries *what* to send, not *how to authenticate*.
 - **Fail closed** — missing/invalid config raises before anything is sent; email
   requires TLS (STARTTLS, or implicit TLS on port 465) and aborts if unavailable.
 
@@ -35,9 +35,10 @@ def send_ntfy(
     tags: str | None = None,
     env=None,
 ) -> str:
-    """POST ``message`` to an ntfy topic. Server/topic/token resolve from args then
-    the environment (``NIVA_NTFY_SERVER`` default ``https://ntfy.sh``,
-    ``NIVA_NTFY_TOPIC``, ``NIVA_NTFY_TOKEN``). Returns the target URL (no token)."""
+    """POST ``message`` to an ntfy topic. Server/topic resolve from args then the environment
+    (``NIVA_NTFY_SERVER`` default ``https://ntfy.sh``, ``NIVA_NTFY_TOPIC``); the token resolves
+    from ``NIVA_NTFY_TOKEN`` if set, else QGIS's encrypted auth store (see ``niva.credentials``).
+    Returns the target URL (no token)."""
     import urllib.parse
     import urllib.request
 
@@ -56,8 +57,11 @@ def send_ntfy(
         headers["Priority"] = str(priority)
     if tags:
         headers["Tags"] = tags
-    token = env.get("NIVA_NTFY_TOKEN")
-    if token:  # bearer token from the environment only — never echoed
+    from . import credentials
+
+    # bearer token: env override, else QGIS's encrypted auth store — never echoed
+    token = credentials.get_secret("NIVA_NTFY_TOKEN", "ntfy_token", env)
+    if token:
         headers["Authorization"] = f"Bearer {token}"
 
     scheme = urllib.parse.urlsplit(url).scheme.lower()
@@ -96,10 +100,11 @@ def send_ntfy(
 def send_email(
     *, to: str, subject: str = "", body: str = "", attach: str | None = None, env=None
 ) -> str:
-    """Send an email via SMTP. Connection + credentials come **only** from the
-    environment: ``NIVA_SMTP_HOST`` (required), ``NIVA_SMTP_PORT`` (default 587),
-    ``NIVA_SMTP_USER``, ``NIVA_SMTP_PASSWORD``, ``NIVA_SMTP_FROM`` (default = user).
-    TLS is required (STARTTLS, or implicit TLS on port 465). Returns the recipient."""
+    """Send an email via SMTP. Connection + non-secret creds come from the environment:
+    ``NIVA_SMTP_HOST`` (required), ``NIVA_SMTP_PORT`` (default 587), ``NIVA_SMTP_USER``,
+    ``NIVA_SMTP_FROM`` (default = user). The password resolves from ``NIVA_SMTP_PASSWORD`` if
+    set, else QGIS's encrypted auth store (see ``niva.credentials``). TLS is required (STARTTLS,
+    or implicit TLS on port 465). Returns the recipient."""
     import smtplib
     import ssl
     from email.message import EmailMessage
@@ -107,8 +112,10 @@ def send_email(
     env = os.environ if env is None else env
     if not to:
         raise FlowError("email needs a recipient: `email to=<address>`")
+    from . import credentials
+
     user = env.get("NIVA_SMTP_USER")
-    password = env.get("NIVA_SMTP_PASSWORD")
+    password = credentials.get_secret("NIVA_SMTP_PASSWORD", "smtp_password", env)
     sender = env.get("NIVA_SMTP_FROM") or user
     host = env.get("NIVA_SMTP_HOST")
     port_str = env.get("NIVA_SMTP_PORT")

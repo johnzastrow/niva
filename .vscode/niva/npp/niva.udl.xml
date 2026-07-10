@@ -1,16 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-niva User Defined Language for Notepad++ (v0.37)
+niva User Defined Language for Notepad++ (v0.38)
 
-Import: Language → User Defined Language → Import → pick this file
-Then select: Language → niva
+Import: Language -> User Defined Language -> Import -> pick this file
+Then select: Language -> niva
+(Or let the installer place it: powershell -ExecutionPolicy Bypass -File .vscode\niva\install.ps1)
 
-Auto-detects .niva extension. Supports:
-  · Built-in verbs (dark green)    · Alias verbs (burnt orange)
-  · Comments (# to end of line)    · Double/single quoted strings (olive)
-  · Pipe |  and  key=value         · EPSG:NNNN CRS codes
-  · @conn connection refs          · Flags & mode values (slate blue)
-  · Numbers and distances (100m)   · Common option keywords
+Palette mirrors the rest of the niva editor family (keyword / function / type / operator roles)
+with clear, distinct hues instead of muddy earth tones. Backgrounds are left empty so the colours
+sit on YOUR Notepad++ theme background, so they stay readable in both Light and Dark mode.
+
+  Built-in verbs .. green  (bold)     Alias verbs ..... orange (bold)
+  Option / modes .. purple (italic)   Strings ......... teal
+  Numbers/100m/EPSG blue              Pipe | and key=  grey (understated)
+  Comments (# ...) . slate-grey (italic)
 -->
 <NotepadPlus>
     <UserLang name="niva" ext="niva" udlVersion="2.1">
@@ -36,25 +39,25 @@ Auto-detects .niva extension. Supports:
             <Keywords name="Keywords3">deep percent dissolve separate discard force relative absolute keep replace create append apply save fail drop set new info round flat square near bilinear average cubic intersect within contain overlap touch first sum count area distance radius z_factor azimuth altitude</Keywords>
         </KeywordLists>
         <Styles>
-            <WordsStyle name="DEFAULT" styleID="0" fgColor="2C2520" bgColor="FFFFFF" fontName="" fontStyle="0" nesting="0" />
-            <WordsStyle name="COMMENTS" styleID="1" fgColor="9A8C7A" bgColor="FFFFFF" fontName="" fontStyle="2" nesting="0" />
-            <WordsStyle name="LINE COMMENTS" styleID="2" fgColor="9A8C7A" bgColor="FFFFFF" fontName="" fontStyle="2" nesting="0" />
-            <WordsStyle name="NUMBERS" styleID="3" fgColor="7A6E60" bgColor="FFFFFF" fontName="" fontStyle="0" nesting="0" />
-            <WordsStyle name="KEYWORDS1" styleID="4" fgColor="3D7A65" bgColor="FFFFFF" fontName="" fontStyle="1" nesting="0" />
-            <WordsStyle name="KEYWORDS2" styleID="5" fgColor="B86A38" bgColor="FFFFFF" fontName="" fontStyle="1" nesting="0" />
-            <WordsStyle name="KEYWORDS3" styleID="6" fgColor="4F6D8A" bgColor="FFFFFF" fontName="" fontStyle="2" nesting="0" />
-            <WordsStyle name="KEYWORDS4" styleID="7" fgColor="7A6E60" bgColor="FFFFFF" fontName="" fontStyle="0" nesting="0" />
-            <WordsStyle name="KEYWORDS5" styleID="8" fgColor="7A6E60" bgColor="FFFFFF" fontName="" fontStyle="0" nesting="0" />
-            <WordsStyle name="KEYWORDS6" styleID="9" fgColor="7A6E60" bgColor="FFFFFF" fontName="" fontStyle="0" nesting="0" />
-            <WordsStyle name="KEYWORDS7" styleID="10" fgColor="7A6E60" bgColor="FFFFFF" fontName="" fontStyle="0" nesting="0" />
-            <WordsStyle name="KEYWORDS8" styleID="11" fgColor="2C2520" bgColor="FFFFFF" fontName="" fontStyle="0" nesting="0" />
-            <WordsStyle name="OPERATORS" styleID="12" fgColor="B86A38" bgColor="FFFFFF" fontName="" fontStyle="0" nesting="0" />
+            <WordsStyle name="DEFAULT" styleID="0" fgColor="" bgColor="" fontName="" fontStyle="0" nesting="0" />
+            <WordsStyle name="COMMENTS" styleID="1" fgColor="768390" bgColor="" fontName="" fontStyle="2" nesting="0" />
+            <WordsStyle name="LINE COMMENTS" styleID="2" fgColor="768390" bgColor="" fontName="" fontStyle="2" nesting="0" />
+            <WordsStyle name="NUMBERS" styleID="3" fgColor="2F6FEB" bgColor="" fontName="" fontStyle="0" nesting="0" />
+            <WordsStyle name="KEYWORDS1" styleID="4" fgColor="1E8E4A" bgColor="" fontName="" fontStyle="1" nesting="0" />
+            <WordsStyle name="KEYWORDS2" styleID="5" fgColor="C05621" bgColor="" fontName="" fontStyle="1" nesting="0" />
+            <WordsStyle name="KEYWORDS3" styleID="6" fgColor="9A5CD0" bgColor="" fontName="" fontStyle="2" nesting="0" />
+            <WordsStyle name="KEYWORDS4" styleID="7" fgColor="" bgColor="" fontName="" fontStyle="0" nesting="0" />
+            <WordsStyle name="KEYWORDS5" styleID="8" fgColor="" bgColor="" fontName="" fontStyle="0" nesting="0" />
+            <WordsStyle name="KEYWORDS6" styleID="9" fgColor="" bgColor="" fontName="" fontStyle="0" nesting="0" />
+            <WordsStyle name="KEYWORDS7" styleID="10" fgColor="" bgColor="" fontName="" fontStyle="0" nesting="0" />
+            <WordsStyle name="KEYWORDS8" styleID="11" fgColor="" bgColor="" fontName="" fontStyle="0" nesting="0" />
+            <WordsStyle name="OPERATORS" styleID="12" fgColor="6B7684" bgColor="" fontName="" fontStyle="0" nesting="0" />
             <WordsStyle name="FOLDER IN CODE1" styleID="13" fgColor="" bgColor="" fontName="" fontStyle="0" nesting="0" />
             <WordsStyle name="FOLDER IN CODE2" styleID="14" fgColor="" bgColor="" fontName="" fontStyle="0" nesting="0" />
             <WordsStyle name="FOLDER IN CODE3" styleID="15" fgColor="" bgColor="" fontName="" fontStyle="0" nesting="0" />
-            <WordsStyle name="DELIMITERS0" styleID="16" fgColor="5F7A3A" bgColor="FFFFFF" fontName="" fontStyle="0" nesting="0" />
-            <WordsStyle name="DELIMITERS1" styleID="17" fgColor="5F7A3A" bgColor="FFFFFF" fontName="" fontStyle="0" nesting="0" />
-            <WordsStyle name="DELIMITERS2" styleID="18" fgColor="5F7A3A" bgColor="FFFFFF" fontName="" fontStyle="0" nesting="0" />
+            <WordsStyle name="DELIMITERS0" styleID="16" fgColor="12897F" bgColor="" fontName="" fontStyle="0" nesting="0" />
+            <WordsStyle name="DELIMITERS1" styleID="17" fgColor="12897F" bgColor="" fontName="" fontStyle="0" nesting="0" />
+            <WordsStyle name="DELIMITERS2" styleID="18" fgColor="12897F" bgColor="" fontName="" fontStyle="0" nesting="0" />
         </Styles>
     </UserLang>
 </NotepadPlus>

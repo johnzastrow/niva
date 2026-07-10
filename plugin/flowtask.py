@@ -43,3 +43,28 @@ class NivaFlowTask(QgsTask):
             cancel=self.isCanceled,  # QgsTask.cancel() (from the dock) flips this
         )
         return bool(self.result and self.result.get("ok"))
+
+
+class MarimoInstallTask(QgsTask):
+    """Download the marimo-qgis release zip on a worker thread (the only slow step). The QGIS-side
+    install (via QGIS's plugin installer) and starting marimo happen on the **main** thread in the
+    dock's completion slot — GUI/plugin-installer work must not run here."""
+
+    def __init__(self):
+        super().__init__("Install Marimo QGIS")
+        self.download_error = None  # str if the download failed
+        self.zip_path = None  # where the release zip was downloaded
+        self.needed_download = False  # False if marimo-qgis was already installed
+
+    def run(self) -> bool:  # worker thread — download only, no QGIS calls
+        import tempfile
+        from pathlib import Path
+
+        from niva.setup import marimo
+
+        if marimo.is_installed():
+            return True  # nothing to download; finished() just starts marimo
+        self.needed_download = True
+        self.zip_path = Path(tempfile.gettempdir()) / marimo.RELEASE_ASSET
+        self.download_error = marimo.download_release(self.zip_path)
+        return self.download_error is None
