@@ -1,0 +1,55 @@
+# TEMPLATE — copy to a QGIS plugin repo as `.github/workflows/release.yml`.
+# DROP-IN across plugins: it delegates the plugin-specific file list to scripts/build_plugin.sh,
+# so the only thing to change per plugin is UNIT_TEST below. Also needs scripts/build_plugin.sh
+# and docs/CHANGELOG.md to exist. See ../publishing-qgis-plugins.md for the full guide.
+#
+# On a `v*` tag: runs the plugins.qgis.org gates (bandit + secrets + flake8) and the unit test(s),
+# builds the upload zip, and cuts a GitHub Release with the zip attached and notes from CHANGELOG.
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+env:
+  UNIT_TEST: test/test_something_unit.py   # <- CHANGE ME: pure-Python test(s); "" to skip
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+
+      - name: Gates — bandit (HIGH/MEDIUM), secrets, flake8
+        run: |
+          uv run --no-project --with bandit bandit -r . -x ./test,./tests,./help,./docs,./.git -ll
+          uv run --no-project --with detect-secrets detect-secrets scan \
+            | uv run --no-project python -c "import sys,json; r=json.load(sys.stdin).get('results',{}); print('secrets:', 'clean' if not r else list(r)); sys.exit(1 if r else 0)"
+          uv run --no-project --with flake8 flake8 .
+
+      - name: Unit test
+        run: |
+          [ -n "${UNIT_TEST}" ] && uv run --no-project --with pytest python -m pytest ${UNIT_TEST} -q || echo "no UNIT_TEST set — skipping"
+
+      - name: Build upload zip
+        run: bash scripts/build_plugin.sh
+
+      - name: Release notes from docs/CHANGELOG.md
+        run: |
+          VER=${GITHUB_REF_NAME#v}
+          awk -v hdr="## [$VER]" 'index($0,hdr)==1{f=1;next} /^## \[/&&f{exit} f' docs/CHANGELOG.md > notes.md
+          [ -s notes.md ] || echo "See docs/CHANGELOG.md for details." > notes.md
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          NAME=$(grep -E '^name=' metadata.txt | head -1 | cut -d= -f2- | tr -d '\r')
+          gh release create "${GITHUB_REF_NAME}" \
+            --title "${NAME} ${GITHUB_REF_NAME}" \
+            --notes-file notes.md \
+            *.zip

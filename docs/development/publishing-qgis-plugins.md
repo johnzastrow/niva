@@ -11,6 +11,16 @@ here was run for real.
 > generated files, caches, or VCS dirs. Most failed uploads are a packaging problem, not a code
 > problem.
 
+> **📦 Ready-made templates** in [`templates/`](templates/) — drop them into any plugin so they all
+> release identically:
+> - [`Makefile`](templates/Makefile) — `make check` (ruff+flake8+bandit+secrets+test) · `make build` ·
+>   `make tag V=x.y.z`. Only `UNIT_TEST` changes per plugin.
+> - [`release.yml`](templates/release.yml) → `.github/workflows/` — on a `v*` tag: runs the gates +
+>   unit test, builds via `scripts/build_plugin.sh`, cuts the GitHub Release with the zip.
+>
+> Both delegate the plugin-specific file list to **`scripts/build_plugin.sh`** (§2), so they're
+> identical across every plugin. (Live reference: the `metadatamgr` repo.)
+
 ---
 
 ## 0. TL;DR checklist
