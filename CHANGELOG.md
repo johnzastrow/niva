@@ -9,6 +9,14 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 > [`plugin/metadata.txt`](plugin/metadata.txt) — keep only the **last three versions** there (drop
 > the oldest); that field is what the QGIS Plugin Manager shows. This file stays the full history.
 
+## [0.63.2] - 2026-07-10
+
+### Changed
+- **Plugin contact email is now a non-personal address** (`plugin/metadata.txt`) — the required
+  `email` field no longer exposes a personal Gmail on plugins.qgis.org / in the downloadable zip.
+  No code change; PyPI `qgis-niva` bumped to 0.63.2 to stay in lockstep. (PyPI never carried the
+  email — `pyproject.toml` has `authors = [{ name = … }]` with no address.)
+
 ## [0.63.1] - 2026-07-10
 
 ### Changed

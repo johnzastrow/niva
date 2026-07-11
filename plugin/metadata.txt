@@ -6,9 +6,9 @@ name=niva
 qgisMinimumVersion=3.22
 qgisMaximumVersion=4.99
 description=QGIS from the command line: write concise text-pipeline geoprocessing flows (no PyQGIS coding) and run them in a dock.
-version=0.63.1
+version=0.63.2
 author=John Zastrow
-email=br8kwall@gmail.com
+email=niva@users.noreply.github.com
 about=QGIS from the command line. A concise, readable text-pipeline grammar for QGIS
     geoprocessing (load … | buffer 100m dissolve | save …) that stands on PyQGIS, but for
     people who don't write PyQGIS. Reach ~878 QGIS Processing algorithms through ~45 friendly
@@ -32,13 +32,10 @@ deprecated=False
 # summary for the new version here, mirroring the top entry of ../CHANGELOG.md (the repo file
 # stays the full history; this field is just the highlights). Then DROP the oldest entry so the
 # field never holds more than three versions. Continuation lines MUST stay indented (like `about=`).
-changelog=0.63.1 — Plugin listing sharpened: description/about/tags now lead with "QGIS from the
+changelog=0.63.2 — Plugin contact email changed to a non-personal address (privacy). No code change.
+    0.63.1 — Plugin listing sharpened: description/about/tags now lead with "QGIS from the
     command line" (adds CLI/PyQGIS/no-code/point-cloud/database keywords). No code change.
     0.63.0 — Added `niva setup command` (installs a real `niva` launcher on PATH; idempotent,
     --dry-run/--remove). Windows editor integration: PowerShell installer (install.ps1), VS Code LSP now
     starts on Windows (shell-spawns python-qgis.bat + auto-writes niva.lsp.command), repainted Notepad++
     colours, and docs for bash (Git Bash/MSYS2) in Windows Terminal.
-    0.62.4 — Added: `niva flow.niva` runs a file without the `run` subcommand.
-    Fixed (0.62.1–0.62.3): $VAR/~ now expand in secondary layer/raster paths (clip, zonalstats raster=,
-    spatialjoin with=); `run` creates output folders like `save` (multi-output algs like r.watershed);
-    `validate` no longer false-warns on figure/map/catalog; `.dat` no longer misread as mesh.
