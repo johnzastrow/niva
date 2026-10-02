@@ -1,0 +1,21 @@
+# Local guardrails mirroring the CI gates (.github/workflows/ci.yml). Run `pre-commit install`
+# once; these then run on every commit. Tool versions are pinned to match CI exactly.
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.19
+    hooks:
+      - id: ruff
+      - id: ruff-format
+
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.9.4
+    hooks:
+      - id: bandit
+        args: ["--severity-level", "medium"]
+        files: ^(niva|plugin)/
+
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.5.0
+    hooks:
+      - id: detect-secrets
+        args: ["--baseline", ".secrets.baseline"]
