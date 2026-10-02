@@ -146,3 +146,47 @@ All use a standalone `QgsProject()` / `QgsMapLayer` off the main thread (per
 ## Roadmap-noted follow-ups (not yet scoped)
 - `project` / `style` `apply` to a **database-backed** layer (DB style table).
 - `.qmd` metadata `apply` persistence into a container (currently sidecar only).
+
+## Verb & capability gaps surfaced by the hydrology use case (`examples/full_suite`)
+
+The Youngstown past/present hydrologic study ([`examples/full_suite/use_case.md`](examples/full_suite/use_case.md))
+runs **today** through the `run` escape hatch for several *common* operations. Curating these would
+remove escape-hatch friction for a broad class of terrain / hydrology / imagery / shoreline work —
+not just this study. Priority in brackets. (The study still runs without them; these are ergonomics
++ breadth, and each replaces a documented `run` pattern.)
+
+- [ ] **`contour` verb** `[H]` — DEM/DTM → contour lines/polygons at an interval or explicit
+  level(s); wraps `gdal:contour`. Ubiquitous (terrain, bathymetry) and here it does **water-surface
+  shoreline extraction**. Sketch: `load dem.tif | contour interval=5 field=elev [level=74.2] | save c.gpkg`.
+  (Replaces `run gdal:contour` — cookbook recipes 51/56.)
+- [ ] **Hydrology family — `flowaccum` / `flowdir` / `watershed` / `streams`** `[H]` — niva has
+  terrain verbs (`slope`/`aspect`/`hillshade`/`terrain`) but **no hydrology verbs**, despite
+  targeting QGIS geoprocessing. Wrap `grass:r.watershed` (+ `r.stream.*`) behind verbs; keep GRASS
+  as the impl (no native/gdal equivalent), hidden. Drives the study's **stream scour / stream-power**
+  step. Sketch: `load dtm.tif | flowaccum | save flow_accum.tif`. (Replaces `run grass:r.watershed` — recipe 80.)
+- [ ] **Spectral indices — `index ndvi|ndwi|ndbi` (+ general `bandmath expr=`)** `[H]` — 4-band
+  (RGB+NIR) imagery is everywhere; the study uses **NDWI for shorelines** and **NDVI for
+  imagery-derived impervious**. Sketch: `load ortho.tif | index ndwi | save water.tif`. (Replaces
+  `run gdal:rastercalculator` with fragile per-band references.)
+- [ ] **`report` verb / scaffold** `[H]` — stitch a Markdown report + **embedded figures/tables →
+  PDF** (via the existing `docs`/pandoc path + `map`/`figure` outputs + `save`→CSV). niva already
+  makes every piece; a `report` verb closes the "documented deliverable" story the tool is built
+  around. The study requires a full **scientific report (md + PDF with figures)**.
+- [ ] **`transects` verb** `[M]` — perpendicular transects along a baseline at a spacing/length
+  (`qgis:transectsalongline`); enables **shoreline-change (DSAS-style) rates**, cross-sections,
+  profiles. Sketch: `load baseline.gpkg | transects spacing=25m length=200m | save t.gpkg`.
+- [ ] **Curated LiDAR product verbs — `dtm` / `dsm` / `chm` / `pointboundary`** `[M]` — thin,
+  friendly aliases over the excellent-but-verbose `pdalcli:` harness (v0.38): `load tile.las | dtm
+  resolution=1 | save dtm.tif` (= `pdalcli:to_raster attribute=Z filter="Classification==2"`),
+  plus `dsm`, `chm` (= `height_above_ground`), `pointboundary` (= `boundary`). Harness stays for the tail.
+- [ ] **Categorical / area zonal — `zonalhist` (or `zonalstats mode=area|classes`)** `[M]` —
+  numeric `zonalstats` exists; add **class-area cross-tabs per zone** and **area rollups** (impervious
+  m² = Σ %×pixel-area). The study needs **impervious area per HUC12 & parcel** and landcover-class change.
+- [ ] **Raster change-detection — `diff` / `combine`** `[M]` — `load a.tif | diff b.tif` (a−b) and a
+  categorical `combine` (change matrix) for **two-epoch change** (impervious Δ, landcover transitions).
+  The study's §4 is entirely change; today it's `run gdal:rastercalculator` + manual cross-tab.
+- [ ] **Acquisition helper — `fetch` (external-CLI harness, not a Python dep)** `[M]` — pull
+  primary-source data (USGS 3DEP, MRLC NLCD, USGS WBD, NAIP) into a read-only `inputs/` with recorded
+  provenance by **shelling to curl / gdal `/vsicurl`**, in the same spirit as the `pdalcli:`/`saga:`
+  native-CLI harness — **preserving niva's zero-runtime-deps rule**. Sketch: `fetch "<url>"
+  to=inputs/nlcd_2021.tif` (+ checksum + source note). The study fetches from primary sources and documents each.
