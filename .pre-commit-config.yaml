@@ -11,7 +11,6 @@ repos:
     rev: 1.9.4
     hooks:
       - id: bandit
-        args: ["--severity-level", "medium"]
         files: ^(niva|plugin)/
 
   - repo: https://github.com/Yelp/detect-secrets

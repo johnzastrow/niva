@@ -241,7 +241,7 @@ def run(argv=None) -> int:
             if mid is not None:  # don't leave a request hanging
                 try:
                     reply(mid, None)
-                except Exception:  # noqa: BLE001
+                except Exception:  # noqa: BLE001  # nosec B110
                     pass
 
     return 0

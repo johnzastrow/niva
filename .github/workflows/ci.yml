@@ -117,12 +117,12 @@ jobs:
         with:
           python-version: "3.12"
       # The SAME tools plugins.qgis.org runs — so main is always plugin-repo-clean and
-      # any version we cut passes the store's scan. Bandit gates on MEDIUM+ (the store's
-      # blocking threshold); LOW findings (best-effort try/except, the shell=False PDAL/SAGA
-      # subprocess harness) are intentional and don't block. See docs/guide/qgis-plugin-publishing.md.
+      # any version we cut passes the store's scan. The store blocks on Bandit findings of EVERY
+      # severity (0.63.3 was rejected for LOW ones), so there is no severity filter here.
+      # Intentional patterns carry `# nosec B<id>` + a reason. See docs/guide/qgis-plugin-publishing.md.
       - run: python -m pip install "bandit==1.9.4" "detect-secrets==1.5.0"
-      - name: Bandit (fail on MEDIUM+ severity)
-        run: bandit -r niva plugin --severity-level medium
+      - name: Bandit (fail on any finding, as plugins.qgis.org does)
+        run: bandit -r niva plugin
       - name: detect-secrets (no hardcoded secrets)
         run: |
           detect-secrets scan niva plugin > ds-report.json

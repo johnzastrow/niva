@@ -9,15 +9,19 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 > [`plugin/metadata.txt`](plugin/metadata.txt) — keep only the **last three versions** there (drop
 > the oldest); that field is what the QGIS Plugin Manager shows. This file stays the full history.
 
-## [Unreleased]
+## [0.63.4] - 2026-10-04
 
-### Added
-- **CI: flake8 and ty.** The lint job (now "lint, format & types") also runs flake8 7.4.1, the style
-  gate plugins.qgis.org applies (config in `.flake8`), and the ty 0.0.79 type checker (config under
-  `[tool.ty]` in `pyproject.toml`). ty errors in `niva/` and `plugin/` fail the job; findings in
-  tests, scripts and docs tooling are reported as warnings.
+Fixes the plugins.qgis.org upload: 0.63.3 was blocked by the store's security scan.
 
 ### Fixed
+- **The 0.63.3 plugin zip was blocked by plugins.qgis.org's Bandit scan.** The store blocks on
+  findings of *every* severity, not only MEDIUM and HIGH as the publishing guide assumed. All 39
+  were LOW and intentional: best-effort `try/except/pass|continue` (B110, B112), `import
+  subprocess` and `shell=False` subprocess calls with fixed argument lists (B404, B603), and
+  environment-variable *names* that look like passwords (B105). Each line now carries
+  `# nosec B<id>` with a reason; Bandit on the built zip reports 0 findings at any severity.
+- CI and the pre-commit hook now run Bandit with no severity filter (as the store does), and
+  `docs/guide/qgis-plugin-publishing.md` is corrected.
 - **`project … bookmark=<name>` progress line printed the raw spec** (``bookmark `{'name': 'AOI',
   'at': None, 'width': None}` ``) instead of the bookmark name. Found by ty: the parameter was
   annotated `str` but is a dict.
@@ -26,6 +30,12 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - Type-level tidy-ups ty surfaced, no behaviour change: `Layer.ref` is typed `Any` (it is a path, a
   URI or a live QGIS layer); `None`-safety in search, the `sql` stage return type, the marimo
   installer and the REPL's readline fallback.
+
+### Added
+- **CI: flake8 and ty.** The lint job (now "lint, format & types") also runs flake8 7.4.1, the style
+  gate plugins.qgis.org applies (config in `.flake8`), and the ty 0.0.79 type checker (config under
+  `[tool.ty]` in `pyproject.toml`). ty errors in `niva/` and `plugin/` fail the job; findings in
+  tests, scripts and docs tooling are reported as warnings.
 
 ## [0.63.3] - 2026-10-04
 
