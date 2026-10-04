@@ -18,6 +18,7 @@ from __future__ import annotations
 import os
 import re
 import sys
+from types import ModuleType
 
 
 def _history_path() -> str:
@@ -406,7 +407,7 @@ def run(argv=None) -> int:
     state: dict = {"last": None}
     session = _make_session()
     prompt = _readline_prompt()
-    rl = None
+    rl: ModuleType | None = None
     if session is None:
         # Plain fallback: importing readline makes input() a real line editor (arrow keys,
         # backspace, history) AND honours the \001/\002 zero-width markers in the prompt, so a
@@ -414,7 +415,9 @@ def run(argv=None) -> int:
         # history so ↑ recalls commands from previous sessions too (prompt_toolkit does this via
         # FileHistory); persisted back on exit.
         try:
-            import readline as rl
+            import readline
+
+            rl = readline
 
             rl.set_history_length(1000)
             try:

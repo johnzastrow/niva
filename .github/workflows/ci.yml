@@ -57,7 +57,7 @@ jobs:
         image: postgis/postgis:16-3.4
         env:
           POSTGRES_USER: niva
-          POSTGRES_PASSWORD: niva
+          POSTGRES_PASSWORD: niva  # pragma: allowlist secret -- throwaway CI test container
           POSTGRES_DB: niva
         options: >-
           --health-cmd "pg_isready -U niva"
@@ -67,7 +67,7 @@ jobs:
     env:
       QT_QPA_PLATFORM: offscreen
       # The job runs in a container, so the service is reachable by its label hostname.
-      NIVA_TEST_PG: "host=postgres port=5432 dbname=niva user=niva password=niva"
+      NIVA_TEST_PG: "host=postgres port=5432 dbname=niva user=niva password=niva"  # pragma: allowlist secret -- throwaway CI test container
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v4.2.2
       - name: QGIS version
@@ -83,7 +83,7 @@ jobs:
           grep -qE '^OK' /tmp/qgis-tests.log
 
   lint:
-    name: lint & format (ruff)
+    name: lint, format & types (ruff, flake8, ty)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v4.2.2
@@ -97,6 +97,16 @@ jobs:
         run: ruff check .
       - name: ruff format (enforce — no drift)
         run: ruff format --check --diff .
+      # flake8: the style gate plugins.qgis.org applies (config: .flake8).
+      - run: python -m pip install "flake8==7.4.1"
+      - name: flake8
+        run: flake8 .
+      # ty: type check. ty is pre-1.0, so the pin is exact; bump it deliberately.
+      # Errors fail the job (niva/ and plugin/); tests/scripts/docs findings are warnings
+      # (see [tool.ty] in pyproject.toml).
+      - run: python -m pip install "ty==0.0.79"
+      - name: ty (type check)
+        run: ty check --exit-zero-on-warning --output-format concise .
 
   security:
     name: security scan (bandit + detect-secrets)

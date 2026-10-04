@@ -1837,7 +1837,7 @@ class PyqgisBackend(Backend):
         # PK with no DB default can't be left null). Mint fresh keys past the current max.
         pk = list(dest.primaryKeyAttributes())
         mint_idx = pk[0] if len(pk) == 1 and dfields[pk[0]].isNumeric() else None
-        next_pk = None
+        next_pk = 0  # only used when mint_idx is set
         if mint_idx is not None:
             mx = dest.maximumValue(mint_idx)
             next_pk = (int(mx) + 1) if mx is not None else 1
@@ -1902,7 +1902,7 @@ class PyqgisBackend(Backend):
         missing: str,
         rasters: str | None = None,
         paths: str | None = None,
-        bookmark: str | None = None,
+        bookmark: dict | None = None,
         progress=None,
     ) -> None:
         # Use a STANDALONE QgsProject (never QgsProject.instance()) so this is safe on
@@ -1962,7 +1962,7 @@ class PyqgisBackend(Backend):
             if isinstance(lyr, QgsRasterLayer):
                 # Template mode: match the raster slot against the data map by name (its
                 # display name, else |layername=/file stem), same as the vector slots.
-                if template_mode:
+                if template_mode and resolve is not None:
                     name = slot_name(lyr)
                     if name in available:
                         new_uri, _ = resolve(name)
@@ -2012,7 +2012,7 @@ class PyqgisBackend(Backend):
 
         if bookmark:
             self._add_bookmark(proj, bookmark)
-            emit(f"   bookmark `{bookmark}` → project extent")
+            emit(f"   bookmark `{bookmark['name']}` → project extent")
         if paths in ("relative", "absolute"):
             from qgis.core import Qgis
 

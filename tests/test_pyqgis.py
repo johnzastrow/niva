@@ -933,6 +933,20 @@ class TestPyqgisProject(unittest.TestCase):
             [b.name() for b in self._p.bookmarkManager().bookmarks()], ["Study Area"]
         )
 
+    def test_bookmark_progress_names_the_bookmark(self):
+        # The progress line used to print the whole spec dict ({'name': ..., 'at': ...}).
+        import niva
+
+        msgs = []
+        out = os.path.join(self.tmp, "bm3.qgs")
+        niva.flow(
+            f'project "{self.src}" to="{out}" bookmark="Study Area"',
+            progress=msgs.append,
+        )
+        line = next(m for m in msgs if m.lstrip().startswith("bookmark"))
+        self.assertIn("bookmark `Study Area` → project extent", line)
+        self.assertNotIn("{", line)
+
     def test_bookmark_centred(self):
         import niva
 
@@ -1358,7 +1372,9 @@ class TestPyqgisEnvironmentReport(unittest.TestCase):
 
         from niva.environment import report_markdown
 
-        os.environ["NIVA_SMTP_PASSWORD"] = "hunter2-should-not-appear"
+        os.environ["NIVA_SMTP_PASSWORD"] = (
+            "hunter2-should-not-appear"  # pragma: allowlist secret
+        )
         try:
             report = report_markdown()
         finally:

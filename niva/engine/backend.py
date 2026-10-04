@@ -131,7 +131,7 @@ class Backend(abc.ABC):
         missing: str,
         rasters: str | None = None,
         paths: str | None = None,
-        bookmark: str | None = None,
+        bookmark: dict | None = None,
         progress=None,
     ) -> None:
         """Copy the QGIS project ``src`` to ``dest``, optionally repointing each vector
@@ -457,7 +457,7 @@ class MockBackend(Backend):
         missing: str,
         rasters: str | None = None,
         paths: str | None = None,
-        bookmark: str | None = None,
+        bookmark: dict | None = None,
         progress=None,
     ) -> None:
         self.calls.append(

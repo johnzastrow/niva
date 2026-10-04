@@ -571,7 +571,9 @@ class Engine:
     def _run_stage(self, stage, current: Layer | None, lineage: list) -> Layer | None:
         self._pending_call = None  # set only when this stage actually runs an algorithm
         if hasattr(self.backend, "_note"):
-            self.backend._note = None  # a per-op handling notice (e.g. mixed geometry)
+            setattr(
+                self.backend, "_note", None
+            )  # a per-op handling notice (e.g. mixed geometry)
         verb = stage.verb
         handler = self._BUILTIN_VERBS.get(verb)
         if handler is not None:
@@ -656,7 +658,7 @@ class Engine:
             return self.backend.load_table(conn, schema, table)
         return self.backend.load(expand_path(source))
 
-    def _sql(self, stage) -> Layer:
+    def _sql(self, stage) -> Layer | None:
         if len(stage.args) != 2 or stage.options:
             raise FlowError(
                 '`sql` takes a connection and a query: `sql @conn "SELECT …"`',
@@ -733,7 +735,7 @@ class Engine:
                 line=stage.line,
                 stage=stage.raw,
             )
-        if templated:
+        if templated and batch:
             dest = dest.replace("{name}", _safe_name(batch))
         # `{name}` is also honoured in an explicit `as <layer>` so `save out.gpkg as
         # {name}` does the obvious thing inside a batch.
@@ -1199,7 +1201,7 @@ class Engine:
             self._emit(f"  email → {to or '(no recipient)'} (dry-run: not sent)")
             return current
         recipient = send_email(
-            to=to,
+            to=to or "",  # send_email rejects an empty recipient with a FlowError
             subject=opts.get("subject", ""),
             body=opts.get("body", ""),
             attach=expand_path(opts["attach"]) if opts.get("attach") else None,
@@ -1319,8 +1321,8 @@ class Engine:
                 row.get("kind") if row.get("kind") in ("vector", "raster") else "vector"
             )
             try:
-                if is_db:
-                    layer = self.backend.load_table(conn, schema, row.get("name"))
+                if conn is not None:  # set exactly when is_db
+                    layer = self.backend.load_table(conn, schema, row.get("name") or "")
                 else:
                     layer = self.backend.load(source, facet=facet)
                 entries.append(
