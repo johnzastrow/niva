@@ -9,7 +9,10 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 > [`plugin/metadata.txt`](plugin/metadata.txt) — keep only the **last three versions** there (drop
 > the oldest); that field is what the QGIS Plugin Manager shows. This file stays the full history.
 
-## [Unreleased]
+## [0.63.3] - 2026-10-04
+
+Bug-fix and maintenance release. The plugin now reports a failed save to QGIS's encrypted store
+(it used to say "Saved"), and Windows discovery picks the newest QGIS install. 105 new tests.
 
 ### Fixed
 - **Plugin: a failed save to QGIS's encrypted store was reported as success.**
@@ -20,6 +23,16 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   under Program Files were ordered alphabetically, so "QGIS 3.4" beat "QGIS 3.10"; they are now
   ordered by version number.
 - The plugin runner's failure result now always includes the `log` key it documents.
+
+### Changed
+- **CI:** GitHub Actions updated — `actions/checkout` 4 → 7, `actions/setup-python` 6.3.0 → 7.0.0,
+  `astral-sh/setup-uv` 6 → 7 (CI and the PyPI publish workflow) (#83).
+- **Contributor tooling:** a `.pre-commit-config.yaml` and a `detect-secrets` baseline
+  (`.secrets.baseline`), so secrets are caught before commit as well as in CI (#82).
+- **Roadmap:** `TODO.md` records the verb and capability gaps surfaced by the hydrology use case in
+  `examples/full_suite` (a `contour` verb and a `transects` verb) (#84).
+- **Repository metadata:** `.gitattributes` labels `*.niva` files as language `Niva` (GitHub Linguist
+  does not know this language, so the files show as unclassified rather than as Shell) (#84).
 
 ### Tests
 - New: CLI commands end to end (`tests/test_cli_commands.py`), the environment report including
