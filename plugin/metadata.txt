@@ -6,7 +6,7 @@ name=niva
 qgisMinimumVersion=3.22
 qgisMaximumVersion=4.99
 description=QGIS from the command line: write concise text-pipeline geoprocessing flows (no PyQGIS coding) and run them in a dock.
-version=0.63.3
+version=0.63.4
 author=John Zastrow
 email=niva@users.noreply.github.com
 about=QGIS from the command line. A concise, readable text-pipeline grammar for QGIS
@@ -32,9 +32,8 @@ deprecated=False
 # summary for the new version here, mirroring the top entry of ../CHANGELOG.md (the repo file
 # stays the full history; this field is just the highlights). Then DROP the oldest entry so the
 # field never holds more than three versions. Continuation lines MUST stay indented (like `about=`).
-changelog=0.63.3 — Fixed: a failed save to QGIS's encrypted store was reported as "Saved"; it is now
+changelog=0.63.4 — Passes the plugins.qgis.org security scan (0.63.3 was blocked by low-severity
+    Bandit findings). Fixed: a project bookmark's progress line showed raw data instead of its name.
+    0.63.3 — Fixed: a failed save to QGIS's encrypted store was reported as "Saved"; it is now
     reported as a failure. Windows: the newest QGIS install is chosen when several exist. 105 new
     tests; GitHub Actions and pre-commit secret scanning updated.
-    0.63.2 — Plugin contact email changed to a non-personal address (privacy). No code change.
-    0.63.1 — Plugin listing sharpened: description/about/tags now lead with "QGIS from the
-    command line" (adds CLI/PyQGIS/no-code/point-cloud/database keywords). No code change.

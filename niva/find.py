@@ -227,7 +227,7 @@ def _crs_authority(srs) -> str:
         auth, code = srs.GetAuthorityName(None), srs.GetAuthorityCode(None)
         if auth and code:
             return f"{auth}:{code}"
-    except Exception:  # noqa: BLE001
+    except Exception:  # noqa: BLE001  # nosec B110
         pass
     return ""
 
@@ -265,7 +265,7 @@ def enrich(rec: dict) -> dict:
                 # algorithms ask for (dissolve/join field, `native:*` unique-id params). Empty
                 # for formats without an explicit FID column (e.g. plain Shapefile).
                 rec["fid_column"] = layer.GetFIDColumn() or ""
-        except Exception:  # noqa: BLE001 — a corrupt layer must not abort the scan
+        except Exception:  # noqa: BLE001 — a corrupt layer must not abort the scan  # nosec B110
             pass
         finally:
             ds = None
@@ -281,7 +281,7 @@ def enrich(rec: dict) -> dict:
             rec["geometry"] = f"{rds.RasterXSize}×{rds.RasterYSize} raster"
             srs = rds.GetSpatialRef() if hasattr(rds, "GetSpatialRef") else None
             rec["crs"] = _crs_authority(srs)
-        except Exception:  # noqa: BLE001
+        except Exception:  # noqa: BLE001  # nosec B110
             pass
         finally:
             rds = None

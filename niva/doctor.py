@@ -165,7 +165,7 @@ def _probe_qgis() -> tuple[bool, dict]:
         import qgis
 
         facts["bindings"] = os.path.dirname(os.path.dirname(qgis.__file__))
-    except Exception:  # noqa: BLE001
+    except Exception:  # noqa: BLE001  # nosec B110
         pass
     from . import environment as env
 
@@ -174,7 +174,7 @@ def _probe_qgis() -> tuple[bool, dict]:
         from qgis.core import QgsApplication
 
         facts["prefix"] = QgsApplication.prefixPath()
-    except Exception:  # noqa: BLE001
+    except Exception:  # noqa: BLE001  # nosec B110
         pass
     try:
         provs, nalgs = env._processing()

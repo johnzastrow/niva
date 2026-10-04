@@ -1180,7 +1180,7 @@ class Engine:
             from ..utilities import send_ntfy
 
             send_ntfy(message, priority=priority)
-        except Exception:  # no topic configured, network error, … — stay silent
+        except Exception:  # nosec B110 -- no topic / network error: stay silent
             pass
 
     def _alert_error(self, exc) -> None:
@@ -1543,7 +1543,7 @@ class Engine:
         `pdal` is missing or slow, so `show` never blocks on a huge tile."""
         import json
         import shutil
-        import subprocess
+        import subprocess  # nosec B404 -- argv lists only, never shell=True
 
         pdal = shutil.which("pdal")
         if not pdal:
@@ -1553,7 +1553,7 @@ class Engine:
         if not pdal:
             return "point cloud"
         try:
-            proc = subprocess.run(
+            proc = subprocess.run(  # nosec B603 -- fixed argv, shell=False
                 [pdal, "info", "--metadata", path],
                 capture_output=True,
                 text=True,
@@ -1584,7 +1584,7 @@ class Engine:
                             else ""
                         )
                     )
-            except Exception:  # noqa: BLE001 — best effort
+            except Exception:  # noqa: BLE001 — best effort  # nosec B110
                 pass
         return {
             "name": os.path.splitext(os.path.basename(full))[0],

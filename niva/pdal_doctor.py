@@ -26,7 +26,7 @@ import json
 import os
 import platform
 import shutil
-import subprocess
+import subprocess  # nosec B404 -- argv lists only, never shell=True
 import sys
 import tempfile
 
@@ -104,7 +104,11 @@ def _find(name: str) -> tuple[str | None, str]:
 def _version(exe: str, args: list[str]) -> str | None:
     try:
         p = subprocess.run(
-            [exe, *args], shell=False, capture_output=True, text=True, timeout=30
+            [exe, *args],
+            shell=False,
+            capture_output=True,
+            text=True,
+            timeout=30,  # nosec B603
         )
     except (OSError, subprocess.SubprocessError):
         return None
@@ -276,7 +280,7 @@ def _cmd_test(sample: str | None) -> int:
                     "--resolution=1",
                     f"--output={out}",
                 ],
-                shell=False,
+                shell=False,  # nosec B603 -- fixed argv, shell=False
                 capture_output=True,
                 text=True,
                 timeout=300,
@@ -323,7 +327,7 @@ def _synthesize_las(td: str) -> str | None:
     try:
         p = subprocess.run(
             [pdal_cli, "pipeline", pipeline],
-            shell=False,
+            shell=False,  # nosec B603 -- fixed argv, shell=False
             capture_output=True,
             text=True,
             timeout=120,

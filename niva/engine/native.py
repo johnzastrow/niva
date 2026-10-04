@@ -39,7 +39,7 @@ import os
 from ..utilities import expand_path
 import re
 import shutil
-import subprocess
+import subprocess  # nosec B404 -- argv lists only, never shell=True
 import tempfile
 
 from ..errors import OpError
@@ -141,7 +141,7 @@ class NativeToolBackend:
             try:
                 proc = subprocess.run(
                     [exe_path, "--version"],
-                    shell=False,
+                    shell=False,  # nosec B603 -- fixed argv, shell=False
                     capture_output=True,
                     text=True,
                     timeout=15,
@@ -513,7 +513,7 @@ class NativeToolBackend:
         self, argv: list[str], algorithm: str, cancel, backend: str, hint: str = ""
     ) -> None:
         try:
-            proc = subprocess.run(argv, shell=False, capture_output=True, text=True)
+            proc = subprocess.run(argv, shell=False, capture_output=True, text=True)  # nosec B603
         except OSError as exc:
             raise OpError(
                 f"could not launch {argv[0]}: {exc}",

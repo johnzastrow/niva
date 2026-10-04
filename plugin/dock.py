@@ -323,7 +323,7 @@ class NivaDock(QDockWidget):
             from qgis.core import Qgis, QgsMessageLog
 
             QgsMessageLog.logMessage(msg, "niva", Qgis.Info if ok else Qgis.Warning)
-        except Exception:  # noqa: BLE001 — status is best-effort
+        except Exception:  # noqa: BLE001 — status is best-effort  # nosec B110
             pass
 
     def _confirm(self, title: str, text: str) -> bool:

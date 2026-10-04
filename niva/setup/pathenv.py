@@ -211,5 +211,5 @@ def broadcast_env_change() -> None:
             5000,
             None,
         )
-    except Exception:
+    except Exception:  # nosec B110 -- best-effort
         pass  # cosmetic; a new terminal picks up the change regardless

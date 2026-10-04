@@ -322,7 +322,7 @@ def _install_gdal_error_filter() -> None:
 
     try:
         gdal.PushErrorHandler(handler)
-    except Exception:  # noqa: BLE001 — never let error-handler setup break QGIS init
+    except Exception:  # noqa: BLE001 — never let error-handler setup break QGIS init  # nosec B110
         pass
 
 
@@ -413,7 +413,7 @@ def _capture_qgis_messages(progress):
                 text = message.strip()
                 progress(f"   [QGIS:{tag}] {text}")
                 captured.append(text)
-        except Exception:
+        except Exception:  # nosec B110 -- best-effort
             pass
 
     try:
@@ -426,7 +426,7 @@ def _capture_qgis_messages(progress):
     finally:
         try:
             log.messageReceived.disconnect(handler)
-        except Exception:
+        except Exception:  # nosec B110 -- best-effort
             pass
 
 
@@ -1314,7 +1314,7 @@ class PyqgisBackend(Backend):
                 opts.append("PREDICTOR=3")
             elif dt != data_types.Byte:
                 opts.append("PREDICTOR=2")
-        except Exception:  # unknown type / API shift — DEFLATE alone is still safe
+        except Exception:  # nosec B110 -- unknown type: DEFLATE alone is safe
             pass
         return "|".join(opts)
 
@@ -1389,7 +1389,7 @@ class PyqgisBackend(Backend):
             sidecar = os.path.splitext(dest)[0] + ".qmd"
             with open(sidecar, "w", encoding="utf-8") as fh:
                 fh.write(doc.toString(2))
-        except Exception:  # noqa: BLE001 — provenance is best-effort, never break the run
+        except Exception:  # noqa: BLE001 — provenance is best-effort, never break the run  # nosec B110
             pass
 
     # --- database connections (credentials stay in QGIS's store) -------------
@@ -1407,7 +1407,7 @@ class PyqgisBackend(Backend):
                 continue
             try:
                 names.update(md.connections(False).keys())
-            except Exception:  # noqa: BLE001 — non-DB provider
+            except Exception:  # noqa: BLE001 — non-DB provider  # nosec B112
                 continue
         return sorted(names)
 
@@ -1426,7 +1426,7 @@ class PyqgisBackend(Backend):
                 conns = md.connections(
                     False
                 )  # {name: connection}; raises on non-DB providers
-            except Exception:
+            except Exception:  # nosec B112 -- skip and keep going
                 continue
             if name in conns:
                 return md, conns[name]
@@ -1487,7 +1487,7 @@ class PyqgisBackend(Backend):
             for t in connection.tables(schema):
                 if t.tableName() == table and t.geometryColumnCount() > 0:
                     return t.geometryColumn()
-        except Exception:  # noqa: BLE001 — best effort
+        except Exception:  # noqa: BLE001 — best effort  # nosec B110
             pass
         return None
 
@@ -1506,7 +1506,7 @@ class PyqgisBackend(Backend):
             layer = QgsVectorLayer(uri.uri(False), table, provider)
             if layer.isValid() and not PyqgisBackend._is_aspatial(layer):
                 return layer
-        except Exception:  # noqa: BLE001
+        except Exception:  # noqa: BLE001  # nosec B110
             pass
         return None
 
@@ -1586,7 +1586,7 @@ class PyqgisBackend(Backend):
             options.geometryColumn = col
             try:
                 respatial = connection.createSqlVectorLayer(options)
-            except Exception:  # noqa: BLE001 — a bad guess just isn't a geometry column
+            except Exception:  # noqa: BLE001 — a bad guess just isn't a geometry column  # nosec B112
                 continue
             if (
                 respatial is not None
@@ -1747,7 +1747,7 @@ class PyqgisBackend(Backend):
             note = " | ".join(str(x) for x in lineage).replace("'", "''")
             try:
                 connection.executeSql(f"COMMENT ON TABLE {ident} IS '{note}'")
-            except Exception:
+            except Exception:  # nosec B110 -- best-effort
                 pass
         elif lineage and provider == "spatialite":
             self._record_spatialite_lineage(connection, table, lineage)
@@ -1798,7 +1798,7 @@ class PyqgisBackend(Backend):
                 db.commit()
             finally:
                 db.close()
-        except Exception:  # noqa: BLE001 — provenance is best-effort; a save must never fail on it
+        except Exception:  # noqa: BLE001 — provenance is best-effort; a save must never fail on it  # nosec B110
             pass
 
     def _append_to_table(
@@ -2167,7 +2167,7 @@ class PyqgisBackend(Backend):
                         "ref": d.uri(),
                     }
                 )
-            except Exception:  # noqa: BLE001 — one bad sublayer must not break the listing
+            except Exception:  # noqa: BLE001 — one bad sublayer must not break the listing  # nosec B112
                 continue
         return rows
 
@@ -2352,7 +2352,7 @@ class PyqgisBackend(Backend):
                     le = QgsCoordinateTransform(
                         lyr.crs(), pcrs, QgsCoordinateTransformContext()
                     ).transformBoundingBox(le)
-                except Exception:
+                except Exception:  # nosec B112 -- skip and keep going
                     continue
             if extent is None:
                 extent = QgsRectangle(le)
@@ -2729,7 +2729,7 @@ class PyqgisBackend(Backend):
                 sb.setUnits(unit)
                 sb.setUnitLabel("km" if use_km else "m")
                 sb.applyDefaultSize(unit)
-            except Exception:  # noqa: BLE001 — QGIS falls back to its own default sizing
+            except Exception:  # noqa: BLE001 — QGIS falls back to its own default sizing  # nosec B110
                 pass
             sb.attemptMove(
                 QgsLayoutPoint(
@@ -2870,7 +2870,7 @@ class PyqgisBackend(Backend):
         pic.setPicturePath(svg)
         try:
             pic.setLinkedMap(linked_map)  # rotates with the map's rotation
-        except Exception:  # noqa: BLE001
+        except Exception:  # noqa: BLE001  # nosec B110
             pass
         pic.attemptMove(QgsLayoutPoint(x, y, QgsUnitTypes.LayoutMillimeters))
         pic.attemptResize(QgsLayoutSize(14, 14, QgsUnitTypes.LayoutMillimeters))
@@ -2949,7 +2949,7 @@ class PyqgisBackend(Backend):
                     QgsContrastEnhancement.ContrastEnhancementAlgorithm.StretchToMinimumMaximum,
                     extent=rect,
                 )
-        except Exception:  # noqa: BLE001 — a nice-to-have; never fail the render over it
+        except Exception:  # noqa: BLE001 — a nice-to-have; never fail the render over it  # nosec B110
             pass
 
     def _enable_simple_labels(self, vlayer, field: str):

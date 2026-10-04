@@ -143,15 +143,17 @@ finding delists the version until you upload a fixed one — and two are informa
 | **Flake8** | 🟡 info | PEP 8 style, syntax, unused names |
 | **File analysis** | 🟡 info | Executable/hidden files, suspicious types, odd permissions |
 
-**Only Bandit findings at MEDIUM or HIGH severity block** — LOW findings (e.g. `try/except/pass`
-`B110`, `subprocess` `B404`/`B603`) are reported but do not block. Fix the blockers; document the
-rest.
+**Bandit findings of every severity block, LOW included.** niva 0.63.3 was blocked by 39 LOW
+findings alone: `try/except/pass` (`B110`), `try/except/continue` (`B112`), `import subprocess`
+(`B404`), `shell=False` subprocess calls (`B603`) and env-var *names* that look like passwords
+(`B105`). Fix what has a real fix; mark the intentional rest with `# nosec B<id>` and a reason. The
+store honours `# nosec`: the scan of 0.63.3 reported none of the `# nosec B310`/`B314`/`B405` lines.
 
 ### Run the exact tools locally first
 
 ```bash
 pip install bandit detect-secrets flake8            # or: uv tool install bandit detect-secrets
-bandit -r path/to/plugin/            # scan the plugin tree; add --severity-level medium for blockers
+bandit -r path/to/plugin/            # scan the plugin tree; every finding blocks (no severity filter)
 detect-secrets scan path/to/plugin/
 flake8 path/to/plugin/               # informational
 ```
@@ -178,8 +180,9 @@ Rules of thumb learned here:
   mitigation *and* AST-clean, so you don't depend on `# nosec`.
 - For **XML**, if you can take the dependency, `defusedxml` is the Bandit-blessed fix; otherwise refuse
   `DOCTYPE` and justify a `# nosec`.
-- `# nosec B<id>` (space, then the ID) suppresses one check on that line; standard Bandit honours it,
-  but treat it as a last resort and always pair it with a real mitigation + a comment saying why.
+- `# nosec B<id>` (space, then the ID) suppresses one check on that line; standard Bandit and the
+  plugins.qgis.org scan both honour it. Prefer a real fix, and always pair a `# nosec` with a
+  comment saying why the pattern is safe.
 
 ### detect-secrets
 
@@ -197,7 +200,7 @@ echoes them, so the scan is clean.
 - [ ] License consistent everywhere and **bundled in the zip**
 - [ ] `tags`, `description`, `about`, `repository`, `tracker`, `homepage` set
 - [ ] Icon present (PNG referenced by `icon=`)
-- [ ] **`bandit -r` on the built tree = 0 MEDIUM/HIGH**, and `detect-secrets scan` = 0 (see §6)
+- [ ] **`bandit -r` on the built tree = 0 findings at any severity**, and `detect-secrets scan` = 0 (see §6)
 - [ ] Zip has exactly one identifier-named top folder, no `.pyc`, self-contained
 - [ ] Installed from ZIP in a clean QGIS (3.x **and** 4.x) and it loads + runs
 - [ ] Release cut (tag + GitHub Release with the zip attached)

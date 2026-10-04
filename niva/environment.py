@@ -168,7 +168,7 @@ def _connections():
         try:
             for name in md.connections(False):
                 found[name] = provider
-        except Exception:  # noqa: BLE001 — provider has no connections API
+        except Exception:  # noqa: BLE001 — provider has no connections API  # nosec B112
             continue
     return found
 
