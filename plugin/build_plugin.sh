@@ -16,7 +16,7 @@ STAGE="$WORK/$NAME"
 trap 'rm -rf "$WORK"' EXIT
 
 mkdir -p "$STAGE/libs"
-for f in __init__.py plugin.py dock.py runner.py flowtask.py environment.py metadata.txt icon.svg icon.png README.md; do
+for f in __init__.py plugin.py dock.py runner.py flowtask.py environment.py authstore.py metadata.txt icon.svg icon.png README.md; do
   [ -f "$HERE/$f" ] && cp "$HERE/$f" "$STAGE/$f"
 done
 

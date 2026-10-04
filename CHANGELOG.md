@@ -11,8 +11,18 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [0.63.3] - 2026-10-04
 
-Maintenance release. **No code change**: the niva package and the QGIS plugin behave exactly as in
-0.63.2.
+Bug-fix and maintenance release. The plugin now reports a failed save to QGIS's encrypted store
+(it used to say "Saved"), and Windows discovery picks the newest QGIS install. 105 new tests.
+
+### Fixed
+- **Plugin: a failed save to QGIS's encrypted store was reported as success.**
+  `QgsAuthManager.storeAuthenticationConfig` returns `(ok, config)` in PyQGIS; the Setup tab tested
+  that tuple directly, and a tuple is always true. A failure could record a dangling config ID and
+  say "Saved". The result is now read through `plugin/authstore.py`, and failures are reported.
+- **Windows: with several QGIS installs, `niva setup command` could pick an older one.** Installs
+  under Program Files were ordered alphabetically, so "QGIS 3.4" beat "QGIS 3.10"; they are now
+  ordered by version number.
+- The plugin runner's failure result now always includes the `log` key it documents.
 
 ### Changed
 - **CI:** GitHub Actions updated — `actions/checkout` 4 → 7, `actions/setup-python` 6.3.0 → 7.0.0,
@@ -23,6 +33,14 @@ Maintenance release. **No code change**: the niva package and the QGIS plugin be
   `examples/full_suite` (a `contour` verb and a `transects` verb) (#84).
 - **Repository metadata:** `.gitattributes` labels `*.niva` files as language `Niva` (GitHub Linguist
   does not know this language, so the files show as unclassified rather than as Shell) (#84).
+
+### Tests
+- New: CLI commands end to end (`tests/test_cli_commands.py`), the environment report including
+  that secrets are never printed (`test_environment_report.py`), the plugin's runner and auth-store
+  helper (`test_plugin_runner.py`, `test_plugin_authstore.py`, the latter also against a real QGIS
+  auth DB in the live tier), and QGIS discovery on every OS (`test_setup_discovery.py`).
+  Unit-suite line coverage of `niva/` rises from 61% to 68% (`cli/main.py` 27% to 84%,
+  `environment.py` 23% to 70%, `setup/core.py` 65% to 91%).
 
 ## [0.63.2] - 2026-07-10
 

@@ -8,6 +8,7 @@ planning doc 21 and land in later increments.
 from __future__ import annotations
 
 import os
+import re
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -72,6 +73,12 @@ def qgis_python() -> Path:
     return exe
 
 
+def _install_version_key(bat: Path) -> list[int]:
+    """Sort key for ``.../QGIS 3.40.5/bin/python-qgis.bat``: the install folder's version as
+    numbers, so "QGIS 3.10" sorts above "QGIS 3.4" (a plain string sort gets that backwards)."""
+    return [int(n) for n in re.findall(r"\d+", bat.parent.parent.name)]
+
+
 def find_qgis_launcher() -> Optional[Path]:
     """On Windows, locate ``python-qgis.bat`` (sets up the full QGIS env). None elsewhere / if
     not found. Probes, in order: ``OSGEO4W_ROOT``; a walk up from ``sys.prefix`` (correct when run
@@ -95,7 +102,11 @@ def find_qgis_launcher() -> Optional[Path]:
         if pf:
             try:
                 candidates.extend(
-                    sorted(Path(pf).glob("QGIS*/bin/python-qgis.bat"), reverse=True)
+                    sorted(
+                        Path(pf).glob("QGIS*/bin/python-qgis.bat"),
+                        key=_install_version_key,
+                        reverse=True,
+                    )
                 )
             except OSError:
                 pass

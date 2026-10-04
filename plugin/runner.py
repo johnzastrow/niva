@@ -101,7 +101,15 @@ def _fail(mode: str, exc: Exception) -> dict:
         tb = traceback.format_exc()
         if tb and tb.strip() != "NoneType: None":
             msg = msg + "\n\n" + tb
-    return {"ok": False, "mode": mode, "summary": "", "layer": None, "error": msg}
+    # "log" is always present (run_flow's documented contract); the real-run path overwrites it.
+    return {
+        "ok": False,
+        "mode": mode,
+        "summary": "",
+        "layer": None,
+        "error": msg,
+        "log": None,
+    }
 
 
 def _describe(layer) -> str:

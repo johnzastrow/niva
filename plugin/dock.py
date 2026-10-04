@@ -972,6 +972,8 @@ class NivaDock(QDockWidget):
         settings. niva never writes the secrets to its own files."""
         from qgis.core import QgsApplication, QgsAuthMethodConfig, QgsSettings
 
+        from .authstore import stored_config_id
+
         am = QgsApplication.authManager()
         # storing prompts QGIS to set/enter the master password if needed
         if hasattr(am, "setMasterPassword") and not am.masterPasswordIsSet():
@@ -982,24 +984,38 @@ class NivaDock(QDockWidget):
         smtp_pw = self._env_fields["NIVA_SMTP_PASSWORD"][0].text().strip()
         smtp_user = self._env_fields["NIVA_SMTP_USER"][0].text().strip()
         ntfy_tok = self._env_fields["NIVA_NTFY_TOKEN"][0].text().strip()
-        saved = []
+        saved, failed = [], []
         if smtp_pw:
             cfg = QgsAuthMethodConfig()
             cfg.setName("niva SMTP")
             cfg.setMethod("Basic")
             cfg.setConfig("username", smtp_user)
             cfg.setConfig("password", smtp_pw)
-            if am.storeAuthenticationConfig(cfg) and cfg.id():
-                settings.setValue(_SMTP_AUTHCFG_KEY, cfg.id())
+            cfg_id = stored_config_id(am.storeAuthenticationConfig(cfg), cfg)
+            if cfg_id:
+                settings.setValue(_SMTP_AUTHCFG_KEY, cfg_id)
                 saved.append("SMTP password")
+            else:
+                failed.append("SMTP password")
         if ntfy_tok:
             cfg = QgsAuthMethodConfig()
             cfg.setName("niva ntfy")
             cfg.setMethod("Basic")
             cfg.setConfig("password", ntfy_tok)
-            if am.storeAuthenticationConfig(cfg) and cfg.id():
-                settings.setValue(_NTFY_AUTHCFG_KEY, cfg.id())
+            cfg_id = stored_config_id(am.storeAuthenticationConfig(cfg), cfg)
+            if cfg_id:
+                settings.setValue(_NTFY_AUTHCFG_KEY, cfg_id)
                 saved.append("ntfy token")
+            else:
+                failed.append("ntfy token")
+        if failed:
+            self.env_status.setText(
+                "Could not save to the QGIS encrypted store: "
+                + ", ".join(failed)
+                + (". Saved: " + ", ".join(saved) if saved else "")
+                + ". See the QGIS log (Authentication) for the reason."
+            )
+            return
         self.env_status.setText(
             (
                 "Saved to QGIS encrypted store: "
