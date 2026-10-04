@@ -127,6 +127,8 @@ class Journal:
         if not ok:
             flat = " ".join((error or "failed").split())
             parts.append(f"  ✗ FAILED: {flat[:200]}")
+        if self._log is None:  # closed: a journal must never break a run
+            return
         self._log.write("".join(parts) + "\n")
         self._log.flush()
 
@@ -152,5 +154,7 @@ class Journal:
             self._jsonl = None
 
     def _emit_json(self, obj: dict) -> None:
+        if self._jsonl is None:  # closed
+            return
         self._jsonl.write(json.dumps(obj, ensure_ascii=False) + "\n")
         self._jsonl.flush()

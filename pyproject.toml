@@ -45,3 +45,37 @@ niva = "niva.cli.main:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["niva"]
+
+# ty (type checker, CI-gated; pinned in .github/workflows/ci.yml). QGIS/PyQt are not installed in
+# the lint job — they come from QGIS's own Python at run time — so their imports are allowed to be
+# unresolved (ty then treats those names as Unknown rather than reporting every use).
+[tool.ty.analysis]
+# Optional extras (prompt_toolkit: REPL; pptx: slide builder; numpy: one raster test) and
+# QGIS-only modules (pyplugin_installer) are likewise absent from the lint job.
+allowed-unresolved-imports = [
+    "qgis.**", "PyQt5.**", "PyQt6.**", "processing.**", "osgeo.**",
+    "pyplugin_installer", "prompt_toolkit.**", "pptx.**", "numpy.**",
+]
+
+[tool.ty.environment]
+# niva runs on Windows, macOS and Linux: check platform-specific code (winreg, ctypes.windll)
+# against every platform, not just the CI runner's.
+python-platform = "all"
+
+# Tests replace functions and classes with fakes on purpose (monkeypatching).
+[[tool.ty.overrides]]
+include = ["tests/**"]
+
+[tool.ty.overrides.rules]
+invalid-assignment = "ignore"
+
+# Shipped code (niva/, plugin/) is gated at error level. Tests, scripts and docs tooling report
+# the looser findings (mostly Optional narrowing in fixtures) as warnings: visible, not blocking.
+[[tool.ty.overrides]]
+include = ["tests/**", "scripts/**", "docs/**"]
+
+[tool.ty.overrides.rules]
+unresolved-attribute = "warn"
+invalid-argument-type = "warn"
+not-subscriptable = "warn"
+no-matching-overload = "warn"

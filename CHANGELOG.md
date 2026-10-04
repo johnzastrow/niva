@@ -9,6 +9,24 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 > [`plugin/metadata.txt`](plugin/metadata.txt) — keep only the **last three versions** there (drop
 > the oldest); that field is what the QGIS Plugin Manager shows. This file stays the full history.
 
+## [Unreleased]
+
+### Added
+- **CI: flake8 and ty.** The lint job (now "lint, format & types") also runs flake8 7.4.1, the style
+  gate plugins.qgis.org applies (config in `.flake8`), and the ty 0.0.79 type checker (config under
+  `[tool.ty]` in `pyproject.toml`). ty errors in `niva/` and `plugin/` fail the job; findings in
+  tests, scripts and docs tooling are reported as warnings.
+
+### Fixed
+- **`project … bookmark=<name>` progress line printed the raw spec** (``bookmark `{'name': 'AOI',
+  'at': None, 'width': None}` ``) instead of the bookmark name. Found by ty: the parameter was
+  annotated `str` but is a dict.
+- **Run journal:** recording after `close()` raised `AttributeError`; it is now ignored, so a
+  journal can never break a run.
+- Type-level tidy-ups ty surfaced, no behaviour change: `Layer.ref` is typed `Any` (it is a path, a
+  URI or a live QGIS layer); `None`-safety in search, the `sql` stage return type, the marimo
+  installer and the REPL's readline fallback.
+
 ## [0.63.3] - 2026-10-04
 
 Bug-fix and maintenance release. The plugin now reports a failed save to QGIS's encrypted store

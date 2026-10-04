@@ -88,6 +88,8 @@ def search(
 
     for verb in reg.verbs():
         alias = reg.get(verb)
+        if alias is None:
+            continue
         s = _entry_score(
             query,
             verb,

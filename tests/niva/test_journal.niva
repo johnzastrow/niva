@@ -55,3 +55,6 @@ load a.gpkg | save out.gpkg
 
 # test_record_note_appears_in_both_files
 #   (pure Python — no niva flow)
+
+# test_record_after_close_is_ignored_not_raised
+#   (pure Python — no niva flow)

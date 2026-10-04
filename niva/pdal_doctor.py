@@ -350,7 +350,8 @@ def _print_setup(osk: str) -> None:
             "      if `run pdal:*` already works, you're done.\n"
             "    • Otherwise install Miniforge, then in the Miniforge Prompt:\n"
             "        conda create -y -n pdal -c conda-forge pdal pdal_wrench\n"
-            '        setx QGIS_WRENCH_EXECUTABLE "%USERPROFILE%\\miniforge3\\envs\\pdal\\Library\\bin\\pdal_wrench.exe"\n'
+            "        setx QGIS_WRENCH_EXECUTABLE "
+            '"%USERPROFILE%\\miniforge3\\envs\\pdal\\Library\\bin\\pdal_wrench.exe"\n'
             "      then restart QGIS."
         )
     elif osk == "macos":

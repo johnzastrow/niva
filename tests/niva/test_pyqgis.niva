@@ -194,6 +194,9 @@ project "{self.src}" to="{out}" paths=relative
 # test_bookmark_union_extent
 project "{self.src}" to="{out}" bookmark="Study Area"
 
+# test_bookmark_progress_names_the_bookmark
+project "{self.src}" to="{out}" bookmark="Study Area"
+
 # test_bookmark_centred
 project "{self.src}" to="{out}" bookmark="AOI" at="0,0" width=10
 

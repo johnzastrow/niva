@@ -10,6 +10,7 @@ resolve a ``Distance`` against a layer's CRS without importing QGIS.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any
 
 # Backing kinds (05): where a layer's data actually lives.
 SOURCE = "source"  # a file path or URI on disk
@@ -21,7 +22,7 @@ MEMORY = "memory"  # an in-process/temporary result of a previous op
 @dataclass(frozen=True)
 class Layer:
     kind: str  # one of SOURCE / QGS / DB_TABLE / MEMORY
-    ref: object  # backend-specific: path, uri, layer id, or QGIS object
+    ref: Any  # backend-specific: path, uri, layer id, or QGIS object
     facet: str = "vector"  # "vector" | "raster"
     name: str = ""
 

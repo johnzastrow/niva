@@ -1,0 +1,12 @@
+# flake8 is the style gate plugins.qgis.org applies; CI runs it (pinned) beside ruff.
+# ruff format owns layout, so flake8 only checks what ruff leaves alone.
+[flake8]
+max-line-length = 120
+# E203 (whitespace before ':') conflicts with the formatter's slice style.
+extend-ignore = E203
+exclude = .git,.venv,__pycache__,build,dist,plugin/niva_qgis,.ruff_cache
+# Long flow strings, slide copy and generated-table text read better unwrapped.
+per-file-ignores =
+    docs/presentation/build_deck.py:E501
+    scripts/gen_traceability_matrix.py:E501
+    tests/suites/verify_cookbook.py:E501

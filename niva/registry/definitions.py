@@ -116,7 +116,10 @@ CORE = [
         "zonalstats",
         "native:zonalstatisticsfb",
         "Summarise raster values within each polygon zone.",
-        example="load watersheds.gpkg | zonalstats raster=elevation.tif stats=mean,max,min prefix=elev_ | save watershed_relief.gpkg",
+        example=(
+            "load watersheds.gpkg | zonalstats raster=elevation.tif stats=mean,max,min prefix=elev_"
+            " | save watershed_relief.gpkg"
+        ),
         primary_input="INPUT",
         options={
             "band": Option("RASTER_BAND", "int", "1"),
@@ -279,7 +282,10 @@ CORE = [
         "spatialjoin",
         "native:joinattributesbylocation",
         "Join attributes from another layer by spatial relationship.",
-        example="load schools.gpkg | spatialjoin with=districts.gpkg predicate=within method=first | save schools_by_district.gpkg",
+        example=(
+            "load schools.gpkg | spatialjoin with=districts.gpkg predicate=within method=first"
+            " | save schools_by_district.gpkg"
+        ),
         options={
             "with": Option("JOIN", "layer", required=True),
             "predicate": Option(

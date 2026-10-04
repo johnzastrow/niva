@@ -186,3 +186,17 @@ class TestRunMetadata(unittest.TestCase):
         self.assertIn("⚠ mixed geometry kept", log)
         recs = [json.loads(x) for x in open(self.base + ".jsonl") if x.strip()]
         self.assertTrue(any(r.get("note") == "mixed geometry kept" for r in recs))
+
+    def test_record_after_close_is_ignored_not_raised(self):
+        # A journal must never break a run: a late record (e.g. from a cleanup path) after
+        # close() used to raise AttributeError on the closed file handle.
+        from niva.journal import Journal
+
+        j = Journal(self.base).open(flow="<t>", niva_version="9.9.9")
+        j.record(text="load a.gpkg", kind="load")
+        j.close()
+        j.record(text="buffer 10m", kind="buffer")  # no exception
+        j.close()  # closing twice is also harmless
+        log = open(self.base + ".log").read()
+        self.assertNotIn("buffer 10m", log)
+        self.assertEqual(log.count("# done:"), 1)

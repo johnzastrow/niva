@@ -146,7 +146,7 @@ def start_marimo_install() -> tuple[bool, str]:
     """**Main-thread.** Ask the installed marimo-qgis plugin to install marimo (its own async pip)."""
     plugins_dir = _plugins_dir()
     present = _find_plugin_dir(plugins_dir) if plugins_dir else None
-    if present is None:
+    if plugins_dir is None or present is None:
         return False, "marimo-qgis plugin isn't installed yet"
     return _call_install_marimo(plugins_dir, present)
 
